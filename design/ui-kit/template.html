@@ -457,9 +457,9 @@ table.plan .dim{color:var(--fg3)}
 <section class="doc" id="what"><div class="wrap">
   <div class="sec-h"><h2>三方分工：AI 记，账本存，app 看</h2><p>以后你在 app 里几乎不用打字。想记账、导对账单、问「这个月为什么花这么多」，都是跟 AI 说。AI 写进账本的东西，Mac 和 iPhone 马上看得到。</p></div>
   <div class="arch">
-    <div class="box ai"><div class="t4"><span data-icon="t_assistant" style="width:20px;height:20px;color:var(--ai)"></span>AI（Claude、Codex）</div><p>你跟它说话，它来动手。</p><ul><li>记一笔、改一笔、删一笔</li><li>导入 CaixaBank / imagin / Revolut 对账单</li><li>分类、去重、对账、月报</li><li><b style="color:var(--ai)">把意见写进账本</b>（本月点评、提醒）</li></ul></div>
+    <div class="box ai"><div class="t4"><span data-icon="t_assistant" style="width:20px;height:20px;color:var(--ai)"></span>AI（Claude、Codex）</div><p>你跟它说话，它来动手。</p><ul><li>记一笔、改一笔、删一笔</li><li>导入对账单：任何银行的 CSV、Excel、PDF 或截图，AI 先整理成统一格式再导入</li><li>分类、去重、对账、月报</li><li><b style="color:var(--ai)">把意见写进账本</b>（本月点评、提醒）</li></ul></div>
     <div class="arrow"><svg viewBox="0 0 46 20"><path d="M2 10h40M34 3l8 7-8 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>MCP / fin<br>读 + 写</div>
-    <div class="box core"><div class="t4"><span data-icon="t_transactions" style="width:20px;height:20px;color:var(--brand)"></span>一本账（iCloud「夏夏账本」）</div><p>一个 SQLite 文件，所有人共用。</p><ul><li>流水、账户、账本（个人 / Miora 美甲店）</li><li>借款、分期、存钱目标</li><li>AI 意见（新增）</li><li>改动记录：谁改的，都能撤销</li></ul></div>
+    <div class="box core"><div class="t4"><span data-icon="t_transactions" style="width:20px;height:20px;color:var(--brand)"></span>一本账（iCloud「夏夏账本」）</div><p>一个 SQLite 文件，所有人共用。</p><ul><li>流水、账户、多个账本（比如个人、店里）</li><li>借款、分期、存钱目标</li><li>AI 意见（新增）</li><li>改动记录：谁改的，都能撤销</li></ul></div>
     <div class="arrow"><svg viewBox="0 0 46 20"><path d="M2 10h40M34 3l8 7-8 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>iCloud 同步<br>只读为主</div>
     <div class="box"><div class="t4"><span data-icon="t_overview" style="width:20px;height:20px;color:var(--brand)"></span>夏夏账本 app</div><p>负责「看」和「引你去找 AI」。</p><ul><li><b>Mac</b>：全部页面，能小改（改分类、删一笔、撤销）</li><li><b>iPhone</b>：5 个标签，右上角 + 能记一笔</li><li>每页一个「问 AI」入口，点一下复制好话术</li></ul></div>
   </div>
@@ -490,7 +490,7 @@ table.plan .dim{color:var(--fg3)}
   <h3 class="sub">从 app 里拿掉、交给 AI 的功能</h3>
   <div class="moved">
     <div><s>原来那个字段很多的「记一笔」</s><br><span class="to">→ 换成极简记一笔</span>：金额 + 分类，3 秒记完（Mac、iPhone 都有）。复杂的跟 AI 说</div>
-    <div><s>导入对账单</s><br><span class="to">→ 把文件拖给 AI</span>「帮我导入这份 Revolut 对账单」</div>
+    <div><s>导入对账单</s><br><span class="to">→ 把文件拖给 AI</span>「帮我把这份对账单整理好导进夏夏账本」。哪家银行、什么格式都行，AI 先整理成统一格式，确认没问题再写入</div>
     <div><s>整理（批量分类）</s><br><span class="to">→ AI 导入时顺手分好</span>，拿不准的在对话里问你</div>
     <div><s>记欠款 / 记分期 / 建目标</s><br><span class="to">→ 跟 AI 说</span>「建一个 2.000 € 的回国机票目标」</div>
     <div><s>加账户、开账余额</s><br><span class="to">→ 跟 AI 说</span>，或第一次导入时 AI 自动建</div>
@@ -569,7 +569,7 @@ table.plan .dim{color:var(--fg3)}
 
 <!-- 5 Mac -->
 <section class="doc" id="mac"><div class="wrap">
-  <div class="sec-h"><h2>Mac 全部页面（左边侧栏可以点）</h2><p>工具栏固定三样：月份、账本（全部 / 个人 / Miora）、「问 AI」按钮。侧栏底部常驻同步状态和 AI 最近一次写入的时间。</p></div>
+  <div class="sec-h"><h2>Mac 全部页面（左边侧栏可以点）</h2><p>工具栏固定几样：月份、账本切换（全部 / 每个账本）、「记一笔」、「问 AI」按钮。侧栏底部常驻同步状态和 AI 最近一次写入的时间。</p></div>
   <div class="app" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="mac-pills"></div>
   <div class="stage"><div class="mac app" id="macwin"></div></div>
 </div></section>
@@ -669,7 +669,7 @@ const D = {
   income:4380.00, spent:2946.35, left:1433.65, lastSame:3212.80, projLeft:1150,
   books:[
     {name:'个人',color:'#C4502A',ch:'个',income:2650,spent:2104.35,spark:[310,420,380,520,460,545.65]},
-    {name:'Miora 美甲店',color:'#A8407F',ch:'M',income:1730,spent:842,spark:[620,540,710,690,820,888]}
+    {name:'我的小店',color:'#A8407F',ch:'M',income:1730,spent:842,spark:[620,540,710,690,820,888]}
   ],
   cats:[['housing','住房房租',950],['grocery','超市',486.2],['dining','餐饮',412.75],['beauty','美甲材料',318.4],['transport','交通',196.3],['baby','宝宝',184.9],['shopping','购物',162.8],['utilities','水电网',128],['coffee','咖啡',58.4],['entertainment','娱乐',48.6]],
   merchants:[['Mercadona','超市',6,212.40],['Lidl','超市',4,148.90],['Nails Pro 批发','美甲材料',2,318.40],['Glovo','餐饮',5,96.30],['Renfe','交通',3,84.00]],
@@ -678,35 +678,35 @@ const D = {
   exp:[4380,3720,3910,4120,4310,3980,4650,4020,3870,4210,4080,2946.35],
   worth:[13120,13480,13950,13680,13910,14420,14390,14830,15220,15810,16020,16426.40],
   accounts:[
-    ['银行卡',[['CaixaBank','个人 · 尾号 4821',6212.30],['imagin','个人 · 尾号 0377',2845.10],['Revolut','个人 · 欧元',1104.55],['CaixaBank 店','Miora 美甲店',7630.85]]],
-    ['信用卡',[['MyCard','12 月 5 日自动还款',-1746.40]]],
+    ['银行卡',[['CaixaBank','个人 · 尾号 4821',6212.30],['imagin','个人 · 尾号 0377',2845.10],['Revolut','个人 · 欧元',1104.55],['店里账户','我的小店',7630.85]]],
+    ['信用卡',[['Visa 信用卡','12 月 5 日自动还款',-1746.40]]],
     ['现金',[['钱包','个人',380.00]]]
   ],
-  goals:[{name:'宝宝教育金',save:3100,target:5000,note:'每月存 300 €，明年 4 月存满',color:'#FB7185'},{name:'回国机票',save:1260,target:1800,note:'3 月前要存够，还差 540 €',color:'#0EA5E9'},{name:'店里新美甲灯',save:220,target:650,note:'Miora 美甲店',color:'#A8407F'}],
+  goals:[{name:'宝宝教育金',save:3100,target:5000,note:'每月存 300 €，明年 4 月存满',color:'#FB7185'},{name:'回国机票',save:1260,target:1800,note:'3 月前要存够，还差 540 €',color:'#0EA5E9'},{name:'店里新美甲灯',save:220,target:650,note:'我的小店',color:'#A8407F'}],
   inst:[['iPhone 17 分期','每期 104,08 €',7,12],['沙发','每期 133,00 €',5,6]],
   debts:[['小林欠我','10 月 12 日借出',600,'in'],['我欠阿姨','已还 400 €',-600,'out']],
   tx:[
     ['今天 · 11月21日',-61.70,[['grocery','Mercadona','超市 · 个人 · CaixaBank','ai',-23.40],['coffee','Café Nómada','咖啡 · 个人 · Revolut','ai',-3.80],['dining','Glovo','餐饮 · 个人 · Revolut','ai',-34.50]]],
-    ['昨天 · 11月20日',1793.10,[['salary','工资 · Acme SL','工资收入 · 个人 · CaixaBank','ai',1850.00],['transport','Renfe','交通 · 个人 · imagin','me',-28.00],['beauty','Nails Pro 批发','美甲材料 · Miora · CaixaBank 店','ai',-28.90]]],
+    ['昨天 · 11月20日',1793.10,[['salary','工资 · Acme SL','工资收入 · 个人 · CaixaBank','ai',1850.00],['transport','Renfe','交通 · 个人 · imagin','me',-28.00],['beauty','Nails Pro 批发','美甲材料 · 小店 · 店里账户','ai',-28.90]]],
     ['11月19日',-152.40,[['transfer','转到 Revolut','自己账户间 · 不算收支','ai',500],['baby','Primark Kids','宝宝 · 个人 · CaixaBank','ai',-41.20],['grocery','Lidl','超市 · 个人 · imagin','ai',-37.90],['utilities','Iberdrola','水电网 · 个人 · CaixaBank','ai',-73.30]]]
   ],
-  review:{title:'这个月花钱比上月慢 8%，月底大概能剩 1.150 €。',body:'少的主要是餐饮（−96 €）。房租已经付了，剩下的大头是 12 月 5 日 MyCard 自动还款 1.746,40 €，CaixaBank 余额够。超市已连续 3 周超过每周 110 €，可以留意一下。',who:'Claude',when:'今天 09:12'},
+  review:{title:'这个月花钱比上月慢 8%，月底大概能剩 1.150 €。',body:'少的主要是餐饮（−96 €）。房租已经付了，剩下的大头是 12 月 5 日 信用卡 自动还款 1.746,40 €，CaixaBank 余额够。超市已连续 3 周超过每周 110 €，可以留意一下。',who:'Claude',when:'今天 09:12'},
   insights:[
     ['warn','超市连续 3 周超过每周 110 €','11 月到现在超市 486,20 €，比 10 月同期多 74 €。多的主要在 Mercadona。','Claude · 今天 09:12'],
     ['tip','两个视频会员都在扣钱','Netflix 和 Disney+ 每月一共 23,98 €。你最近两个月只看过 Netflix，可以考虑停掉一个。','Claude · 11月18日'],
     ['good','宝宝教育金进度比计划快','已经存到 62%，照每月 300 € 存，明年 4 月就能存满，比原定早一个月。','Codex · 11月15日'],
-    ['alert','MyCard 12 月 5 日要还 1.746,40 €','会从 CaixaBank 自动扣。现在余额 6.212,30 €，够。','Claude · 11月14日']
+    ['alert','信用卡 12 月 5 日要还 1.746,40 €','会从 CaixaBank 自动扣。现在余额 6.212,30 €，够。','Claude · 11月14日']
   ],
   prompts:[
     ['记账','记一笔：今天在 Mercadona 买菜 23,40 €，个人账本'],
-    ['导入','帮我把这份 Revolut 对账单导进夏夏账本'],
+    ['导入','这是我的银行对账单，帮我整理好导进夏夏账本'],
     ['问问题','这个月为什么比上个月花得多？'],
     ['问问题','月底的钱够还信用卡吗？'],
     ['月报','给我写一份 11 月的月报，写进夏夏账本']
   ],
   changes:[
     ['今天',[['claude','Claude','写了 11 月点评和 1 条提醒','09:12',['本月点评：「这个月花钱比上月慢 8%…」','提醒：超市连续 3 周超过每周 110 €']]]],
-    ['昨天',[['codex','Codex','导入 Revolut 对账单，新增 38 笔，跳过重复 4 笔','22:40',['Café Nómada −3,80 €','Glovo −34,50 €','…还有 36 笔']],['claude','Claude','给 12 笔没分类的流水分了类','22:46',['Nails Pro 批发 → 美甲材料（Miora）','Primark Kids → 宝宝','…还有 10 笔']]]],
+    ['昨天',[['codex','Codex','导入 Revolut 对账单，新增 38 笔，跳过重复 4 笔','22:40',['Café Nómada −3,80 €','Glovo −34,50 €','…还有 36 笔']],['claude','Claude','给 12 笔没分类的流水分了类','22:46',['Nails Pro 批发 → 美甲材料（小店）','Primark Kids → 宝宝','…还有 10 笔']]]],
     ['11月18日',[['me','你（Mac）','把 Renfe −28,00 € 的分类从「其它」改成「交通」','19:05',[]]]]
   ]
 };
@@ -802,7 +802,7 @@ function quickAdd(m){const cs=[['grocery','超市'],['dining','餐饮'],['coffee
  return `<div class="qa"><span class="seg inout"><span class="on">花掉</span><span>进账</span></span>
   <div class="amt-in">23,40<span> €</span></div>
   <div class="cg">${cs.map((c,i)=>`<div class="${i==0?'on':''}">${icon('c_'+c[0])}${c[1]}</div>`).join('')}</div>
-  <div class="opts"><span class="chip on">个人</span><span class="chip">Miora</span><span class="chip">现金 ▾</span><span class="chip">今天 ▾</span><span class="chip" style="color:var(--fg3)">备注</span></div>
+  <div class="opts"><span class="chip on">个人</span><span class="chip">小店</span><span class="chip">现金 ▾</span><span class="chip">今天 ▾</span><span class="chip" style="color:var(--fg3)">备注</span></div>
   ${m=='phone'?`<div class="keys">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<span>${k}</span>`).join('')}</div>`:''}
   <button class="btn primary lg" style="justify-content:center">记下</button>
   <div class="hint">记下的这笔会标「你」，写进改动记录，能撤销。<br>要拆单、记分期、导对账单？<a data-copy="记一笔：今天在 Mercadona 买菜 23,40 €，个人账本">跟 AI 说更快</a></div></div>`}
@@ -829,7 +829,7 @@ function paywall(){return `<div class="pw">
 
 function feedback(){return `<div style="display:grid;gap:10px">
  <span class="seg" style="justify-self:center"><span class="on">报 bug</span><span>提想法</span></span>
- <div class="card" style="padding:12px;min-height:96px;font-size:13px">打开「家底」页，切到 Miora 账本后数字一直在转圈，等了 1 分钟也没出来。</div>
+ <div class="card" style="padding:12px;min-height:96px;font-size:13px">打开「家底」页，切到小店账本后数字一直在转圈，等了 1 分钟也没出来。</div>
  <div class="card" style="padding:10px 12px;display:flex;gap:10px;align-items:center"><div style="width:44px;height:60px;border-radius:6px;background:var(--sunken);display:grid;place-items:center;font-size:11px;color:var(--fg3)">截图</div><div style="font-size:12px;color:var(--fg2)">已附上刚才的截图<br><span style="color:var(--alert)">金额已自动打码</span></div></div>
  <div class="group"><div class="gi">带上诊断信息<span class="v"><span class="toggle"></span></span></div></div>
  <p style="font-size:12px;color:var(--fg2);margin:0 4px">诊断信息只有：app 版本、系统版本、是哪一页、最近的报错。<b>不带</b>任何金额、商户和账本内容。发送前可以点开看全部内容。</p>
@@ -885,7 +885,7 @@ P.changes = m => `<div class="mgrid" style="grid-template-columns:1.6fr 1fr;alig
  <div class="mgrid"><div class="card" style="display:grid;gap:6px"><div class="eyebrow">这个月 AI 帮你做了</div><div class="num" style="font-size:34px;font-weight:700">212 <span style="font-size:14px;color:var(--fg2)">笔改动</span></div><p style="color:var(--fg2)">导入 186 笔 · 分类 24 笔 · 写意见 2 条。你自己改了 3 笔。</p></div><div class="card flat"><p style="color:var(--fg2);font-size:12px">每次写入都会记下是谁、什么时候、改了什么。撤销后账本回到改之前的样子，撤销本身也会记一条。</p></div></div></div>`;
 
 P.tx = m => {const list=D.tx.map(([day,tot,rows])=>`<div class="sec-title" style="margin:12px 0 2px"><div class="t4" style="font-size:12px;color:var(--fg2);font-weight:500">${day}</div><span class="num" style="font-size:12px;color:var(--fg2)">${eur(tot,{sign:true})}</span></div><div class="list">${rows.map(txRow).join('')}</div>`).join('');
- const filters=`<div class="chiprow"><span class="chip on">全部</span><span class="chip">个人</span><span class="chip">Miora</span><span class="chip">分类 ▾</span><span class="chip">账户 ▾</span><span class="chip">${icon('t_assistant').replace('<svg','<svg style="width:12px;height:12px;color:var(--ai)"')}只看 AI 记的</span></div>`;
+ const filters=`<div class="chiprow"><span class="chip on">全部</span><span class="chip">个人</span><span class="chip">小店</span><span class="chip">分类 ▾</span><span class="chip">账户 ▾</span><span class="chip">${icon('t_assistant').replace('<svg','<svg style="width:12px;height:12px;color:var(--ai)"')}只看 AI 记的</span></div>`;
  return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.5fr 1fr;align-items:start"><div class="card"><div class="search">${sym('search')}搜商户、备注、金额…</div><div style="margin-top:10px">${filters}</div>${list}<p style="font-size:12px;color:var(--fg2);margin-top:12px">要补记、批量改？<a class="link" data-copy="帮我把夏夏账本 11 月没分类的流水都分好类">跟 AI 说 ›</a></p></div>
   <div class="card" style="display:grid;gap:12px"><div style="display:flex;gap:10px;align-items:center">${catIc('grocery')}<div><b style="font-size:15px">Mercadona</b><div style="font-size:12px;color:var(--fg2)">11 月 21 日 · 10:42</div></div></div><div class="num" style="font-size:30px;font-weight:700">−23,40 €</div>
   <div class="group" style="padding:0;background:transparent"><div class="gi">分类<span class="v"><span class="chip" style="padding:2px 8px">${icon('c_grocery').replace('<svg','<svg style="width:12px;height:12px"')}超市 ▾</span></span></div><div class="gi">账本<span class="v">个人</span></div><div class="gi">账户<span class="v">CaixaBank · 4821</span></div><div class="gi">银行原文<span class="v" style="font-family:var(--mono);font-size:11px">COMPRA MERCADONA VALENCIA</span></div><div class="gi">备注<span class="v" style="color:var(--fg3)">添加备注</span></div></div>
@@ -905,8 +905,8 @@ P.settings = m => {const ai=`<div class="glabel">AI 连接（MCP）</div><div cl
   <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>AI 记账前先给我看一眼<span class="v"><span class="toggle"></span></span></div>
   <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>测试连接<span class="v"><button class="btn tinted">测试</button></span></div><div class="gi"><span class="ic" style="background:#8E8E93">€</span>本月用量<span class="v">约 0,12 €（DeepSeek 收）</span></div></div>
   <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">可选：DeepSeek、通义千问、Kimi、智谱、Claude、ChatGPT、Gemini，或任何兼容 OpenAI 格式的地址。对话时会把相关的账目发给你选的这家 AI。</p>`;
- const sync=`<div class="glabel">iCloud 同步</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>状态<span class="v"><span class="dot"></span>已同步 · 1 分钟前</span></div><div class="gi"><span class="ic" style="background:var(--fg3)">≡</span>账本文件<span class="v" style="font-size:12px">iCloud › 夏夏账本 › ledger.sqlite</span></div>${m=='phone'?'<div class="gi"><span class="ic" style="background:var(--fg3)">i</span>在这台 iPhone 上记的账<span class="v">记作「明」</span></div>':''}</div>`;
- const books=`<div class="glabel">账本</div><div class="group"><div class="gi"><span class="ic" style="background:#C4502A">个</span>个人<span class="v">5 个账户</span></div><div class="gi"><span class="ic" style="background:#A8407F">M</span>Miora 美甲店<span class="v">1 个账户</span></div></div>`;
+ const sync=`<div class="glabel">iCloud 同步</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>状态<span class="v"><span class="dot"></span>已同步 · 1 分钟前</span></div><div class="gi"><span class="ic" style="background:var(--fg3)">≡</span>账本文件<span class="v" style="font-size:12px">iCloud › 夏夏账本 › ledger.sqlite</span></div>${m=='phone'?'<div class="gi"><span class="ic" style="background:var(--fg3)">i</span>在这台 iPhone 上记的账<span class="v">记作「你的名字」</span></div>':''}</div>`;
+ const books=`<div class="glabel">账本</div><div class="group"><div class="gi"><span class="ic" style="background:#C4502A">个</span>个人<span class="v">5 个账户</span></div><div class="gi"><span class="ic" style="background:#A8407F">M</span>我的小店<span class="v">1 个账户</span></div></div>`;
  const priv=`<div class="glabel">隐私和外观</div><div class="group"><div class="gi"><span class="ic" style="background:#8E8E93">${sym('lock').replace('<svg','<svg style="width:15px;height:15px"')}</span>打开 app 要面容 ID<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">${sym('eye').replace('<svg','<svg style="width:15px;height:15px"')}</span>私房钱默认藏起来<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">◐</span>外观<span class="v">跟随系统</span></div></div>
  <div class="glabel">帮助与反馈</div><div class="group"><div class="gi"><span class="ic" style="background:var(--alert)">!</span>反馈问题 / 报 bug<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:var(--ai)">?</span>提个想法<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:#8E8E93">i</span>版本<span class="v">1.0（42）</span></div></div>`;
  return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1fr 1fr;align-items:start"><div>${api}${ai.replace('AI 连接（MCP）','外部 AI 工具（MCP）')}</div><div>${sync}${books}${priv}</div></div>` : `${api}${sync}<div class="glabel">电脑上的 AI（MCP）</div><p style="font-size:12px;color:var(--fg2);margin:0 4px">Claude、Codex、Cherry Studio 等在 Mac 上连，见 Mac 版设置。</p>${priv}`};
@@ -922,7 +922,7 @@ function renderMac(){
     <button data-p="settings" class="${macPage=='settings'?'on':''}" style="margin-top:10px">${icon('t_settings')}设置</button>
     <div class="foot"><span><span class="dot"></span> iCloud 已同步</span><span style="color:var(--ai)">${icon('t_assistant').replace('<svg','<svg style="width:11px;height:11px;vertical-align:-1px"')} Claude 今天 09:12 写入</span></div></aside>
    <div class="main"><div class="tb"><h3>${TITLES[macPage]}</h3>
-     ${['changes','settings','ai'].includes(macPage)?'':`<div class="month"><span>‹</span>${D.month}<span>›</span></div><span class="seg"><span class="on">全部</span><span>个人</span><span>Miora</span></span>`}
+     ${['changes','settings','ai'].includes(macPage)?'':`<div class="month"><span>‹</span>${D.month}<span>›</span></div><span class="seg"><span class="on">全部</span><span>个人</span><span>小店</span></span>`}
      <button class="btn plain" title="⌘N">${sym('plus')}记一笔</button><button class="btn ai" data-copy="我在看夏夏账本的「${TITLES[macPage]}」页（${D.month}），想问：">${icon('t_assistant')}问 AI</button></div>
      <div class="content">${P[macPage]('mac')}</div></div>`;
 }
@@ -935,7 +935,7 @@ renderMac();
 const TABS=[['overview','总览','t_overview'],['money','收支','t_trends'],['worth','家底','t_accounts'],['plan','计划','t_plan'],['ai','AI','t_assistant']];
 function phone(tab,title,body,{cls='',fab=true,me=true,sheet=''}={}){
   return `<div class="phone ${cls}"><div class="scr app"><div class="sb"><span>9:41</span><span class="island"></span><span class="ind"><i style="width:16px;height:9px"></i><i style="width:22px;height:11px;border-radius:3px"></i></span></div>
-   <div class="nav"><h2>${title}</h2><span class="acts">${me?`<span class="plus" title="记一笔">${sym('plus')}</span><span class="me">明</span>`:''}</span></div><div class="body">${body}<div class="ro">iCloud 已同步</div></div>
+   <div class="nav"><h2>${title}</h2><span class="acts">${me?`<span class="plus" title="记一笔">${sym('plus')}</span><span class="me">我</span>`:''}</span></div><div class="body">${body}<div class="ro">iCloud 已同步</div></div>
    ${fab?`<button class="fab" data-copy="我在看夏夏账本（${title}），想问：">${icon('t_assistant')}问 AI</button>`:''}
    ${sheet?`<div class="sheet-dim"></div><div class="sheet"><span class="grab"></span><div class="sh"><span style="color:var(--brand)">取消</span><b>记一笔</b><span style="width:28px"></span></div>${sheet}</div>`:''}<div class="tabs">${TABS.map(([id,n,ic])=>`<div class="${id==tab?'on':''} ${id=='ai'?'ai':''}">${icon(ic)}${n}</div>`).join('')}</div></div></div>`;
 }
@@ -971,7 +971,7 @@ document.getElementById('cmp-ask').innerHTML=askBox(3);
 document.getElementById('cmp-ins').innerHTML=`<div class="card" style="padding-block:4px">${D.insights.slice(0,3).map(insightRow).join('')}</div>`;
 document.getElementById('cmp-book').innerHTML=bookCard(D.books[1]);
 document.getElementById('cmp-row').innerHTML=`<div class="card" style="padding-block:4px"><div class="list">${[D.tx[1][2][0],D.tx[1][2][1],D.tx[2][2][0]].map(txRow).join('')}</div></div>`;
-document.getElementById('cmp-btn').innerHTML=`<div style="display:grid;gap:12px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ai">${icon('t_assistant')}问 AI</button><button class="btn tinted">${icon('t_assistant')}接着问</button><button class="btn plain">${sym('undo')}撤销</button><button class="btn danger">删除</button></div><span class="seg"><span class="on">全部</span><span>个人</span><span>Miora</span></span><div class="chiprow"><span class="chip on">全部</span><span class="chip">分类 ▾</span><span class="chip">只看 AI 记的</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="delta good">−266 €</span><span class="delta bad">+74 €</span><span class="tag good">好消息</span><span class="tag warn">留意</span><span class="tag tip">建议</span><span class="tag alert">要处理</span></div></div>`;
+document.getElementById('cmp-btn').innerHTML=`<div style="display:grid;gap:12px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ai">${icon('t_assistant')}问 AI</button><button class="btn tinted">${icon('t_assistant')}接着问</button><button class="btn plain">${sym('undo')}撤销</button><button class="btn danger">删除</button></div><span class="seg"><span class="on">全部</span><span>个人</span><span>小店</span></span><div class="chiprow"><span class="chip on">全部</span><span class="chip">分类 ▾</span><span class="chip">只看 AI 记的</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="delta good">−266 €</span><span class="delta bad">+74 €</span><span class="tag good">好消息</span><span class="tag warn">留意</span><span class="tag tip">建议</span><span class="tag alert">要处理</span></div></div>`;
 document.getElementById('cmp-goal').innerHTML=`<div class="ringbox"><div class="r">${ring(.62,96,10,'#FB7185')}<div class="c"><b style="font-size:20px">62%</b></div></div><div style="display:grid;gap:10px"><div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>回国机票</span><span class="num">70%</span></div><div class="bar"><i style="width:70%;background:#0EA5E9"></i></div></div><div><div style="font-size:12px;margin-bottom:4px">iPhone 分期 7 / 12</div><div style="display:flex;gap:2px">${Array.from({length:12},(_,i)=>`<i style="flex:1;height:6px;border-radius:3px;background:${i<7?'var(--brand)':'var(--sunken)'}"></i>`).join('')}</div></div></div></div>`;
 document.getElementById('ch-pace').innerHTML=paceChart(560,210);
 document.getElementById('ch-donut').innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center">${donut(170,24)}<div>${D.cats.slice(0,6).map(c=>`<div style="display:flex;gap:6px;align-items:center;font-size:12px;padding:2px 0"><i style="width:8px;height:8px;border-radius:2px;background:${catColor(c[0])}"></i>${c[1]}<span class="num" style="margin-left:auto;color:var(--fg2)">${eur(c[2],{dec:0})}</span></div>`).join('')}</div></div>`;
