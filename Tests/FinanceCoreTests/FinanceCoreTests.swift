@@ -820,13 +820,33 @@ final class BetweenBooksTests: XCTestCase {
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "shop").betweenBooks, Money(cents: -30_000))
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: nil).betweenBooks, .zero)
         XCTAssertEqual(Reports.summaries(txs, months: [m], bookID: "shop")[0].betweenBooks, Money(cents: -30_000))
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]), .zero)
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]).count, 0)
     }
 
-    func testOneSidedTransferIsFlagged() {
-        let txs = [tx(2, -40_000, "shopbank", "shop"), tx(3, 40_000, "mybank", "personal"), tx(20, -7_000, "shopbank", "shop")]
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]), Money(cents: -7_000))
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [YearMonth(year: 2026, month: 6)]), .zero)
+    func testOneSidedTransferIsFlaggedNotCounted() {
+        let txs = [
+            tx(2, -40_000, "shopbank", "shop"), tx(3, 40_000, "mybank", "personal"),
+            tx(20, -7_000, "mybank", "personal"),            // 还信用卡只记了扣款这一边
+            tx(21, -20_900, "shopbank", "shop"),             // 店里账户替个人还卡，另一边没记
+            tx(1, 40_000, "card", "personal", month: 6),     // 金额一样但隔了一个月，不能乱配
+        ]
+        XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "personal").betweenBooks, Money(cents: 40_000))
+        XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "shop").betweenBooks, Money(cents: -40_000))
+        let all = Summaries.unmatchedInternal(txs, months: [m])
+        XCTAssertEqual(all.count, 2)
+        XCTAssertEqual(all.total, Money(cents: 27_900))
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m], bookID: "personal").total, Money(cents: 7_000))
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [YearMonth(year: 2026, month: 6)]).count, 1)
+    }
+
+    func testPairsNearestDateAndNeverSameAccount() {
+        let txs = [
+            tx(5, -10_000, "shopbank", "shop"), tx(5, 10_000, "shopbank", "shop"),      // 同一个账户不配
+            tx(9, 10_000, "mybank", "personal"), tx(6, 10_000, "card", "personal"),     // 6 号更近
+        ]
+        let p = Summaries.pairInternal(txs)
+        XCTAssertEqual(p.crossBook.map(\.accountID).sorted(), ["card", "shopbank"])
+        XCTAssertEqual(p.unpaired.count, 2)
     }
 
     func testLabelNamesTheOtherBook() {

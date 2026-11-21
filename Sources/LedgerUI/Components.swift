@@ -194,7 +194,12 @@ enum CategoryStyle {
         "充值": "arrow.down.to.line", "订阅": "repeat", "未分类": "questionmark.circle",
     ]
 
-    static func symbol(_ category: String?) -> String? { category.flatMap { symbols[$0] } }
+    /// 名字完全一样的优先；不然看开头，比如「交通出行」用「交通」的图标、「超市日用」用「超市」的。
+    static func symbol(_ category: String?) -> String? {
+        guard let category else { return nil }
+        if let s = symbols[category] { return s }
+        return symbols.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { symbols[$0] }
+    }
 
     static func defaults(bookID: String?, income: Bool) -> [String] {
         let shop = bookID == "miora"

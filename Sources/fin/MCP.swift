@@ -302,7 +302,7 @@ enum MCPTools {
             catch { throw ToolError(message: "要看哪段时间？填 month（2026-11）、year（2026），或 from + to（2026-01、2026-06）") }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let list = Reports.summaries(ledger.transactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
-            return SummaryCommand.text(list, months: months, book: s("book"))
+            return SummaryCommand.text(list, months: months, book: s("book"), ledger: ledger, hidden: hidden)
         case "accounts":
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let balances = Summaries.balances(ledger.transactions)
