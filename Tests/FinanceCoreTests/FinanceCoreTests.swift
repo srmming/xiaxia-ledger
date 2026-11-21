@@ -776,6 +776,7 @@ final class MerchantTests: XCTestCase {
         XCTAssertEqual(Merchant.display("STAR OTO#O"), "Star Oto#o")
         XCTAssertEqual(Merchant.display(""), "")
         XCTAssertEqual(Merchant.display("FERRETERIA HUBER SL"), "Ferreteria Huber SL")
+        XCTAssertEqual(Merchant.display("Revolut**5670"), "Revolut")
     }
 }
 

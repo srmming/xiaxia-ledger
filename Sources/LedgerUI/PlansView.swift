@@ -25,7 +25,7 @@ public struct PlansView: View {
                 tile("分期还剩", running.reduce(Money.zero) { $0 + $1.remaining }, color: .primary, symbol: "calendar")
                 tile("目标已存", goals.reduce(Money.zero) { $0 + $1.saved }, color: .primary, symbol: "target")
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                 planCard("谁欠我钱", add: "借出去一笔", symbol: "person.badge.clock",
                          empty: owed.isEmpty ? "现在没人欠你钱。借钱给朋友时在这里记一笔，到期会提醒你。" : nil) {
                     model.sheet = .addDebt(.theyOweMe)

@@ -251,14 +251,14 @@ public struct XiaxiaScene: Scene {
     }
 
     public var body: some Scene {
-        WindowGroup("夏夏账本") {
+        #if os(macOS)
+        // Mac 上只有一个主窗口，用 Window 而不是 WindowGroup：
+        // 每次启动都一定会出主窗口（WindowGroup 在系统恢复上次状态时，可能只出菜单栏不出窗口），关掉窗口就退出。
+        Window("夏夏账本", id: "main") {
             RootView()
                 .environment(model)
-                #if os(macOS)
                 .frame(minWidth: 920, minHeight: 620)
-                #endif
         }
-        #if os(macOS)
         .defaultSize(width: 1180, height: 780)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -279,6 +279,11 @@ public struct XiaxiaScene: Scene {
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }
             }
+        }
+        #else
+        WindowGroup("夏夏账本") {
+            RootView()
+                .environment(model)
         }
         #endif
     }
