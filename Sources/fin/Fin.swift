@@ -230,7 +230,7 @@ struct SummaryCommand: ParsableCommand {
         let moved = list.reduce(Money.zero) { $0 + $1.betweenBooks }
         return text(list, months: months, book: book,
                     movedLabel: Reports.betweenBooksLabel(moved, bookID: book, books: ledger.books),
-                    unmatched: Summaries.unmatchedInternal(ledger.transactions, months: months, bookID: book, hiddenAccounts: hidden))
+                    unmatched: Summaries.unmatchedInternal(ledger.transactions, months: months, hiddenAccounts: hidden))
     }
 
     static func text(_ list: [MonthlySummary], months: [YearMonth], book: String?, movedLabel: String? = nil,
@@ -244,7 +244,7 @@ struct SummaryCommand: ParsableCommand {
             lines.append("\(word) \(moved.magnitude.formatted)（自己账户间转账，不算收支）  算上它结余 \((t.income + t.expense + moved).formatted)")
         }
         if let unmatched, unmatched.count > 0 {
-            lines.append("另有 \(unmatched.count) 笔互转只记了一边（共 \(unmatched.total.formatted)），没算进上面这行")
+            lines.append("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），可能也是两个账本之间的，没算进上面这行")
         }
         if list.count > 1 {
             lines.append("按月：")

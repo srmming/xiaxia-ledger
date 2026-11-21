@@ -128,7 +128,9 @@ public struct TransactionEditor: View {
             }
         }
         .formStyle(.grouped)
-        .contentMargins(.bottom, 28, for: .scrollContent)   // 最后一行别被 Mac 面板的底栏挡住
+        #if os(macOS)
+        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 36) }   // 最后一行别被 Mac 面板的底栏挡住
+        #endif
         .navigationTitle(editing == nil ? "记一笔" : "改这一笔")
         .inlineTitle()
         .toolbar {
