@@ -78,7 +78,7 @@ public struct PlansView: View {
                     Button { addingDebt = true } label: { Label("记一笔欠款", systemImage: "person.badge.plus") }
                     Button { addingInstallment = true } label: { Label("记一个分期", systemImage: "calendar") }
                     Button { addingGoal = true } label: { Label("建一个存钱目标", systemImage: "target") }
-                } label: { Label("新建", systemImage: "plus.circle") }
+                } label: { Text("新建计划") }
             }
         }
         .sheet(isPresented: $addingDebt) { NavigationStack { AddDebtView() }.sheetSize() }

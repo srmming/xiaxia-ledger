@@ -159,7 +159,9 @@ struct TransactionRow: View {
 
     private var icon: String {
         switch tx.flow {
-        case .debt: return "person.2"
+        case .debt:
+            // 分期还款也是「还债」，但用日历图标，和借给朋友的钱分开。
+            return model.ledger.installments.contains { $0.paidIDs.contains(tx.id) || $0.purchaseID == tx.id } ? "calendar" : "person.2"
         case .saving: return "dollarsign.circle"
         case .opening: return "flag"
         case nil:
@@ -199,7 +201,6 @@ struct TransactionDetail: View {
                     Text(change.summary).font(.footnote).foregroundStyle(.secondary)
                 }
             }
-        }
             Section {
                 if tx.flow == nil && !tx.isTransfer {
                     Button { editing = true } label: { Label("改这一笔", systemImage: "pencil") }
