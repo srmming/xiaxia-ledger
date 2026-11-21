@@ -47,13 +47,14 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   snap() {
     local name="$1"; shift
-    "$BIN" "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >"$OUT/mac-$name.log" 2>&1 &
-    local pid=$!
-    for _ in $(seq 1 45); do kill -0 $pid 2>/dev/null || break; sleep 1; done
-    kill -9 $pid 2>/dev/null
-    wait $pid 2>/dev/null; local code=$?
+    # 用 open 启动：app 会被激活，主窗口才会出来（直接跑可执行文件时常常一个窗口都没有）
+    open -n -a "$MAC_APP" --stdout "$OUT/mac-$name.log" --stderr "$OUT/mac-$name.log" \
+      --args "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES
+    for _ in $(seq 1 45); do [ -f "$OUT/mac-$name.png" ] && break; pgrep -f "$BIN" >/dev/null || break; sleep 1; done
+    sleep 1
+    pkill -9 -f "$BIN" 2>/dev/null
     if [ -f "$OUT/mac-$name.png" ]; then echo "mac-$name 截好了"; rm -f "$OUT/mac-$name.log"
-    else echo "mac-$name 没截到（退出码 ${code}）"; tail -5 "$OUT/mac-$name.log"; fi
+    else echo "mac-$name 没截到"; tail -5 "$OUT/mac-$name.log" 2>/dev/null; fi
   }
   snap 1-overview -XiaxiaDemo
   snap 6-ai -XiaxiaDemo -XiaxiaSection insights
