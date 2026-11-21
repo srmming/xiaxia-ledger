@@ -162,6 +162,9 @@ public struct AIConnector: Sendable {
                 obj = parsed
             }
             var servers = obj["mcpServers"] as? [String: Any] ?? [:]
+            // 已经是这样了就不重写（字典重新输出时键的顺序可能变，免得每次都改文件）
+            if let entry = servers[Self.serverName] as? [String: Any], entry["command"] as? String == fin,
+               entry["args"] as? [String] == ["mcp"] { return url }
             servers[Self.serverName] = ["command": fin, "args": ["mcp"]] as [String: Any]
             obj["mcpServers"] = servers
             var data = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .withoutEscapingSlashes])
