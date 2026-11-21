@@ -63,9 +63,105 @@ public struct SettingsView: View {
     public init() {}
 
     public var body: some View {
+        content
+        .navigationTitle("设置")
+        .alert("新账本叫什么？", isPresented: $addingBook) {
+            TextField("如「房东收租」", text: $newBook)
+            Button("取消", role: .cancel) {}
+            Button("加上") { model.perform { try $0.addBook(name: newBook, author: model.author) } }
+        }
+        .alert("账本改名", isPresented: Binding(get: { renamingBook != nil }, set: { if !$0 { renamingBook = nil } })) {
+            TextField("名字", text: $bookName)
+            Button("取消", role: .cancel) { renamingBook = nil }
+            Button("改") {
+                if let b = renamingBook { model.perform { try $0.renameBook(b.id, to: bookName, author: model.author) } }
+                renamingBook = nil
+            }
+        }
+    }
+
+    #if os(macOS)
+    /// Mac：和总览一样的卡片。
+    private var content: some View {
         @Bindable var model = model
         let balances = model.balances
-        Form {
+        let accounts = model.visibleAccounts
+        return VStack(alignment: .leading, spacing: 16) {
+            Card(spacing: 4) {
+                CardHeader(title: "账户") {
+                    Button { model.sheet = .addAccount } label: { Label("加一个账户", systemImage: "plus") }.buttonStyle(.borderless)
+                }
+                ForEach(accounts) { a in
+                    NavigationLink { AccountDetailView(accountID: a.id) } label: {
+                        macRow(a.name + (a.isPrivate ? "（私房钱）" : ""), symbol: a.isPrivate ? "lock.fill" : a.kind.symbol,
+                               value: (balances[a.id] ?? .zero).formatted, chevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    if a.id != accounts.last?.id { Divider() }
+                }
+                Divider().padding(.vertical, 4)
+                Toggle(isOn: $model.showPrivate.animation()) { Label("显示私房钱", systemImage: "lock") }
+                    .toggleStyle(.switch)
+                Text("点一个账户可以改名字、对一下余额、设成私房钱、删掉。私房钱账户平时不显示、不算进总览和报表；关掉 app 再开会自动藏回去。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                Card(spacing: 4) {
+                    CardHeader(title: "账本") {
+                        Button { newBook = ""; addingBook = true } label: { Label("加一个账本", systemImage: "plus") }.buttonStyle(.borderless)
+                    }
+                    ForEach(model.ledger.books) { b in
+                        Button { bookName = b.name; renamingBook = b } label: {
+                            macRow(b.name, symbol: "book.closed",
+                                   value: "\(model.ledger.transactions.filter { $0.bookID == b.id }.count) 笔", chevron: false)
+                        }
+                        .buttonStyle(.plain)
+                        if b.id != model.ledger.books.last?.id { Divider() }
+                    }
+                    Text("点一个账本改名字。每笔流水单独归一个账本，比如个人的和店里的分开算。")
+                        .font(.caption).foregroundStyle(.secondary).padding(.top, 4)
+                }
+                Card(spacing: 4) {
+                    CardHeader("分类")
+                    NavigationLink { CategoriesView() } label: {
+                        macRow("改名、合并分类", symbol: "tag", value: "", chevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    Text("比如把「吃饭」和「餐饮」并成一个。").font(.caption).foregroundStyle(.secondary).padding(.top, 4)
+                }
+            }
+            Card(spacing: 8) {
+                CardHeader(title: "数据") {
+                    Button("重新读取账本") { model.reload(); model.toast = .init(text: "已经重新读取", changeID: nil) }.buttonStyle(.borderless)
+                }
+                Text(ledgerLocation(model.store)).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                Text("一共 \(model.ledger.transactions.count) 笔流水，\(model.ledger.changes.count) 条改动记录").font(.subheadline).monospacedDigit()
+                Text("账本是一个文件，app 和 AI 用的 fin 读写同一份。AI 记完账，回到 app 就能看到。导出表格在「报表」右上角。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .pageScroll()
+    }
+
+    private func macRow(_ title: String, symbol: String, value: String, chevron: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .frame(width: 28, height: 28)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            Text(title)
+            Spacer()
+            Text(value).monospacedDigit().foregroundStyle(.secondary)
+            if chevron { Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary) }
+        }
+        .padding(.vertical, 5)
+        .contentShape(Rectangle())
+        .hoverHighlight()
+    }
+    #else
+    private var content: some View {
+        @Bindable var model = model
+        let balances = model.balances
+        return Form {
             Section {
                 ForEach(model.visibleAccounts) { a in
                     NavigationLink { AccountDetailView(accountID: a.id) } label: {
@@ -116,24 +212,9 @@ public struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        #if os(iOS)
         .contentMargins(.bottom, 40, for: .scrollContent)
-        #endif
-        .navigationTitle("设置")
-        .alert("新账本叫什么？", isPresented: $addingBook) {
-            TextField("如「房东收租」", text: $newBook)
-            Button("取消", role: .cancel) {}
-            Button("加上") { model.perform { try $0.addBook(name: newBook, author: model.author) } }
-        }
-        .alert("账本改名", isPresented: Binding(get: { renamingBook != nil }, set: { if !$0 { renamingBook = nil } })) {
-            TextField("名字", text: $bookName)
-            Button("取消", role: .cancel) { renamingBook = nil }
-            Button("改") {
-                if let b = renamingBook { model.perform { try $0.renameBook(b.id, to: bookName, author: model.author) } }
-                renamingBook = nil
-            }
-        }
     }
+    #endif
 }
 
 /// 加一个账户：名字、类型、现在有多少钱。

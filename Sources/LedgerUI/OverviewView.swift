@@ -254,7 +254,9 @@ public struct OverviewView: View {
                             .foregroundStyle(b.isExpense && a.kind != .credit ? Color.coral : .primary)
                         Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                     }
+                    .padding(.vertical, 2)
                     .contentShape(Rectangle())
+                    .hoverHighlight()
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)

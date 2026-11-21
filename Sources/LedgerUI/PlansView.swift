@@ -198,6 +198,7 @@ public struct PlansView: View {
             #endif
         }
         .contentShape(Rectangle())
+        .hoverHighlight()
     }
 
     private func header(_ title: String, add: String, action: @escaping () -> Void) -> some View {
