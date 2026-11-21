@@ -82,7 +82,7 @@ public struct ReportsView: View {
                 Text("自己账户之间挪的钱，不算收入也不算支出。算上它，这一年实际剩 \((net + moved).formatted)。")
                     .font(.footnote).foregroundStyle(.secondary)
                 if unmatched.count > 0 {
-                    Label("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），可能也是两个账本之间的，没算进来。", systemImage: "exclamationmark.triangle")
+                    Label("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），多半也是两个账本之间的，没算进来。", systemImage: "exclamationmark.triangle")
                         .font(.footnote).foregroundStyle(.orange)
                 }
             }

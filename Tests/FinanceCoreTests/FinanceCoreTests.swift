@@ -832,14 +832,15 @@ final class BetweenBooksTests: XCTestCase {
         ]
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "personal").betweenBooks, Money(cents: 40_000))
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "shop").betweenBooks, Money(cents: -40_000))
-        // 没有哪个账户是两个账本都在用的：这些单边转账和别的账本无关，不提醒。
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]).count, 0)
         XCTAssertEqual(Summaries.pairInternal(txs).unpaired.count, 3)
-        // 店里的账户也刷过个人开销：从它转出去没配上的那笔可能是拿回家了，要提醒。
-        let shared = txs + [tx(15, -1_200, "shopbank", "personal", flow: nil)]
-        let flagged = Summaries.unmatchedInternal(shared, months: [m])
+        // 店只有一个账户：从它转出去没配上的那笔只可能去了别的账本，要提醒。
+        // 个人有两个账户：没配上的多半是自己账户之间的（还信用卡），不提醒。
+        let flagged = Summaries.unmatchedInternal(txs, months: [m])
         XCTAssertEqual(flagged.count, 1)
         XCTAssertEqual(flagged.total, Money(cents: 20_900))
+        // 店里的账户偶尔刷过个人开销，也还是算店的账户。
+        let shared = txs + [tx(15, -1_200, "shopbank", "personal", flow: nil)]
+        XCTAssertEqual(Summaries.unmatchedInternal(shared, months: [m]).count, 1)
         XCTAssertEqual(Summaries.unmatchedInternal(shared, months: [YearMonth(year: 2026, month: 6)]).count, 0)
     }
 
