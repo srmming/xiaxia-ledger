@@ -59,7 +59,7 @@ struct WealthPage: View {
         let months = Reports.months(endingAt: model.shownMonth, count: 4)
         let series = model.netWorthSeries(months: months)
         let now = series.last?.value ?? model.totalBalance
-        let owed = model.visibleAccounts.filter { $0.kind == .credit }.reduce(Money.zero) { $0 + (model.balances[$0.id] ?? .zero) }
+        let owed = model.visibleAccounts.filter { $0.kind == .credit }.reduce(Money.zero) { sum, a in sum + (model.balances[a.id] ?? .zero) }
         let card = owed.isExpense ? "信用卡还欠着 \(owed.magnitude.rounded)。" : ""
         guard series.count == 4, series[0].value.cents != 0 else {
             return model.voiced("现在一共有 \(now.rounded)。" + card, .neutral)
