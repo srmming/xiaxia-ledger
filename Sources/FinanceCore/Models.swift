@@ -53,10 +53,11 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var transferID: UUID?
     /// 来源：导入文件名或「手记」，方便追溯。
     public var source: String?
-    /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额。nil = 普通收支。
+    /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额、
+    /// 自己账户之间挪钱（取现、转到另一张卡）。nil = 普通收支。
     public var flow: Flow?
 
-    public enum Flow: String, Codable, Sendable { case debt, saving, opening }
+    public enum Flow: String, Codable, Sendable { case debt, saving, opening, move }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,
@@ -148,11 +149,39 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     public var installmentID: UUID?
     /// 改分类、分账本、标转账这类「改已有流水」的改动：改之前的样子。撤销时换回去。
     public var previous: [Transaction]?
+    /// 改或删账户、账本、借款、分期、目标的改动：改之前的样子。撤销时放回去。
+    public var before: PlanSnapshot?
+
+    /// 这条改动能不能撤销（「撤销」本身不能再撤销）。
+    public var canUndo: Bool {
+        !undone && kind != .delete
+            && (!transactionIDs.isEmpty || debtID != nil || goalID != nil || installmentID != nil || before != nil)
+    }
 
     public init(id: UUID = UUID(), kind: Kind, summary: String, transactionIDs: [UUID],
                 author: String, createdAt: Date = Date(), undone: Bool = false) {
         self.id = id; self.kind = kind; self.summary = summary; self.transactionIDs = transactionIDs
         self.author = author; self.createdAt = createdAt; self.undone = undone
+    }
+}
+
+/// 账户、账本、借款、分期、目标在某次改动之前的样子，只存被动到的那几个。
+public struct PlanSnapshot: Hashable, Codable, Sendable {
+    public var accounts: [Account]?
+    public var books: [Book]?
+    public var debts: [Debt]?
+    public var installments: [Installment]?
+    public var goals: [Goal]?
+    /// 这次改动新加的账户、账本：撤销时删掉。
+    public var addedAccountIDs: [String]?
+    public var addedBookIDs: [String]?
+
+    public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
+                installments: [Installment]? = nil, goals: [Goal]? = nil,
+                addedAccountIDs: [String]? = nil, addedBookIDs: [String]? = nil) {
+        self.accounts = accounts; self.books = books; self.debts = debts
+        self.installments = installments; self.goals = goals
+        self.addedAccountIDs = addedAccountIDs; self.addedBookIDs = addedBookIDs
     }
 }
 

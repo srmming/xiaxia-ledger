@@ -428,6 +428,7 @@ extension Ledger {
                 installments[k].paidIDs.removeAll { ids.contains($0) }
             }
         }
+        if let before = change.before { restore(before) }
         if change.kind == .remove, let previous = change.previous {
             // 删掉的流水：放回来（借款、分期、目标里的引用不自动恢复，改动记录里写明了）。
             let existing = Set(transactions.map(\.id))
@@ -436,6 +437,9 @@ extension Ledger {
             // 改过的流水：换回原样。
             let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
             for k in transactions.indices { if let o = old[transactions[k].id] { transactions[k] = o } }
+            // 这次改动顺带新加的流水（比如标成转账时补的另一半）：删掉。
+            let extra = Set(change.transactionIDs).subtracting(old.keys)
+            if !extra.isEmpty { transactions.removeAll { extra.contains($0.id) } }
         } else {
             let ids = Set(change.transactionIDs)
             transactions.removeAll { ids.contains($0.id) }

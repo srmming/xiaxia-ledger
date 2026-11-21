@@ -454,3 +454,224 @@ final class FixMistakesTests: XCTestCase {
         XCTAssertEqual(Summaries.monthly(l.transactions, month: d.yearMonth, bookID: nil).income.cents, 0)
     }
 }
+
+final class ManageTests: XCTestCase {
+    let day = LocalDate(year: 2026, month: 11, day: 3)
+
+    func ledger() -> Ledger {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行", kind: .bank), Account(id: "cash", name: "现金", kind: .cash)]
+        return l
+    }
+
+    func testAccountTransferMovesMoneyButIsNotIncomeOrExpense() throws {
+        var l = ledger()
+        let change = try l.addAccountTransfer(amount: Money(cents: 20000), from: "bank", to: "cash", date: day, author: "t")
+        let b = Summaries.balances(l.transactions)
+        XCTAssertEqual(b["bank"]?.cents, -20000)
+        XCTAssertEqual(b["cash"]?.cents, 20000)
+        let m = Summaries.monthly(l.transactions, month: day.yearMonth, bookID: nil)
+        XCTAssertEqual(m.income.cents, 0)
+        XCTAssertEqual(m.expense.cents, 0)
+        XCTAssertEqual(l.pairedIDs(of: change.transactionIDs[0]).count, 2)
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertTrue(l.transactions.isEmpty)
+        XCTAssertThrowsError(try l.addAccountTransfer(amount: Money(cents: 100), from: "bank", to: "bank", date: day, author: "t"))
+    }
+
+    func testMarkImportedAsTransferAddsOtherHalfAndUndoRemovesIt() throws {
+        var l = ledger()
+        let tx = Transaction(date: day, amount: Money(cents: -20000), description: "REINTEGRO CAJERO", accountID: "bank")
+        try l.addTransaction(tx, author: "t")
+        let change = try l.markAsAccountTransfer([tx.id], counterAccount: "cash", author: "t")
+        XCTAssertEqual(l.transactions.count, 2)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: day.yearMonth, bookID: nil).expense.cents, 0)
+        XCTAssertEqual(Summaries.balances(l.transactions)["cash"]?.cents, 20000)
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertEqual(l.transactions.count, 1)
+        XCTAssertNil(l.transactions[0].flow)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: day.yearMonth, bookID: nil).expense.cents, -20000)
+    }
+
+    func testClassifyAndRenameCategory() throws {
+        var l = ledger()
+        let a = Transaction(date: day, amount: Money(cents: -1000), description: "A", accountID: "bank")
+        let b = Transaction(date: day, amount: Money(cents: -2000), description: "B", accountID: "bank")
+        try l.addTransaction(a, author: "t"); try l.addTransaction(b, author: "t")
+        try l.classify([a.id, b.id], category: "吃饭", bookID: "personal", author: "t")
+        XCTAssertTrue(l.transactions.allSatisfy { $0.category == "吃饭" && $0.bookID == "personal" })
+        let change = try l.renameCategory("吃饭", to: "餐饮", author: "t")
+        XCTAssertTrue(l.transactions.allSatisfy { $0.category == "餐饮" })
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertTrue(l.transactions.allSatisfy { $0.category == "吃饭" })
+    }
+
+    func testAccountLifecycle() throws {
+        var l = ledger()
+        let created = try l.createAccount(Account(id: "rev", name: "Revolut", kind: .wallet), openingBalance: Money(cents: 5000), author: "t")
+        XCTAssertEqual(Summaries.balances(l.transactions)["rev"]?.cents, 5000)
+        var renamed = l.accounts.first { $0.id == "rev" }!
+        renamed.name = "Revolut 个人"; renamed.isPrivate = true
+        let change = try l.updateAccount(renamed, author: "t")
+        XCTAssertEqual(l.accounts.first { $0.id == "rev" }?.name, "Revolut 个人")
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertEqual(l.accounts.first { $0.id == "rev" }?.name, "Revolut")
+        // 有流水的账户不能删
+        try l.addTransaction(Transaction(date: day, amount: Money(cents: -100), description: "x", accountID: "bank"), author: "t")
+        XCTAssertThrowsError(try l.removeAccount("bank", author: "t"))
+        // 只有期初余额的可以删，撤销能放回来
+        let removed = try l.removeAccount("rev", author: "t")
+        XCTAssertNil(l.accounts.first { $0.id == "rev" })
+        XCTAssertNil(Summaries.balances(l.transactions)["rev"])
+        try l.undo(changeID: removed.id, author: "t")
+        XCTAssertEqual(Summaries.balances(l.transactions)["rev"]?.cents, 5000)
+        // 撤销「加账户」：账户和期初余额一起没
+        try l.removeAccount("rev", author: "t")
+        _ = created
+    }
+
+    func testUndoCreateAccountRemovesIt() throws {
+        var l = ledger()
+        let created = try l.createAccount(Account(id: "rev", name: "Revolut", kind: .wallet), openingBalance: Money(cents: 5000), author: "t")
+        try l.undo(changeID: created.id, author: "t")
+        XCTAssertNil(l.accounts.first { $0.id == "rev" })
+        XCTAssertTrue(l.transactions.isEmpty)
+    }
+
+    func testRemoveDebtTakesItsTransactionsAndUndoRestores() throws {
+        var l = ledger()
+        let (debt, _) = try l.addDebt(counterparty: "阿华", direction: .theyOweMe, amount: Money(cents: 50000), bookID: "personal",
+                                      date: day, accountID: "bank", author: "t")
+        try l.repay(debtID: debt.id, amount: Money(cents: 20000), date: day, accountID: "bank", author: "t")
+        XCTAssertEqual(l.debtTransactionIDs(debt.id).count, 2)
+        let change = try l.removeDebt(debt.id, author: "t")
+        XCTAssertTrue(l.debts.isEmpty)
+        XCTAssertTrue(l.transactions.isEmpty)
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertEqual(l.transactions.count, 2)
+        XCTAssertEqual(Plans.debts(l, today: day).first?.outstanding.cents, 30000)
+    }
+
+    func testCloseDebtAndReopen() throws {
+        var l = ledger()
+        var (debt, _) = try l.addDebt(counterparty: "阿华", direction: .theyOweMe, amount: Money(cents: 50000), bookID: "personal",
+                                      date: day, accountID: nil, author: "t")
+        debt.closed = true
+        let change = try l.updateDebt(debt, author: "t")
+        XCTAssertTrue(Plans.debts(l, today: day).isEmpty)
+        try l.undo(changeID: change.id, author: "t")
+        XCTAssertEqual(Plans.debts(l, today: day).count, 1)
+    }
+
+    func testRemoveInstallmentAndGoal() throws {
+        var l = ledger()
+        let (inst, _) = try l.addInstallment(name: "灯", bookID: "miora", accountID: "bank", total: Money(cents: 60000), count: 6,
+                                             purchaseDate: day, firstPayment: day, author: "t")
+        try l.payInstallment(inst.id, date: day, author: "t")
+        XCTAssertEqual(l.transactions.count, 3)
+        let c1 = try l.removeInstallment(inst.id, author: "t")
+        XCTAssertTrue(l.transactions.isEmpty)
+        try l.undo(changeID: c1.id, author: "t")
+        XCTAssertEqual(Plans.installments(l).first?.paidCount, 1)
+
+        let (goal, _) = try l.addGoal(name: "机票", bookID: "personal", target: Money(cents: 100000), author: "t")
+        try l.deposit(goalID: goal.id, amount: Money(cents: 30000), fromAccount: "bank", date: day, author: "t")
+        let c2 = try l.removeGoal(goal.id, author: "t")
+        XCTAssertTrue(l.goals.isEmpty)
+        XCTAssertEqual(l.transactions.count, 3)
+        try l.undo(changeID: c2.id, author: "t")
+        XCTAssertEqual(Plans.goals(l).first?.saved.cents, 30000)
+    }
+}
+
+final class SuggestTests: XCTestCase {
+    let day = LocalDate(year: 2026, month: 11, day: 3)
+
+    func testGuessesFromHistoryIncludingDifferentStoreNumbers() {
+        let history = [
+            Transaction(date: day, amount: Money(cents: -1000), description: "MERCADONA 1234 VALENCIA", accountID: "a", bookID: "personal", category: "超市"),
+            Transaction(date: day, amount: Money(cents: -1000), description: "MERCADONA 1234 VALENCIA", accountID: "a", bookID: "personal", category: "超市"),
+            Transaction(date: day, amount: Money(cents: -900), description: "Proveedor Unas SL", accountID: "a", bookID: "miora", category: "耗材"),
+        ]
+        let s = Suggester(history)
+        XCTAssertEqual(s.guess("Mercadona 1234 Valencia").category, "超市")
+        XCTAssertEqual(s.guess("MERCADONA 0098 VALENCIA").bookID, "personal")
+        XCTAssertEqual(s.guess("proveedor unas sl").category, "耗材")
+        XCTAssertTrue(s.guess("从没见过的店").isEmpty)
+    }
+
+    func testApplyingGuessesOnlyFillsBlanks() {
+        var l = Ledger.starter
+        l.transactions = [Transaction(date: day, amount: Money(cents: -1000), description: "Glovo", accountID: "a", bookID: "personal", category: "餐饮")]
+        let incoming = [
+            Transaction(date: day, amount: Money(cents: -500), description: "GLOVO", accountID: "a"),
+            Transaction(date: day, amount: Money(cents: -500), description: "Nuevo", accountID: "a"),
+        ]
+        let r = l.applyingGuesses(to: incoming)
+        XCTAssertEqual(r.guessed, 1)
+        XCTAssertEqual(r.transactions[0].category, "餐饮")
+        XCTAssertEqual(r.transactions[0].bookID, "personal")
+        XCTAssertNil(r.transactions[1].category)
+    }
+}
+
+final class ReportTests: XCTestCase {
+    func testMonthMath() {
+        XCTAssertEqual(YearMonth(year: 2026, month: 1).adding(months: -1), YearMonth(year: 2025, month: 12))
+        XCTAssertEqual(YearMonth(year: 2026, month: 12).adding(months: 1), YearMonth(year: 2027, month: 1))
+        XCTAssertEqual(Reports.months(endingAt: YearMonth(year: 2026, month: 2), count: 3).map(\.description), ["2025-12", "2026-01", "2026-02"])
+    }
+
+    func testSummariesMatchMonthly() {
+        let d = LocalDate(year: 2026, month: 10, day: 3)
+        let t = UUID()
+        let txs = [
+            Transaction(date: d, amount: Money(cents: 50000), description: "S", accountID: "bank", bookID: "miora", category: "收入"),
+            Transaction(date: d, amount: Money(cents: -20000), description: "R", accountID: "bank", bookID: "miora", category: "老板提款", transferID: t),
+            Transaction(date: d, amount: Money(cents: 20000), description: "R", accountID: "bank", bookID: "personal", category: "收入", transferID: t),
+            Transaction(date: d, amount: Money(cents: -1500), description: "M", accountID: "cash", bookID: "personal", category: "餐饮"),
+            Transaction(date: d, amount: Money(cents: -9900), description: "ATM", accountID: "bank", flow: .move),
+        ]
+        let m = YearMonth(year: 2026, month: 10)
+        for book in [nil, "miora", "personal"] as [String?] {
+            XCTAssertEqual(Reports.summaries(txs, months: [m], bookID: book)[0], Summaries.monthly(txs, month: m, bookID: book))
+        }
+        let cats = Reports.categoryTotals(Reports.summaries(txs, months: [m], bookID: nil), expense: true)
+        XCTAssertEqual(cats.map(\.name), ["餐饮"])
+    }
+
+    func testCSVExportQuotesText() {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行", kind: .bank)]
+        let tx = Transaction(date: LocalDate(year: 2026, month: 1, day: 2), amount: Money(cents: -1250), description: "说 \"你好\", 再见", accountID: "bank", bookID: "personal", category: "餐饮")
+        let csv = Reports.csv([tx], ledger: l)
+        XCTAssertTrue(csv.contains("2026-01-02,-12.50,\"说 \"\"你好\"\", 再见\",\"餐饮\",\"银行\",\"个人\",支出"))
+    }
+}
+
+final class ImportGuessTests: XCTestCase {
+    func testDetectsRevolut() {
+        let text = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\nCARD_PAYMENT,Current,2026-11-01 10:00:00,2026-11-02 10:00:00,Cafe,-3.50,0.00,EUR,COMPLETED,100.00\n"
+        XCTAssertEqual(ImportGuess.detect(text).format, .revolut)
+    }
+
+    func testDetectsSpanishBankHeaderAfterTitleRows() throws {
+        let text = "Movimientos de la cuenta;;;\nFecha;Concepto;Importe;Saldo\n03/11/2026;MERCADONA;-12,50;100,00\n"
+        let d = ImportGuess.detect(text)
+        XCTAssertEqual(d.format, .generic)
+        XCTAssertEqual(d.skipRows, 1)
+        XCTAssertEqual(d.date, "Fecha")
+        XCTAssertEqual(d.description, "Concepto")
+        XCTAssertEqual(d.amount, "Importe")
+        XCTAssertTrue(d.isComplete)
+        let r = try Importers.genericCSV(text, map: .init(date: d.date!, amount: d.amount, description: d.description!, skipRows: d.skipRows),
+                                         accountID: "bank", source: "t")
+        XCTAssertEqual(r.transactions.first?.amount.cents, -1250)
+    }
+
+    func testGuessesAccountFromFileName() {
+        let accounts = [Account(id: "caixa", name: "CaixaBank", kind: .bank), Account(id: "revolut", name: "Revolut", kind: .wallet)]
+        XCTAssertEqual(ImportGuess.account(fileName: "revolut-2026-11.csv", text: "", accounts: accounts), "revolut")
+        XCTAssertNil(ImportGuess.account(fileName: "movimientos.csv", text: "", accounts: accounts))
+    }
+}

@@ -31,6 +31,7 @@ fin context --json
 | `fin categorize --category 餐饮 <编号…>` | 改分类（编号是 `fin tx` 第一列的 8 位） |
 | `fin assign --book miora <编号…>` | 分账本 |
 | `fin transfer link <转出编号> <转入编号>` / `fin transfer new 200 --from miora --to personal --account cash` | 账本间转账 |
+| `fin transfer move 200 --from-account caixa --to-account cash` / `fin transfer mark <编号…> [--counter-account cash]` | 自己账户间挪钱（取现、转卡、还信用卡），不算收支；`mark` 用来把已导入的流水标成这种 |
 | `fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora` / `fin installment pay 美甲灯 [--tx 编号]` | 记分期（买的那天全额算支出）、记一期还款（不算支出） |
 | `fin goal add 应急金 6000 [--savings-account pot] [--locked]` / `fin goal deposit 应急金 300 --from caixa` / `fin goal withdraw …` | 目标：有储蓄账户按余额算，没有就在现有账户里划出；存取不算收支；锁定的不能取 |
 | `fin history` / `fin undo <编号>` | 看改动记录、撤销 |

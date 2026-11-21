@@ -4,17 +4,31 @@ import SwiftUI
 /// 改动记录：谁、什么时候、改了什么，能撤销。
 public struct HistoryView: View {
     @Environment(LedgerModel.self) private var model
-    @State private var error: String?
     @State private var confirming: ChangeRecord?
+    @State private var onlyOthers = false
 
     public init() {}
 
     public var body: some View {
-        let list = model.ledger.changes.reversed()
+        let all = Array(model.ledger.changes.reversed())
+        let list = onlyOthers ? all.filter { $0.author != model.author } : all
+        let authors = Set(all.map(\.author))
         List {
-            if list.isEmpty { ContentUnavailableView("还没有改动", systemImage: "clock") }
-            ForEach(Array(list)) { c in
-                HStack(alignment: .top) {
+            if authors.count > 1 {
+                Section {
+                    Toggle("只看别人（AI）改的", isOn: $onlyOthers.animation())
+                }
+            }
+            if list.isEmpty {
+                ContentUnavailableView {
+                    Label("还没有改动", systemImage: "clock")
+                } description: { Text("你或 AI 每记一笔、导入一批、改一个分类，这里都会留一条，写明是谁改的，随时能撤销。") }
+            }
+            ForEach(list) { c in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: c.author == model.author ? "person.crop.circle" : "sparkles")
+                        .foregroundStyle(c.undone ? Color.secondary : Color.coral)
+                        .frame(width: 22)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(c.summary).strikethrough(c.undone).foregroundStyle(c.undone ? .secondary : .primary)
                         Text("\(c.author) · \(c.createdAt.formatted(date: .abbreviated, time: .shortened))")
@@ -23,65 +37,82 @@ public struct HistoryView: View {
                     Spacer()
                     if c.undone {
                         Text("已撤销").font(.caption).foregroundStyle(.secondary)
-                    } else if c.kind != .delete && (!c.transactionIDs.isEmpty || c.debtID != nil || c.goalID != nil || c.installmentID != nil) {
-                        Button("撤销") { confirming = c }.buttonStyle(.bordered)
+                    } else if c.canUndo {
+                        Button("撤销") { confirming = c }.buttonStyle(.bordered).controlSize(.small)
                     }
                 }
+                .padding(.vertical, 2)
             }
         }
         .navigationTitle("改动记录")
         .confirmationDialog("撤销这条改动？", isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
-                            presenting: confirming) { c in
-            Button("撤销", role: .destructive) {
-                do { try model.edit { try $0.undo(changeID: c.id, author: model.author) } }
-                catch { self.error = error.localizedDescription }
-            }
+                            titleVisibility: .visible, presenting: confirming) { c in
+            Button("撤销", role: .destructive) { model.undo(c.id) }
         } message: { c in Text(c.summary) }
-        .errorAlert($error)
     }
 }
 
-/// 设置：账户（含私房钱）、是否显示私房钱、数据在哪。
+/// 设置：账户（含私房钱）、账本、分类、导入和改动记录、数据在哪。
 public struct SettingsView: View {
     @Environment(LedgerModel.self) private var model
-    @State private var adding = false
+    @State private var addingBook = false
+    @State private var newBook = ""
+    @State private var renamingBook: Book?
+    @State private var bookName = ""
 
     public init() {}
 
     public var body: some View {
         @Bindable var model = model
+        let balances = model.balances
         Form {
             Section {
-                Toggle(isOn: $model.showPrivate.animation()) {
-                    Label("显示私房钱", systemImage: "lock")
-                }
-            } footer: {
-                Text("私房钱账户平时不显示、不算进总览。打开后才看得到。")
-            }
-            Section {
                 ForEach(model.visibleAccounts) { a in
-                    NavigationLink { AccountDetailView(account: a) } label: {
+                    NavigationLink { AccountDetailView(accountID: a.id) } label: {
                         LabeledContent {
-                            Text((model.balances[a.id] ?? .zero).formatted).monospacedDigit()
+                            Text((balances[a.id] ?? .zero).formatted).monospacedDigit()
                         } label: {
                             Label(a.name + (a.isPrivate ? "（私房钱）" : ""), systemImage: a.isPrivate ? "lock.fill" : a.kind.symbol)
                         }
                     }
                 }
-                Button { adding = true } label: { Label("加一个账户", systemImage: "plus") }
-            } header: { Text("账户") } footer: { Text("点一个账户可以填开账余额、看它的每一笔。") }
-            Section("账本") {
-                ForEach(model.ledger.books) { b in Text(b.name) }
-            }
+                Button { model.sheet = .addAccount } label: { Label("加一个账户", systemImage: "plus") }
+            } header: { Text("账户") } footer: { Text("点一个账户可以改名字、对一下余额、设成私房钱、删掉。") }
+
             Section {
-                #if os(iOS)
-                NavigationLink { ImportView() } label: { Label("导入对账单", systemImage: "tray.and.arrow.down") }
-                #endif
-                NavigationLink { HistoryView() } label: { Label("改动记录（能撤销）", systemImage: "clock.arrow.circlepath") }
+                Toggle(isOn: $model.showPrivate.animation()) { Label("显示私房钱", systemImage: "lock") }
+            } footer: {
+                Text("私房钱账户平时不显示、不算进总览和报表。打开这个开关才看得到；关掉 app 再开会自动藏回去。")
             }
-            Section("数据") {
+
+            Section {
+                ForEach(model.ledger.books) { b in
+                    Button {
+                        bookName = b.name; renamingBook = b
+                    } label: {
+                        LabeledContent {
+                            Text("\(model.ledger.transactions.filter { $0.bookID == b.id }.count) 笔").foregroundStyle(.secondary)
+                        } label: { Label(b.name, systemImage: "book.closed") }
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button { newBook = ""; addingBook = true } label: { Label("加一个账本", systemImage: "plus") }
+            } header: { Text("账本") } footer: { Text("点一个账本改名字。每笔流水单独归一个账本，比如个人的和店里的分开算。") }
+
+            Section {
+                NavigationLink { CategoriesView() } label: { Label("分类（改名、合并）", systemImage: "tag") }
+                #if os(iOS)
+                Button { model.sheet = .importer } label: { Label("导入对账单", systemImage: "tray.and.arrow.down") }
+                NavigationLink { HistoryView() } label: { Label("改动记录（能撤销）", systemImage: "clock.arrow.circlepath") }
+                #endif
+            }
+
+            Section {
                 Text(ledgerLocation(model.store)).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
-                Button("重新读取") { model.reload() }
+                LabeledContent("一共", value: "\(model.ledger.transactions.count) 笔流水，\(model.ledger.changes.count) 条改动记录")
+                Button("重新读取账本") { model.reload(); model.toast = .init(text: "已经重新读取", changeID: nil) }
+            } header: { Text("数据") } footer: {
+                Text("账本是一个文件，app 和 AI 用的 fin 读写同一份。AI 记完账，回到 app 就能看到。导出表格在「报表」右上角。")
             }
         }
         .formStyle(.grouped)
@@ -89,25 +120,44 @@ public struct SettingsView: View {
         .contentMargins(.bottom, 40, for: .scrollContent)
         #endif
         .navigationTitle("设置")
-        .sheet(isPresented: $adding) { NavigationStack { AddAccountView() }.sheetSize() }
+        .alert("新账本叫什么？", isPresented: $addingBook) {
+            TextField("如「房东收租」", text: $newBook)
+            Button("取消", role: .cancel) {}
+            Button("加上") { model.perform { try $0.addBook(name: newBook, author: model.author) } }
+        }
+        .alert("账本改名", isPresented: Binding(get: { renamingBook != nil }, set: { if !$0 { renamingBook = nil } })) {
+            TextField("名字", text: $bookName)
+            Button("取消", role: .cancel) { renamingBook = nil }
+            Button("改") {
+                if let b = renamingBook { model.perform { try $0.renameBook(b.id, to: bookName, author: model.author) } }
+                renamingBook = nil
+            }
+        }
     }
 }
 
+/// 加一个账户：名字、类型、现在有多少钱。
 struct AddAccountView: View {
     @Environment(LedgerModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var kind = AccountKind.bank
     @State private var isPrivate = false
+    @State private var balanceText = ""
     @State private var error: String?
 
     var body: some View {
         Form {
-            TextField("名字，如「Revolut」", text: $name)
-            Picker("类型", selection: $kind) {
-                ForEach(AccountKind.allCases, id: \.self) { k in Label(k.label, systemImage: k.symbol).tag(k) }
+            Section {
+                TextField("名字，如「Revolut」「店里收银盒」", text: $name)
+                Picker("类型", selection: $kind) {
+                    ForEach(AccountKind.allCases, id: \.self) { k in Label(k.label, systemImage: k.symbol).tag(k) }
+                }
+                TextField("现在里面有多少钱（可以空着）", text: $balanceText).decimalKeyboard().monospacedDigit()
             }
-            Toggle("这是私房钱", isOn: $isPrivate)
+            Section {
+                Toggle("这是私房钱", isOn: $isPrivate)
+            } footer: { Text("私房钱平时不显示、不算进总览，只有在「设置」里打开开关才看得到。") }
         }
         .formStyle(.grouped)
         .navigationTitle("加账户")
@@ -116,6 +166,7 @@ struct AddAccountView: View {
             ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存", action: save).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .keyboardShortcut(.defaultAction)
             }
         }
         .errorAlert($error)
@@ -123,13 +174,152 @@ struct AddAccountView: View {
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        var id = trimmed.lowercased().filter { $0.isLetter || $0.isNumber }
-        if id.isEmpty || model.ledger.accounts.contains(where: { $0.id == id }) { id = "acct-" + UUID().uuidString.prefix(6).lowercased() }
-        let account = Account(id: id, name: trimmed, kind: kind, isPrivate: isPrivate)
+        let account = Account(id: model.ledger.newAccountID(for: trimmed), name: trimmed, kind: kind, isPrivate: isPrivate)
         do {
-            try model.edit { $0.addAccount(account, author: model.author) }
+            try model.edit { try $0.createAccount(account, openingBalance: Money(parsing: balanceText), author: model.author) }
             if isPrivate { model.showPrivate = true }
             dismiss()
         } catch { self.error = error.localizedDescription }
+    }
+}
+
+/// 一个账户：余额、对余额、改名字和类型、看每一笔、删掉。
+struct AccountDetailView: View {
+    @Environment(LedgerModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let accountID: String
+    @State private var name = ""
+    @State private var kind = AccountKind.bank
+    @State private var isPrivate = false
+    @State private var realText = ""
+    @State private var loaded = false
+    @State private var confirmDelete = false
+    @State private var error: String?
+
+    private var account: Account? { model.ledger.accounts.first { $0.id == accountID } }
+    private var balance: Money { model.balances[accountID] ?? .zero }
+
+    var body: some View {
+        Group {
+            if let account {
+                Form {
+                    Section {
+                        LabeledContent("账本里算出来的余额") { Text(balance.formatted).monospacedDigit().bold() }
+                        NavigationLink("看这个账户的每一笔") {
+                            TransactionsView(filter: TransactionFilter(accountID: accountID), title: account.name)
+                        }
+                    }
+                    Section {
+                        TextField("银行 app 里现在显示多少", text: $realText).decimalKeyboard().monospacedDigit()
+                        if let real = Money(parsing: realText) {
+                            let diff = real - balance
+                            if diff.cents == 0 {
+                                Label("对上了，一分不差。", systemImage: "checkmark.circle.fill").foregroundStyle(Color.income)
+                            } else {
+                                Text("差 \(diff.formatted)。可能是有几笔还没记，或者开账那天的余额没填对。").font(.footnote)
+                                Button("把差的这 \(diff.formatted) 算进开账余额") { adjust(diff) }
+                            }
+                        }
+                    } header: { Text("对一下余额") } footer: {
+                        Text("打开银行 app 看一眼余额填在这里，就知道账本和银行差多少。如果是刚开始用、以前的流水没导进来，点上面的按钮把差额算进开账余额就对上了。它不算收入也不算支出。")
+                    }
+                    Section("这个账户") {
+                        TextField("名字", text: $name)
+                        Picker("类型", selection: $kind) {
+                            ForEach(AccountKind.allCases, id: \.self) { k in Label(k.label, systemImage: k.symbol).tag(k) }
+                        }
+                        Toggle("这是私房钱", isOn: $isPrivate)
+                        Button("保存修改", action: save)
+                            .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty
+                                      || (name == account.name && kind == account.kind && isPrivate == account.isPrivate))
+                    }
+                    Section {
+                        Button(role: .destructive) { confirmDelete = true } label: { Label("删掉这个账户", systemImage: "trash") }
+                    } footer: { Text("里面还有流水的账户不能删，免得账对不上。") }
+                }
+                .formStyle(.grouped)
+                .navigationTitle(account.name)
+            } else {
+                ContentUnavailableView("这个账户已经删掉了", systemImage: "creditcard")
+            }
+        }
+        .onAppear {
+            guard !loaded, let account else { return }
+            loaded = true
+            name = account.name; kind = account.kind; isPrivate = account.isPrivate
+        }
+        .confirmationDialog("删掉账户「\(account?.name ?? "")」？", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("删掉", role: .destructive) {
+                do {
+                    try model.edit { try $0.removeAccount(accountID, author: model.author) }
+                    dismiss()
+                } catch { self.error = error.localizedDescription }
+            }
+        }
+        .alert("没做成", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("好") { error = nil }
+        } message: { Text(error ?? "") }
+    }
+
+    private func save() {
+        guard var a = account else { return }
+        a.name = name.trimmingCharacters(in: .whitespaces); a.kind = kind; a.isPrivate = isPrivate
+        let updated = a
+        do {
+            try model.edit { try $0.updateAccount(updated, author: model.author) }
+            if updated.isPrivate { model.showPrivate = true }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    /// 把差额并进期初余额：没有期初余额就在最早一笔流水那天记一笔。
+    private func adjust(_ diff: Money) {
+        let opening = model.ledger.transactions.first { $0.accountID == accountID && $0.flow == .opening }
+        let firstDay = model.ledger.transactions.filter { $0.accountID == accountID }.map(\.date).min() ?? .today
+        let amount = (opening?.amount ?? .zero) + diff
+        do {
+            try model.edit { try $0.setOpeningBalance(accountID: accountID, amount: amount, date: opening?.date ?? firstDay, author: model.author) }
+            realText = ""
+        } catch { self.error = error.localizedDescription }
+    }
+}
+
+/// 分类：每个分类有多少笔，点一个改名；改成已有的名字就是合并。
+struct CategoriesView: View {
+    @Environment(LedgerModel.self) private var model
+    @State private var renaming: String?
+    @State private var newName = ""
+
+    var body: some View {
+        let counts = Dictionary(grouping: model.ledger.transactions.filter { $0.flow == nil && $0.category != nil }, by: { $0.category ?? "" })
+            .map { (name: $0.key, count: $0.value.count) }
+            .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+        List {
+            if counts.isEmpty {
+                ContentUnavailableView("还没有分类", systemImage: "tag", description: Text("记一笔时选的分类会出现在这里。"))
+            }
+            Section {
+                ForEach(counts, id: \.name) { c in
+                    Button { newName = c.name; renaming = c.name } label: {
+                        LabeledContent {
+                            Text("\(c.count) 笔").foregroundStyle(.secondary)
+                        } label: { Label(c.name, systemImage: CategoryStyle.symbol(c.name) ?? "tag") }
+                    }
+                    .buttonStyle(.plain)
+                }
+            } footer: {
+                if !counts.isEmpty { Text("点一个分类改名。改成另一个已有分类的名字，两个就合并成一个，比如把「吃饭」并进「餐饮」。") }
+            }
+        }
+        .navigationTitle("分类")
+        .alert("「\(renaming ?? "")」改成什么？", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("新名字", text: $newName)
+            Button("取消", role: .cancel) { renaming = nil }
+            Button("改") {
+                if let old = renaming, newName.trimmingCharacters(in: .whitespaces) != old {
+                    model.perform { try $0.renameCategory(old, to: newName, author: model.author) }
+                }
+                renaming = nil
+            }
+        }
     }
 }
