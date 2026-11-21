@@ -20,6 +20,8 @@ public struct TransactionEditor: View {
     @State private var toAccountID = ""
     @State private var bookID = ""
     @State private var toBookID = ""
+    @State private var startAccountID = ""
+    @State private var guessedAccountID: String?
     @State private var date = Date()
     @State private var keepAdding = false
     @State private var savedCount = 0
@@ -77,7 +79,7 @@ public struct TransactionEditor: View {
                             color: kind == .income ? .income : kind == .expense ? .primary : .secondary)
                     .focused($focus, equals: .amount)
                     .onSubmit { focus = .text }
-                TextField(placeholder, text: $text)
+                PromptField(placeholder, text: $text)
                     .focused($focus, equals: .text)
                     .onChange(of: text) { suggest() }
                 if let problem { Text(problem).font(.footnote).foregroundStyle(Color.coral) }
@@ -93,7 +95,7 @@ public struct TransactionEditor: View {
                 Section("分类") {
                     CategoryChips(categories: chipCategories, selection: $category) { _ in categoryTouched = true }
                         .padding(.vertical, 4)
-                    TextField("别的分类，自己写", text: $category)
+                    PromptField("别的分类，自己写", text: $category)
                         .focused($focus, equals: .category)
                         .onChange(of: category) { if focus == .category { categoryTouched = true } }
                 }
@@ -174,6 +176,10 @@ public struct TransactionEditor: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                // 最常见的是「从店里拿钱回家」，所以默认方向是从店到个人。
+                .onChange(of: transferKind) {
+                    if transferKind == .books, bookID == "personal", !toBookID.isEmpty { swap(&bookID, &toBookID) }
+                }
                 if transferKind == .accounts {
                     Picker("从哪个账户", selection: $accountID) {
                         ForEach(model.visibleAccounts) { a in Label(a.name, systemImage: a.kind.symbol).tag(a.id) }
@@ -225,15 +231,30 @@ public struct TransactionEditor: View {
         accountID = model.defaultAccountID
         bookID = model.defaultBookID
         toBookID = model.ledger.books.first { $0.id != bookID }?.id ?? ""
+        startAccountID = accountID
         toAccountID = model.visibleAccounts.first { $0.id != accountID }?.id ?? ""
     }
 
     /// 按以前的习惯猜分类：以前「Mercadona」都记成超市，这次填了 Mercadona 就先选上超市。自己点过分类就不再动。
     private func suggest() {
-        guard kind != .transfer, !categoryTouched else { return }
+        guard kind != .transfer else { return }
+        suggestAccount()
+        guard !categoryTouched else { return }
         let g = model.suggester.guess(text)
         if let c = g.category { category = c }
         if editing == nil, let b = g.bookID, model.selectedBookID == nil { bookID = b }
+    }
+
+    /// 按以前的习惯猜账户：上次「Mercadona」是用 imagin 刷的，这次先选上 imagin。自己换过账户就不再动。
+    private func suggestAccount() {
+        guard editing == nil, accountID == startAccountID || accountID == guessedAccountID else { return }
+        let key = Dedup.normalize(text)
+        guard !key.isEmpty else { return }
+        let visible = Set(model.visibleAccounts.map(\.id))
+        let last = model.ledger.transactions
+            .filter { $0.flow == nil && visible.contains($0.accountID) && Dedup.normalize($0.description) == key }
+            .max { $0.date < $1.date }
+        if let last { accountID = last.accountID; guessedAccountID = last.accountID }
     }
 
     private func save() {
@@ -277,7 +298,7 @@ public struct TransactionEditor: View {
                     try model.edit { try $0.addTransaction(tx, author: model.author) }
                 }
             }
-            if kind != .transfer || transferKind == .books { model.lastBookID = bookID }
+            if kind != .transfer { model.lastBookID = bookID }
             model.lastAccountID = accountID
             if editing == nil, keepAdding {
                 savedCount += 1

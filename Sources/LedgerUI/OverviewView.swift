@@ -115,6 +115,16 @@ public struct OverviewView: View {
                     model.showTransactions(TransactionFilter(month: month, sign: .expense))
                 }
             }
+            if let bookID = model.selectedBookID, s.betweenBooks.cents != 0 {
+                // 从店里拿回家的钱 / 老板从店里拿走的钱：不算收入也不算支出，单独一行说清楚。
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.left.arrow.right").foregroundStyle(.secondary)
+                    Text("\(Reports.betweenBooksLabel(s.betweenBooks, bookID: bookID, books: model.ledger.books)) \(s.betweenBooks.magnitude.formatted)，算上它剩 \(s.netWithBetweenBooks.formatted)")
+                        .monospacedDigit()
+                }
+                .font(.footnote)
+                .help("自己账户之间挪的钱，不算收入也不算支出")
+            }
             if let line = compare(s, previous) {
                 Text(line).font(.footnote).foregroundStyle(.secondary)
             }
@@ -186,8 +196,14 @@ public struct OverviewView: View {
     @ViewBuilder
     private var todoCard: some View {
         let untidy = model.untidy.count
-        let debts = Plans.debts(model.ledger, today: .today).filter(\.overdue)
-        let due = Plans.installments(model.ledger).filter { $0.paidCount < $0.count && ($0.nextDate?.daysFromToday ?? 99) <= 10 }
+        // 选了某个账本时，只列这个账本的借款和分期（看 Miora 时不该冒出个人借给阿华的钱）。
+        let book = model.selectedBookID
+        let debtBooks = Dictionary(model.ledger.debts.map { ($0.id, $0.bookID) }, uniquingKeysWith: { a, _ in a })
+        let planBooks = Dictionary(model.ledger.installments.map { ($0.id, $0.bookID) }, uniquingKeysWith: { a, _ in a })
+        let debts = Plans.debts(model.ledger, today: .today).filter { $0.overdue && (book == nil || debtBooks[$0.id] == book) }
+        let due = Plans.installments(model.ledger).filter {
+            $0.paidCount < $0.count && ($0.nextDate?.daysFromToday ?? 99) <= 10 && (book == nil || planBooks[$0.id] == book)
+        }
         if untidy > 0 || !debts.isEmpty || !due.isEmpty {
             Card {
                 CardHeader("要处理的事")

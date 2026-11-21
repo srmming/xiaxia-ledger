@@ -26,10 +26,19 @@ public enum Reports {
             let c = tx.category ?? "未分类"
             cats[m, default: [:]][c, default: .zero] = cats[m, default: [:]][c, default: .zero] + tx.amount
         }
+        let moved = Summaries.betweenBooks(txs, months: months, bookID: bookID, hiddenAccounts: hiddenAccounts)
         return months.map {
             MonthlySummary(month: $0, bookID: bookID, income: income[$0] ?? .zero, expense: expense[$0] ?? .zero,
-                           byCategory: cats[$0] ?? [:])
+                           byCategory: cats[$0] ?? [:], betweenBooks: moved[$0] ?? .zero)
         }
+    }
+
+    /// 「和别的账本之间挪的钱」该怎么叫：进来的叫「从别的账本拿的」，出去的叫「拿去别的账本的」。
+    /// 只有两个账本时直接说对方的名字，比如个人账本里显示「从 Miora 美甲店拿的」。
+    public static func betweenBooksLabel(_ amount: Money, bookID: String, books: [Book]) -> String {
+        let others = books.filter { $0.id != bookID }
+        let other = others.count == 1 ? others[0].name : "别的账本"
+        return amount.cents >= 0 ? "从\(other)拿的" : "拿去\(other)的"
     }
 
     /// 把几个月的分类加起来。expense = true 只要花钱的分类（按花得多排），false 只要进钱的。
