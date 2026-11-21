@@ -26,6 +26,18 @@ struct MCPCommand: ParsableCommand {
 
 final class MCPServer {
     var clientName = "AI"
+
+    /// 握手时告诉 AI 怎么用这本账。所有接上的 AI 工具都能看到，所以只写通用规矩，不写某个人的账户和店名。
+    static let instructions = """
+    夏夏账本：用户自己的记账本（Mac 上的本地文件，app 和这个 MCP 读写同一份），可以有好几个账本（个人、家庭、店……）。
+    用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、谁欠我钱、还款、分期、存钱目标时用这些工具。
+    1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天和统计口径都在里面。账户 id、账本 id 只用 context 里有的，别猜。
+    2. 拿不准的（哪个账户、哪个账本、什么分类、是不是自己账户之间转钱）先在对话里问用户，确认后再写。
+    3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。
+    4. 写完告诉用户记了什么和改动编号；写错用 undo 撤销。
+    5. 不算收支的：借款和还款、存取目标、自己账户之间转钱、分期每期还款；分期买的那天按全额算支出；退款冲减原分类的支出。
+    6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
+    """
     let protocolVersion = "2025-06-18"
 
     /// 处理一条消息；通知（没有 id）不用回复，返回 nil。
@@ -43,11 +55,13 @@ final class MCPServer {
                 if let info = params["clientInfo"] as? [String: Any], let name = info["name"] as? String, !name.isEmpty {
                     clientName = name
                 }
+                // 记下这个 AI 工具连上过（app 的「连 AI」引导据此显示「连上了」）。只记名字和时间。
+                AIConnections.record(client: clientName)
                 result = [
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
                     "serverInfo": ["name": "xiaxia-ledger", "version": "0.1.0"],
-                    "instructions": "夏夏账本：用户的记账本，可以有好几个账本（个人、家庭、店……）。先调用 context 了解账本、账户和统计口径。拿不准的事先在对话里问用户，确认后再写；写入前可以先用 dry_run 预演。每次写入都会记进改动记录，可以 undo。",
+                    "instructions": MCPServer.instructions,
                 ] as [String: Any]
             case "ping":
                 result = [:] as [String: Any]

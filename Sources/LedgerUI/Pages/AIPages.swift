@@ -10,7 +10,7 @@ struct InsightsPage: View {
         let tools = model.aiTools
         VStack(alignment: .leading, spacing: Kit.gap) {
             statusLine(tools)
-            if tools.isEmpty {
+            if tools.isEmpty && !model.anyAIConnected {
                 NotConnectedCard()
             }
             Columns(sideWidth: 380, breakpoint: 780) {
@@ -122,19 +122,15 @@ struct NotConnectedCard: View {
         VStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 28)).foregroundStyle(Color.ai)
             Text("还没连上 AI").font(.headline)
-            Text("夏夏账本靠 AI 记账。在 Claude 或 Codex 里装上夏夏账本的 MCP，就能让它读写这本账。")
+            #if os(macOS)
+            Text("夏夏账本靠 AI 记账。点一下，帮你把 Claude、Codex 这些 AI 连上这本账。")
                 .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
-            HStack(spacing: 8) {
-                Button {
-                    Clipboard.copy(model.mcpConfig)
-                    model.toast = .init(text: "MCP 配置已复制", changeID: nil)
-                } label: { Label("复制 MCP 配置", systemImage: "doc.on.doc") }
-                    .buttonStyle(AISolidButtonStyle())
-                Button("怎么装？") {
-                    if let url = URL(string: "https://github.com/srmming/xiaxia-ledger#readme") { openURL(url) }
-                }
-                .buttonStyle(.soft)
-            }
+            Button { model.sheet = .connectAI } label: { Label("连上你的 AI", systemImage: "link") }
+                .buttonStyle(AISolidButtonStyle())
+            #else
+            Text("夏夏账本靠 AI 记账。AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，按「连上你的 AI」走一遍，AI 记的账会同步到这里。")
+                .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
+            #endif
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)

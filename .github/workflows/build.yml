@@ -48,6 +48,14 @@ jobs:
           xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Debug \
             -derivedDataPath App/build -destination 'platform=macOS' CODE_SIGN_IDENTITY=- build 2>&1 | tee ci-out/xcode-mac.log | grep -E "error|warning: unre|BUILD" || true
           grep -q "BUILD SUCCEEDED" ci-out/xcode-mac.log
+      - name: Mac app 里带了 fin（连 AI 要用它）
+        run: |
+          set -o pipefail
+          APP="$(find App/build/Build/Products/Debug -name '*.app' -maxdepth 1 | head -1)"
+          ls -la "$APP/Contents/MacOS" | tee ci-out/mac-bundle.txt
+          "$APP/Contents/MacOS/fin" --help | head -3
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"ci"}}}' \
+            | XIAXIA_LEDGER_PATH="$(mktemp -d)/ledger.json" "$APP/Contents/MacOS/fin" mcp | grep -q xiaxia-ledger
       - name: 编译 iPhone app
         run: |
           set -o pipefail

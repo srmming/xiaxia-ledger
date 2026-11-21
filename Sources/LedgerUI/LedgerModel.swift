@@ -7,6 +7,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case add
     /// 管理账本、账户、分类。
     case books, accounts, categories
+    /// 连上你的 AI（Mac 第一次打开、设置里）。
+    case connectAI
     public var id: String { rawValue }
 }
 

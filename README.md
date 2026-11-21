@@ -11,6 +11,14 @@
 
 > A local-first personal & small-business ledger for macOS. Native SwiftUI app for humans, `fin` CLI for AI agents, one shared core.
 
+## 安装（给用的人）
+
+1. 下载 `夏夏账本-x.y.z.dmg`（[Releases](https://github.com/srmming/xiaxia-ledger/releases)），打开后把「夏夏账本」拖进「应用程序」。
+2. 打开夏夏账本，会弹出「连上你的 AI」：勾上你在用的 AI（Claude 桌面版、Claude Code、Codex、Cursor、Gemini CLI），点「连上」，再按提示重开一次那个 AI。
+3. 跟 AI 说「用夏夏账本帮我记一笔：今天买咖啡花了 3,50 €」，引导页变绿就好了。
+
+用别的 AI（Cherry Studio 接 DeepSeek、通义千问等）：在引导里点「复制配置」，粘进它的 MCP 设置。怎么打包和发布见 [docs/DISTRIBUTE.md](docs/DISTRIBUTE.md)。
+
 ## 隐私
 
 这是公开仓库，**只放代码**。真实流水、对账单、账本文件一律不进仓库（见 `.gitignore`）。账本是一个 SQLite 文件，

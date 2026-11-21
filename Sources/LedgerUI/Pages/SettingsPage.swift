@@ -22,13 +22,16 @@ struct SettingsPage: View {
                         StatusDot(color: .income, text: "用过 · \(t.last.friendly) 写过").foregroundStyle(Color.fg2)
                     }
                 }
-                item(symbol: "plus", color: .fg3, title: "连别的 AI（Cursor、Gemini CLI…）") {
-                    Button {
-                        Clipboard.copy(model.mcpConfig)
-                        model.toast = .init(text: "MCP 配置已复制", changeID: nil)
-                    } label: { Label("复制 MCP 配置", systemImage: "doc.on.doc") }
-                        .buttonStyle(.softAI)
+                #if os(macOS)
+                Button { model.sheet = .connectAI } label: {
+                    item(symbol: "link", color: .ai, title: "连上你的 AI（Claude、Codex、Cursor…）") {
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
+                    }
                 }
+                .buttonStyle(.plain)
+                #else
+                ConnectAIPhoneNote().padding(.vertical, 8)
+                #endif
             }
             group("你") {
                 item(symbol: "person.fill", color: .brand, title: "记账的人") {

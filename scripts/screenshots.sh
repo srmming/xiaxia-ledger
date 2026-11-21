@@ -4,6 +4,7 @@
 set -u
 OUT="${1:-screenshots}"
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IOS_APP="$(find "$ROOT/App/build/Build/Products" -path '*iphonesimulator*' -name '*.app' -maxdepth 2 | head -1)"
 MAC_APP="$(find "$ROOT/App/build/Build/Products/Debug" -name '*.app' -maxdepth 1 | head -1)"
@@ -41,7 +42,27 @@ if [ -n "$IOS_APP" ]; then
   ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
 fi
 
-# GitHub 的机器截不到 Mac 窗口（只有黑屏），所以 CI 上跳过 Mac 部分；在自己的 Mac 上跑会截。
+# GitHub 的机器上 screencapture 只有黑屏，改让 app 自己把窗口画成图（-XiaxiaSnapshot），不用屏幕录制权限。
+if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
+  BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
+  snap() {
+    local name="$1"; shift
+    "$BIN" "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >/dev/null 2>&1 &
+    local pid=$!
+    for _ in $(seq 1 30); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+    kill -9 $pid 2>/dev/null
+    [ -f "$OUT/mac-$name.png" ] && echo "mac-$name 截好了" || echo "mac-$name 没截到"
+  }
+  snap 1-overview -XiaxiaDemo
+  snap 6-ai -XiaxiaDemo -XiaxiaSection insights
+  snap 9-settings -XiaxiaDemo -XiaxiaSection settings
+  snap 11-empty-ai -XiaxiaEmpty -XiaxiaSection insights
+  snap 20-connect-ai -XiaxiaEmpty -XiaxiaSheet connectAI
+  snap 21-connect-ai-no-tools -XiaxiaEmpty -XiaxiaNoTools -XiaxiaSheet connectAI
+  snap 22-connect-ai-dark -XiaxiaEmpty -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+fi
+
+# 在自己的 Mac 上跑会用 screencapture 截整屏。
 if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   mac() {
@@ -73,5 +94,6 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   mac 11-empty -XiaxiaEmpty
   mac 12-books -XiaxiaDemo -XiaxiaSheet books
   mac 13-accounts -XiaxiaDemo -XiaxiaSheet accounts
+  mac 20-connect-ai -XiaxiaEmpty -XiaxiaSheet connectAI
 fi
 ls -la "$OUT"

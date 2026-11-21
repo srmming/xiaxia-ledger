@@ -57,14 +57,7 @@ extension LedgerModel {
 
     /// 连别的 AI 工具时粘进它的 MCP 设置里的那段。
     var mcpConfig: String {
-        #if os(macOS)
-        let fin = NSHomeDirectory() + "/.local/bin/fin"
-        #else
-        let fin = "~/.local/bin/fin"
-        #endif
-        return """
-        { "mcpServers": { "xiaxia-ledger": { "command": "\(fin)", "args": ["mcp"] } } }
-        """
+        AIConnector.configSnippet(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin")
     }
 }
 

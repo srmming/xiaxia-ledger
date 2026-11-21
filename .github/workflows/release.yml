@@ -1,0 +1,118 @@
+# 打 Mac 安装包（.dmg）：给别人下载用。
+#   - 手动跑（Actions → release → Run workflow）：只做安装包，放在这次运行的 Artifacts 里。
+#   - 推一个 v 开头的 tag（如 v0.2.0）：另外建一个 GitHub Release 草稿，把安装包挂上去，ming 看过再点发布。
+# 有 Developer ID 证书和公证密钥（见 docs/DISTRIBUTE.md，要 ming 本人在苹果开发者网站开通）就签名 + 公证，
+# 别人双击就能打开；没有就只做未签名版，别人第一次打开要去「系统设置 → 隐私与安全性」点「仍要打开」。
+name: release
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      HAS_SIGNING: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.APPLE_TEAM_ID != '' }}
+      HAS_NOTARY: ${{ secrets.NOTARY_KEY_P8 != '' && secrets.NOTARY_KEY_ID != '' && secrets.NOTARY_ISSUER_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 版本号
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"; else V="$(grep MARKETING_VERSION App/project.yml | grep -oE '[0-9.]+')-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "版本 $V，签名：$HAS_SIGNING，公证：$HAS_NOTARY"
+
+      - name: 生成 Xcode 工程
+        run: |
+          which xcodegen || brew install xcodegen
+          cd App && xcodegen generate
+
+      - name: 导入 Developer ID 证书
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/signing.keychain-db"; KCP="$(uuidgen)"
+          security create-keychain -p "$KCP" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCP" "$KC"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCP" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: 编译 Release 版
+        run: |
+          set -o pipefail
+          xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Release \
+            -derivedDataPath build -destination 'generic/platform=macOS' \
+            MARKETING_VERSION="${{ steps.ver.outputs.version }}" CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            CODE_SIGN_IDENTITY=- build 2>&1 | tee build.log | grep -E "error|BUILD" || true
+          grep -q "BUILD SUCCEEDED" build.log
+          APP="build/Build/Products/Release/夏夏账本.app"
+          test -x "$APP/Contents/MacOS/fin"
+          echo "APP=$APP" >> "$GITHUB_ENV"
+
+      - name: 签名（Developer ID，带 hardened runtime 和时间戳）
+        if: env.HAS_SIGNING == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ID="$(security find-identity -v -p codesigning | grep "Developer ID Application" | grep "$TEAM" | head -1 | grep -oE '[0-9A-F]{40}')"
+          test -n "$ID"
+          # 先签里面的 fin，再签整个 app
+          codesign --force --options runtime --timestamp --sign "$ID" "$APP/Contents/MacOS/fin"
+          codesign --force --options runtime --timestamp --sign "$ID" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "SIGN_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: 做成 dmg
+        run: |
+          DMG="夏夏账本-${{ steps.ver.outputs.version }}.dmg"
+          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/应用程序
+          hdiutil create -volname "夏夏账本" -srcfolder dmg -ov -format UDZO "$DMG"
+          [ "$HAS_SIGNING" = true ] && codesign --force --timestamp --sign "$SIGN_ID" "$DMG"
+          echo "DMG=$DMG" >> "$GITHUB_ENV"
+
+      - name: 公证（苹果检查一遍，别人双击就能开）
+        if: env.HAS_SIGNING == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          KEY: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          echo "$KEY" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER" --wait --timeout 30m
+          xcrun stapler staple "$DMG"
+          spctl -a -vv -t install "$DMG"
+          rm "$RUNNER_TEMP/notary.p8"
+
+      - name: 说明
+        run: |
+          if [ "$HAS_SIGNING" = true ] && [ "$HAS_NOTARY" = true ]; then
+            echo "已签名并公证：别人下载后双击就能打开。" > NOTES.md
+          else
+            printf '%s\n' "这一版**没有签名公证**（还没配 Developer ID）。" "第一次打开：双击会提示「无法验证开发者」，去「系统设置 → 隐私与安全性」最下面点「仍要打开」。" > NOTES.md
+          fi
+          printf '%s\n' "" "装法：打开 dmg，把「夏夏账本」拖进「应用程序」，打开后按「连上你的 AI」走一遍。" >> NOTES.md
+          cat NOTES.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xiaxia-ledger-mac-${{ steps.ver.outputs.version }}
+          path: ${{ env.DMG }}
+
+      - name: 建 Release 草稿（推 tag 时）
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$DMG" --draft --title "夏夏账本 $GITHUB_REF_NAME" --notes-file NOTES.md
