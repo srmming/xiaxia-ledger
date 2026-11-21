@@ -28,6 +28,9 @@ struct GlobalOptions: ParsableArguments {
 
     @Option(name: .long, help: "账本 id，如 personal、miora。不填 = 全部。")
     var book: String?
+
+    @Flag(name: .long, help: "算上私房钱账户。默认不显示、不算进汇总，只有 ming 本人问时才用。")
+    var includePrivate = false
 }
 
 enum Output {
@@ -141,7 +144,10 @@ struct TxCommand: ParsableCommand {
             guard let parsed = YearMonth(month) else { throw ValidationError("月份格式要像 2026-11") }
             ym = parsed
         } else { ym = nil }
-        let txs = try loadLedger().transactions
+        let ledger = try loadLedger()
+        let hidden = options.includePrivate ? [] : ledger.privateAccountIDs
+        let txs = ledger.transactions
+            .filter { !hidden.contains($0.accountID) }
             .filter { options.book == nil || $0.bookID == options.book }
             .filter { account == nil || $0.accountID == account }
             .filter { ym == nil || $0.date.yearMonth == ym }
@@ -157,22 +163,80 @@ struct TxCommand: ParsableCommand {
 }
 
 struct SummaryCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "summary", abstract: "月度收支和分类汇总。")
+    static let configuration = CommandConfiguration(
+        commandName: "summary", abstract: "收支和分类汇总：一个月、一整年，或一段时间。",
+        discussion: """
+        fin summary --month 2026-11
+        fin summary --year 2026
+        fin summary --from 2026-01 --to 2026-06
+        """)
     @OptionGroup var options: GlobalOptions
-    @Option(help: "月份，如 2026-11。") var month: String
+    @Option(help: "月份，如 2026-11。") var month: String?
+    @Option(help: "整年，如 2026。") var year: Int?
+    @Option(help: "从哪个月开始，如 2026-01（和 --to 一起用）。") var from: String?
+    @Option(help: "到哪个月为止，如 2026-06。") var to: String?
 
     func run() throws {
-        guard let ym = YearMonth(month) else { throw ValidationError("月份格式要像 2026-11") }
-        let s = Summaries.monthly(try loadLedger().transactions, month: ym, bookID: options.book)
+        let ledger = try loadLedger()
+        let hidden = options.includePrivate ? [] : ledger.privateAccountIDs
+        let months = try SummaryCommand.months(month: month, year: year, from: from, to: to)
+        let list = Reports.summaries(ledger.transactions, months: months, bookID: options.book, hiddenAccounts: hidden)
         if options.json {
-            struct Out: Encodable { var month: String; var book: String?; var income: String; var expense: String; var net: String; var byCategory: [String: String] }
-            return try Output.json(Out(month: s.month.description, book: s.bookID, income: s.income.decimalString,
-                                       expense: s.expense.decimalString, net: s.net.decimalString,
-                                       byCategory: s.byCategory.mapValues(\.decimalString)))
+            struct Row: Encodable { var month: String; var income: String; var expense: String; var net: String }
+            struct Out: Encodable {
+                var period: String; var book: String?; var income: String; var expense: String; var net: String
+                var byCategory: [String: String]; var months: [Row]
+            }
+            let t = SummaryCommand.total(list)
+            return try Output.json(Out(period: SummaryCommand.label(months), book: options.book, income: t.income.decimalString,
+                                       expense: t.expense.decimalString, net: (t.income + t.expense).decimalString,
+                                       byCategory: t.byCategory.mapValues(\.decimalString),
+                                       months: list.map { Row(month: $0.month.description, income: $0.income.decimalString,
+                                                              expense: $0.expense.decimalString, net: $0.net.decimalString) }))
         }
-        print("\(s.month)  \(options.book ?? "全部")")
-        print("收入 \(s.income.formatted)  支出 \(s.expense.formatted)  结余 \(s.net.formatted)")
-        for (cat, amount) in s.byCategory.sorted(by: { $0.value < $1.value }) { print("  \(cat)\t\(amount.formatted)") }
+        print(SummaryCommand.text(list, months: months, book: options.book))
+    }
+
+    /// 把 --month / --year / --from --to 变成一串月份。
+    static func months(month: String?, year: Int?, from: String?, to: String?) throws -> [YearMonth] {
+        if let month {
+            guard let ym = YearMonth(month) else { throw ValidationError("月份格式要像 2026-11") }
+            return [ym]
+        }
+        if let year { return Reports.months(of: year) }
+        if let from, let to {
+            guard let a = YearMonth(from), let b = YearMonth(to), a <= b else { throw ValidationError("--from 和 --to 要写成 2026-01 这样，而且 from 不能晚于 to") }
+            var out: [YearMonth] = [], m = a
+            while m <= b, out.count < 120 { out.append(m); m = m.adding(months: 1) }
+            return out
+        }
+        throw ValidationError("要看哪段时间？写 --month 2026-11、--year 2026，或 --from 2026-01 --to 2026-06")
+    }
+
+    static func label(_ months: [YearMonth]) -> String {
+        guard let a = months.first, let b = months.last else { return "" }
+        return a == b ? a.description : "\(a) 到 \(b)"
+    }
+
+    static func total(_ list: [MonthlySummary]) -> (income: Money, expense: Money, byCategory: [String: Money]) {
+        var cats: [String: Money] = [:]
+        for s in list { for (k, v) in s.byCategory { cats[k, default: .zero] = cats[k, default: .zero] + v } }
+        return (list.reduce(Money.zero) { $0 + $1.income }, list.reduce(Money.zero) { $0 + $1.expense }, cats)
+    }
+
+    static func text(_ list: [MonthlySummary], months: [YearMonth], book: String?) -> String {
+        let t = total(list)
+        var lines = ["\(label(months))  \(book ?? "全部")",
+                     "收入 \(t.income.formatted)  支出 \(t.expense.formatted)  结余 \((t.income + t.expense).formatted)"]
+        if list.count > 1 {
+            lines.append("按月：")
+            for s in list where s.income.cents != 0 || s.expense.cents != 0 {
+                lines.append("  \(s.month)\t收入 \(s.income.formatted)\t支出 \(s.expense.formatted)\t结余 \(s.net.formatted)")
+            }
+            lines.append("分类：")
+        }
+        lines += t.byCategory.sorted { $0.value < $1.value }.map { "  \($0.key)\t\($0.value.formatted)" }
+        return lines.joined(separator: "\n")
     }
 }
 

@@ -104,11 +104,14 @@ enum MCPTools {
             "limit": prop("integer", "最多几条，默认 50"),
             "include_private": prop("boolean", "包括私房钱账户。只有 ming 本人问时才用"),
         ], readOnly: true),
-        tool("summary", "月度收支和分类汇总。不填 book 是「全部」，账本间转账已抵消。", [
-            "month": prop("string", "月份，如 2026-11（必填）"),
+        tool("summary", "收支和分类汇总：一个月（month）、一整年（year），或一段时间（from + to）。不填 book 是「全部」，账本间转账已抵消。", [
+            "month": prop("string", "月份，如 2026-11"),
+            "year": prop("integer", "整年，如 2026"),
+            "from": prop("string", "从哪个月开始，如 2026-01"),
+            "to": prop("string", "到哪个月为止，如 2026-06"),
             "book": prop("string", "账本 id"),
             "include_private": prop("boolean", "算上私房钱"),
-        ], required: ["month"], readOnly: true),
+        ], readOnly: true),
         tool("accounts", "每个账户现在的余额。私房钱账户默认不列。", ["include_private": prop("boolean", "包括私房钱账户。只有 ming 本人问时才用")], readOnly: true),
         tool("monthly_report", "月报：进多少、花多少、花在哪、和上个月比、要留意什么。一份能直接读给 ming 的文字。", [
             "month": prop("string", "月份，如 2026-11；不填 = 这个月"),
@@ -183,6 +186,15 @@ enum MCPTools {
             "account": prop("string", "账户 id"), "amount": prop("string", "余额，信用卡欠款写负数"),
             "date": prop("string", "哪天的余额，默认今天"), "author": author, "dry_run": dryRun,
         ], required: ["account", "amount"], readOnly: false),
+        tool("book_transfer", "账本之间挪钱（同一个账户里，如店里的钱拿回家用）：两边各记一笔，看「全部」时互相抵消。", [
+            "amount": prop("string", "金额，正数"), "from_book": prop("string", "从哪个账本"), "to_book": prop("string", "到哪个账本"),
+            "account": prop("string", "哪个账户"), "date": prop("string", "日期，默认今天"), "note": prop("string", "说明"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["amount", "from_book", "to_book", "account"], readOnly: false),
+        tool("goal_withdraw", "从目标里取钱（锁定的目标到期前不能取）。", [
+            "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "to_account": prop("string", "取到哪个账户"),
+            "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["name", "amount", "to_account"], readOnly: false),
         tool("categorize", "改分类。ids 用 list_transactions 返回的 id（前 8 位也行）。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "category": prop("string", "分类"),
@@ -284,14 +296,13 @@ enum MCPTools {
                 .prefix(int("limit", 50))
             return try json(Array(txs))
         case "summary":
-            guard let ym = YearMonth(try req("month")) else { throw ToolError(message: "月份要写成 2026-11") }
+            let year: Int? = a["year"] == nil ? nil : int("year", 0)
+            let months: [YearMonth]
+            do { months = try SummaryCommand.months(month: s("month"), year: year, from: s("from"), to: s("to")) }
+            catch { throw ToolError(message: "要看哪段时间？填 month（2026-11）、year（2026），或 from + to（2026-01、2026-06）") }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
-            let sum = Summaries.monthly(ledger.transactions, month: ym, bookID: s("book"), hiddenAccounts: hidden)
-            var lines = ["\(ym) \(s("book") ?? "全部")", "收入 \(sum.income.formatted)", "支出 \(sum.expense.formatted)", "结余 \(sum.net.formatted)"]
-            if let rate = Plans.savingsRate(sum) { lines.append("储蓄率 \(rate)%") }
-            lines.append("分类：")
-            lines += sum.byCategory.sorted { $0.value < $1.value }.map { "  \($0.key) \($0.value.formatted)" }
-            return lines.joined(separator: "\n")
+            let list = Reports.summaries(ledger.transactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
+            return SummaryCommand.text(list, months: months, book: s("book"))
         case "accounts":
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let balances = Summaries.balances(ledger.transactions)
@@ -443,6 +454,15 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
             return try commit(try ledger.deposit(goalID: hits[0].id, amount: try money("amount").magnitude,
                                                  fromAccount: try req("from_account"), date: try date("date") ?? .today, author: who))
+        case "book_transfer":
+            return try commit(try ledger.addTransfer(amount: try money("amount").magnitude, fromBook: try req("from_book"),
+                                                     toBook: try req("to_book"), accountID: try req("account"),
+                                                     date: try date("date") ?? .today, note: s("note"), author: who))
+        case "goal_withdraw":
+            let hits = ledger.findGoals(named: try req("name"))
+            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
+            return try commit(try ledger.withdraw(goalID: hits[0].id, amount: try money("amount").magnitude,
+                                                  toAccount: try req("to_account"), date: try date("date") ?? .today, author: who))
         case "undo":
             let key = try req("change_id").lowercased()
             let hits = ledger.changes.filter { $0.id.uuidString.lowercased().hasPrefix(key) }
