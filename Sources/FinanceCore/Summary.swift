@@ -7,9 +7,9 @@ public struct MonthlySummary: Equatable, Sendable {
     public var income: Money
     public var expense: Money         // 负数
     public var byCategory: [String: Money]
-    /// 和别的账本之间挪的钱（只在看单个账本时有）：这个账本名下「自己账户间转账」加起来的净额。
+    /// 和别的账本之间挪的钱（只在看单个账本时有）：配上对、另一边在别的账本的「自己账户间转账」净额。
     /// 正数 = 从别的账本拿进来的（个人账本：从店里拿回家的），负数 = 拿去别的账本的（店账本：老板拿走的）。
-    /// 不算收入也不算支出，单独列出来；同一个账本内部的互转一进一出正好抵消，不会出现在这里。
+    /// 不算收入也不算支出，单独列出来；同一个账本内部的互转、只记了一边的互转都不算在这里。
     public var betweenBooks: Money = .zero
 
     public var net: Money { income + expense }
@@ -42,15 +42,60 @@ public enum Summaries {
                               betweenBooks: moved)
     }
 
+    /// 「自己账户间转账」两边配对的结果。
+    public struct InternalPairing: Sendable {
+        /// 配上对、而且两边分属不同账本的那些流水（从店里拿回家的钱就在这里）。
+        public var crossBook: [Transaction] = []
+        /// 没配上对的：只记了转出或只记了转入的那一边。
+        public var unpaired: [Transaction] = []
+    }
+
+    /// 把「自己账户间转账」一出一进配成对：金额相同、方向相反、不是同一个账户、日期相差 4 天以内，取日期最近的。
+    /// 例子：3 号 Caixa −400、4 号 imagin +400 配成一对。Caixa 记在店账本、imagin 记在个人账本，这一对就是「从店里拿回家 400」。
+    /// 配对是推出来的，不是账单上写的，所以没配上的要单独标出来，不能悄悄算进去。只做计算，不改流水。
+    public static func pairInternal(_ txs: [Transaction]) -> InternalPairing {
+        var groups: [Int64: (out: [Transaction], into: [Transaction])] = [:]
+        for tx in txs where tx.flow == .internal && tx.amount.cents != 0 {
+            let key = abs(tx.amount.cents)
+            if tx.amount.cents < 0 { groups[key, default: ([], [])].out.append(tx) } else { groups[key, default: ([], [])].into.append(tx) }
+        }
+        var result = InternalPairing()
+        for (_, g) in groups {
+            var into = g.into.sorted { $0.date < $1.date }
+            for out in g.out.sorted(by: { $0.date < $1.date }) {
+                var best: (index: Int, gap: Int)?
+                for (k, cand) in into.enumerated() where cand.accountID != out.accountID {
+                    let gap = abs(dayNumber(cand.date) - dayNumber(out.date))
+                    if gap <= 4, best == nil || gap < best!.gap { best = (k, gap) }
+                }
+                if let best {
+                    let other = into.remove(at: best.index)
+                    if out.bookID != other.bookID { result.crossBook += [out, other] }
+                } else {
+                    result.unpaired.append(out)
+                }
+            }
+            result.unpaired += into
+        }
+        result.unpaired.sort { $0.date < $1.date }
+        return result
+    }
+
+    /// 从某个固定日子数起的第几天，只用来算两个日期差几天。
+    private static func dayNumber(_ d: LocalDate) -> Int {
+        let a = (14 - d.month) / 12, y = d.year + 4800 - a, m = d.month + 12 * a - 3
+        return d.day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400
+    }
+
     /// 每个月这个账本和别的账本之间净挪了多少钱（看「全部」时永远是空的）。
-    /// 例子：从店里的 Caixa 转 400 € 到自己的 imagin。店账本这个月 −400（老板拿走的），个人账本 +400（从店里拿的）。
-    /// 只做计算，不改流水。
+    /// 只算配上对、两边分属不同账本的转账，所以两个账本看到的数正好一正一负。
+    /// 例子：从店里的 Caixa 转 400 € 到自己的 imagin。店账本这个月 −400（拿去个人的），个人账本 +400（从店里拿的）。
     public static func betweenBooks(_ txs: [Transaction], months: [YearMonth], bookID: String?,
                                     hiddenAccounts: Set<String> = []) -> [YearMonth: Money] {
         guard let bookID else { return [:] }
         let wanted = Set(months)
         var out: [YearMonth: Money] = [:]
-        for tx in txs where tx.flow == .internal && tx.bookID == bookID && !hiddenAccounts.contains(tx.accountID) {
+        for tx in pairInternal(txs).crossBook where tx.bookID == bookID && !hiddenAccounts.contains(tx.accountID) {
             let m = tx.date.yearMonth
             guard wanted.contains(m) else { continue }
             out[m, default: .zero] = out[m, default: .zero] + tx.amount
@@ -58,14 +103,15 @@ public enum Summaries {
         return out.filter { $0.value.cents != 0 }
     }
 
-    /// 这几个月里「自己账户间转账」没对上的差额：所有账本的互转加起来本该是 0（一边出、一边进）。
-    /// 不是 0 说明有的转账只记了一边，或者两边分属的账本标错了，「从店里拿的」那个数就不完全可信，要提醒。
-    /// 月底转出、下月初才到账的那种会在两个月各差一次，所以最好按整年来看。
-    public static func unmatchedInternal(_ txs: [Transaction], months: [YearMonth]) -> Money {
+    /// 这几个月里只记了一边的「自己账户间转账」：几笔、金额加起来多少（不分正负）。bookID 不填就是所有账本。
+    /// 比如还信用卡只记了银行卡扣款、信用卡那边没记进账。这些钱没法确定去了哪个账本，所以不算进「从店里拿的」，单独提醒。
+    public static func unmatchedInternal(_ txs: [Transaction], months: [YearMonth], bookID: String? = nil,
+                                         hiddenAccounts: Set<String> = []) -> (count: Int, total: Money) {
         let wanted = Set(months)
-        return txs.reduce(Money.zero) { sum, tx in
-            tx.flow == .internal && wanted.contains(tx.date.yearMonth) ? sum + tx.amount : sum
+        let list = pairInternal(txs).unpaired.filter {
+            wanted.contains($0.date.yearMonth) && (bookID == nil || $0.bookID == bookID) && !hiddenAccounts.contains($0.accountID)
         }
+        return (list.count, list.reduce(Money.zero) { $0 + $1.amount.magnitude })
     }
 
     /// 哪些分类是「花钱的分类」：这个分类下所有收支加起来是负的。另外「退款」这个分类名永远算。

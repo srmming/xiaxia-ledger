@@ -70,7 +70,8 @@ public struct ReportsView: View {
     @ViewBuilder private func betweenBooksNote(_ list: [MonthlySummary], months: [YearMonth], net: Money) -> some View {
         let moved = list.reduce(Money.zero) { $0 + $1.betweenBooks }
         if let bookID = model.selectedBookID, moved.cents != 0 {
-            let unmatched = Summaries.unmatchedInternal(model.ledger.transactions, months: months)
+            let unmatched = Summaries.unmatchedInternal(model.ledger.transactions, months: months, bookID: bookID,
+                                                        hiddenAccounts: model.hiddenAccounts)
             Card(spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Label(Reports.betweenBooksLabel(moved, bookID: bookID, books: model.ledger.books), systemImage: "arrow.left.arrow.right")
@@ -80,8 +81,8 @@ public struct ReportsView: View {
                 }
                 Text("自己账户之间挪的钱，不算收入也不算支出。算上它，这一年实际剩 \((net + moved).formatted)。")
                     .font(.footnote).foregroundStyle(.secondary)
-                if unmatched.cents != 0 {
-                    Label("有 \(unmatched.magnitude.formatted) 的互转只记了一边，这个数可能差这么多。", systemImage: "exclamationmark.triangle")
+                if unmatched.count > 0 {
+                    Label("另有 \(unmatched.count) 笔互转只记了一边（共 \(unmatched.total.formatted)），没法确定是不是和别的账本之间的，没算进来。", systemImage: "exclamationmark.triangle")
                         .font(.footnote).foregroundStyle(.orange)
                 }
             }
