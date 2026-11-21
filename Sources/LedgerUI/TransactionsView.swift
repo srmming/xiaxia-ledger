@@ -164,6 +164,7 @@ struct TransactionRow: View {
             return model.ledger.installments.contains { $0.paidIDs.contains(tx.id) || $0.purchaseID == tx.id } ? "calendar" : "person.2"
         case .saving: return "dollarsign.circle"
         case .opening: return "flag"
+        case .internal: return "arrow.left.arrow.right"
         case nil:
             if tx.isTransfer { return "arrow.left.arrow.right" }
             if let symbol = Self.categorySymbols[tx.category ?? ""] { return symbol }
@@ -180,6 +181,15 @@ struct TransactionDetail: View {
     @State private var confirmDelete = false
     @State private var error: String?
 
+    static func flowLabel(_ flow: Transaction.Flow) -> String {
+        switch flow {
+        case .debt: "借款往来（不算收支）"
+        case .saving: "转进储蓄（不算收支）"
+        case .opening: "期初余额（不算收支）"
+        case .internal: "自己账户互转（不算收支）"
+        }
+    }
+
     var body: some View {
         let change = model.ledger.changes.last { $0.transactionIDs.contains(tx.id) }
         Form {
@@ -191,7 +201,7 @@ struct TransactionDetail: View {
                 LabeledContent("账本", value: model.bookName(tx.bookID))
                 LabeledContent("分类", value: tx.category ?? "未分类")
                 if let flow = tx.flow {
-                    LabeledContent("性质", value: flow == .debt ? "借款往来（不算收支）" : flow == .saving ? "转进储蓄（不算收支）" : "期初余额（不算收支）")
+                    LabeledContent("性质", value: Self.flowLabel(flow))
                 }
                 if let source = tx.source { LabeledContent("来源", value: source) }
             }

@@ -53,10 +53,11 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var transferID: UUID?
     /// 来源：导入文件名或「手记」，方便追溯。
     public var source: String?
-    /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额。nil = 普通收支。
+    /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额、
+    /// 自己账户之间转钱（互转：转去 Revolut 充值、还信用卡、主账户转 imagin）。nil = 普通收支。
     public var flow: Flow?
 
-    public enum Flow: String, Codable, Sendable { case debt, saving, opening }
+    public enum Flow: String, Codable, Sendable { case debt, saving, opening, `internal` }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,

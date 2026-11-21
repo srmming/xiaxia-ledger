@@ -359,7 +359,7 @@ struct ImportCommand: ParsableCommand {
     @Option(help: "通用 CSV：表头前要跳过几行。") var skipRows: Int = 0
     @Option(help: "通用 CSV（可选）：分类列。") var categoryCol: String?
     @Option(help: "通用 CSV（可选）：账本列，写账本 id，如 personal / miora。") var bookCol: String?
-    @Option(help: "通用 CSV（可选）：性质列，debt / saving / opening，空着是普通收支。") var flowCol: String?
+    @Option(help: "通用 CSV（可选）：性质列，debt / saving / opening / internal（自己账户互转），空着是普通收支。") var flowCol: String?
     @Option(help: "这批默认归哪个账本（不填就先不分，之后用 fin assign）。") var book: String?
     func run() throws {
         let url = URL(fileURLWithPath: file)
