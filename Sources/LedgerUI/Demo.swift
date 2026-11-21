@@ -5,6 +5,7 @@ extension Ledger {
     /// 示例账本：所有人名、金额都是编的，只给预览、截图和模拟器演示用。
     public static var demo: Ledger {
         var l = Ledger.starter
+        l.books = [Book(id: "personal", name: "个人"), Book(id: "miora", name: "我的小店")]
         l.accounts = [
             Account(id: "caixa", name: "CaixaBank", kind: .bank, institution: "CaixaBank"),
             Account(id: "imagin", name: "imagin", kind: .bank, institution: "imagin"),
@@ -69,12 +70,12 @@ extension Ledger {
         ]
         // 刚导入、还没整理的几笔：演示「整理」。Mercadona 以前分过类，会自动猜成「超市 · 个人」。
         txs += [
-            Transaction(date: d(11, 17), amount: c(-42.35), description: "MERCADONA", accountID: "imagin", source: "imagin-11月.csv"),
-            Transaction(date: d(11, 19), amount: c(-27.9), description: "MERCADONA", accountID: "imagin", source: "imagin-11月.csv"),
-            Transaction(date: d(11, 18), amount: c(-18.6), description: "GLOVO BARCELONA", accountID: "revolut", source: "revolut-11月.csv"),
-            Transaction(date: d(11, 16), amount: c(-64), description: "AMAZON MKTPLACE", accountID: "revolut", source: "revolut-11月.csv"),
-            Transaction(date: d(11, 14), amount: c(-64.2), description: "AMAZON MKTPLACE", accountID: "revolut", source: "revolut-11月.csv"),
-            Transaction(date: d(11, 13), amount: c(85), description: "BIZUM DE LAURA G", accountID: "caixa", source: "caixa-11月.csv"),
+            Transaction(date: d(11, 17), amount: c(-42.35), description: "MERCADONA", accountID: "imagin", bookID: "personal", category: "超市", source: "imagin-11月.csv"),
+            Transaction(date: d(11, 19), amount: c(-27.9), description: "MERCADONA", accountID: "imagin", bookID: "personal", category: "超市", source: "imagin-11月.csv"),
+            Transaction(date: d(11, 18), amount: c(-18.6), description: "GLOVO BARCELONA", accountID: "revolut", bookID: "personal", category: "餐饮", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 16), amount: c(-64), description: "AMAZON MKTPLACE", accountID: "revolut", bookID: "personal", category: "购物", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 14), amount: c(-64.2), description: "AMAZON MKTPLACE", accountID: "revolut", bookID: "personal", category: "购物", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 13), amount: c(85), description: "BIZUM 朋友还饭钱", accountID: "caixa", bookID: "personal", category: "收入", source: "caixa-11月.csv"),
         ]
         let openings: [(String, Double)] = [("caixa", 3200), ("imagin", 3600), ("revolut", 2900), ("cash", 180)]
         txs += openings.map { Transaction(date: d(1, 1), amount: c($0.1), description: "期初余额", accountID: $0.0, category: "期初余额", flow: .opening) }
@@ -91,19 +92,19 @@ extension Ledger {
         lampPlan.purchaseID = lampBuy.id
         l.installments = [lampPlan]
         l.goals = [
-            Goal(name: "应急金", bookID: "personal", target: c(6000), savingsAccountID: "pot"),
-            Goal(name: "店铺装修", bookID: "miora", target: c(4000), deadline: LocalDate(year: 2027, month: 6, day: 30)),
+            Goal(name: "应急金", bookID: "personal", target: c(6000), deadline: LocalDate(year: 2027, month: 4, day: 30), savingsAccountID: "pot"),
+            Goal(name: "店铺装修", bookID: "miora", target: c(4000)),
         ]
         // 改动记录：借款各带一条，详情页才能看到借出那一笔；再放两条 AI 记的，演示「谁改的」。
-        var lendChange = ChangeRecord(kind: .debt, summary: "记欠款：阿华 欠我 500,00 €", transactionIDs: [lend.id], author: "ming")
+        var lendChange = ChangeRecord(kind: .debt, summary: "记欠款：阿华 欠我 500,00 €", transactionIDs: [lend.id], author: "Codex")
         lendChange.debtID = l.debts[0].id
-        var borrowChange = ChangeRecord(kind: .debt, summary: "记欠款：我欠 妈妈 2.000,00 €", transactionIDs: [borrow.id], author: "ming")
+        var borrowChange = ChangeRecord(kind: .debt, summary: "记欠款：我欠 妈妈 2.000,00 €", transactionIDs: [borrow.id], author: "Claude")
         borrowChange.debtID = l.debts[1].id
         let imported = l.transactions.filter { $0.source?.hasSuffix(".csv") == true }
         l.changes = [
             ChangeRecord(kind: .importBatch, summary: "导入示例数据", transactionIDs: [], author: "示例"),
             lendChange, borrowChange,
-            ChangeRecord(kind: .importBatch, summary: "导入 imagin、Revolut、CaixaBank 11 月对账单 \(imported.count) 笔", transactionIDs: imported.map(\.id), author: "Claude"),
+            ChangeRecord(kind: .importBatch, summary: "导入 11 月对账单，新增 \(imported.count) 笔", transactionIDs: imported.map(\.id), author: "Claude"),
         ]
         return l
     }
