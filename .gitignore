@@ -1,0 +1,24 @@
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+Package.resolved.bak
+
+# macOS
+.DS_Store
+
+# ⚠️ 财务数据一律不进仓库（这是公开仓库）
+data/
+private/
+*.csv
+*.xlsx
+*.xls
+*.ofx
+*.qif
+*.pdf
+*.sqlite
+*.sqlite-*
+ledger.json
+!Tests/**/Fixtures/*.csv
