@@ -291,7 +291,9 @@ extension View {
 
     func sheetSize(width: CGFloat = 460, height: CGFloat = 540) -> some View {
         #if os(macOS)
-        frame(minWidth: width, idealWidth: width, minHeight: height, idealHeight: height)
+        // 固定大小，而且不超过主窗口最小高度（620）能放下的范围：
+        // 内容多就在面板里滚动，取消和保存按钮永远留在面板里，不会跑到窗口外面。
+        frame(width: width, height: min(height, 540))
         #else
         self
         #endif
