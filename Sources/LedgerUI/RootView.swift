@@ -202,13 +202,31 @@ public struct XiaxiaScene: Scene {
     public init() {
         // 截图和演示：启动参数带 -XiaxiaDemo 就用编造的示例账本，-XiaxiaEmpty 是空账本（看第一次打开的样子），都不碰真实数据。
         let args = ProcessInfo.processInfo.arguments
+        let model: LedgerModel
         if args.contains("-XiaxiaDemo") {
-            _model = State(initialValue: LedgerModel.demo())
+            model = LedgerModel.demo()
         } else if args.contains("-XiaxiaEmpty") {
-            _model = State(initialValue: LedgerModel.empty())
+            model = LedgerModel.empty()
         } else {
-            _model = State(initialValue: LedgerModel(store: LedgerStores.defaultStore()))
+            model = LedgerModel(store: LedgerStores.defaultStore())
         }
+        Self.applyLaunchOptions(args, to: model)
+        _model = State(initialValue: model)
+    }
+
+    /// 截图和自动检查用：-XiaxiaSection reports 直接打开某一页，-XiaxiaSheet add 直接弹出某个窗口，-XiaxiaPrivate 显示私房钱。
+    private static func applyLaunchOptions(_ args: [String], to model: LedgerModel) {
+        func value(_ key: String) -> String? {
+            guard let i = args.firstIndex(of: key), i + 1 < args.count else { return nil }
+            return args[i + 1]
+        }
+        let sections: [String: AppSection] = ["overview": .overview, "transactions": .transactions, "reports": .reports, "plans": .plans,
+                                              "import": .importer, "history": .history, "settings": .settings]
+        if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
+        let sheets: [String: AppSheet] = ["add": .add, "triage": .triage, "import": .importer, "debt": .addDebt(.theyOweMe),
+                                          "installment": .addInstallment, "goal": .addGoal, "account": .addAccount]
+        if let s = value("-XiaxiaSheet"), let sheet = sheets[s] { model.sheet = sheet }
+        if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
     }
 
     public var body: some Scene {
