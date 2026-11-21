@@ -109,6 +109,17 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "include_private": prop("boolean", "算上私房钱"),
         ], required: ["month"], readOnly: true),
+        tool("accounts", "每个账户现在的余额。私房钱账户默认不列。", ["include_private": prop("boolean", "包括私房钱账户。只有 ming 本人问时才用")], readOnly: true),
+        tool("monthly_report", "月报：进多少、花多少、花在哪、和上个月比、要留意什么。一份能直接读给 ming 的文字。", [
+            "month": prop("string", "月份，如 2026-11；不填 = 这个月"),
+            "book": prop("string", "账本 id；不填 = 全部"),
+            "include_private": prop("boolean", "算上私房钱"),
+        ], readOnly: true),
+        tool("reconcile", "对账：拿银行某一天的余额和账本比，返回差多少、可能差在哪几笔。只看不改。", [
+            "account": prop("string", "账户 id"),
+            "balance": prop("string", "银行那边的余额，如 382,64"),
+            "date": prop("string", "这个余额是哪天的，默认今天"),
+        ], required: ["account", "balance"], readOnly: true),
         tool("debts", "谁欠我钱、我欠谁：还欠多少、有没有过期。", ["include_closed": prop("boolean", "连已还清的也列出")], readOnly: true),
         tool("installments", "分期：第几期、每期多少、还剩多少、下次扣款日。", [:], readOnly: true),
         tool("goals", "目标和储蓄进度。", [:], readOnly: true),
@@ -140,6 +151,38 @@ enum MCPTools {
             "date": prop("string", "日期，默认今天"),
             "author": author, "dry_run": dryRun,
         ], required: ["counterparty", "amount", "account"], readOnly: false),
+        tool("edit_transaction", "改一笔流水，只填要改的那几项。转账、借款、分期、目标里的流水不能直接改，先 undo 再重新记。", [
+            "id": prop("string", "流水 id（前 8 位也行）"),
+            "amount": prop("string", "新金额，负数是支出"), "description": prop("string", "新说明"),
+            "date": prop("string", "新日期"), "account": prop("string", "换到哪个账户"),
+            "book": prop("string", "换到哪个账本"), "category": prop("string", "新分类"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["id"], readOnly: false),
+        tool("delete_transactions", "删流水（能 undo 放回来）。先 dry_run 给 ming 看要删哪几笔，确认后再删。", [
+            "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
+            "author": author, "dry_run": dryRun,
+        ], required: ["ids"], readOnly: false),
+        tool("account_transfer", "自己账户之间挪钱（取现、转到 Revolut、还信用卡）：记两笔，不算收入也不算支出。", [
+            "amount": prop("string", "金额，正数"), "from_account": prop("string", "从哪个账户出"),
+            "to_account": prop("string", "进哪个账户"), "date": prop("string", "日期，默认今天"),
+            "note": prop("string", "说明"), "author": author, "dry_run": dryRun,
+        ], required: ["amount", "from_account", "to_account"], readOnly: false),
+        tool("mark_account_transfer", "把已导入的流水标成自己账户间转账，不再算收支。", [
+            "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
+            "counter_account": prop("string", "在这个账户补上另一半（如取现补到现金账户）；另一半已经导入过就不填"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["ids"], readOnly: false),
+        tool("add_account", "加一个账户，可以同时记开账余额。", [
+            "id": prop("string", "账户 id，小写英文，如 revolut"), "name": prop("string", "显示名"),
+            "kind": ["type": "string", "enum": ["bank", "credit", "cash", "wallet", "savings"], "description": "类型，默认 bank"],
+            "private": prop("boolean", "私房钱：app 默认不显示、不算进总览"),
+            "opening_balance": prop("string", "开账余额（可选）"), "date": prop("string", "开账余额是哪天的，默认今天"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["id", "name"], readOnly: false),
+        tool("set_opening_balance", "记开账余额：开始记账那天账户里已经有多少钱（不算收入）。已经记过就改成新的。", [
+            "account": prop("string", "账户 id"), "amount": prop("string", "余额，信用卡欠款写负数"),
+            "date": prop("string", "哪天的余额，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["account", "amount"], readOnly: false),
         tool("categorize", "改分类。ids 用 list_transactions 返回的 id（前 8 位也行）。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "category": prop("string", "分类"),
@@ -249,6 +292,61 @@ enum MCPTools {
             lines.append("分类：")
             lines += sum.byCategory.sorted { $0.value < $1.value }.map { "  \($0.key) \($0.value.formatted)" }
             return lines.joined(separator: "\n")
+        case "accounts":
+            let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
+            let balances = Summaries.balances(ledger.transactions)
+            return ledger.accounts.filter { !hidden.contains($0.id) }
+                .map { "\($0.id)\t\($0.name)\($0.isPrivate ? "（私房钱）" : "")\t\((balances[$0.id] ?? .zero).formatted)" }.joined(separator: "\n")
+        case "monthly_report":
+            let ym: YearMonth
+            if let m = s("month") {
+                guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
+                ym = v
+            } else { ym = LocalDate.today.yearMonth }
+            if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
+            return MonthlyReport.text(ledger, month: ym, bookID: s("book"),
+                                      hiddenAccounts: flag("include_private") ? [] : ledger.privateAccountIDs)
+        case "reconcile":
+            return Reconcile.text(try Reconcile.check(ledger, accountID: try req("account"), statementBalance: try money("balance"),
+                                                      asOf: try date("date") ?? .today))
+        case "edit_transaction":
+            var t = try ledger.findTransactions([try req("id")])[0]
+            guard t.flow == nil, !t.isTransfer else {
+                throw ToolError(message: "这笔是转账、借款、分期或目标的一部分，不能直接改。先 undo 原来那条改动，再重新记。")
+            }
+            guard ["amount", "description", "date", "account", "book", "category"].contains(where: { s($0) != nil }) else {
+                throw ToolError(message: "没写要改什么")
+            }
+            if s("amount") != nil { t.amount = try money("amount") }
+            if let v = s("description") { t.description = v }
+            if let v = try date("date") { t.date = v }
+            if let v = s("account") { t.accountID = v }
+            if let v = s("book") { t.bookID = v }
+            if let v = s("category") { t.category = v }
+            return try commit(try ledger.editTransaction(t, author: who))
+        case "delete_transactions":
+            guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
+            let txs = try ledger.findTransactions(ids)
+            let listing = txs.map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
+            return try commit(try ledger.removeTransactions(txs.map(\.id), author: who)) + "\n" + listing
+        case "add_account":
+            let id = try req("id")
+            guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ToolError(message: "已经有 \(id) 这个账户了") }
+            guard let kind = AccountKind(rawValue: s("kind") ?? "bank") else { throw ToolError(message: "kind 只能是 bank、credit、cash、wallet、savings") }
+            let opening: Money? = s("opening_balance") == nil ? nil : try money("opening_balance")
+            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private")),
+                                                       openingBalance: opening, date: try date("date") ?? .today, author: who))
+        case "set_opening_balance":
+            return try commit(try ledger.setOpeningBalance(accountID: try req("account"), amount: try money("amount"),
+                                                           date: try date("date") ?? .today, author: who))
+        case "account_transfer":
+            return try commit(try ledger.addAccountTransfer(amount: try money("amount").magnitude, from: try req("from_account"),
+                                                            to: try req("to_account"), date: try date("date") ?? .today,
+                                                            note: s("note"), author: who))
+        case "mark_account_transfer":
+            guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
+            let txs = try ledger.findTransactions(ids).map(\.id)
+            return try commit(try ledger.markAsAccountTransfer(txs, counterAccount: s("counter_account"), author: who))
         case "debts":
             return try json(Plans.debts(ledger, today: .today, includeClosed: flag("include_closed")))
         case "installments":

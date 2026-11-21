@@ -74,7 +74,7 @@ struct TriageView: View {
     private func card(_ g: Batch) -> some View {
         Card {
             HStack(alignment: .firstTextBaseline) {
-                Text(g.first.description).font(.title3.weight(.semibold)).lineLimit(2)
+                Text(Merchant.display(g.first.description)).font(.title3.weight(.semibold)).lineLimit(2)
                 Spacer()
                 AmountText(money: g.total, font: .title3.weight(.semibold))
             }

@@ -395,7 +395,7 @@ struct TransactionRow: View {
                 .frame(width: 32, height: 32)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
-                Text(tx.description).lineLimit(1)
+                Text(Merchant.display(tx.description)).lineLimit(1)
                 HStack(spacing: 4) {
                     if untidy {
                         Text(tx.category == nil ? "没分类" : "没分账本")

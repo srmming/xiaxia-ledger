@@ -38,7 +38,7 @@ public struct ReportsView: View {
             } else {
                 tiles(income: income, expense: expense, net: net, months: active.count)
                 chartCard(list)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                     monthsCard(list)
                     categoriesCard(list, total: showIncome ? income : expense.magnitude, months: active.count)
                     if model.selectedBookID == nil, model.ledger.books.count > 1 { booksCard(months) }
@@ -125,7 +125,9 @@ public struct ReportsView: View {
             Grid(alignment: .trailing, horizontalSpacing: 12, verticalSpacing: 8) {
                 GridRow {
                     Text("月份").gridColumnAlignment(.leading)
-                    Text("进账"); Text("花掉"); Text("剩下")
+                    Text("进账").frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("花掉").frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("剩下").frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .font(.caption).foregroundStyle(.secondary)
                 ForEach(list.reversed(), id: \.month) { m in
