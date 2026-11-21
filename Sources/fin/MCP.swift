@@ -262,8 +262,12 @@ enum MCPTools {
         case "categorize", "assign_book":
             guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
             let txs = try ledger.findTransactions(ids).map(\.id)
-            let change = name == "categorize" ? ledger.categorize(txs, category: try req("category"), author: who)
-                                              : try ledger.assignBook(txs, bookID: try req("book"), author: who)
+            let change: ChangeRecord
+            if name == "categorize" {
+                change = ledger.categorize(txs, category: try req("category"), author: who)
+            } else {
+                change = try ledger.assignBook(txs, bookID: try req("book"), author: who)
+            }
             return try commit(change)
         case "import_statement":
             let url = URL(fileURLWithPath: (try req("file") as NSString).expandingTildeInPath)
