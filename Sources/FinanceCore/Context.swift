@@ -31,7 +31,7 @@ public struct LedgerContext: Codable, Sendable {
         "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
         "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
         "借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。",
-        "分期：每期扣款算支出，剩余未还的不算；用 fin installments 看还剩几期。",
+        "分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。",
         "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
         "私房钱（isPrivate 的账户）：ming 问才说；做给店里、合伙人、gestoría 的报表时不要算进去。",
         "记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。",

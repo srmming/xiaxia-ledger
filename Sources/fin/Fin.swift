@@ -7,10 +7,10 @@ struct Fin: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
-        discussion: "数据位置默认 ~/Library/Application Support/XiaxiaLedger/ledger.json，可用 XIAXIA_LEDGER_PATH 覆盖。",
+        discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, TransferCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
+                      AssignCommand.self, TransferCommand.self, InstallmentCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
     )
 }
 
@@ -32,8 +32,8 @@ enum Output {
     }
 }
 
-func loadLedger() throws -> Ledger { try JSONFileLedgerStore.defaultStore().load() }
-func saveLedger(_ ledger: Ledger) throws { try JSONFileLedgerStore.defaultStore().save(ledger) }
+func loadLedger() throws -> Ledger { try LedgerStores.defaultStore().load() }
+func saveLedger(_ ledger: Ledger) throws { try LedgerStores.defaultStore().save(ledger) }
 
 /// 写入类命令共用：谁在改、日期、金额。
 struct WriteOptions: ParsableArguments {
@@ -450,6 +450,63 @@ struct TransferCommand: ParsableCommand {
             var ledger = try loadLedger()
             let change = try ledger.addTransfer(amount: try parseMoney(amount).magnitude, fromBook: from, toBook: to,
                                                 accountID: account, date: try parseDate(date), note: note, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+}
+
+struct InstallmentCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "installment", abstract: "记分期：买的那天算全额支出，之后每期是还债。",
+                                                    subcommands: [Add.self, Pay.self])
+
+    struct Add: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "add", abstract: "建一个分期，同时记买的那天的全额支出。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "名称，如「美甲灯」。") var name: String
+        @Argument(help: "总额（不含手续费）。") var total: String
+        @Option(help: "共几期。") var count: Int
+        @Option(help: "从哪个账户扣。") var account: String
+        @Option(help: "账本 id。") var book: String
+        @Option(help: "买的日期，默认今天。") var date: String?
+        @Option(help: "第一期扣款日，默认买的日期下个月同一天。") var first: String?
+        @Option(help: "分类，如「设备」。") var category: String?
+        @Option(help: "手续费或利息（单独记一笔支出）。") var fee: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let buy = try parseDate(date)
+            let firstDate = try first.map { try parseDate($0) } ?? {
+                let m = buy.month == 12 ? 1 : buy.month + 1
+                return LocalDate(year: buy.month == 12 ? buy.year + 1 : buy.year, month: m, day: min(buy.day, 28))
+            }()
+            let (_, change) = try ledger.addInstallment(name: name, bookID: book, accountID: account, total: try parseMoney(total).magnitude,
+                                                        count: count, purchaseDate: buy, firstPayment: firstDate, category: category,
+                                                        fee: try fee.map { try parseMoney($0) }, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Pay: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "pay", abstract: "记一期还款；导入的银行扣款用 --tx 认领。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "分期名称（能唯一对上就行）。") var name: String
+        @Option(help: "已导入的扣款流水编号；不填就新记一笔。") var tx: String?
+        @Option(help: "金额，默认每期金额。") var amount: String?
+        @Option(help: "日期，默认今天。") var date: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let hits = ledger.findInstallments(named: name)
+            guard hits.count == 1, let inst = hits.first else {
+                throw ValidationError(hits.isEmpty ? "没有叫「\(name)」的分期" : "「\(name)」对上了 \(hits.count) 个分期")
+            }
+            let change: ChangeRecord
+            if let tx {
+                let t = try ledger.findTransactions([tx])[0]
+                change = try ledger.linkInstallmentPayment(inst.id, transactionID: t.id, author: w.who)
+            } else {
+                change = try ledger.payInstallment(inst.id, amount: try amount.map { try parseMoney($0) }, date: try parseDate(date), author: w.who)
+            }
             try finish(ledger, change, w)
         }
     }

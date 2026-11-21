@@ -131,7 +131,7 @@ public struct YearMonth: Hashable, Comparable, Codable, Sendable, CustomStringCo
 /// 改动记录：每次写入（导入、记一笔、改分类、分账本、转账）记一条，写明是谁改的，能撤销。
 /// 不设「待确认」队列：要确认的事，AI 在对话里先和 ming 说清楚，确认后再写。
 public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
-    public enum Kind: String, Codable, Sendable { case add, edit, categorize, assignBook, transfer, importBatch, debt, repay, account, delete }
+    public enum Kind: String, Codable, Sendable { case add, edit, categorize, assignBook, transfer, importBatch, debt, repay, account, delete, installment, installmentPayment }
 
     public var id: UUID
     public var kind: Kind
@@ -142,6 +142,8 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     public var undone: Bool
     /// 记欠款的改动指向那笔借款，撤销时一起删。
     public var debtID: UUID?
+    /// 建分期、记分期还款的改动指向那个分期，撤销时用。
+    public var installmentID: UUID?
     /// 改分类、分账本、标转账这类「改已有流水」的改动：改之前的样子。撤销时换回去。
     public var previous: [Transaction]?
 

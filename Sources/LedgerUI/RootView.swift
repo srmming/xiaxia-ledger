@@ -91,7 +91,7 @@ public struct XiaxiaScene: Scene {
         if ProcessInfo.processInfo.arguments.contains("-XiaxiaDemo") {
             _model = State(initialValue: LedgerModel.demo())
         } else {
-            _model = State(initialValue: LedgerModel(store: JSONFileLedgerStore.defaultStore()))
+            _model = State(initialValue: LedgerModel(store: LedgerStores.defaultStore()))
         }
     }
 

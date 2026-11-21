@@ -12,6 +12,7 @@ public enum EditError: Error, LocalizedError, Equatable {
     case lockedGoal(String)
     case unknownTransaction(String, Int)
     case transferMismatch
+    case unknownInstallment
 
     public var errorDescription: String? {
         switch self {
@@ -25,6 +26,7 @@ public enum EditError: Error, LocalizedError, Equatable {
         case .lockedGoal(let name): "「\(name)」是锁定的储蓄，到期前不能动"
         case .unknownTransaction(let key, let n): n == 0 ? "找不到流水 \(key)" : "流水编号 \(key) 对上了 \(n) 笔，多写几位"
         case .transferMismatch: "转账两笔要一笔支出、一笔收入，金额相同"
+        case .unknownInstallment: "找不到这个分期"
         }
     }
 }
@@ -114,6 +116,79 @@ extension Ledger {
         let key = name.trimmingCharacters(in: .whitespaces).lowercased()
         let open = Set(Plans.debts(self, today: .today).map(\.id))
         return debts.filter { open.contains($0.id) && $0.counterparty.lowercased().contains(key) }
+    }
+
+    // MARK: 分期
+
+    /// 建一个分期：买的那天记一笔全额支出（算支出），同时记一笔同额的「分期借款」进来（往来），账户余额不变。
+    /// 之后每期扣款用 payInstallment / linkInstallmentPayment 记成还债，不再算支出。手续费、利息另记一笔普通支出。
+    @discardableResult
+    public mutating func addInstallment(name: String, bookID: String, accountID: String, total: Money, count: Int,
+                                        purchaseDate: LocalDate, firstPayment: LocalDate, category: String? = nil,
+                                        fee: Money? = nil, author: String) throws -> (Installment, ChangeRecord) {
+        guard total.cents > 0, count > 0 else { throw EditError.amountMustBePositive }
+        try requireBook(bookID); try requireAccount(accountID)
+        let buy = Transaction(date: purchaseDate, amount: -total, description: name, accountID: accountID, bookID: bookID,
+                              category: category, source: "分期购买")
+        let loan = Transaction(date: purchaseDate, amount: total, description: "\(name)（分期借款）", accountID: accountID,
+                               bookID: bookID, category: "分期", source: "分期购买", flow: .debt)
+        var ids = [buy.id, loan.id]
+        transactions += [buy, loan]
+        if let fee, fee.cents != 0 {
+            let f = Transaction(date: purchaseDate, amount: -fee.magnitude, description: "\(name) 分期手续费", accountID: accountID,
+                                bookID: bookID, category: "手续费", source: "分期购买")
+            transactions.append(f); ids.append(f.id)
+        }
+        var inst = Installment(name: name, bookID: bookID, accountID: accountID, total: total, count: count, firstDate: firstPayment)
+        inst.purchaseID = buy.id
+        installments.append(inst)
+        var change = ChangeRecord(kind: .installment, summary: "记分期：\(name) \(total.formatted)，分 \(count) 期",
+                                  transactionIDs: ids, author: author)
+        change.installmentID = inst.id
+        changes.append(change)
+        return (inst, change)
+    }
+
+    /// 记一期还款（新记一笔扣款）。
+    @discardableResult
+    public mutating func payInstallment(_ id: UUID, amount: Money? = nil, date: LocalDate, author: String) throws -> ChangeRecord {
+        guard let i = installments.firstIndex(where: { $0.id == id }) else { throw EditError.unknownInstallment }
+        let inst = installments[i]
+        let pay = (amount ?? inst.perPayment).magnitude
+        let n = inst.paidIDs.count + 1
+        let tx = Transaction(date: date, amount: -pay, description: "\(inst.name) 第 \(n)/\(inst.count) 期", accountID: inst.accountID,
+                             bookID: inst.bookID, category: "分期还款", source: "手记", flow: .debt)
+        transactions.append(tx)
+        installments[i].paidIDs.append(tx.id)
+        var change = ChangeRecord(kind: .installmentPayment, summary: "记分期还款：\(inst.name) 第 \(n)/\(inst.count) 期 \(pay.formatted)",
+                                  transactionIDs: [tx.id], author: author)
+        change.installmentID = id
+        changes.append(change)
+        return change
+    }
+
+    /// 把导入的一笔银行扣款认成某期分期还款：改成「往来」，不再算支出。
+    @discardableResult
+    public mutating func linkInstallmentPayment(_ id: UUID, transactionID: UUID, author: String) throws -> ChangeRecord {
+        guard let i = installments.firstIndex(where: { $0.id == id }) else { throw EditError.unknownInstallment }
+        let inst = installments[i]
+        let n = inst.paidIDs.count + 1
+        installments[i].paidIDs.append(transactionID)
+        var change = modify([transactionID], kind: .installmentPayment,
+                            summary: "认成分期还款：\(inst.name) 第 \(n)/\(inst.count) 期", author: author) {
+            $0.flow = .debt
+            $0.bookID = inst.bookID
+            if $0.category == nil { $0.category = "分期还款" }
+        }
+        change.installmentID = id
+        changes[changes.count - 1] = change
+        return change
+    }
+
+    /// 按名字找分期。
+    public func findInstallments(named name: String) -> [Installment] {
+        let key = name.trimmingCharacters(in: .whitespaces).lowercased()
+        return installments.filter { $0.name.lowercased().contains(key) }
     }
 
     // MARK: 改已有流水
@@ -223,6 +298,16 @@ extension Ledger {
             // 还款记录还在时不能先撤销借款本身。
             if let d = debts.first(where: { $0.id == debtID }), !d.repaymentIDs.isEmpty { throw EditError.notUndoable }
             debts.removeAll { $0.id == debtID }
+        }
+        if let instID = change.installmentID {
+            if change.kind == .installment {
+                // 已经有还款时不能先撤销分期本身。
+                if let inst = installments.first(where: { $0.id == instID }), !inst.paidIDs.isEmpty { throw EditError.notUndoable }
+                installments.removeAll { $0.id == instID }
+            } else if let k = installments.firstIndex(where: { $0.id == instID }) {
+                let ids = Set(change.transactionIDs)
+                installments[k].paidIDs.removeAll { ids.contains($0) }
+            }
         }
         if let previous = change.previous {
             // 改过的流水：换回原样。

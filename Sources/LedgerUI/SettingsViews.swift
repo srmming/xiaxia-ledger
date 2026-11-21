@@ -73,11 +73,7 @@ public struct SettingsView: View {
             }
             NavigationLink { HistoryView() } label: { Label("改动记录", systemImage: "clock.arrow.circlepath") }
             Section("数据") {
-                if let store = model.store as? JSONFileLedgerStore {
-                    Text(store.url.path).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
-                } else {
-                    Text("示例数据（不会保存）").foregroundStyle(.secondary)
-                }
+                Text(ledgerLocation(model.store)).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
                 Button("重新读取") { model.reload() }
             }
         }

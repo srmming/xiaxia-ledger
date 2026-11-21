@@ -1,7 +1,8 @@
 import Foundation
 
 // 借款往来、分期、目标和储蓄。
-// 口径：借出 / 借入 / 还款都是「往来」，不算收入也不算支出；分期每期还款才算支出；
+// 口径：借出 / 借入 / 还款都是「往来」，不算收入也不算支出；
+// 分期：买的那天按全额记支出，之后每期还款是还债（往来，不进收支），手续费和利息单独记支出（2026-11-21 ming 定）；
 // 存进目标的钱是「转进储蓄」，也不算支出。
 
 /// 借款往来：谁欠我钱、我欠谁。
@@ -41,13 +42,17 @@ public struct Installment: Identifiable, Hashable, Codable, Sendable {
     public var total: Money               // 总额（正数）
     public var count: Int                 // 共几期
     public var firstDate: LocalDate       // 第一期扣款日
-    public var paidIDs: [UUID]            // 已扣款的流水
+    public var paidIDs: [UUID]            // 已扣款的流水（往来，不算支出）
+    /// 买的那天记的全额支出那笔。
+    public var purchaseID: UUID?
 
     public init(id: UUID = UUID(), name: String, bookID: String, accountID: String, total: Money,
                 count: Int, firstDate: LocalDate, paidIDs: [UUID] = []) {
         self.id = id; self.name = name; self.bookID = bookID; self.accountID = accountID
         self.total = total; self.count = count; self.firstDate = firstDate; self.paidIDs = paidIDs
     }
+
+    enum CodingKeys: String, CodingKey { case id, name, bookID, accountID, total, count, firstDate, paidIDs, purchaseID }
 
     /// 每期金额（最后一期吃掉除不尽的零头）。
     public var perPayment: Money { Money(cents: total.cents / Int64(max(count, 1))) }

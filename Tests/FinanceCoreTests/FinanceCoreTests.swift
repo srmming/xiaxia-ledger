@@ -277,3 +277,81 @@ final class EditTests: XCTestCase {
         XCTAssertThrowsError(try l.findTransactions(["zzzzzzzz"]))
     }
 }
+
+final class InstallmentRuleTests: XCTestCase {
+    func testPurchaseCountsFullThenPaymentsDont() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "caixa", name: "Caixa", kind: .bank)]
+        let buyDay = LocalDate(year: 2026, month: 9, day: 1)
+        let (inst, add) = try l.addInstallment(name: "美甲灯", bookID: "miora", accountID: "caixa", total: Money(cents: 60000), count: 6,
+                                               purchaseDate: buyDay, firstPayment: LocalDate(year: 2026, month: 10, day: 5),
+                                               category: "设备", fee: Money(cents: 1500), author: "测试")
+        // 买的那个月：全额 600 + 手续费 15 算支出；账户只少了手续费
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: buyDay.yearMonth, bookID: "miora").expense.cents, -61500)
+        XCTAssertEqual(Summaries.balances(l.transactions)["caixa"]?.cents, -1500)
+        // 第一期还款：不算支出
+        let pay = try l.payInstallment(inst.id, date: LocalDate(year: 2026, month: 10, day: 5), author: "测试")
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: YearMonth(year: 2026, month: 10), bookID: "miora").expense.cents, 0)
+        XCTAssertEqual(Plans.installments(l).first?.paidCount, 1)
+        XCTAssertEqual(Plans.installments(l).first?.remaining.cents, 50000)
+        // 导入的扣款认领成第二期
+        let bank = Transaction(date: LocalDate(year: 2026, month: 11, day: 5), amount: Money(cents: -10000), description: "CUOTA FINANC", accountID: "caixa")
+        try l.addTransaction(bank, author: "测试")
+        let link = try l.linkInstallmentPayment(inst.id, transactionID: bank.id, author: "测试")
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: YearMonth(year: 2026, month: 11), bookID: "miora").expense.cents, 0)
+        XCTAssertEqual(Plans.installments(l).first?.paidCount, 2)
+        // 撤销认领：那笔回到普通支出，分期回到第 1 期
+        try l.undo(changeID: link.id, author: "测试")
+        XCTAssertNil(l.transactions.first { $0.id == bank.id }?.flow)
+        XCTAssertEqual(Plans.installments(l).first?.paidCount, 1)
+        // 有还款时不能先撤销分期本身
+        XCTAssertThrowsError(try l.undo(changeID: add.id, author: "测试"))
+        try l.undo(changeID: pay.id, author: "测试")
+        try l.undo(changeID: add.id, author: "测试")
+        XCTAssertTrue(l.installments.isEmpty)
+        XCTAssertEqual(l.transactions.count, 1)  // 只剩那笔银行扣款
+    }
+}
+
+#if canImport(SQLite3)
+final class SQLiteStoreTests: XCTestCase {
+    func tempURL(_ ext: String) -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext)
+    }
+
+    func testRoundTripEverything() throws {
+        let url = tempURL("sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = SQLiteLedgerStore(url: url)
+        XCTAssertEqual(try store.load(), .starter)
+        var l = Ledger.starter
+        l.accounts = [Account(id: "cash", name: "现金", kind: .cash), Account(id: "stash", name: "私房钱", kind: .cash, isPrivate: true)]
+        let t = Transaction(date: LocalDate(year: 2026, month: 11, day: 1), amount: Money(cents: -1234), description: "咖啡 \"拿铁\"",
+                            accountID: "cash", bookID: "personal", category: "餐饮")
+        l.transactions = [t, Transaction(date: LocalDate(year: 2026, month: 11, day: 2), amount: Money(cents: 500), description: "x", accountID: "stash")]
+        l.changes = [ChangeRecord(kind: .add, summary: "记一笔", transactionIDs: [t.id], author: "测试", createdAt: Date(timeIntervalSince1970: 1_800_000_000))]
+        l.debts = [Debt(counterparty: "阿华", direction: .theyOweMe, principal: Money(cents: 100), bookID: "personal", startDate: t.date)]
+        l.goals = [Goal(name: "宝宝", bookID: "personal", target: Money(cents: 100000), locked: true)]
+        l.lastStatementDate = ["cash": t.date]
+        try store.save(l)
+        XCTAssertEqual(try store.load(), l)
+        // 再存一次（整体替换）也一样
+        l.transactions.removeLast()
+        try store.save(l)
+        XCTAssertEqual(try store.load(), l)
+    }
+
+    func testMigratesFromLegacyJSON() throws {
+        let json = tempURL("json"), db = tempURL("sqlite")
+        defer { try? FileManager.default.removeItem(at: json); try? FileManager.default.removeItem(at: db) }
+        var l = Ledger.starter
+        l.accounts = [Account(id: "cash", name: "现金", kind: .cash)]
+        try JSONFileLedgerStore(url: json).save(l)
+        let store = MigratingStore(primary: SQLiteLedgerStore(url: db), legacy: JSONFileLedgerStore(url: json))
+        XCTAssertEqual(try store.load().accounts.count, 1)   // 先读旧 JSON
+        try store.save(try store.load())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: db.path))
+        XCTAssertEqual(try SQLiteLedgerStore(url: db).load().accounts.count, 1)
+    }
+}
+#endif

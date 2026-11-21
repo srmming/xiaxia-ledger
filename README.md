@@ -13,8 +13,9 @@
 
 ## 隐私
 
-这是公开仓库，**只放代码**。真实流水、对账单、账本文件一律不进仓库（见 `.gitignore`）。账本默认存在
-`~/Library/Application Support/XiaxiaLedger/ledger.json`，只在你的电脑上。
+这是公开仓库，**只放代码**。真实流水、对账单、账本文件一律不进仓库（见 `.gitignore`）。账本是一个 SQLite 文件，
+默认在 iCloud 云盘的「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 `~/Library/Application Support/XiaxiaLedger/`），
+app 和 `fin` 读写同一份。旧的 `ledger.json` 第一次打开时会自动搬进 SQLite，原文件留作备份。
 
 ## 结构
 

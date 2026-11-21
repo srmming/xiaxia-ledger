@@ -31,17 +31,18 @@ fin context --json
 | `fin categorize --category 餐饮 <编号…>` | 改分类（编号是 `fin tx` 第一列的 8 位） |
 | `fin assign --book miora <编号…>` | 分账本 |
 | `fin transfer link <转出编号> <转入编号>` / `fin transfer new 200 --from miora --to personal --account cash` | 账本间转账 |
+| `fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora` / `fin installment pay 美甲灯 [--tx 编号]` | 记分期（买的那天全额算支出）、记一期还款（不算支出） |
 | `fin history` / `fin undo <编号>` | 看改动记录、撤销 |
 | `fin goals --json` | 目标和储蓄进度（有专门储蓄账户时按该账户余额算） |
 
 ## 规矩
 
 - 金额正数是收入、负数是支出；给人看用 1.234,56 € 格式。
-- 借出、借入、还款和存进目标的钱都是「往来」，不算收入也不算支出；分期每期扣款才算支出。
+- 借出、借入、还款和存进目标的钱都是「往来」，不算收入也不算支出；分期买的那天按全额算支出，之后每期还款算还债、不算支出，手续费和利息单独算支出。
 - 用户提到「借给某某」「某某还我」「分期买了」「存进应急金」时，先确认对方、金额、账本，再记。
 - 拿不准的事（某笔属于个人还是店里、怎么分类、是不是账本间转账）先在对话里问 ming，确认后再写，不要猜着写。
 - 写入会记进改动记录，写明是你（如 Claude / Codex）改的；写错了用 `fin undo` 撤销。
 - 任何写入命令都能加 `--dry-run` 预演；批量改动（导入、改一批分类）先预演给 ming 看。
-- 写入一律用 fin 命令，并用 `--author` 写清你是谁（Claude、Codex、DeepSeek）；不要手改 ledger.json。
+- 写入一律用 fin 命令，并用 `--author` 写清你是谁（Claude、Codex、DeepSeek）；不要直接改账本文件（ledger.sqlite）。
 - 私房钱（isPrivate 账户）只在 ming 问到时说，给店里、合伙人、gestoría 的报表不算进去。
 - 真实财务数据不要贴到公开地方，也不要提交进 git。
