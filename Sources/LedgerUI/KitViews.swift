@@ -107,12 +107,12 @@ struct MoreLink: View {
 /// 分类图标：彩色小方块里一个 SF Symbol。
 struct CategoryIcon: View {
     let category: String?
-    var internal = false
+    var isMove = false
     var size: CGFloat = 32
 
     var body: some View {
-        let color = internal ? Color.kit(0x0A64D6, 0x5AA0FF) : CategoryStyle.color(category)
-        Image(systemName: internal ? "arrow.left.arrow.right" : (CategoryStyle.symbol(category) ?? "tag"))
+        let color = isMove ? Color.kit(0x0A64D6, 0x5AA0FF) : CategoryStyle.color(category)
+        Image(systemName: isMove ? "arrow.left.arrow.right" : (CategoryStyle.symbol(category) ?? "tag"))
             .font(.system(size: size * 0.45, weight: .semibold))
             .foregroundStyle(color)
             .frame(width: size, height: size)
@@ -170,7 +170,7 @@ struct TxRow: View {
     var body: some View {
         let internalMove = tx.flow != nil
         HStack(spacing: 12) {
-            CategoryIcon(category: tx.category, internal: internalMove)
+            CategoryIcon(category: tx.category, isMove: internalMove)
             VStack(alignment: .leading, spacing: 3) {
                 Text(Merchant.display(tx.description)).font(.callout.weight(.medium)).lineLimit(1)
                 HStack(spacing: 5) {
