@@ -118,10 +118,17 @@ public enum Importers {
         public var credit: String?
         public var description: String
         public var skipRows: Int
+        /// 可选：分类、账本、性质三列。从别的记账工具（如 Notion 表格）搬过来时用，
+        /// 性质写 debt / saving / opening（或「往来」「储蓄」「期初」），空着就是普通收支。
+        public var category: String?
+        public var book: String?
+        public var flow: String?
         public init(date: String, amount: String? = nil, debit: String? = nil, credit: String? = nil,
-                    description: String, skipRows: Int = 0) {
+                    description: String, skipRows: Int = 0,
+                    category: String? = nil, book: String? = nil, flow: String? = nil) {
             self.date = date; self.amount = amount; self.debit = debit; self.credit = credit
             self.description = description; self.skipRows = skipRows
+            self.category = category; self.book = book; self.flow = flow
         }
     }
 
@@ -139,6 +146,7 @@ public enum Importers {
         let cDate = try col(map.date)!, cDesc = try col(map.description)!
         let cAmount = try col(map.amount), cDebit = try col(map.debit), cCredit = try col(map.credit)
         guard cAmount != nil || cDebit != nil || cCredit != nil else { throw ImportError.missingColumn("金额") }
+        let cCategory = try col(map.category), cBook = try col(map.book), cFlow = try col(map.flow)
         var txs: [Transaction] = [], skipped: [String] = []
         for (n, r) in rows.dropFirst().enumerated() {
             let line = n + 2 + map.skipRows
@@ -153,7 +161,26 @@ public enum Importers {
                 if let d, d.cents != 0 { amount = -d.magnitude } else if let c { amount = c.magnitude }
             }
             guard let amount else { throw ImportError.badRow(line, "金额读不出来") }
-            txs.append(Transaction(date: date, amount: amount, description: at(cDesc), accountID: accountID, source: source))
+            var flow: Transaction.Flow?
+            if cFlow != nil {
+                switch at(cFlow).trimmingCharacters(in: .whitespaces).lowercased() {
+                case "": flow = nil
+                case "debt", "往来", "借款往来": flow = .debt
+                case "saving", "储蓄": flow = .saving
+                case "opening", "期初", "开账": flow = .opening
+                case let other:
+                    guard let f = Transaction.Flow(rawValue: other) else {
+                        throw ImportError.badRow(line, "性质「\(other)」看不懂，只能是 debt / saving / opening 或空着")
+                    }
+                    flow = f
+                }
+            }
+            func optional(_ i: Int?) -> String? {
+                let v = at(i).trimmingCharacters(in: .whitespaces)
+                return v.isEmpty ? nil : v
+            }
+            txs.append(Transaction(date: date, amount: amount, description: at(cDesc), accountID: accountID,
+                                   bookID: optional(cBook), category: optional(cCategory), source: source, flow: flow))
         }
         return ImportResult(transactions: txs, skipped: skipped)
     }

@@ -222,6 +222,26 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(r.skipped.count, 1)  // 合计行
     }
 
+    func testGenericCSVWithCategoryBookFlow() throws {
+        // 编造的「从别的记账表搬过来」格式：带分类、账本、性质三列。
+        let text = """
+        日期,金额,说明,分类,账本,性质
+        2026-11-01,"-12,50",超市,超市日用,personal,
+        2026-11-02,"80,00",刷卡结算,营业收入,miora,
+        2026-11-03,-50,转去 Revolut,内部转账,,debt
+        """
+        let r = try Importers.genericCSV(text, map: .init(date: "日期", amount: "金额", description: "说明",
+                                                          category: "分类", book: "账本", flow: "性质"),
+                                         accountID: "caixa", source: "x.csv")
+        XCTAssertEqual(r.transactions.map(\.amount.cents), [-1250, 8000, -5000])
+        XCTAssertEqual(r.transactions.map(\.category), ["超市日用", "营业收入", "内部转账"])
+        XCTAssertEqual(r.transactions.map(\.bookID), ["personal", "miora", nil])
+        XCTAssertEqual(r.transactions.map(\.flow), [nil, nil, .debt])
+        let bad = "日期,金额,说明,性质\n2026-11-01,-1,x,什么\n"
+        XCTAssertThrowsError(try Importers.genericCSV(bad, map: .init(date: "日期", amount: "金额", description: "说明", flow: "性质"),
+                                                      accountID: "caixa", source: "x.csv"))
+    }
+
     func testCSVQuotes() {
         let rows = CSV.parse("a,b\n\"x, y\",\"he said \"\"hi\"\"\"\n")
         XCTAssertEqual(rows, [["a", "b"], ["x, y", "he said \"hi\""]])
