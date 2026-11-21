@@ -86,6 +86,7 @@ struct SpendingPaceChart: View {
                 }
             }
             .chartXScale(domain: 1...days)
+            .chartYScale(domain: 0...yTop)
             .chartXAxis {
                 AxisMarks(values: [1, 10, 20, days]) { v in
                     AxisValueLabel { if let d = v.as(Int.self) { Text("\(d)日") } }
@@ -102,6 +103,13 @@ struct SpendingPaceChart: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(summary)
         }
+    }
+
+    /// 纵轴顶上留点空，最上面的刻度和「今天」的标注不被切掉。
+    private var yTop: Double {
+        let top = max(status.pace.map(\.amount).max() ?? 0, status.lastPace.map(\.amount).max() ?? 0)
+        let projected = status.isCurrent && status.dayOfMonth >= 3 ? (status.pace.last?.amount ?? 0) / Double(status.dayOfMonth) * Double(status.month.dayCount) : 0
+        return max(max(top, projected) * 1.12, 10)
     }
 
     private var summary: String {
@@ -204,6 +212,7 @@ struct MonthBars: View {
                 }
             }
             .chartLegend(.hidden)
+            .chartYScale(domain: 0...(top * 1.15))
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
                     AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
@@ -247,6 +256,11 @@ struct NetWorthChart: View {
             }
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
+        .chartXAxis {
+            AxisMarks(values: points.enumerated().filter { ($0.offset - (points.count - 1)) % 3 == 0 }.map { $0.element.month.shortLabel }) { _ in
+                AxisValueLabel()
+            }
+        }
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
                 AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))

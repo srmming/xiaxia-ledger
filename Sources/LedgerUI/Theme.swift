@@ -136,6 +136,10 @@ extension View {
                 .frame(maxWidth: 1240)
                 .frame(maxWidth: .infinity)
         }
+        #if os(iOS)
+        // 右下角浮着「问 AI」按钮，底部多留一点，最后一张卡不会被挡住。
+        .contentMargins(.bottom, 64, for: .scrollContent)
+        #endif
         .background(Color.pageBackground)
     }
 }

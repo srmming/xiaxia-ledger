@@ -48,7 +48,8 @@ struct SpendingPage: View {
                     .background(delta.isExpense ? Color.incomeSoft : Color.sunken, in: Capsule())
             }
             (Text(top.name == totals[0].name ? "" : "房租之外，") + em(top.name) + Text("是最大的一块")
-             + Text(topBefore.cents > 0 ? "，比 \(month.previous.month) 月\(diff.isExpense ? "少" : "多") \(diff.magnitude.rounded)。" : "。"))
+             + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? "，和 \(month.previous.month) 月差不多。"
+                    : "，比 \(month.previous.month) 月\(diff.isExpense ? "少" : "多") \(diff.magnitude.rounded)。"))
                 .font(.body).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

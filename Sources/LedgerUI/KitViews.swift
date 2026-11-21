@@ -260,7 +260,7 @@ struct Sparkline: View {
         Chart {
             ForEach(Array(values.enumerated()), id: \.offset) { i, v in
                 LineMark(x: .value("月", i), y: .value("剩", v))
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                     .foregroundStyle(color)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
             }

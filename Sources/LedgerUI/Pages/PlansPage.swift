@@ -65,22 +65,37 @@ struct PlansPage: View {
         if left.cents > 0, let due = g.deadline {
             let months = max(1, (due.year - LocalDate.today.year) * 12 + due.month - LocalDate.today.month)
             let perMonth = Money(cents: left.cents / Int64(months))
-            sentence = sentence + Text("要在 \(due.year) 年 \(due.month) 月前存够，每月存 \(perMonth.rounded) 就行。")
+            sentence = sentence + Text(verbatim: "要在 \(due.year) 年 \(due.month) 月前存够，每月存 \(perMonth.rounded) 就行。")
         }
         return HStack(alignment: .center, spacing: 24) {
             GoalRing(fraction: Double(g.percent) / 100)
-                .frame(width: 150, height: 150)
+                .frame(width: ringSize, height: ringSize)
             VStack(alignment: .leading, spacing: 8) {
                 Text(g.name).font(.caption).foregroundStyle(Color.fg2)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(g.saved.rounded).font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
-                    Text("/ \(g.target.rounded)").font(.system(.title3, design: .rounded).weight(.semibold)).foregroundStyle(Color.fg3)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(g.saved.rounded).font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
+                        Text("/ " + g.target.rounded).font(.system(.title3, design: .rounded).weight(.semibold)).foregroundStyle(Color.fg3)
+                    }
+                    .fixedSize()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(g.saved.rounded).font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit().fixedSize()
+                        Text("/ " + g.target.rounded).font(.system(.subheadline, design: .rounded).weight(.semibold)).foregroundStyle(Color.fg3)
+                    }
                 }
                 sentence.font(.body).fixedSize(horizontal: false, vertical: true)
             }
         }
         .kitCard(padding: 20)
         .accessibilityElement(children: .combine)
+    }
+
+    private var ringSize: CGFloat {
+        #if os(iOS)
+        116
+        #else
+        150
+        #endif
     }
 
     private func otherGoals(_ goals: [GoalStatus]) -> some View {

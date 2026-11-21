@@ -23,7 +23,7 @@ struct InsightsPage: View {
     }
 
     private func statusLine(_ tools: [AITool]) -> some View {
-        HStack(spacing: 14) {
+        FlowLayout(spacing: 12) {
             if tools.isEmpty {
                 StatusDot(color: .fg3, text: "还没有 AI 写过账本")
             } else {
@@ -166,10 +166,10 @@ struct ChangesPage: View {
         return VStack(alignment: .leading, spacing: 6) {
             Text("这个月 AI 帮你做了").font(.caption).foregroundStyle(Color.fg2)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(ai.count)").font(.system(size: 44, weight: .bold, design: .rounded)).monospacedDigit()
+                Text(String(ai.count)).font(.system(size: 44, weight: .bold, design: .rounded)).monospacedDigit()
                 Text("次改动").font(.headline)
             }
-            Text("涉及 \(txCount) 笔流水，其中导入 \(imported) 笔。你自己改了 \(mine.count) 次。")
+            Text(verbatim: "涉及 \(txCount) 笔流水，其中导入 \(imported) 笔。你自己改了 \(mine.count) 次。")
                 .font(.subheadline).foregroundStyle(Color.fg2)
         }
         .kitCard()
