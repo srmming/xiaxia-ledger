@@ -116,7 +116,8 @@ public struct PlansView: View {
                     .background(d.outstanding.cents == 0 ? AnyShapeStyle(Color.gray.gradient) : AnyShapeStyle(Color.coral.gradient), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(d.counterparty)
-                    Text("借了 \(d.principal.formatted)，已还 \(d.repaid.formatted)").font(.caption).foregroundStyle(.secondary)
+                    Text("借 \(d.principal.formatted) · 已还 \(d.repaid.formatted)").font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
@@ -130,6 +131,7 @@ public struct PlansView: View {
                         }
                     }
                 }
+                .fixedSize()
             }
         }
     }

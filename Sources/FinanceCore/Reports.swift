@@ -20,7 +20,7 @@ public enum Reports {
             let m = tx.date.yearMonth
             guard wanted.contains(m), tx.countsAsIncomeOrExpense, !hiddenAccounts.contains(tx.accountID) else { continue }
             if let bookID { guard tx.bookID == bookID else { continue } } else if tx.isTransfer { continue }
-            if tx.amount.isIncome { income[m, default: .zero] = income[m, default: .zero] + tx.amount }
+            if tx.countsAsIncome { income[m, default: .zero] = income[m, default: .zero] + tx.amount }
             else { expense[m, default: .zero] = expense[m, default: .zero] + tx.amount }
             let c = tx.category ?? "未分类"
             cats[m, default: [:]][c, default: .zero] = cats[m, default: [:]][c, default: .zero] + tx.amount
@@ -35,7 +35,7 @@ public enum Reports {
     public static func categoryTotals(_ list: [MonthlySummary], expense: Bool) -> [(name: String, amount: Money)] {
         var total: [String: Money] = [:]
         for s in list { for (k, v) in s.byCategory { total[k, default: .zero] = total[k, default: .zero] + v } }
-        return total.filter { expense ? $0.value.isExpense : $0.value.isIncome }
+        return total.filter { expense ? $0.value.isExpense : ($0.value.isIncome && $0.key != Transaction.refundCategory) }
             .map { (name: $0.key, amount: $0.value.magnitude) }
             .sorted { $0.amount == $1.amount ? $0.name < $1.name : $0.amount > $1.amount }
     }

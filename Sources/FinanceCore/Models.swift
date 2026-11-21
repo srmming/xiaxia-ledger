@@ -88,6 +88,11 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var isTransfer: Bool { transferID != nil }
     /// 是否计入收支统计。借款往来和存进目标的钱不算。
     public var countsAsIncomeOrExpense: Bool { flow == nil }
+    /// 退款：分类是「退款」的进账。它不是赚到的钱，是之前花的钱退回来了，所以冲减支出，不算收入。
+    public var isRefund: Bool { category == Transaction.refundCategory && amount.cents > 0 }
+    public static let refundCategory = "退款"
+    /// 算作收入的进账（退款不算）。
+    public var countsAsIncome: Bool { amount.cents > 0 && !isRefund }
 }
 
 /// 不带时区的日期（对账单只有日期）。格式 yyyy-MM-dd。

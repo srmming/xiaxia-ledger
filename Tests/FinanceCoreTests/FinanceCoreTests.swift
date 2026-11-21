@@ -463,6 +463,22 @@ final class FixMistakesTests: XCTestCase {
 final class ManageTests: XCTestCase {
     let day = LocalDate(year: 2026, month: 11, day: 3)
 
+    func testRefundReducesExpenseNotIncome() {
+        let txs = [
+            Transaction(date: day, amount: Money(cents: 200_000), description: "工资", accountID: "bank", bookID: "personal", category: "工资"),
+            Transaction(date: day, amount: Money(cents: -10_000), description: "ZARA", accountID: "bank", bookID: "personal", category: "购物"),
+            Transaction(date: day, amount: Money(cents: 4_000), description: "ZARA 退货", accountID: "bank", bookID: "personal", category: "退款"),
+        ]
+        let m = YearMonth(year: 2026, month: 11)
+        let s = Summaries.monthly(txs, month: m, bookID: "personal")
+        XCTAssertEqual(s.income, Money(cents: 200_000))
+        XCTAssertEqual(s.expense, Money(cents: -6_000))
+        let r = Reports.summaries(txs, months: [m], bookID: "personal")[0]
+        XCTAssertEqual(r.income, s.income)
+        XCTAssertEqual(r.expense, s.expense)
+        XCTAssertFalse(Reports.categoryTotals([r], expense: false).contains { $0.name == "退款" })
+    }
+
     func testFlowDecodingIsLenient() throws {
         func tx(_ flow: String) throws -> Transaction {
             let json = #"{"id":"11111111-1111-1111-1111-111111111111","date":"2026-11-03","amount":{"cents":-500},"description":"x","accountID":"bank","flow":"\#(flow)"}"#

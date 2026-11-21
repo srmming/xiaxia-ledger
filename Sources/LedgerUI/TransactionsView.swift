@@ -72,21 +72,23 @@ public struct TransactionsView: View {
         let list = filtered
         let groups = Dictionary(grouping: list, by: \.date).sorted { $0.key > $1.key }
         let real = list.filter { $0.flow == nil }
-        let income = real.filter { $0.amount.isIncome }.reduce(Money.zero) { $0 + $1.amount }
-        let expense = real.filter { $0.amount.isExpense }.reduce(Money.zero) { $0 + $1.amount }
+        let income = real.filter { $0.countsAsIncome }.reduce(Money.zero) { $0 + $1.amount }
+        let expense = real.filter { !$0.countsAsIncome }.reduce(Money.zero) { $0 + $1.amount }
         container {
             Section {
                 BookPicker()
                 filterBar
                 if !list.isEmpty {
                     HStack(spacing: 14) {
-                        Text("\(list.count) 笔")
-                        Spacer()
+                        Text("\(list.count) 笔").fixedSize()
+                        Spacer(minLength: 4)
                         Label { Text(income.formatted).monospacedDigit() } icon: { Image(systemName: "arrow.down.left") }
                             .foregroundStyle(Color.income)
                         Label { Text(expense.magnitude.formatted).monospacedDigit() } icon: { Image(systemName: "arrow.up.right") }
                     }
                     .font(.subheadline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.secondary)
                     .accessibilityElement(children: .combine)
                 }
