@@ -257,9 +257,12 @@ struct BookSwitch: View {
             Divider()
             Button { model.sheet = .books } label: { Label("管理账本…", systemImage: "books.vertical") }
         } label: {
-            Label(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? "账本"),
-                  systemImage: "books.vertical")
-                .labelStyle(.titleAndIcon)
+            // iPhone 工具栏里的 Label 只显示图标，看不出现在是哪个账本，所以自己拼图标 + 名字。
+            HStack(spacing: 4) {
+                Image(systemName: "books.vertical")
+                Text(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? "账本"))
+                    .lineLimit(1)
+            }
         }
         .fixedSize()
         .help("切换账本，或新建、改名、删除账本")

@@ -29,13 +29,13 @@ first_id() { "$FIN" tx "$@" --limit 1 | head -1 | cut -f1; }
 
 echo "临时账本：$XIAXIA_LEDGER_PATH"
 
-echo; echo "===== 空账本 ====="
+echo; echo "===== 空账本：新用户只有「个人」，自己加账本 ====="
+run books
+run book add Shop --kind business
 run book add "家庭" --kind personal
 run books
 expect_fail book add "家庭"
-expect_fail book rm miora
-run book rm miora --move-to personal --dry-run
-run book rename miora "小店" --dry-run
+run book rename shop "小店" --dry-run
 run context
 run context --json
 run books
@@ -53,29 +53,29 @@ run accounts --json
 echo; echo "===== 记一笔 ====="
 run add --account cash --book personal --category 餐饮 --date 2026-11-03 --dry-run -- -12,50 超市
 run add --account cash --book personal --category 餐饮 --date 2026-11-03 --author Claude -- -12,50 超市
-run add --account caixa --book miora --date 2026-11-04 -- 300 客人付款
-run add --account caixa --book miora --category 材料 --date 2026-11-05 --json -- -45.90 指甲油
+run add --account caixa --book shop --date 2026-11-04 -- 300 客人付款
+run add --account caixa --book shop --category 材料 --date 2026-11-05 --json -- -45.90 指甲油
 run add --account caixa --book personal --category 工资 --date 2026-11-01 -- 1.234,56 工资
 run add -20 私房零花 --account stash --book personal --date 2026-11-06
 expect_fail add --account cash --book personal -- abc 坏金额
 expect_fail add --account cash --book personal --date 21/11/2026 -- -5 坏日期
-expect_fail add --account cash --book shop -- -5 没这个账本
+expect_fail add --account cash --book nobook -- -5 没这个账本
 expect_fail add --account nope --book personal -- -5 没这个账户
 
 echo; echo "===== 查 ====="
 run tx
-run tx --book miora --json
+run tx --book shop --json
 run tx --month 2026-11 --category 餐饮
 run summary --month 2026-11
-run summary --month 2026-11 --book miora --json
+run summary --month 2026-11 --book shop --json
 
 echo; echo "===== 整理：分类、分账本 ====="
-ID_PAY=$(first_id --book miora --category "" 2>/dev/null)
-ID_PAY=$("$FIN" tx --book miora | grep 客人付款 | cut -f1)
+ID_PAY=$(first_id --book shop --category "" 2>/dev/null)
+ID_PAY=$("$FIN" tx --book shop | grep 客人付款 | cut -f1)
 run categorize --category 服务收入 "$ID_PAY" --dry-run
 run categorize --category 服务收入 "$ID_PAY"
 ID_SUPER=$("$FIN" tx | grep 超市 | cut -f1)
-run assign --book miora "$ID_SUPER" --dry-run
+run assign --book shop "$ID_SUPER" --dry-run
 run assign --book personal "$ID_SUPER"
 
 echo; echo "===== 借款往来 ====="
@@ -87,8 +87,8 @@ run debt repay 阿华 100 --account cash --date 2026-11-10
 run debts --json
 
 echo; echo "===== 转账 ====="
-run transfer new 200 --from miora --to personal --account caixa --date 2026-11-12 --dry-run
-run transfer new 200 --from miora --to personal --account caixa --date 2026-11-12
+run transfer new 200 --from shop --to personal --account caixa --date 2026-11-12 --dry-run
+run transfer new 200 --from shop --to personal --account caixa --date 2026-11-12
 run transfer move 50 --from-account caixa --to-account cash --date 2026-11-13 --note 取现
 run add --account caixa --book personal --date 2026-11-14 -- -100 转到Revolut
 ID_TOPUP=$("$FIN" tx | grep 转到Revolut | cut -f1)
@@ -96,8 +96,8 @@ run transfer mark "$ID_TOPUP" --counter-account revolut
 run summary --month 2026-11
 
 echo; echo "===== 分期 ====="
-run installment add 美甲灯 329,40 --count 6 --account caixa --book miora --date 2026-11-08 --category 设备 --dry-run
-run installment add 美甲灯 329,40 --count 6 --account caixa --book miora --date 2026-11-08 --category 设备
+run installment add 美甲灯 329,40 --count 6 --account caixa --book shop --date 2026-11-08 --category 设备 --dry-run
+run installment add 美甲灯 329,40 --count 6 --account caixa --book shop --date 2026-11-08 --category 设备
 run installment pay 美甲灯 --date 2026-11-20
 run installments
 run installments --json
@@ -127,8 +127,8 @@ Fecha;Concepto;Importe
 19/11/2026;BAZAR CHINO;-8,20
 20/11/2026;BIZUM DE CLIENTA;35,00
 CSV
-run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book miora --dry-run
-run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book miora
+run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book shop --dry-run
+run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book shop
 
 echo; echo "===== 改、删、对账、月报、开账余额 ====="
 ID_SALARY=$("$FIN" tx | grep 工资 | cut -f1)
@@ -141,7 +141,7 @@ run account opening revolut 100 --date 2026-11-01
 run reconcile --account revolut --balance 110,05 --date 2026-11-19
 run reconcile --account cash --balance=-1
 run report --month 2026-11
-run report --month 2026-11 --book miora
+run report --month 2026-11 --book shop
 
 echo; echo "===== 改动记录、撤销 ====="
 run history
@@ -181,7 +181,7 @@ for spec in \
   'list_transactions|{"query":"mercadona"}' \
   'list_transactions|{"include_private":true,"account":"stash"}' \
   'summary|{"month":"2026-11"}' \
-  'summary|{"month":"2026-11","book":"miora"}' \
+  'summary|{"month":"2026-11","book":"shop"}' \
   'accounts|{}' \
   'monthly_report|{"month":"2026-11"}' \
   'reconcile|{"account":"revolut","balance":"110,05"}' \
@@ -190,15 +190,15 @@ for spec in \
   'debts|{}' 'installments|{}' 'goals|{}' 'history|{"limit":3}' \
   'add_transaction|{"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","dry_run":true}' \
   'add_transaction|{"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","category":"餐饮"}' \
-  'add_transaction|{"amount":"-1","description":"坏账本","account":"cash","book":"shop"}' \
+  'add_transaction|{"amount":"-1","description":"坏账本","account":"cash","book":"nobook"}' \
   'add_debt|{"counterparty":"阿梅","direction":"they_owe_me","amount":"80","account":"cash","dry_run":true}' \
   'repay_debt|{"counterparty":"阿华","amount":"50","account":"cash","dry_run":true}' \
   'goal_deposit|{"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}' \
   "import_statement|{\"file\":\"$WORK/revolut.csv\",\"account\":\"revolut\",\"format\":\"revolut\",\"dry_run\":true}" \
   'add_book|{"name":"家庭","kind":"personal"}' \
-  'rename_book|{"book":"miora","name":"小店","dry_run":true}' \
-  'remove_book|{"book":"miora","dry_run":true}' \
-  'remove_book|{"book":"miora","move_to":"personal","dry_run":true}' \
+  'rename_book|{"book":"shop","name":"小店","dry_run":true}' \
+  'remove_book|{"book":"shop","dry_run":true}' \
+  'remove_book|{"book":"shop","move_to":"personal","dry_run":true}' \
   'edit_account|{"account":"cash","name":"钱包现金","dry_run":true}' \
   'remove_account|{"account":"caixa","dry_run":true}' \
   'rename_category|{"from":"餐饮","to":"吃饭","dry_run":true}' \
@@ -212,5 +212,11 @@ done
 echo; echo "===== 历史里的作者 ====="
 "$FIN" history --limit 4
 
+echo; echo "===== 删账本：有流水的要先挪 ====="
+expect_fail book rm shop
+run book rm shop --move-to personal --dry-run
+expect_fail book rm personal --move-to personal
+
 rm -rf "$WORK"
 echo; echo "意外失败：$FAILS 处"
+[ "$FAILS" -eq 0 ]

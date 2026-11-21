@@ -151,7 +151,7 @@ struct AccountManager: View {
                             Image(systemName: a.kind.symbol).foregroundStyle(Color.fg2).frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(a.name).foregroundStyle(.primary)
-                                Text([a.kind.label, a.institution, a.isPrivate ? "私房钱" : nil].compactMap { $0 }.joined(separator: " · "))
+                                Text([a.kind.label, a.institution == a.name ? nil : a.institution, a.isPrivate ? "私房钱" : nil].compactMap { $0 }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(Color.fg2)
                             }
                             Spacer()
