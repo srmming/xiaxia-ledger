@@ -6,6 +6,9 @@ struct SettingsPage: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.openURL) var openURL
     @State var name = ""
+    @FocusState var nameFocused: Bool
+    @State var manage: AppSheet?
+    @AppStorage("xiaxia.appearance") var appearance = "auto"
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
@@ -33,7 +36,8 @@ struct SettingsPage: View {
                         .multilineTextAlignment(.trailing)
                         .textFieldStyle(.plain)
                         .frame(maxWidth: 160)
-                        .onSubmit { saveName() }
+                        .focused($nameFocused)
+                        .onSubmit { saveName(); nameFocused = false }
                 }
                 Text("你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。").font(.caption).foregroundStyle(Color.fg2)
                     .padding(.horizontal, 4).padding(.top, 4)
@@ -49,19 +53,27 @@ struct SettingsPage: View {
                         .multilineTextAlignment(.trailing).textSelection(.enabled)
                 }
             }
-            group("账本") {
+            group("账本、账户和分类") {
                 ForEach(model.ledger.books) { b in
-                    let n = Set(model.ledger.transactions.filter { $0.bookID == b.id }.map(\.accountID)).count
+                    let n = model.ledger.bookUsage(b.id).transactions
                     item(monogram: Monogram(text: b.name, color: model.bookColor(b.id), size: 26), title: b.name) {
-                        Text("\(n) 个账户").foregroundStyle(Color.fg2)
+                        Text("\(n) 笔流水").foregroundStyle(Color.fg2)
                     }
                 }
+                manageRow("books.vertical", "管理账本（新建、改名、删除）", .books)
+                manageRow("building.columns", "管理账户（\(model.ledger.accounts.count) 个）", .accounts)
+                manageRow("square.grid.2x2", "管理分类", .categories)
             }
             group("隐私和外观") {
                 item(symbol: "eye.slash.fill", color: .fg3, title: "显示私房钱") {
                     Toggle("显示私房钱", isOn: Bindable(model).showPrivate).labelsHidden().toggleStyle(.switch)
                 }
-                item(symbol: "circle.lefthalf.filled", color: .fg3, title: "外观") { Text("跟随系统").foregroundStyle(Color.fg2) }
+                item(symbol: "circle.lefthalf.filled", color: .fg3, title: "外观") {
+                    Picker("外观", selection: $appearance) {
+                        Text("自动").tag("auto"); Text("浅色").tag("light"); Text("深色").tag("dark")
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
+                }
             }
             group("帮助与反馈") {
                 Button { open("https://github.com/srmming/xiaxia-ledger/issues/new") } label: {
@@ -74,8 +86,36 @@ struct SettingsPage: View {
             }
         }
         .kitPage()
-        .onAppear { name = model.author }
+        // 设置在 iPhone 上本身就是弹出的一页，管理页从这里再弹一层，不走总的 sheet。
+        .sheet(item: $manage) { sheet in
+            NavigationStack {
+                switch sheet {
+                case .books: BookManager()
+                case .accounts: AccountManager()
+                default: CategoryManager()
+                }
+            }
+            .environment(model)
+            .tint(Color.brand)
+            #if os(macOS)
+            .frame(width: 520, height: 580)
+            #endif
+        }
+        .onAppear {
+            name = model.author
+            // 别让名字框一打开就抢走光标（Mac 会把第一个输入框自动选中）。
+            DispatchQueue.main.async { nameFocused = false }
+        }
         .onDisappear { saveName() }
+    }
+
+    private func manageRow(_ symbol: String, _ title: String, _ sheet: AppSheet) -> some View {
+        Button { manage = sheet } label: {
+            item(symbol: symbol, color: .brand, title: title) {
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var version: String {
@@ -95,7 +135,7 @@ struct SettingsPage: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2).padding(.leading, 4)
                 .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) { content() }
+            VStack(alignment: .leading, spacing: 0) { content() }
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
             if let note { Text(note).font(.caption).foregroundStyle(Color.fg2).padding(.horizontal, 4) }

@@ -1,14 +1,24 @@
 import Foundation
 
-/// 账本：个人、Miora 美甲店……每个账本有自己的分类和报表。
+/// 账本：个人、家庭、一家店……每个账本有自己的分类和报表。
 public struct Book: Identifiable, Hashable, Codable, Sendable {
-    public var id: String          // 短 id，如 "personal"、"miora"
+    public var id: String          // 短 id，如 "personal"
     public var name: String        // 显示名，如「个人」
     public var currency: String
+    /// 生活还是生意：决定记一笔时先给哪些常用分类。老账本没写时按 nil 读。
+    public var kind: BookKind?
 
-    public init(id: String, name: String, currency: String = "EUR") {
-        self.id = id; self.name = name; self.currency = currency
+    public init(id: String, name: String, currency: String = "EUR", kind: BookKind? = nil) {
+        self.id = id; self.name = name; self.currency = currency; self.kind = kind
     }
+
+    /// 是不是生意账本。早期的店账本没写 kind，按它的 id 认。
+    public var isBusiness: Bool { kind == .business || (kind == nil && id == "miora") }
+}
+
+public enum BookKind: String, Codable, Sendable, CaseIterable {
+    case personal, business
+    public var label: String { self == .personal ? "生活" : "生意" }
 }
 
 public enum AccountKind: String, Codable, Sendable, CaseIterable {
@@ -191,6 +201,10 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     public var debts: [Debt]?
     public var installments: [Installment]?
     public var goals: [Goal]?
+    /// AI 意见改之前的样子（被替换的点评、点「知道了」之前的那条）。
+    public var insights: [Insight]?
+    /// 这次改动新写的意见：撤销时删掉。
+    public var addedInsightIDs: [UUID]?
     /// 这次改动新加的账户、账本：撤销时删掉。
     public var addedAccountIDs: [String]?
     public var addedBookIDs: [String]?
@@ -214,6 +228,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var debts: [Debt] = []
     public var installments: [Installment] = []
     public var goals: [Goal] = []
+    /// AI 写进来的意见（本月点评、提醒）。
+    public var insights: [Insight] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -223,7 +239,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals
+        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -238,9 +254,14 @@ public struct Ledger: Codable, Sendable, Equatable {
         debts = try c.decodeIfPresent([Debt].self, forKey: .debts) ?? []
         installments = try c.decodeIfPresent([Installment].self, forKey: .installments) ?? []
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+        insights = try c.decodeIfPresent([Insight].self, forKey: .insights) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。
+    /// 新用户第一次打开：只有一个「个人」账本，别的自己加。
+    public static var fresh: Ledger { Ledger(books: [Book(id: "personal", name: "个人", kind: .personal)]) }
+
+    /// 测试用的两账本样例。
     public static var starter: Ledger {
         Ledger(books: [Book(id: "personal", name: "个人"), Book(id: "miora", name: "Miora 美甲店")])
     }

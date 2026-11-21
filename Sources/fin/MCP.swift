@@ -47,7 +47,7 @@ final class MCPServer {
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
                     "serverInfo": ["name": "xiaxia-ledger", "version": "0.1.0"],
-                    "instructions": "夏夏账本：ming 的个人和 Miora 美甲店财务。先调用 context 了解账本、账户和统计口径。拿不准的事先在对话里问 ming，确认后再写；写入前可以先用 dry_run 预演。每次写入都会记进改动记录，可以 undo。",
+                    "instructions": "夏夏账本：用户的记账本，可以有好几个账本（个人、家庭、店……）。先调用 context 了解账本、账户和统计口径。拿不准的事先在对话里问用户，确认后再写；写入前可以先用 dry_run 预演。每次写入都会记进改动记录，可以 undo。",
                 ] as [String: Any]
             case "ping":
                 result = [:] as [String: Any]
@@ -96,13 +96,13 @@ enum MCPTools {
     static let list: [[String: Any]] = [
         tool("context", "说明书：账本、账户和余额、数据覆盖日期、借款合计、最近改动、统计口径。先调这个。", [:], readOnly: true),
         tool("list_transactions", "查流水。", [
-            "book": prop("string", "账本 id，如 personal、miora；不填 = 全部"),
+            "book": prop("string", "账本 id，如 personal（fin books 能看到全部）；不填 = 全部"),
             "account": prop("string", "账户 id"),
             "month": prop("string", "月份，如 2026-11"),
             "category": prop("string", "分类"),
             "query": prop("string", "在说明里搜索"),
             "limit": prop("integer", "最多几条，默认 50"),
-            "include_private": prop("boolean", "包括私房钱账户。只有 ming 本人问时才用"),
+            "include_private": prop("boolean", "包括私房钱账户。只有 用户本人问时才用"),
         ], readOnly: true),
         tool("summary", "收支和分类汇总：一个月（month）、一整年（year），或一段时间（from + to）。不填 book 是「全部」，账本间转账已抵消。", [
             "month": prop("string", "月份，如 2026-11"),
@@ -112,8 +112,8 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "include_private": prop("boolean", "算上私房钱"),
         ], readOnly: true),
-        tool("accounts", "每个账户现在的余额。私房钱账户默认不列。", ["include_private": prop("boolean", "包括私房钱账户。只有 ming 本人问时才用")], readOnly: true),
-        tool("monthly_report", "月报：进多少、花多少、花在哪、和上个月比、要留意什么。一份能直接读给 ming 的文字。", [
+        tool("accounts", "每个账户现在的余额。私房钱账户默认不列。", ["include_private": prop("boolean", "包括私房钱账户。只有 用户本人问时才用")], readOnly: true),
+        tool("monthly_report", "月报：进多少、花多少、花在哪、和上个月比、要留意什么。一份能直接读给用户 的文字。", [
             "month": prop("string", "月份，如 2026-11；不填 = 这个月"),
             "book": prop("string", "账本 id；不填 = 全部"),
             "include_private": prop("boolean", "算上私房钱"),
@@ -161,7 +161,7 @@ enum MCPTools {
             "book": prop("string", "换到哪个账本"), "category": prop("string", "新分类"),
             "author": author, "dry_run": dryRun,
         ], required: ["id"], readOnly: false),
-        tool("delete_transactions", "删流水（能 undo 放回来）。先 dry_run 给 ming 看要删哪几笔，确认后再删。", [
+        tool("delete_transactions", "删流水（能 undo 放回来）。先 dry_run 给用户 看要删哪几笔，确认后再删。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "author": author, "dry_run": dryRun,
         ], required: ["ids"], readOnly: false),
@@ -182,6 +182,30 @@ enum MCPTools {
             "opening_balance": prop("string", "开账余额（可选）"), "date": prop("string", "开账余额是哪天的，默认今天"),
             "author": author, "dry_run": dryRun,
         ], required: ["id", "name"], readOnly: false),
+        tool("add_book", "新建一个账本（比如家庭、第二家店）。kind：personal = 生活，business = 生意。", [
+            "name": prop("string", "账本名字"),
+            "kind": ["type": "string", "enum": ["personal", "business"], "description": "生活还是生意，默认 personal"],
+            "author": author, "dry_run": dryRun,
+        ], required: ["name"], readOnly: false),
+        tool("rename_book", "给账本改名。", [
+            "book": prop("string", "账本 id"), "name": prop("string", "新名字"), "author": author, "dry_run": dryRun,
+        ], required: ["book", "name"], readOnly: false),
+        tool("remove_book", "删账本。里面有流水、借款、分期或目标时，必须用 move_to 指定挪到哪个账本。先 dry_run 给用户看后果。", [
+            "book": prop("string", "要删的账本 id"), "move_to": prop("string", "里面的东西挪到哪个账本（有东西时必填）"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["book"], readOnly: false),
+        tool("edit_account", "改账户：名字、类型、机构、是不是私房钱。只填要改的。", [
+            "account": prop("string", "账户 id"), "name": prop("string", "新名字"),
+            "kind": ["type": "string", "enum": ["bank", "credit", "cash", "wallet", "savings"], "description": "类型"],
+            "institution": prop("string", "银行或机构"), "private": prop("boolean", "私房钱"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["account"], readOnly: false),
+        tool("remove_account", "删账户。里面有流水（期初余额不算）时不让删。", [
+            "account": prop("string", "账户 id"), "author": author, "dry_run": dryRun,
+        ], required: ["account"], readOnly: false),
+        tool("rename_category", "把一个分类整体改名，或并进另一个已有分类。", [
+            "from": prop("string", "原分类"), "to": prop("string", "新分类"), "author": author, "dry_run": dryRun,
+        ], required: ["from", "to"], readOnly: false),
         tool("set_opening_balance", "记开账余额：开始记账那天账户里已经有多少钱（不算收入）。已经记过就改成新的。", [
             "account": prop("string", "账户 id"), "amount": prop("string", "余额，信用卡欠款写负数"),
             "date": prop("string", "哪天的余额，默认今天"), "author": author, "dry_run": dryRun,
@@ -205,7 +229,7 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "author": author, "dry_run": dryRun,
         ], required: ["ids", "book"], readOnly: false),
-        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给 ming 看，确认后再正式导入。", [
+        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给用户 看，确认后再正式导入。", [
             "file": prop("string", "文件路径"),
             "account": prop("string", "导进哪个账户"),
             "format": ["type": "string", "enum": ["revolut", "csv"], "description": "格式"],
@@ -239,6 +263,24 @@ enum MCPTools {
             "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "from_account": prop("string", "钱从哪个账户来"),
             "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
         ], required: ["name", "amount", "from_account"], readOnly: false),
+        tool("add_insight", "把你对用户财务的看法写进账本，app 的总览和「AI 意见」页会显示。kind：review = 本月点评（每月每账本一条，新的替换旧的，月初或被问到时写），alert = 留意，tip = 建议，good = 好消息，action = 要处理（超支、信用卡快到期）。title 一句话结论，body 两三句解释，数字用 1.234,56 € 写法。", [
+            "kind": prop("string", "review / alert / tip / good / action"),
+            "title": prop("string", "一句话结论，如「这个月花钱比上月慢 8%，月底大概能剩 1.150 €」"),
+            "body": prop("string", "两三句解释：原因、要留意什么"),
+            "month": prop("string", "哪个月，如 2026-11；默认这个月"),
+            "book": prop("string", "账本 id；不填 = 全部"),
+            "metric": prop("string", "关联的东西，如 category:超市、account:caixa（可不填）"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["kind", "title"], readOnly: false),
+        tool("list_insights", "列出写进账本的 AI 意见（默认这个月、没点「知道了」的）。写新意见前先看看，别重复。", [
+            "month": prop("string", "月份，如 2026-11；不填 = 全部月份"),
+            "book": prop("string", "账本 id"),
+            "include_dismissed": prop("boolean", "连用户点过「知道了」的也列出"),
+        ], readOnly: true),
+        tool("dismiss_insight", "把一条意见标成「知道了」（用户说不用再提醒时用）。", [
+            "id": prop("string", "意见 id（前 8 位也行）"), "author": author,
+        ], required: ["id"], readOnly: false),
+        tool("ai_status", "最近谁写过账本：每个作者最后一次写入的时间和内容。", [:], readOnly: true),
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
@@ -347,6 +389,28 @@ enum MCPTools {
             let opening: Money? = s("opening_balance") == nil ? nil : try money("opening_balance")
             return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private")),
                                                        openingBalance: opening, date: try date("date") ?? .today, author: who))
+        case "add_book":
+            guard let kind = BookKind(rawValue: s("kind") ?? "personal") else { throw ToolError(message: "kind 只能是 personal 或 business") }
+            return try commit(try ledger.addBook(name: try req("name"), kind: kind, author: who))
+        case "rename_book":
+            return try commit(try ledger.renameBook(try req("book"), to: try req("name"), author: who))
+        case "remove_book":
+            return try commit(try ledger.removeBook(try req("book"), moveTo: s("move_to"), author: who))
+        case "edit_account":
+            let id = try req("account")
+            guard var acct = ledger.accounts.first(where: { $0.id == id }) else { throw ToolError(message: "没有这个账户：\(id)") }
+            if let n = s("name") { acct.name = n }
+            if let k = s("kind") {
+                guard let kind = AccountKind(rawValue: k) else { throw ToolError(message: "kind 只能是 bank、credit、cash、wallet、savings") }
+                acct.kind = kind
+            }
+            if let i = s("institution") { acct.institution = i }
+            if a["private"] != nil { acct.isPrivate = flag("private") }
+            return try commit(try ledger.updateAccount(acct, author: who))
+        case "remove_account":
+            return try commit(try ledger.removeAccount(try req("account"), author: who))
+        case "rename_category":
+            return try commit(try ledger.renameCategory(try req("from"), to: try req("to"), author: who))
         case "set_opening_balance":
             return try commit(try ledger.setOpeningBalance(accountID: try req("account"), amount: try money("amount"),
                                                            date: try date("date") ?? .today, author: who))
@@ -378,7 +442,7 @@ enum MCPTools {
             default: throw ToolError(message: "direction 只能是 they_owe_me 或 i_owe")
             }
             let (_, change) = try ledger.addDebt(counterparty: try req("counterparty"), direction: dir, amount: try money("amount").magnitude,
-                                                 bookID: s("book") ?? "personal", date: try date("date") ?? .today,
+                                                 bookID: s("book") ?? ledger.books.first?.id ?? "personal", date: try date("date") ?? .today,
                                                  accountID: s("account"), dueDate: try date("due"), note: s("note"), author: who)
             return try commit(change)
         case "repay_debt":
@@ -445,7 +509,7 @@ enum MCPTools {
             let amount: Money? = s("amount").flatMap { Money(parsing: $0) }
             return try commit(try ledger.payInstallment(hits[0].id, amount: amount, date: try date("date") ?? .today, author: who))
         case "add_goal":
-            let (_, change) = try ledger.addGoal(name: try req("name"), bookID: s("book") ?? "personal", target: try money("target").magnitude,
+            let (_, change) = try ledger.addGoal(name: try req("name"), bookID: s("book") ?? ledger.books.first?.id ?? "personal", target: try money("target").magnitude,
                                                  deadline: try date("deadline"), savingsAccountID: s("savings_account"),
                                                  locked: flag("locked"), author: who)
             return try commit(change)
@@ -463,6 +527,32 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
             return try commit(try ledger.withdraw(goalID: hits[0].id, amount: try money("amount").magnitude,
                                                   toAccount: try req("to_account"), date: try date("date") ?? .today, author: who))
+        case "add_insight":
+            let kinds: [String: Insight.Kind] = ["review": .monthlyReview, "monthly_review": .monthlyReview, "alert": .alert,
+                                                 "tip": .tip, "good": .goodNews, "good_news": .goodNews, "action": .action]
+            guard let kind = kinds[try req("kind").lowercased()] else { throw ToolError(message: "kind 只能是 review / alert / tip / good / action") }
+            let month = try s("month").map { m -> YearMonth in
+                guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
+                return v
+            } ?? LocalDate.today.yearMonth
+            if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
+            let insight = Insight(month: month, bookID: s("book"), kind: kind, title: try req("title"), body: s("body") ?? "",
+                                  metric: s("metric"), author: who)
+            return try commit(try ledger.addInsight(insight, author: who))
+        case "list_insights":
+            let month = try s("month").map { m -> YearMonth in
+                guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
+                return v
+            }
+            return try json(ledger.insights(month: month, bookID: s("book"), includeDismissed: flag("include_dismissed")))
+        case "dismiss_insight":
+            guard let hit = ledger.findInsight(try req("id")) else { throw ToolError(message: "没有这条意见，先用 list_insights 看 id") }
+            return try commit(try ledger.dismissInsight(hit.id, author: who))
+        case "ai_status":
+            struct Row: Encodable { var author: String; var last: Date; var summary: String }
+            var latest: [String: ChangeRecord] = [:]
+            for c in ledger.changes where latest[c.author].map({ $0.createdAt < c.createdAt }) ?? true { latest[c.author] = c }
+            return try json(latest.values.sorted { $0.createdAt > $1.createdAt }.map { Row(author: $0.author, last: $0.createdAt, summary: $0.summary) })
         case "undo":
             let key = try req("change_id").lowercased()
             let hits = ledger.changes.filter { $0.id.uuidString.lowercased().hasPrefix(key) }

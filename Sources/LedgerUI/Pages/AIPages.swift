@@ -4,6 +4,7 @@ import SwiftUI
 /// AI 意见：AI 怎么看我的钱？以后 AI 经 MCP 把点评和提醒写进账本，这里显示；现在先引你去问 AI，并列出 AI 最近做了什么。
 struct InsightsPage: View {
     @Environment(LedgerModel.self) var model
+    @State var allMonths = false
 
     var body: some View {
         let tools = model.aiTools
@@ -13,7 +14,12 @@ struct InsightsPage: View {
                 NotConnectedCard()
             }
             Columns(sideWidth: 380, breakpoint: 780) {
-                reviewCard
+                if let review = model.shownInsights.first(where: { $0.kind == .monthlyReview }) {
+                    InsightCard(insight: review, large: true, showAllLink: false)
+                } else {
+                    reviewCard
+                }
+                remindersCard
                 recentAIWork
             } side: {
                 AskAICard(title: "常用的话，点一下就复制", note: nil, page: "AI 意见", prompts: model.prompts(for: .overview))
@@ -54,6 +60,30 @@ struct InsightsPage: View {
             }
             .aiCard()
         }
+    }
+
+    private var remindersCard: some View {
+        let list = (allMonths ? model.ledger.insights(bookID: model.selectedBookID, includeDismissed: true)
+                    : model.ledger.insights(month: model.shownMonth, bookID: model.selectedBookID, includeDismissed: true))
+            .filter { $0.kind != .monthlyReview || allMonths }
+        return VStack(alignment: .leading, spacing: 4) {
+            SectionHeader(title: "其它提醒") {
+                Picker("范围", selection: $allMonths) {
+                    Text("本月").tag(false)
+                    Text("全部").tag(true)
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
+            }
+            if list.isEmpty {
+                Text("AI 发现要留意的事（比如某类花得比平时多、信用卡快到期），会写在这里。")
+                    .font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 6)
+            }
+            ForEach(list.prefix(30)) { i in
+                InsightRow(insight: i)
+                if i.id != list.prefix(30).last?.id { Divider() }
+            }
+        }
+        .kitCard()
     }
 
     private var recentAIWork: some View {

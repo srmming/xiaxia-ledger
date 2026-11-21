@@ -179,8 +179,8 @@ enum CategoryStyle {
         return Color.kit(hex, hex)
     }
 
-    static func defaults(bookID: String?, income: Bool) -> [String] {
-        let shop = bookID == "miora"
+    static func defaults(book: Book?, income: Bool) -> [String] {
+        let shop = book?.isBusiness == true
         if income { return shop ? ["营业收入", "退款", "其他"] : ["工资", "收入", "退款", "礼物", "其他"] }  // 「退款」选了会冲减支出
         return shop ? ["耗材", "店租", "员工工资", "水电", "设备", "税费", "社保", "营销", "手续费", "其他"]
             : ["餐饮", "超市", "交通", "房租", "水电", "购物", "娱乐", "医疗", "通讯", "旅行", "宝宝", "其他"]
@@ -322,10 +322,10 @@ struct Bar: View {
         .frame(height: height)
         .accessibilityHidden(true)
         // 进度条从左边长出来；数字变了就滑到新位置。
-        .animation(.spring(duration: 0.6, bounce: 0.1), value: fraction)
+        .animation(.easeOut(duration: 0.5), value: fraction)
         .onAppear {
             guard !grown else { return }
-            withAnimation(.spring(duration: 0.7, bounce: 0.1).delay(0.1)) { grown = true }
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) { grown = true }
         }
     }
 }

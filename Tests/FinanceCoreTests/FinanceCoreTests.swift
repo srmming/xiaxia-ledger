@@ -65,7 +65,7 @@ final class StoreTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
         defer { try? FileManager.default.removeItem(at: url) }
         let store = JSONFileLedgerStore(url: url)
-        XCTAssertEqual(try store.load(), .starter)
+        XCTAssertEqual(try store.load(), .fresh)
         var ledger = Ledger.starter
         ledger.accounts = [Account(id: "cash", name: "现金", kind: .cash)]
         ledger.transactions = [Transaction(date: LocalDate(year: 2026, month: 1, day: 5), amount: Money(cents: -999), description: "x", accountID: "cash")]
@@ -348,7 +348,7 @@ final class SQLiteStoreTests: XCTestCase {
         let url = tempURL("sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
         let store = SQLiteLedgerStore(url: url)
-        XCTAssertEqual(try store.load(), .starter)
+        XCTAssertEqual(try store.load(), .fresh)
         var l = Ledger.starter
         l.accounts = [Account(id: "cash", name: "现金", kind: .cash), Account(id: "stash", name: "私房钱", kind: .cash, isPrivate: true)]
         let t = Transaction(date: LocalDate(year: 2026, month: 11, day: 1), amount: Money(cents: -1234), description: "咖啡 \"拿铁\"",
@@ -859,5 +859,108 @@ final class BetweenBooksTests: XCTestCase {
         XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: 100), bookID: "personal", books: books), "从美甲店拿的")
         XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: -100), bookID: "shop", books: books), "拿去个人的")
         XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: 100), bookID: "a", books: books + [Book(id: "a", name: "A")]), "从别的账本拿的")
+    }
+}
+
+final class InsightTests: XCTestCase {
+    let nov = YearMonth(year: 2026, month: 11)
+
+    func testReviewReplacesAndUndoBringsBack() throws {
+        var l = Ledger.starter
+        let first = try l.addInsight(Insight(month: nov, kind: .monthlyReview, title: "第一版点评", body: "", author: "Claude"), author: "Claude")
+        try l.addInsight(Insight(month: nov, kind: .alert, title: "超市多了", body: "多 74 €", author: "Claude"), author: "Claude")
+        let second = try l.addInsight(Insight(month: nov, kind: .monthlyReview, title: "第二版点评", body: "", author: "Codex"), author: "Codex")
+        XCTAssertEqual(l.insights(month: nov).map(\.title), ["第二版点评", "超市多了"])
+        XCTAssertTrue(second.canUndo)
+        try l.undo(changeID: second.id, author: "ming")
+        XCTAssertEqual(l.insights(month: nov).map(\.title), ["第一版点评", "超市多了"])
+        try l.undo(changeID: first.id, author: "ming")
+        XCTAssertEqual(l.insights(month: nov).map(\.title), ["超市多了"])
+    }
+
+    func testDismissHidesAndUndoShowsAgain() throws {
+        var l = Ledger.starter
+        try l.addInsight(Insight(month: nov, kind: .tip, title: "两个视频会员", body: "", author: "Claude"), author: "Claude")
+        let id = l.insights[0].id
+        XCTAssertNotNil(l.findInsight(String(id.uuidString.prefix(8))))
+        let change = try l.dismissInsight(id, author: "ming")
+        XCTAssertTrue(l.insights(month: nov).isEmpty)
+        XCTAssertEqual(l.insights(month: nov, includeDismissed: true).count, 1)
+        try l.undo(changeID: change.id, author: "ming")
+        XCTAssertEqual(l.insights(month: nov).count, 1)
+    }
+
+    func testEmptyTitleRejected() {
+        var l = Ledger.starter
+        XCTAssertThrowsError(try l.addInsight(Insight(month: nov, kind: .tip, title: "  ", body: "", author: "AI"), author: "AI"))
+    }
+
+    func testSQLiteRoundTripKeepsInsights() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("insights-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        var l = Ledger.starter
+        try l.addInsight(Insight(month: nov, bookID: "personal", kind: .goodNews, title: "存钱进度比计划快", body: "已经 62%", author: "Codex",
+                                     createdAt: Date(timeIntervalSince1970: 1_800_000_000)), author: "Codex")
+        let store = SQLiteLedgerStore(url: url)
+        try store.save(l)
+        let back = try store.load()
+        XCTAssertEqual(back.insights, l.insights)
+        XCTAssertEqual(back.insights.first?.kind, .goodNews)
+    }
+
+    func testUnknownKindReadsAsTip() throws {
+        let json = #"{"id":"6F1D2C3B-0000-4000-8000-000000000001","month":{"year":2026,"month":11},"kind":"somethingNew","title":"新种类","author":"AI"}"#
+        let i = try JSONDecoder().decode(Insight.self, from: Data(json.utf8))
+        XCTAssertEqual(i.kind, .tip)
+        XCTAssertEqual(i.body, "")
+    }
+}
+
+
+final class BookManageTests: XCTestCase {
+    func testAddRenameRemoveEmptyBook() throws {
+        var l = Ledger.fresh
+        XCTAssertEqual(l.books.map(\.name), ["个人"])
+        try l.addBook(name: "家庭", author: "我")
+        XCTAssertThrowsError(try l.addBook(name: "家庭", author: "我"))
+        let id = try XCTUnwrap(l.books.first { $0.name == "家庭" }?.id)
+        try l.renameBook(id, to: "一家人", author: "我")
+        XCTAssertEqual(l.books.last?.name, "一家人")
+        let change = try l.removeBook(id, author: "我")
+        XCTAssertEqual(l.books.count, 1)
+        try l.undo(changeID: change.id, author: "我")
+        XCTAssertEqual(l.books.map(\.name).sorted(), ["一家人", "个人"].sorted())
+    }
+
+    func testLastBookCannotBeRemoved() {
+        var l = Ledger.fresh
+        XCTAssertThrowsError(try l.removeBook("personal", author: "我")) { XCTAssertEqual($0 as? ManageError, .lastBook) }
+    }
+
+    func testRemoveBookWithContentNeedsTargetAndUndoMovesBack() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]
+        let d = LocalDate(year: 2026, month: 11, day: 3)
+        let tx = Transaction(date: d, amount: Money(cents: -1200), description: "测试", accountID: "bank", bookID: "miora", category: "耗材")
+        l.transactions = [tx]
+        _ = try l.addGoal(name: "新设备", bookID: "miora", target: Money(cents: 50000), author: "我")
+        XCTAssertEqual(l.bookUsage("miora").transactions, 1)
+        XCTAssertThrowsError(try l.removeBook("miora", author: "我")) { XCTAssertEqual($0 as? ManageError, .bookInUse("Miora 美甲店", 2)) }
+        XCTAssertThrowsError(try l.removeBook("miora", moveTo: "miora", author: "我"))
+        let change = try l.removeBook("miora", moveTo: "personal", author: "我")
+        XCTAssertEqual(l.books.map(\.id), ["personal"])
+        XCTAssertEqual(l.transactions[0].bookID, "personal")
+        XCTAssertEqual(l.goals[0].bookID, "personal")
+        try l.undo(changeID: change.id, author: "我")
+        XCTAssertTrue(l.books.contains { $0.id == "miora" })
+        XCTAssertEqual(l.transactions[0].bookID, "miora")
+        XCTAssertEqual(l.goals[0].bookID, "miora")
+    }
+
+    func testOldBookWithoutKindStillDecodes() throws {
+        let data = Data(#"{"id":"x","name":"店","currency":"EUR"}"#.utf8)
+        let b = try JSONDecoder().decode(Book.self, from: data)
+        XCTAssertNil(b.kind)
+        XCTAssertFalse(b.isBusiness)
     }
 }

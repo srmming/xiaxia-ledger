@@ -29,6 +29,7 @@ struct OverviewPage: View {
                     CardRow(items: model.ledger.books, minWidth: 230) { BookCard(book: $0) }
                 }
             } side: {
+                if let lead = model.leadInsight { InsightCard(insight: lead) }
                 AskAICard(page: "总览", prompts: Array(model.prompts(for: .overview).prefix(3)))
                 recentCard
             }

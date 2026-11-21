@@ -54,6 +54,8 @@ public struct RootView: View {
 
     public init() {}
 
+    @AppStorage("xiaxia.appearance") var appearance = "auto"
+
     public var body: some View {
         @Bindable var model = model
         Group {
@@ -73,16 +75,24 @@ public struct RootView: View {
             guard let new else { return nil }
             return new.isError ? .error : .success
         }
-        .sheet(item: $model.sheet) { _ in
-            NavigationStack { QuickAdd() }
+        .sheet(item: $model.sheet) { sheet in
+            NavigationStack {
+                switch sheet {
+                case .add: QuickAdd()
+                case .books: BookManager()
+                case .accounts: AccountManager()
+                case .categories: CategoryManager()
+                }
+            }
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
-                .frame(width: 440)
+                .frame(width: sheet == .add ? 440 : 520, height: sheet == .add ? nil : 580)
                 #else
                 .presentationDetents([.large])
                 #endif
         }
+        .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }
         }
@@ -177,7 +187,9 @@ struct MacRoot: View {
     }
 
     private func row(_ s: AppSection) -> some View {
-        Label(s.rawValue, systemImage: s.symbol).tag(s)
+        Label(s.rawValue, systemImage: s.symbol)
+            .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
+            .tag(s)
     }
 }
 
@@ -212,14 +224,17 @@ struct MacToolbar: ToolbarContent {
     let section: AppSection
 
     var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        // 月份和账本放左边，「记一笔」「问 AI」单独一组放最右：窗口窄的时候先收起的是左边，记一笔一直看得见。
+        ToolbarItemGroup(placement: .navigation) {
             if section.usesMonth {
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
                              latest: LocalDate.today.yearMonth)
             }
-            if section.usesBook, model.ledger.books.count > 1 {
+            if section.usesBook {
                 BookSwitch().environment(model)
             }
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
             Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
             AskAIButton(page: section.rawValue).environment(model)
@@ -228,18 +243,30 @@ struct MacToolbar: ToolbarContent {
 }
 #endif
 
-/// 账本切换：全部 / 每个账本。
+/// 账本切换：全部 / 每个账本，最下面是「管理账本…」（新建、改名、删除）。
 struct BookSwitch: View {
     @Environment(LedgerModel.self) var model
     var body: some View {
-        Picker("账本", selection: Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })) {
-            Text("全部").tag(String?.none)
-            ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
+        let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
+        Menu {
+            Picker("看哪个账本", selection: selection) {
+                if model.ledger.books.count > 1 { Text("全部").tag(String?.none) }
+                ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button { model.sheet = .books } label: { Label("管理账本…", systemImage: "books.vertical") }
+        } label: {
+            // iPhone 工具栏里的 Label 只显示图标，看不出现在是哪个账本，所以自己拼图标 + 名字。
+            HStack(spacing: 4) {
+                Image(systemName: "books.vertical")
+                Text(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? "账本"))
+                    .lineLimit(1)
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
         .fixedSize()
-        .accessibilityLabel("看哪个账本")
+        .help("切换账本，或新建、改名、删除账本")
+        .accessibilityLabel("账本：\(model.bookName(model.selectedBookID))")
     }
 }
 
@@ -308,16 +335,8 @@ struct PhoneRoot: View {
                 .navigationTitle(title)
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        if section != .insights, model.ledger.books.count > 1 {
-                            Menu {
-                                Picker("账本", selection: Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })) {
-                                    Text("全部账本").tag(String?.none)
-                                    ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
-                                }
-                            } label: {
-                                Label(model.selectedBookID.map { model.bookName($0) } ?? "全部", systemImage: "line.3.horizontal.decrease.circle")
-                                    .labelStyle(.titleAndIcon)
-                            }
+                        if section != .insights {
+                            BookSwitch()
                         }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
@@ -356,9 +375,30 @@ public struct XiaxiaScene: Scene {
         }
         Self.applyLaunchOptions(args, to: model)
         _model = State(initialValue: model)
+        #if os(macOS)
+        Self.ensureMainWindow()
+        #endif
     }
 
-    /// 截图和自动检查用：-XiaxiaSection spending 直接打开某一页，-XiaxiaSheet add 直接弹出记一笔，
+    #if os(macOS)
+    /// 偶尔启动后没有主窗口（上次关窗口退出，系统按「恢复窗口」什么也没恢复）。
+    /// 不恢复旧窗口；启动一秒后还没有可见窗口，就点一下「窗口」菜单里的「夏夏账本」把它叫出来。
+    private static func ensureMainWindow() {
+        UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
+        for delay in [1.0, 2.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard NSApp != nil, !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+                guard let menu = NSApp.windowsMenu ?? NSApp.mainMenu?.items.first(where: { $0.submenu?.title == "Window" || $0.submenu?.title == "窗口" })?.submenu,
+                      let item = menu.items.first(where: { $0.title == "夏夏账本" }),
+                      let i = menu.items.firstIndex(of: item) else { return }
+                menu.performActionForItem(at: i)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+    }
+    #endif
+
+    /// 截图和自动检查用：-XiaxiaSection spending 直接打开某一页，-XiaxiaSheet add / books / accounts / categories 直接弹出记一笔或管理页，
     /// -XiaxiaPrivate 显示私房钱，-XiaxiaBook personal 直接看某个账本（all = 全部）。
     private static func applyLaunchOptions(_ args: [String], to model: LedgerModel) {
         func value(_ key: String) -> String? {
@@ -371,7 +411,7 @@ public struct XiaxiaScene: Scene {
             "transactions": .transactions, "settings": .settings,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
-        if value("-XiaxiaSheet") == "add" { model.sheet = .add }
+        if let v = value("-XiaxiaSheet"), let sheet = AppSheet(rawValue: v) { model.sheet = sheet }
         if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
@@ -398,7 +438,7 @@ public struct XiaxiaScene: Scene {
                     model.toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
                 }
                 .keyboardShortcut("k", modifiers: .command)
-                Button("搜流水") { model.section = .transactions }.keyboardShortcut("f", modifiers: .command)
+                Button("搜流水") { model.section = .transactions; model.focusSearch = true }.keyboardShortcut("f", modifiers: .command)
             }
             CommandMenu("账本") {
                 Button("撤销上一步改动") { model.undoLast() }

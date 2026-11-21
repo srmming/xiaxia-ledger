@@ -34,7 +34,7 @@ struct EditCommand: ParsableCommand {
 }
 
 struct RemoveCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "rm", abstract: "删流水（能用 fin undo 放回来）。先 --dry-run 给 ming 看要删哪几笔。")
+    static let configuration = CommandConfiguration(commandName: "rm", abstract: "删流水（能用 fin undo 放回来）。先 --dry-run 给用户 看要删哪几笔。")
     @OptionGroup var w: WriteOptions
     @Argument(help: "流水编号，可以一次写多个。") var ids: [String]
 
@@ -67,7 +67,7 @@ struct ReportCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "report", abstract: "月报：这个月进多少、花多少、花在哪、和上个月比、要留意什么。直接能读。")
     @Option(help: "月份，如 2026-11。不填 = 这个月。") var month: String?
     @Option(help: "账本 id。不填 = 全部。") var book: String?
-    @Flag(name: .long, help: "算上私房钱账户。只有 ming 本人问时才用。") var includePrivate = false
+    @Flag(name: .long, help: "算上私房钱账户。只有 用户本人问时才用。") var includePrivate = false
 
     func run() throws {
         let ym: YearMonth
