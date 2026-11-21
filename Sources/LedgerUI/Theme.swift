@@ -144,7 +144,7 @@ extension View {
     }
 }
 
-/// 卡片、按钮按下缩到 97%，松手弹回；打开「减弱动态效果」时只变淡。
+/// 卡片、按钮按下缩到 97%，松手复原（不回弹）；打开「减弱动态效果」时只变淡。
 struct PressableStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
@@ -152,7 +152,7 @@ struct PressableStyle: ButtonStyle {
             .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
 

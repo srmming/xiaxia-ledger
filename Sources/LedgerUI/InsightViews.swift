@@ -48,7 +48,7 @@ struct InsightCard: View {
                     Label {
                         Text(insight.kind == .monthlyReview ? "\(insight.month.month) 月点评" : "AI 意见 · \(insight.kind.label)")
                     } icon: {
-                        Image(systemName: "sparkles").symbolEffect(.bounce, value: appeared)
+                        Image(systemName: "sparkles")
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()

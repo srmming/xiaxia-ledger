@@ -322,10 +322,10 @@ struct Bar: View {
         .frame(height: height)
         .accessibilityHidden(true)
         // 进度条从左边长出来；数字变了就滑到新位置。
-        .animation(.spring(duration: 0.6, bounce: 0.1), value: fraction)
+        .animation(.easeOut(duration: 0.5), value: fraction)
         .onAppear {
             guard !grown else { return }
-            withAnimation(.spring(duration: 0.7, bounce: 0.1).delay(0.1)) { grown = true }
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) { grown = true }
         }
     }
 }

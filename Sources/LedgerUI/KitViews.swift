@@ -17,7 +17,7 @@ struct KeyFigure<Extra: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label).font(.caption).foregroundStyle(Color.fg2)
             BigMoney(money: money, color: color)
-                .animation(.spring(duration: 0.35), value: money)
+                .animation(.easeOut(duration: 0.3), value: money)
             sentence.font(.body).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
             extra()
         }

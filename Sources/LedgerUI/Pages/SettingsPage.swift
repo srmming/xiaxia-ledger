@@ -8,6 +8,7 @@ struct SettingsPage: View {
     @State var name = ""
     @FocusState var nameFocused: Bool
     @State var manage: AppSheet?
+    @AppStorage("xiaxia.appearance") var appearance = "auto"
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
@@ -67,7 +68,12 @@ struct SettingsPage: View {
                 item(symbol: "eye.slash.fill", color: .fg3, title: "显示私房钱") {
                     Toggle("显示私房钱", isOn: Bindable(model).showPrivate).labelsHidden().toggleStyle(.switch)
                 }
-                item(symbol: "circle.lefthalf.filled", color: .fg3, title: "外观") { Text("跟随系统").foregroundStyle(Color.fg2) }
+                item(symbol: "circle.lefthalf.filled", color: .fg3, title: "外观") {
+                    Picker("外观", selection: $appearance) {
+                        Text("自动").tag("auto"); Text("浅色").tag("light"); Text("深色").tag("dark")
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
+                }
             }
             group("帮助与反馈") {
                 Button { open("https://github.com/srmming/xiaxia-ledger/issues/new") } label: {

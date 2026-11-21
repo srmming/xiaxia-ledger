@@ -54,6 +54,8 @@ public struct RootView: View {
 
     public init() {}
 
+    @AppStorage("xiaxia.appearance") var appearance = "auto"
+
     public var body: some View {
         @Bindable var model = model
         Group {
@@ -90,6 +92,7 @@ public struct RootView: View {
                 .presentationDetents([.large])
                 #endif
         }
+        .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }
         }

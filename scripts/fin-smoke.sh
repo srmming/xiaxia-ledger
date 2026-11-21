@@ -30,6 +30,12 @@ first_id() { "$FIN" tx "$@" --limit 1 | head -1 | cut -f1; }
 echo "临时账本：$XIAXIA_LEDGER_PATH"
 
 echo; echo "===== 空账本 ====="
+run book add "家庭" --kind personal
+run books
+expect_fail book add "家庭"
+expect_fail book rm miora
+run book rm miora --move-to personal --dry-run
+run book rename miora "小店" --dry-run
 run context
 run context --json
 run books
@@ -189,6 +195,15 @@ for spec in \
   'repay_debt|{"counterparty":"阿华","amount":"50","account":"cash","dry_run":true}' \
   'goal_deposit|{"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}' \
   "import_statement|{\"file\":\"$WORK/revolut.csv\",\"account\":\"revolut\",\"format\":\"revolut\",\"dry_run\":true}" \
+  'add_book|{"name":"家庭","kind":"personal"}' \
+  'rename_book|{"book":"miora","name":"小店","dry_run":true}' \
+  'remove_book|{"book":"miora","dry_run":true}' \
+  'remove_book|{"book":"miora","move_to":"personal","dry_run":true}' \
+  'edit_account|{"account":"cash","name":"钱包现金","dry_run":true}' \
+  'remove_account|{"account":"caixa","dry_run":true}' \
+  'rename_category|{"from":"餐饮","to":"吃饭","dry_run":true}' \
+  'add_insight|{"kind":"tip","title":"测试提醒","body":"编的"}' \
+  'list_insights|{}' 'ai_status|{}' \
   'nope|{}' ; do
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
   call "${spec%%|*}" "${spec#*|}"
