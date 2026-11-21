@@ -9,7 +9,7 @@
 #   2. skill：~/.agents/skills/fin 链到仓库的 skills/fin；~/.claude/skills/fin、~/.codex/skills/fin 链到它
 #   3. 通用提示词（skills/fin/PROMPT.md）写进已装工具的全局指令文件，用标记包起来，再跑只会替换不会重复
 #   4. 把 MCP 服务 xiaxia-ledger（fin mcp）注册到已装的工具
-# 改任何已有文件前都会在旁边留一份 .bak-xiaxia 备份。只改「夏夏账本」自己的那一段，别的配置不碰。
+# 第一次改已有文件前会在旁边留一份 .bak-xiaxia（装之前的原样，以后再跑不覆盖）。只改「夏夏账本」自己的那一段，别的配置不碰。
 set -euo pipefail
 
 DRY=0
@@ -32,7 +32,8 @@ END="<!-- xiaxia-ledger:end -->"
 
 say() { echo "• $*"; }
 doit() { if [ $DRY = 1 ]; then echo "  （预演）$*"; else "$@"; fi; }
-backup() { [ -f "$1" ] && [ $DRY = 0 ] && cp -p "$1" "$1.bak-xiaxia" || true; }
+# 只在第一次装的时候留备份：.bak-xiaxia 是装之前的原样，以后再跑不覆盖它
+backup() { [ -f "$1" ] && [ ! -e "$1.bak-xiaxia" ] && [ $DRY = 0 ] && cp -p "$1" "$1.bak-xiaxia" || true; }
 has() { command -v "$1" >/dev/null 2>&1; }
 
 # ---------- 1. fin ----------
@@ -44,7 +45,9 @@ else
   BUILT="$REPO/.build/release/fin"
 fi
 doit mkdir -p "$BIN_DIR"
-doit cp -f "$BUILT" "$FIN"
+# 先复制成临时文件再 mv 替换：直接 cp 覆盖正在用的文件，macOS 会拿旧签名缓存校验新文件，fin 一跑就被杀掉（退出码 137）
+doit cp -f "$BUILT" "$FIN.new"
+doit mv -f "$FIN.new" "$FIN"
 case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "注意：$BIN_DIR 不在 PATH 里，命令行里要写全路径（MCP 配置已用全路径）";; esac
 
 # ---------- 2. skill ----------
