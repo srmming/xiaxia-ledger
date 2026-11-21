@@ -20,7 +20,7 @@ if [ -n "$IOS_APP" ]; then
     local name="$1"; shift
     xcrun simctl terminate "$DEVICE" "$BUNDLE" >/dev/null 2>&1 || true
     xcrun simctl launch "$DEVICE" "$BUNDLE" "$@" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >/dev/null
-    sleep 7
+    sleep 9
     xcrun simctl io "$DEVICE" screenshot "$OUT/ios-$name.png" >/dev/null 2>&1
   }
   ios 1-overview -XiaxiaDemo
@@ -42,7 +42,7 @@ if [ -n "$MAC_APP" ]; then
     "$BIN" "$@" -AppleLanguages "(zh-Hans)" >"$OUT/mac-$name.log" 2>&1 &
     local pid=$!
     sleep 7
-    if kill -0 $pid 2>/dev/null; then echo "mac-$name：在运行"; else echo "mac-$name：已经退出了（可能崩溃）"; fi
+    if kill -0 $pid 2>/dev/null; then echo "mac-${name} 在运行"; else echo "mac-${name} 已经退出了（可能崩溃）"; fi
     # 截图和关 app 都限时，卡住了也不拖住后面几页
     screencapture -x "$OUT/mac-$name.png" 2>/dev/null &
     local sp=$!
