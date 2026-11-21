@@ -600,7 +600,7 @@ table.plan .dim{color:var(--fg3)}
   <div class="sec-h"><h2>分三步做</h2><p>按我的推荐，先做第一步。手机上的 AI 对话和同步收费放在第三步，因为它们要先上架 App Store。</p></div>
   <div class="phase">
     <div class="now"><div class="t4">第一步 · 换界面（马上做）</div><ul><li>按这份设计重做 Mac 9 页、iPhone 5 个标签</li><li>拿掉导入、整理、记欠款等面板，记一笔换成极简版</li><li>每页加「问 AI」：复制话术 + 打开 Claude</li><li>空状态、出错、深浅色、大字号都做</li></ul></div>
-    <div><div class="t4">第二步 · AI 意见进账本</div><ul><li>账本加一张「AI 意见」表</li><li>MCP 和 fin 加写意见、列意见、标记已读</li><li>全局 skill 里教 AI：月初写本月点评、发现异常写提醒</li><li>总览和 AI 页显示它们</li></ul></div>
+    <div><div class="t4">第二步 · AI 意见进账本</div><ul><li>账本加一张「AI 意见」表</li><li>MCP 和 fin 加写意见、列意见、标记已读</li><li>全局 skill 里教 AI：月初写本月点评、发现异常写提醒</li><li>总览和 AI 页显示它们</li><li>多币种：账户有自己的币种，每笔记原币金额和汇率，主币种可以改</li><li>订阅表：AI 从流水认出订阅，MCP 加写订阅、列订阅</li></ul></div>
     <div><div class="t4">第三步 · 手机 AI + 同步收费</div><ul><li>iPhone 上和 AI 对话：用户填自己的 DeepSeek / Claude 等密钥，免费，AI 调的是和 MCP 同一套记账功能</li><li>只收同步的钱：2,99 €/年（示例价）；AI 代付档以后再看</li><li>先自己和身边人用顺了再上架</li><li>前提：上架 App Store（苹果开发者账号 99 美元/年，要你本人注册）</li><li>之后：宝宝存钱、小组件</li></ul></div>
   </div>
   <h3 class="sub">给开发看的：要新增的东西</h3>
@@ -680,13 +680,15 @@ const D = {
   accounts:[
     ['银行卡',[['CaixaBank','个人 · 尾号 4821',6212.30],['imagin','个人 · 尾号 0377',2845.10],['Revolut','个人 · 欧元',1104.55],['店里账户','我的小店',7630.85]]],
     ['信用卡',[['Visa 信用卡','12 月 5 日自动还款',-1746.40]]],
-    ['现金',[['钱包','个人',380.00]]]
+    ['现金',[['钱包','个人',380.00]]],
+    ['外币',[['美元卡','个人 · 美元',380.95,'412,00 $'],['人民币卡','个人 · 人民币',312.60,'2.400,00 ¥']]]
   ],
+  subs:[['Netflix','entertainment',12.99,'每月','12月2日',11,''],['Disney+','entertainment',10.99,'每月','12月6日',15,''],['Spotify 家庭','entertainment',17.99,'每月','12月9日',18,''],['ChatGPT Plus','education',18.52,'每月','12月11日',20,'20,00 $ · 美元卡'],['iCloud+ 200 GB','utilities',2.99,'每月','12月14日',23,''],['Amazon Prime','shopping',49.90,'每年','明年3月14日',113,'']],
   goals:[{name:'宝宝教育金',save:3100,target:5000,note:'每月存 300 €，明年 4 月存满',color:'#FB7185'},{name:'回国机票',save:1260,target:1800,note:'3 月前要存够，还差 540 €',color:'#0EA5E9'},{name:'店里新美甲灯',save:220,target:650,note:'我的小店',color:'#A8407F'}],
   inst:[['iPhone 17 分期','每期 104,08 €',7,12],['沙发','每期 133,00 €',5,6]],
   debts:[['小林欠我','10 月 12 日借出',600,'in'],['我欠阿姨','已还 400 €',-600,'out']],
   tx:[
-    ['今天 · 11月21日',-61.70,[['grocery','Mercadona','超市 · 个人 · CaixaBank','ai',-23.40],['coffee','Café Nómada','咖啡 · 个人 · Revolut','ai',-3.80],['dining','Glovo','餐饮 · 个人 · Revolut','ai',-34.50]]],
+    ['今天 · 11月21日',-61.70,[['grocery','Mercadona','超市 · 个人 · CaixaBank','ai',-23.40],['coffee','Café Nómada','咖啡 · 个人 · Revolut','ai',-3.80],['dining','Glovo','餐饮 · 个人 · Revolut','ai',-34.50],['entertainment','Steam','娱乐 · 美元卡 · −19,99 $','ai',-18.48]]],
     ['昨天 · 11月20日',1793.10,[['salary','工资 · Acme SL','工资收入 · 个人 · CaixaBank','ai',1850.00],['transport','Renfe','交通 · 个人 · imagin','me',-28.00],['beauty','Nails Pro 批发','美甲材料 · 小店 · 店里账户','ai',-28.90]]],
     ['11月19日',-152.40,[['transfer','转到 Revolut','自己账户间 · 不算收支','ai',500],['baby','Primark Kids','宝宝 · 个人 · CaixaBank','ai',-41.20],['grocery','Lidl','超市 · 个人 · imagin','ai',-37.90],['utilities','Iberdrola','水电网 · 个人 · CaixaBank','ai',-73.30]]]
   ],
@@ -702,6 +704,7 @@ const D = {
     ['导入','这是我的银行对账单，帮我整理好导进夏夏账本'],
     ['问问题','这个月为什么比上个月花得多？'],
     ['问问题','月底的钱够还信用卡吗？'],
+    ['订阅','帮我从流水里找出所有订阅，写进夏夏账本'],
     ['月报','给我写一份 11 月的月报，写进夏夏账本']
   ],
   changes:[
@@ -802,7 +805,7 @@ function quickAdd(m){const cs=[['grocery','超市'],['dining','餐饮'],['coffee
  return `<div class="qa"><span class="seg inout"><span class="on">花掉</span><span>进账</span></span>
   <div class="amt-in">23,40<span> €</span></div>
   <div class="cg">${cs.map((c,i)=>`<div class="${i==0?'on':''}">${icon('c_'+c[0])}${c[1]}</div>`).join('')}</div>
-  <div class="opts"><span class="chip on">个人</span><span class="chip">小店</span><span class="chip">现金 ▾</span><span class="chip">今天 ▾</span><span class="chip" style="color:var(--fg3)">备注</span></div>
+  <div class="opts"><span class="chip on">个人</span><span class="chip">小店</span><span class="chip">现金 ▾</span><span class="chip">€ 欧元 ▾</span><span class="chip">今天 ▾</span><span class="chip" style="color:var(--fg3)">备注</span></div>
   ${m=='phone'?`<div class="keys">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<span>${k}</span>`).join('')}</div>`:''}
   <button class="btn primary lg" style="justify-content:center">记下</button>
   <div class="hint">记下的这笔会标「你」，写进改动记录，能撤销。<br>要拆单、记分期、导对账单？<a data-copy="记一笔：今天在 Mercadona 买菜 23,40 €，个人账本">跟 AI 说更快</a></div></div>`}
@@ -860,19 +863,26 @@ P.trends = m => {const avg=(D.inc.slice(0,11).reduce((a,b)=>a+b,0)-D.exp.slice(0
   <div class="mgrid" style="grid-template-columns:repeat(3,1fr);margin-top:16px"><div class="card"><div class="eyebrow">剩得最多</div><div class="n num" style="font-size:22px;font-weight:700">9 月 · +420 €</div></div><div class="card"><div class="eyebrow">花得最多</div><div class="num" style="font-size:22px;font-weight:700">6 月 · 4.650 €</div></div><div class="card"><div class="eyebrow">今年一共剩下</div><div class="num in" style="font-size:22px;font-weight:700">+3.026 €</div></div></div>`
  : `<div class="card" style="display:grid;gap:10px">${head}${bars(300,170)}</div>`};
 
-P.worth = m => {const acc=D.accounts.map(([g,list])=>`<div class="sec-title" style="margin-top:6px"><div class="t4" style="font-size:13px;color:var(--fg2)">${g}</div></div><div class="list">${list.map(a=>`<div class="row"><div class="ic">${icon(g=='信用卡'?'t_accounts':g=='现金'?'c_salary':'t_accounts')}</div><div class="t"><b>${a[0]}</b><span>${a[1]}</span></div><div class="amt" ${a[2]<0?'style="color:var(--alert)"':''}>${eur(a[2])}</div></div>`).join('')}</div>`).join('')
+P.worth = m => {const acc=D.accounts.map(([g,list])=>`<div class="sec-title" style="margin-top:6px"><div class="t4" style="font-size:13px;color:var(--fg2)">${g}</div></div><div class="list">${list.map(a=>`<div class="row"><div class="ic">${icon(g=='信用卡'?'t_accounts':g=='现金'?'c_salary':'t_accounts')}</div><div class="t"><b>${a[0]}</b><span>${a[1]}</span></div>${a[3]?`<div class="amt" style="text-align:right">${a[3]}<div style="font-size:11px;color:var(--fg2);font-weight:400">≈ ${eur(a[2])}</div></div>`:`<div class="amt" ${a[2]<0?'style="color:var(--alert)"':''}>${eur(a[2])}</div>`}</div>`).join('')}</div>`).join('')
+  +`<p style="font-size:12px;color:var(--fg2);margin:6px 2px 0">外币账户按今天的汇率换成欧元，算进净资产。</p>`
   +`<div class="row" style="border:0;margin-top:4px"><div class="ic">${sym('lock')}</div><div class="t"><b>私房钱 · 1 个账户</b><span>默认藏起来，不算进上面的数</span></div><button class="btn plain">${sym('eye')}显示</button></div>`;
  const head=`<div style="display:grid;gap:6px"><div class="eyebrow">净资产（所有账户加起来，减掉信用卡）</div>${heroNum(D.worth[11],m=='mac'?56:42)}<p class="verdict">比 3 个月前多了 <em class="in">1.204 €</em>，一年多了 3.306 €。</p></div>`;
  const debts=`<div class="card"><div class="sec-title"><div class="t4">借款往来</div></div><div class="list">${D.debts.map(d=>`<div class="row"><div class="ic">${icon('c_loans')}</div><div class="t"><b>${d[0]}</b><span>${d[1]}</span></div><div class="amt ${d[3]=='in'?'in':''}">${eur(Math.abs(d[2]))}</div></div>`).join('')}</div></div>`;
  return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.4fr 1fr;align-items:start"><div class="mgrid"><div class="card" style="display:grid;gap:14px;padding:22px">${head}${area(620,210)}</div>${debts}</div><div class="card">${acc}</div></div>`
  : `<div class="card" style="display:grid;gap:10px">${head}${area(300,150)}</div><div class="card">${acc}</div>${debts}`};
 
+function subsCard(m){const mo=D.subs.reduce((s,x)=>s+(x[3]=='每月'?x[2]:x[2]/12),0),yr=D.subs.reduce((s,x)=>s+(x[3]=='每月'?x[2]*12:x[2]),0);
+ return `<div class="card"><div class="sec-title"><div class="t4">订阅</div><span style="font-size:12px;color:var(--fg2)">按下次扣款排</span></div>
+  <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:2px 0 8px"><span class="num" style="font-size:${m=='mac'?28:26}px;font-weight:700">${eur(mo)}</span><span style="color:var(--fg2)">每月固定在扣 · 一年约 <b class="num" style="color:var(--fg)">${eur(yr,{dec:0})}</b></span></div>
+  <div class="list">${D.subs.map(s=>`<div class="row">${catIc(s[1])}<div class="t"><b>${s[0]}</b><span>${s[3]} · 下次 ${s[4]}${s[5]<=14?`（${s[5]} 天后）`:''}${s[6]?' · '+s[6]:''}</span></div><div class="amt">${eur(s[2])}</div></div>`).join('')}</div>
+  <div style="font-size:12px;color:var(--fg2);margin-top:8px;display:flex;gap:6px;align-items:flex-start">${icon('t_assistant').replace('<svg','<svg style="width:13px;height:13px;flex:none;margin-top:2px;color:var(--ai)"')}<span>AI 从流水里认出了这 6 个订阅。涨价、新出现的扣款或快到期的年费，会写进 AI 意见提醒你。</span></div>
+  <button class="prompt" style="margin-top:8px" data-copy="帮我从流水里找出所有订阅，写进夏夏账本"><kbd>订阅</kbd><span>帮我从流水里找出所有订阅，写进夏夏账本</span>${sym('copy')}</button></div>`}
 P.plan = m => {const g=D.goals[0],p=g.save/g.target;
  const hero=`<div class="card" style="padding:${m=='mac'?24:16}px"><div class="ringbox"><div class="r">${ring(p,m=='mac'?170:120,m=='mac'?16:12,g.color)}<div class="c"><b>${Math.round(p*100)}%</b><span>已存</span></div></div><div style="display:grid;gap:6px"><div class="eyebrow">${g.name}</div><div class="num" style="font-size:${m=='mac'?30:22}px;font-weight:700">${eur(g.save,{dec:0})} <span style="color:var(--fg3);font-size:.6em">/ ${eur(g.target,{dec:0})}</span></div><p class="verdict">还差 <em>1.900 €</em>。${g.note}。</p></div></div></div>`;
  const others=`<div class="card"><div class="sec-title"><div class="t4">其它目标</div></div>${D.goals.slice(1).map(x=>`<div style="padding:8px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b style="font-weight:500">${x.name}</b><span class="num">${eur(x.save,{dec:0})} / ${eur(x.target,{dec:0})}</span></div><div class="bar"><i style="width:${x.save/x.target*100}%;background:${x.color}"></i></div><div style="font-size:12px;color:var(--fg2);margin-top:4px">${x.note}</div></div>`).join('')}</div>`;
  const inst=`<div class="card"><div class="sec-title"><div class="t4">分期</div></div>${D.inst.map(x=>`<div style="padding:8px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b style="font-weight:500">${x[0]}</b><span style="color:var(--fg2)">第 ${x[2]} / ${x[3]} 期</span></div><div style="display:flex;gap:3px">${Array.from({length:x[3]},(_,i)=>`<i style="flex:1;height:6px;border-radius:3px;background:${i<x[2]?'var(--brand)':'var(--sunken)'}"></i>`).join('')}</div><div style="font-size:12px;color:var(--fg2);margin-top:4px">${x[1]}</div></div>`).join('')}</div>`;
  const hint=`<div class="ask" style="padding:12px 14px"><div class="q" style="font-size:13px">${icon('t_assistant')}想加目标、记欠款、记分期？</div><button class="prompt" data-copy="帮我在夏夏账本建一个 2.000 € 的回国机票目标，明年 6 月前存够"><kbd>目标</kbd><span>帮我建一个 2.000 € 的回国机票目标，明年 6 月前存够</span>${sym('copy')}</button></div>`;
- return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.3fr 1fr;align-items:start"><div class="mgrid">${hero}${others}</div><div class="mgrid">${inst}<div class="card"><div class="sec-title"><div class="t4">借款往来</div></div><div class="list">${D.debts.map(d=>`<div class="row"><div class="ic">${icon('c_loans')}</div><div class="t"><b>${d[0]}</b><span>${d[1]}</span></div><div class="amt">${eur(Math.abs(d[2]))}</div></div>`).join('')}</div></div>${hint}</div></div>`
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.3fr 1fr;align-items:start"><div class="mgrid">${hero}${others}</div><div class="mgrid">${subsCard('mac')}${inst}<div class="card"><div class="sec-title"><div class="t4">借款往来</div></div><div class="list">${D.debts.map(d=>`<div class="row"><div class="ic">${icon('c_loans')}</div><div class="t"><b>${d[0]}</b><span>${d[1]}</span></div><div class="amt">${eur(Math.abs(d[2]))}</div></div>`).join('')}</div></div>${hint}</div></div>`
  : `${hero}${others}${inst}`};
 
 P.ai = m => {const prompts=`<div class="ask"><div class="q">${icon('t_assistant')}常用的话，点一下就复制</div><div style="display:grid;gap:6px">${D.prompts.map(p=>`<button class="prompt" data-copy="${p[1]}"><kbd>${p[0]}</kbd><span>${p[1]}</span>${sym('copy')}</button>`).join('')}</div>
@@ -913,10 +923,13 @@ P.settings = m => {const ai=`<div class="glabel">AI 连接（MCP）</div><div cl
   <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>测试连接<span class="v"><button class="btn tinted">测试</button></span></div><div class="gi"><span class="ic" style="background:#8E8E93">€</span>本月用量<span class="v">约 0,12 €（DeepSeek 收）</span></div></div>
   <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">可选：DeepSeek、通义千问、Kimi、智谱、Claude、ChatGPT、Gemini，或任何兼容 OpenAI 格式的地址。对话时会把相关的账目发给你选的这家 AI。</p>`;
  const sync=`<div class="glabel">iCloud 同步</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>状态<span class="v"><span class="dot"></span>已同步 · 1 分钟前</span></div><div class="gi"><span class="ic" style="background:var(--fg3)">≡</span>账本文件<span class="v" style="font-size:12px">iCloud › 夏夏账本 › ledger.sqlite</span></div>${m=='phone'?'<div class="gi"><span class="ic" style="background:var(--fg3)">i</span>在这台 iPhone 上记的账<span class="v">记作「你的名字」</span></div>':''}</div>`;
+ const cur=`<div class="glabel">币种</div><div class="group"><div class="gi"><span class="ic" style="background:var(--brand)">€</span>主币种<span class="v">欧元 € ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">1,2</span>金额写法<span class="v">1.234,56 €（跟随地区）</span></div><div class="gi"><span class="ic" style="background:#8E8E93">⇄</span>汇率<span class="v">自动 · 欧洲央行 · 今天 16:00</span></div><div class="gi"><span class="ic" style="background:#8E8E93">$</span>外币账户<span class="v">2 个（美元、人民币）</span></div></div>
+  <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种。银行实际扣了多少欧元，就以银行为准。取汇率只下载一张公开汇率表，不会发出任何账目。</p>`;
+ const mysub=`<div class="glabel">我的订阅</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>iCloud 同步<span class="v">已开通 · 2,99 €/年</span></div><div class="gi"><span class="ic" style="background:#8E8E93">↻</span>下次续费<span class="v">2027 年 11 月 21 日</span></div><div class="gi"><span class="ic" style="background:#8E8E93">›</span>管理订阅 · 恢复购买<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div></div>`;
  const books=`<div class="glabel">账本</div><div class="group"><div class="gi"><span class="ic" style="background:#C4502A">个</span>个人<span class="v">5 个账户</span></div><div class="gi"><span class="ic" style="background:#A8407F">M</span>我的小店<span class="v">1 个账户</span></div></div>`;
  const priv=`<div class="glabel">隐私和外观</div><div class="group"><div class="gi"><span class="ic" style="background:#8E8E93">${sym('lock').replace('<svg','<svg style="width:15px;height:15px"')}</span>打开 app 要面容 ID<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">${sym('eye').replace('<svg','<svg style="width:15px;height:15px"')}</span>私房钱默认藏起来<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">◐</span>外观<span class="v">跟随系统</span></div></div>
  <div class="glabel">帮助与反馈</div><div class="group"><div class="gi"><span class="ic" style="background:var(--alert)">!</span>反馈问题 / 报 bug<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:var(--ai)">?</span>提个想法<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:#8E8E93">i</span>版本<span class="v">1.0（42）</span></div></div>`;
- return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1fr 1fr;align-items:start"><div>${api}${ai.replace('AI 连接（MCP）','外部 AI 工具（MCP）')}</div><div>${sync}${books}${priv}</div></div>` : `${api}${sync}<div class="glabel">电脑上的 AI（MCP）</div><p style="font-size:12px;color:var(--fg2);margin:0 4px">Claude、Codex、Cherry Studio 等在 Mac 上连，见 Mac 版设置。</p>${priv}`};
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1fr 1fr;align-items:start"><div>${api}${ai.replace('AI 连接（MCP）','外部 AI 工具（MCP）')}</div><div>${sync}${mysub}${cur}${books}${priv}</div></div>` : `${api}${sync}${mysub}${cur}<div class="glabel">电脑上的 AI（MCP）</div><p style="font-size:12px;color:var(--fg2);margin:0 4px">Claude、Codex、Cherry Studio 等在 Mac 上连，见 Mac 版设置。</p>${priv}`};
 
 /* ---------- Mac 窗口 ---------- */
 const MAC_NAV=[['看',[['overview','总览','t_overview'],['spending','花销','t_transactions'],['trends','趋势','t_trends'],['worth','家底','t_accounts'],['plan','计划','t_plan']]],['AI',[['ai','AI 意见','t_assistant',4],['changes','改动记录','t_import']]],['记录',[['tx','流水','t_transactions']]]];
@@ -947,12 +960,14 @@ function phone(tab,title,body,{cls='',fab=true,me=true,sheet=''}={}){
    ${sheet?`<div class="sheet-dim"></div><div class="sheet"><span class="grab"></span><div class="sh"><span style="color:var(--brand)">取消</span><b>记一笔</b><span style="width:28px"></span></div>${sheet}</div>`:''}<div class="tabs">${TABS.map(([id,n,ic])=>`<div class="${id==tab?'on':''} ${id=='ai'?'ai':''}">${icon(ic)}${n}</div>`).join('')}</div></div></div>`;
 }
 const moneySeg=on=>`<span class="seg" style="justify-self:start"><span class="${on==0?'on':''}">花在哪</span><span class="${on==1?'on':''}">趋势</span></span>`;
+const planSeg=on=>`<span class="seg" style="justify-self:start"><span class="${on==0?'on':''}">目标</span><span class="${on==1?'on':''}">订阅</span></span>`;
 const PH=[
   ['overview','总览',P.overview('phone'),'总览','这个月过得怎么样'],
   ['money','收支',moneySeg(0)+P.spending('phone'),'收支 · 花在哪','钱都花在哪了'],
   ['money','收支',moneySeg(1)+P.trends('phone'),'收支 · 趋势','比以前好还是差'],
   ['worth','家底',P.worth('phone'),'家底','我一共有多少钱'],
-  ['plan','计划',P.plan('phone'),'计划','离目标还差多少'],
+  ['plan','计划',planSeg(0)+P.plan('phone'),'计划 · 目标','离目标还差多少'],
+  ['plan','计划',planSeg(1)+subsCard('phone'),'计划 · 订阅','每月固定在扣哪些钱'],
   ['ai','AI',P.ai('phone'),'AI','AI 怎么看我的钱'],
   ['ai','和 AI 说',chatScreen(),'AI · 对话（自己的密钥，免费）','直接在手机上和 AI 记账、问问题'],
   ['overview','流水',P.tx('phone'),'流水（从总览进）','这一笔是怎么回事'],
