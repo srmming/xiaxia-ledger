@@ -61,12 +61,41 @@ struct BigAmount: View {
 struct Card<Content: View>: View {
     var spacing: CGFloat = 10
     @ViewBuilder var content: () -> Content
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(alignment: .leading, spacing: spacing, content: content)
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.primary.opacity(0.06)))
+            // 卡片出现时轻轻浮上来（系统开了「减弱动态效果」就直接显示）。
+            .opacity(shown || reduceMotion ? 1 : 0)
+            .offset(y: shown || reduceMotion ? 0 : 12)
+            .onAppear {
+                guard !shown else { return }
+                withAnimation(.spring(duration: 0.45, bounce: 0.12)) { shown = true }
+            }
+    }
+}
+
+extension View {
+    /// Mac 上鼠标移到一行上时，底色轻轻亮一下，告诉你这行能点。iPhone 上什么都不做。
+    func hoverHighlight() -> some View { modifier(HoverHighlight()) }
+}
+
+private struct HoverHighlight: ViewModifier {
+    @State private var hovering = false
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .padding(.horizontal, 6)
+            .background(Color.primary.opacity(hovering ? 0.06 : 0), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(.horizontal, -6)
+            .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hovering = inside } }
+        #else
+        content
+        #endif
     }
 }
 
@@ -360,15 +389,23 @@ struct Bar: View {
     let fraction: Double
     var color: Color = .coral
     var height: CGFloat = 6
+    @State private var grown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.primary.opacity(0.08))
                 Capsule().fill(color.gradient)
-                    .frame(width: max(height, geo.size.width * min(max(fraction, 0), 1)))
+                    .frame(width: max(height, geo.size.width * (grown || reduceMotion ? min(max(fraction, 0), 1) : 0)))
             }
         }
         .frame(height: height)
         .accessibilityHidden(true)
+        // 进度条从左边长出来；数字变了就滑到新位置。
+        .animation(.spring(duration: 0.6, bounce: 0.1), value: fraction)
+        .onAppear {
+            guard !grown else { return }
+            withAnimation(.spring(duration: 0.7, bounce: 0.1).delay(0.1)) { grown = true }
+        }
     }
 }

@@ -62,6 +62,11 @@ public struct RootView: View {
         .overlay(alignment: .bottom) {
             ZStack { toastLayer }.animation(.snappy, value: model.toast)
         }
+        // iPhone 上记好一笔手里轻轻震一下，出错是另一种震法。
+        .sensoryFeedback(trigger: model.toast) { _, new in
+            guard let new else { return nil }
+            return new.isError ? .error : .success
+        }
         .sheet(item: $model.sheet) { sheet in
             NavigationStack { content(for: sheet) }
                 .environment(model)

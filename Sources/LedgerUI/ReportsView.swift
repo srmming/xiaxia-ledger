@@ -179,7 +179,9 @@ public struct ReportsView: View {
                         .font(.subheadline)
                         Bar(fraction: Double(c.amount.cents) / Double(top), color: c.name == "未分类" ? .gray : showIncome ? .income : .coral)
                     }
+                    .padding(.vertical, 2)
                     .contentShape(Rectangle())
+                    .hoverHighlight()
                 }
                 .buttonStyle(.plain)
             }
