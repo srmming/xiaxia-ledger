@@ -229,7 +229,8 @@ public struct OverviewView: View {
         let balances = model.balances
         return Card {
             CardHeader(title: "账户") {
-                (Text("一共 ").foregroundStyle(.secondary) + Text(model.totalBalance.formatted).bold()).monospacedDigit()
+                (Text("手上的钱减去欠的 ").foregroundStyle(.secondary) + Text(model.totalBalance.formatted).bold()).monospacedDigit()
+                    .help("各个账户的余额加起来。信用卡欠的钱是负数，会把这个数拉低。")
             }
             ForEach(model.visibleAccounts) { a in
                 let b = balances[a.id] ?? .zero
@@ -240,10 +241,17 @@ public struct OverviewView: View {
                         Image(systemName: a.isPrivate ? "lock.fill" : a.kind.symbol)
                             .frame(width: 30, height: 30)
                             .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-                        Text(a.name)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(a.name)
+                            if a.kind == .credit, b.isExpense {
+                                Text("信用卡 · 还欠这么多").font(.caption2).foregroundStyle(.secondary)
+                            } else if b.isExpense {
+                                Text("余额是负的，可能少记了期初余额").font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
                         Spacer()
                         Text(b.formatted).monospacedDigit().fontWeight(.medium)
-                            .foregroundStyle(b.isExpense ? Color.coral : .primary)
+                            .foregroundStyle(b.isExpense && a.kind != .credit ? Color.coral : .primary)
                         Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                     }
                     .contentShape(Rectangle())

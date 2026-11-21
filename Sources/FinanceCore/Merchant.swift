@@ -66,6 +66,10 @@ public enum Merchant {
         for w in text.split(whereSeparator: { $0 == " " || $0 == "\t" }) {
             var word = String(w)
             if word.hasPrefix("*") { continue }                                     // *9362 这种卡号尾巴
+            // Revolut**5670 这种：名字后面粘着卡号尾巴，只留名字
+            if let star = word.firstIndex(of: "*"), word[star...].dropFirst().allSatisfy({ $0 == "*" || $0.isNumber }), star != word.startIndex {
+                word = String(word[..<star])
+            }
             let digits = word.filter(\.isNumber).count
             if digits >= 4 && digits * 2 >= word.count { continue }                 // 长数字、日期、流水号
             word = word.trimmingCharacters(in: CharacterSet(charactersIn: "*#,;:-_/"))
