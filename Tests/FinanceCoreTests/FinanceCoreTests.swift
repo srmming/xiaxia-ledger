@@ -394,3 +394,43 @@ final class GoalEditTests: XCTestCase {
         XCTAssertTrue(l.goals[0].contributionIDs.isEmpty)
     }
 }
+
+final class FixMistakesTests: XCTestCase {
+    func base() -> Ledger {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "cash", name: "现金", kind: .cash)]
+        l.transactions = [Transaction(date: LocalDate(year: 2026, month: 11, day: 3), amount: Money(cents: -1250), description: "超市",
+                                      accountID: "cash", bookID: "personal", category: "吃饭")]
+        return l
+    }
+
+    func testEditThenUndo() throws {
+        var l = base()
+        var t = l.transactions[0]
+        t.amount = Money(cents: -2500); t.category = "日用"
+        let c = try l.editTransaction(t, author: "测试")
+        XCTAssertEqual(l.transactions[0].amount.cents, -2500)
+        try l.undo(changeID: c.id, author: "测试")
+        XCTAssertEqual(l.transactions[0].amount.cents, -1250)
+        XCTAssertEqual(l.transactions[0].category, "吃饭")
+    }
+
+    func testRemoveThenUndo() throws {
+        var l = base()
+        let id = l.transactions[0].id
+        let c = try l.removeTransactions([id], author: "测试")
+        XCTAssertTrue(l.transactions.isEmpty)
+        try l.undo(changeID: c.id, author: "测试")
+        XCTAssertEqual(l.transactions.map(\.id), [id])
+    }
+
+    func testOpeningBalanceIsNotIncomeAndCanBeChanged() throws {
+        var l = base()
+        let d = LocalDate(year: 2026, month: 11, day: 1)
+        try l.setOpeningBalance(accountID: "cash", amount: Money(cents: 10000), date: d, author: "测试")
+        try l.setOpeningBalance(accountID: "cash", amount: Money(cents: 20000), date: d, author: "测试")
+        XCTAssertEqual(l.transactions.filter { $0.flow == .opening }.count, 1)
+        XCTAssertEqual(Summaries.balances(l.transactions)["cash"]?.cents, 18750)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: d.yearMonth, bookID: nil).income.cents, 0)
+    }
+}

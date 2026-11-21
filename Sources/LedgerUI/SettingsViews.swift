@@ -23,7 +23,7 @@ public struct HistoryView: View {
                     Spacer()
                     if c.undone {
                         Text("已撤销").font(.caption).foregroundStyle(.secondary)
-                    } else if c.kind != .delete && !c.transactionIDs.isEmpty || c.kind == .debt {
+                    } else if c.kind != .delete && (!c.transactionIDs.isEmpty || c.debtID != nil || c.goalID != nil || c.installmentID != nil) {
                         Button("撤销") { confirming = c }.buttonStyle(.bordered)
                     }
                 }
@@ -58,20 +58,27 @@ public struct SettingsView: View {
             } footer: {
                 Text("私房钱账户平时不显示、不算进总览。打开后才看得到。")
             }
-            Section("账户") {
+            Section {
                 ForEach(model.visibleAccounts) { a in
-                    LabeledContent {
-                        Text((model.balances[a.id] ?? .zero).formatted).monospacedDigit()
-                    } label: {
-                        Label(a.name + (a.isPrivate ? "（私房钱）" : ""), systemImage: a.isPrivate ? "lock.fill" : a.kind.symbol)
+                    NavigationLink { AccountDetailView(account: a) } label: {
+                        LabeledContent {
+                            Text((model.balances[a.id] ?? .zero).formatted).monospacedDigit()
+                        } label: {
+                            Label(a.name + (a.isPrivate ? "（私房钱）" : ""), systemImage: a.isPrivate ? "lock.fill" : a.kind.symbol)
+                        }
                     }
                 }
                 Button { adding = true } label: { Label("加一个账户", systemImage: "plus") }
-            }
+            } header: { Text("账户") } footer: { Text("点一个账户可以填开账余额、看它的每一笔。") }
             Section("账本") {
                 ForEach(model.ledger.books) { b in Text(b.name) }
             }
-            NavigationLink { HistoryView() } label: { Label("改动记录", systemImage: "clock.arrow.circlepath") }
+            Section {
+                #if os(iOS)
+                NavigationLink { ImportView() } label: { Label("导入对账单", systemImage: "tray.and.arrow.down") }
+                #endif
+                NavigationLink { HistoryView() } label: { Label("改动记录（能撤销）", systemImage: "clock.arrow.circlepath") }
+            }
             Section("数据") {
                 Text(ledgerLocation(model.store)).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
                 Button("重新读取") { model.reload() }

@@ -1,11 +1,15 @@
 import FinanceCore
 import SwiftUI
 
-/// 计划：谁欠我钱 / 我欠谁（能记欠款、记还款），分期和目标先只看进度。
+/// 计划：谁欠我钱 / 我欠谁、分期、目标和储蓄。都能在这里记。
 public struct PlansView: View {
     @Environment(LedgerModel.self) private var model
     @State private var addingDebt = false
+    @State private var addingInstallment = false
+    @State private var addingGoal = false
     @State private var repaying: DebtStatus?
+    @State private var paying: InstallmentStatus?
+    @State private var depositing: GoalStatus?
 
     public init() {}
 
@@ -23,43 +27,70 @@ public struct PlansView: View {
                 }
                 Text("借出、借入、还款都不算收入或支出。").font(.caption).foregroundStyle(.secondary)
             }
-            Section("谁欠我钱") { debtRows(owed) }
-            Section("我欠谁") { debtRows(owe) }
-            if !insts.isEmpty {
-                Section("分期") {
-                    ForEach(insts, id: \.id) { i in
+            Section("谁欠我钱") { debtRows(owed); addDebtButton }
+            Section("我欠谁") { debtRows(owe); addDebtButton }
+            Section {
+                if insts.isEmpty { Text("没有进行中的分期").foregroundStyle(.secondary) }
+                ForEach(insts, id: \.id) { i in
+                    Button { paying = i } label: {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack { Text(i.name); Spacer(); Text("\(i.paidCount)/\(i.count) 期").foregroundStyle(.secondary) }
                             ProgressView(value: Double(i.paidCount), total: Double(max(i.count, 1))).tint(Color.coral)
                             Text("每期 \(i.perPayment.formatted) · 还剩 \(i.remaining.formatted) · 下次 \(i.nextDate?.short ?? "—")")
                                 .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                         }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("记一期还款")
                 }
+                Button { addingInstallment = true } label: { Label("记一个分期", systemImage: "plus") }
+            } header: { Text("分期") } footer: {
+                Text("买的那天按全额算支出，之后每期还款算还债，不再算支出。点一个分期记一期还款。")
             }
-            if !goals.isEmpty {
-                Section("目标和储蓄") {
-                    ForEach(goals, id: \.id) { g in
+            Section {
+                if goals.isEmpty { Text("还没有存钱目标").foregroundStyle(.secondary) }
+                ForEach(goals, id: \.id) { g in
+                    Button { depositing = g } label: {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 if g.locked { Image(systemName: "lock.fill").foregroundStyle(.secondary) }
                                 Text(g.name); Spacer(); Text("\(g.percent)%").bold().monospacedDigit()
                             }
                             ProgressView(value: Double(g.percent), total: 100).tint(Color.income)
-                            Text("\(g.saved.formatted) / \(g.target.formatted)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            Text("\(g.saved.formatted) / \(g.target.formatted)\(g.deadline.map { " · \($0.short)前" } ?? "")")
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                         }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("存钱或取钱")
                 }
+                Button { addingGoal = true } label: { Label("建一个存钱目标", systemImage: "plus") }
+            } header: { Text("目标和储蓄") } footer: {
+                Text("存进目标的钱不算支出。锁定的目标存进去就不能取。")
             }
         }
         .navigationTitle("计划")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { addingDebt = true } label: { Label("记一笔欠款", systemImage: "person.badge.plus") }
+                Menu {
+                    Button { addingDebt = true } label: { Label("记一笔欠款", systemImage: "person.badge.plus") }
+                    Button { addingInstallment = true } label: { Label("记一个分期", systemImage: "calendar") }
+                    Button { addingGoal = true } label: { Label("建一个存钱目标", systemImage: "target") }
+                } label: { Label("新建", systemImage: "plus.circle") }
             }
         }
         .sheet(isPresented: $addingDebt) { NavigationStack { AddDebtView() }.sheetSize() }
+        .sheet(isPresented: $addingInstallment) { NavigationStack { AddInstallmentView() }.sheetSize() }
+        .sheet(isPresented: $addingGoal) { NavigationStack { AddGoalView() }.sheetSize() }
+        .sheet(item: $paying) { i in NavigationStack { PayInstallmentView(status: i) }.sheetSize() }
+        .sheet(item: $depositing) { g in NavigationStack { GoalMoneyView(status: g) }.sheetSize() }
         .sheet(item: $repaying) { d in NavigationStack { RepayView(debt: d) }.sheetSize() }
+    }
+
+    private var addDebtButton: some View {
+        Button { addingDebt = true } label: { Label("记一笔欠款", systemImage: "plus") }
     }
 
     private func total(_ title: String, _ list: [DebtStatus], color: Color) -> some View {
@@ -105,6 +136,8 @@ public struct PlansView: View {
 }
 
 extension DebtStatus: Identifiable {}
+extension InstallmentStatus: Identifiable {}
+extension GoalStatus: Identifiable {}
 
 /// 记一笔欠款。
 struct AddDebtView: View {
