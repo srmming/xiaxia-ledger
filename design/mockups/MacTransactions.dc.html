@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 Mac · 流水</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#D9472B}a:hover{color:#B23A22}
+@keyframes xx-in{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+.xx-nav:hover{background:rgba(0,0,0,.05)}
+.xx-tr:hover{background:#F7F7F9}
+.xx-panel{animation:xx-in .3s cubic-bezier(.2,.8,.2,1) both}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif; color: #1D1D1F; display: flex; border-radius: 14px; overflow: hidden; background: #FBFBFD; box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 30px 60px rgba(0,0,0,.18)">
+  <nav aria-label="侧边栏" style="width: 232px; flex-shrink: 0; background: linear-gradient(180deg, #EFEDF1 0%, #E9E7EC 100%); border-right: 1px solid rgba(0,0,0,.08); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 13px">
+    <div style="display: flex; gap: 8px; padding: 2px 6px 22px" aria-hidden="true"><span style="width: 12px; height: 12px; border-radius: 6px; background: #FF5F57"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #FEBC2E"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840"></span></div>
+    <div style="font-size: 11px; font-weight: 600; color: #86868B; padding: 0 10px 6px">账本</div>
+    <sc-for list="{{books}}" as="b" hint-placeholder-count="3">
+      <button class="xx-nav" onClick="{{b.pick}}" style="{{b.style}}"><span style="{{b.dot}}"></span><span style="flex-grow: 1; text-align: left">{{b.name}}</span></button>
+    </sc-for>
+    <div style="font-size: 11px; font-weight: 600; color: #86868B; padding: 18px 10px 6px">查看</div>
+    <a class="xx-nav" href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.5" fill="none" stroke="#6E6E73" stroke-width="1.5"></rect><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.5" fill="none" stroke="#6E6E73" stroke-width="1.5"></rect><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.5" fill="none" stroke="#6E6E73" stroke-width="1.5"></rect><rect x="9" y="9" width="5.5" height="5.5" rx="1.5" fill="none" stroke="#6E6E73" stroke-width="1.5"></rect></svg>总览</a>
+    <a class="xx-nav" href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 12l4-4 3 3 5-6" fill="none" stroke="#6E6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>趋势与分类</a>
+    <a href="MacTransactions.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none; background: rgba(0,0,0,.07); font-weight: 600"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h7" fill="none" stroke="#D9472B" stroke-width="1.6" stroke-linecap="round"></path></svg>流水</a>
+    <a class="xx-nav" href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="#6E6E73" stroke-width="1.5"></circle><circle cx="8" cy="8" r="3" fill="none" stroke="#6E6E73" stroke-width="1.5"></circle></svg>计划（往来、分期、目标）</a>
+    <a class="xx-nav" href="MacTransactions.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="#6E6E73" stroke-width="1.6"></circle><path d="M8 4.8V8l2.2 1.6" fill="none" stroke="#6E6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>改动记录</a>
+    <a class="xx-nav" href="MacTransactions.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: #1D1D1F; text-decoration: none"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 12.5v1h11v-1" fill="none" stroke="#6E6E73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>导入</a>
+  </nav>
+  <main style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0">
+    <header style="height: 64px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid rgba(0,0,0,.06)">
+      <div style="display: flex; flex-direction: column; gap: 1px"><h1 style="margin: 0; font-size: 17px; font-weight: 700">流水</h1><span style="font-size: 12px; color: #86868B">{{summary}}</span></div>
+      <div style="flex-grow: 1"></div>
+      <div role="group" aria-label="收支" style="display: flex; background: rgba(0,0,0,.05); border-radius: 7px; padding: 2px; gap: 2px">
+        <sc-for list="{{kinds}}" as="k" hint-placeholder-count="3"><button onClick="{{k.pick}}" style="{{k.style}}">{{k.name}}</button></sc-for>
+      </div>
+      <label style="width: 220px; height: 28px; border-radius: 7px; background: rgba(0,0,0,.05); display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box">
+        <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4.2" stroke="#86868B" stroke-width="1.4" fill="none"></circle><path d="M8.6 8.6l3.2 3.2" stroke="#86868B" stroke-width="1.4" stroke-linecap="round"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">搜索流水</span>
+        <input value="{{q}}" onInput="{{onQ}}" placeholder="搜索 ⌘F" style="flex-grow: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px">
+      </label>
+    </header>
+    <div style="flex-grow: 1; display: flex; min-height: 0">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0; background: #FFFFFF">
+        <div style="display: grid; grid-template-columns: 64px minmax(0, 1fr) 96px 100px 110px 110px; gap: 12px; padding: 9px 24px; font-size: 11px; font-weight: 600; color: #86868B; border-bottom: 1px solid #F0F0F2"><span>日期</span><span>描述</span><span>账户</span><span>分类</span><span>记录人</span><span style="text-align: right">金额</span></div>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+          <button class="xx-tr" onClick="{{r.pick}}" style="{{r.style}}"><span style="color: #86868B; font-variant-numeric: tabular-nums">{{r.date}}</span><span style="display: flex; align-items: center; gap: 8px; min-width: 0"><span style="{{r.dot}}"></span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.desc}}</span></span><span style="color: #3A3A3C">{{r.acct}}</span><span><span style="background: #F2F2F4; border-radius: 5px; padding: 2px 7px; font-size: 12px">{{r.cat}}</span></span><span style="{{r.byStyle}}">{{r.by}}</span><span style="{{r.amtStyle}}">{{r.amt}}</span></button>
+        </sc-for>
+        <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><div style="padding: 60px; text-align: center; color: #86868B; font-size: 13px">没有找到相关流水</div></sc-if>
+      </div>
+      <sc-if value="{{sel}}" hint-placeholder-val="{{ true }}">
+        <aside aria-label="详情" style="width: 300px; flex-shrink: 0; border-left: 1px solid rgba(0,0,0,.06); background: #F7F7F9; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+          <div class="xx-panel" style="display: flex; flex-direction: column; gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #86868B">{{sel.dateFull}}</span><span style="font-size: 17px; font-weight: 600">{{sel.desc}}</span><span style="{{sel.bigStyle}}">{{sel.amt}}</span></div>
+            <div style="background: #FFFFFF; border-radius: 12px; display: grid; grid-template-columns: 60px 1fr; row-gap: 10px; column-gap: 8px; padding: 14px; font-size: 13px">
+              <span style="color: #86868B">账本</span><span>{{sel.book}}</span>
+              <span style="color: #86868B">账户</span><span>{{sel.acct}}</span>
+              <span style="color: #86868B">分类</span><span>{{sel.cat}}</span>
+              <span style="color: #86868B">来源</span><span>{{sel.src}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-size: 11px; font-weight: 600; color: #86868B">改动记录</span>
+              <sc-for list="{{sel.log}}" as="l" hint-placeholder-count="2">
+                <div style="display: flex; gap: 10px; font-size: 12px; line-height: 1.45"><span style="width: 6px; height: 6px; border-radius: 3px; background: #FF6B4A; margin-top: 6px; flex-shrink: 0"></span><span style="flex-grow: 1"><b>{{l.who}}</b> {{l.what}}<br><span style="color: #86868B">{{l.when}}</span></span></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; gap: 8px"><button style="flex: 1; height: 30px; border: 0; border-radius: 8px; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0,0,0,.1); font: inherit; font-size: 13px; cursor: pointer">编辑</button><button style="flex: 1; height: 30px; border: 0; border-radius: 8px; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0,0,0,.1); font: inherit; font-size: 13px; color: #C2381C; cursor: pointer">撤销这次改动</button></div>
+          </div>
+        </aside>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { book: 'all', kind: 'all', q: '', sel: 1 }; }
+  fmt(n) { const [i, f] = Math.abs(n).toFixed(2).split('.'); return (n < 0 ? '-' : '+') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + f + ' €'; }
+  renderVals() {
+    const TX = [
+      [1, '11-20', 'Mercadona Usera', 'CaixaBank', 'personal', '超市', -48.17, 'Claude', 'CaixaBank 11 月对账单'],
+      [2, '11-20', 'Bizum · 美甲服务', 'imagin', 'miora', '美甲服务', 45, 'Codex', 'imagin 11 月对账单'],
+      [3, '11-20', 'Bar La Esquina', '现金', 'personal', '餐饮', -6.4, 'ming', 'iPhone 手记'],
+      [4, '11-17', 'Metro Madrid', 'Revolut', 'personal', '交通', -21.8, 'Claude', 'Revolut 11 月对账单'],
+      [5, '11-17', 'Mercadona Usera', 'Revolut', 'personal', '超市', -31.8, 'Claude', 'Revolut 11 月对账单'],
+      [6, '11-14', 'Proveedor esmaltes', 'imagin', 'miora', '店铺耗材', -126.4, 'Codex', 'imagin 11 月对账单'],
+      [7, '11-12', '老板提款（店→个人）', 'imagin', 'miora', '老板提款', -600, 'Claude', '账本间转账'],
+      [8, '11-12', '老板提款（店→个人）', 'CaixaBank', 'personal', '收入', 600, 'Claude', '账本间转账'],
+      [9, '11-09', 'Amazon 订单', 'Revolut', 'miora', '店铺耗材', -34.99, 'Claude', 'Revolut 11 月对账单'],
+      [10, '11-05', 'Alquiler local', 'imagin', 'miora', '店租', -500, 'DeepSeek', 'imagin 11 月对账单'],
+      [11, '11-01', 'Spotify', 'Revolut', 'personal', '订阅', -10.99, 'Claude', 'Revolut 11 月对账单'],
+    ];
+    const LOG = {
+      1: [['Claude', '导入 CaixaBank 11 月对账单（42 笔，跳过重复 6 笔）', '今天 09:12']],
+      7: [['Claude', '记为账本间转账，和 CaixaBank +600,00 € 配对', '11-20 09:13 · 在对话里问过 ming'], ['Codex', '导入 imagin 11 月对账单', '11-20 08:40']],
+      9: [['Claude', '改到 Miora 美甲店 · 店铺耗材', '11-20 09:14 · ming 在对话里确认'], ['Claude', '导入 Revolut 11 月对账单', '11-20 09:12']],
+    };
+    const BOOKNAME = { personal: '个人', miora: 'Miora 美甲店' };
+    const q = this.state.q.trim().toLowerCase();
+    const hit = TX.filter(t => (this.state.book === 'all' || t[4] === this.state.book) && (this.state.kind === 'all' || (this.state.kind === 'out' ? t[6] < 0 : t[6] > 0))
+      && (!q || (t[2] + t[3] + t[5] + t[7]).toLowerCase().includes(q)));
+    const s = hit.find(t => t[0] === this.state.sel);
+    const total = hit.reduce((a, t) => a + t[6], 0);
+    const authorColor = { Claude: '#D9472B', Codex: '#1D1D1F', DeepSeek: '#4D6BFE', ming: '#86868B' };
+    return {
+      q: this.state.q, onQ: (e) => this.setState({ q: e.target.value }),
+      summary: '11 月 · ' + hit.length + ' 笔 · 合计 ' + this.fmt(total),
+      empty: hit.length === 0,
+      books: [['all', '全部', '#1D1D1F'], ['personal', '个人', '#30B0C7'], ['miora', 'Miora 美甲店', '#FF6B4A']].map(([id, name, c]) => ({ name, pick: () => this.setState({ book: id }),
+        dot: 'width: 10px; height: 10px; border-radius: 5px; background: ' + c,
+        style: 'display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; border: 0; font: inherit; font-size: 13px; color: #1D1D1F; cursor: pointer; ' + (this.state.book === id ? 'background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,.1); font-weight: 600' : 'background: transparent') })),
+      kinds: [['all', '全部'], ['out', '支出'], ['in', '收入']].map(([id, name]) => ({ name, pick: () => this.setState({ kind: id }),
+        style: 'border: 0; border-radius: 5px; padding: 3px 12px; font: inherit; font-size: 12px; cursor: pointer; ' + (this.state.kind === id ? 'background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.15); font-weight: 600' : 'background: transparent; color: #3A3A3C') })),
+      rows: hit.map(t => {
+        const on = s && s[0] === t[0];
+        return { date: t[1], desc: t[2], acct: t[3], cat: t[5], by: t[7], amt: this.fmt(t[6]), pick: () => this.setState({ sel: t[0] }),
+          dot: 'width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: ' + (t[4] === 'personal' ? '#30B0C7' : '#FF6B4A'),
+          style: 'width: 100%; border: 0; font: inherit; font-size: 13px; color: #1D1D1F; display: grid; grid-template-columns: 64px minmax(0, 1fr) 96px 100px 110px 110px; gap: 12px; padding: 9px 24px; align-items: center; text-align: left; cursor: pointer; border-bottom: 1px solid #F5F5F7; transition: background .15s; ' + (on ? 'background: rgba(255,107,74,.10)' : 'background: transparent'),
+          byStyle: 'font-size: 12px; font-weight: 600; color: ' + authorColor[t[7]],
+          amtStyle: 'text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: ' + (t[6] > 0 ? '#1F8A5B' : '#1D1D1F') };
+      }),
+      sel: s ? { desc: s[2], dateFull: '2026-' + s[1], amt: this.fmt(s[6]), book: BOOKNAME[s[4]], acct: s[3], cat: s[5], src: s[8],
+        bigStyle: 'font-family: ui-rounded, -apple-system, sans-serif; font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; color: ' + (s[6] > 0 ? '#1F8A5B' : '#1D1D1F'),
+        log: (LOG[s[0]] || [[s[7], s[7] === 'ming' ? '手动记了这一笔' : '导入 ' + s[8], '11-' + s[1].slice(3) + ' 09:12']]).map(l => ({ who: l[0], what: l[1], when: l[2] })) } : null,
+    };
+  }
+}
+</script>
+</body>
+</html>

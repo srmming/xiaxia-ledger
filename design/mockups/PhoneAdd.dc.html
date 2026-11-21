@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 iPhone · 记一笔</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#D9472B}a:hover{color:#B23A22}
+@keyframes xx-blink{50%{opacity:0}}
+@keyframes xx-toast{0%{opacity:0;transform:translate(-50%,-12px) scale(.96)}12%{opacity:1;transform:translate(-50%,0) scale(1)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
+@keyframes xx-pop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+.xx-caret{animation:xx-blink 1s steps(1) infinite}
+.xx-toast{animation:xx-toast 2.2s cubic-bezier(.2,.8,.2,1) both}
+.xx-key:active{background:#D1D1D6 !important}
+.xx-pop{animation:xx-pop .25s ease-out}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; border-radius: 48px; background: #1D1D1F; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif; color: #1D1D1F; box-shadow: 0 0 0 10px #1D1D1F, 0 30px 60px rgba(0,0,0,.25)">
+  <div style="position: absolute; left: 12px; right: 12px; top: 40px; height: 40px; border-radius: 14px 14px 0 0; background: #8E8E93; opacity: .5" aria-hidden="true"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 52px; bottom: 0; background: #F2F2F7; border-radius: 14px 14px 0 0; display: flex; flex-direction: column">
+    <div style="width: 36px; height: 5px; border-radius: 3px; background: #C7C7CC; margin: 6px auto 0" aria-hidden="true"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px; font-size: 17px">
+      <a href="PhoneHome.dc.html" style="color: #D9472B; text-decoration: none">取消</a>
+      <span style="font-weight: 600">记一笔</span>
+      <button onClick="{{save}}" style="{{saveStyle}}">保存</button>
+    </div>
+    <div style="padding: 6px 16px 0; display: flex; flex-direction: column; gap: 12px">
+      <div role="group" aria-label="类型" style="display: flex; background: rgba(118,118,128,.12); border-radius: 9px; padding: 2px; position: relative; width: 200px; align-self: center">
+        <div style="{{kindThumb}}"></div>
+        <button onClick="{{setOut}}" style="{{outStyle}}">支出</button>
+        <button onClick="{{setIn}}" style="{{inStyle}}">收入</button>
+      </div>
+      <div style="display: flex; align-items: baseline; justify-content: center; gap: 2px; height: 64px; font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif; font-variant-numeric: tabular-nums">
+        <span style="{{amountStyle}}">{{amount}}</span><span class="xx-caret" style="width: 3px; height: 44px; background: #FF6B4A; border-radius: 2px; align-self: center"></span><span style="font-size: 30px; font-weight: 600; color: #86868B; margin-left: 6px">€</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="8">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="{{c.style}}"><span style="{{c.icon}}">{{c.glyph}}</span><span>{{c.name}}</span></button>
+        </sc-for>
+      </div>
+      <div style="background: #FFFFFF; border-radius: 14px; display: flex; flex-direction: column; font-size: 15px">
+        <div style="display: flex; align-items: center; padding: 10px 14px; border-bottom: 1px solid #EFEFF4; gap: 10px">
+          <span style="flex-grow: 1">账本</span>
+          <sc-for list="{{books}}" as="b" hint-placeholder-count="2"><button onClick="{{b.pick}}" style="{{b.style}}">{{b.name}}</button></sc-for>
+        </div>
+        <div style="display: flex; align-items: center; padding: 11px 14px; border-bottom: 1px solid #EFEFF4"><span style="flex-grow: 1">账户</span><span style="color: #86868B">现金 ›</span></div>
+        <label style="display: flex; align-items: center; padding: 11px 14px; gap: 10px"><span>备注</span><input placeholder="可不填" style="flex-grow: 1; border: 0; outline: 0; font: inherit; text-align: right; background: transparent"></label>
+      </div>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <div style="background: #D1D3D9; padding: 6px 6px 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+      <sc-for list="{{keys}}" as="k" hint-placeholder-count="12">
+        <button class="xx-key" onClick="{{k.press}}" aria-label="{{k.label}}" style="{{k.style}}">{{k.text}}</button>
+      </sc-for>
+    </div>
+  </div>
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="xx-toast" role="status" style="position: absolute; top: 70px; left: 50%; background: rgba(30,30,32,.92); color: #FFFFFF; border-radius: 22px; padding: 12px 18px; display: flex; align-items: center; gap: 10px; font-size: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.25)">
+      <span style="width: 22px; height: 22px; border-radius: 11px; background: #34C759; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.3l2.4 2.4 4.6-5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <span>已记下 · {{toastText}}</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { s: '12,5', kind: 'out', cat: 'food', book: 'personal', toast: false, n: 0 };
+  }
+  componentWillUnmount() { clearTimeout(this.timer); }
+  press(k) {
+    let s = this.state.s;
+    if (k === 'del') s = s.slice(0, -1);
+    else if (k === ',') { if (!s.includes(',')) s = (s || '0') + ','; }
+    else {
+      const dec = s.split(',')[1];
+      if (dec !== undefined && dec.length >= 2) return;
+      if (s.replace(',', '').length >= 7) return;
+      s = s === '0' ? k : s + k;
+    }
+    this.setState({ s, n: this.state.n + 1 });
+  }
+  save() {
+    if (!this.state.s || Number(this.state.s.replace(',', '.')) === 0) return;
+    clearTimeout(this.timer);
+    this.setState({ toast: false });
+    requestAnimationFrame(() => this.setState({ toast: true, last: this.text() }));
+    this.timer = setTimeout(() => this.setState({ toast: false, s: '' }), 2200);
+  }
+  text() {
+    const cat = this.CATS().find(c => c[0] === this.state.cat)[1];
+    const book = this.state.book === 'personal' ? '个人' : 'Miora';
+    return book + ' · ' + cat + ' ' + (this.state.kind === 'out' ? '-' : '+') + this.pretty() + ' €';
+  }
+  pretty() {
+    const s = this.state.s || '0';
+    const [i, d] = s.split(',');
+    const int = (i || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return d === undefined ? int : int + ',' + d;
+  }
+  CATS() {
+    return this.state.kind === 'out'
+      ? [['food', '餐饮', '', '#FF6B4A'], ['market', '超市', 'Su', '#FFB340'], ['transit', '交通', 'Tr', '#30B0C7'], ['shop', '购物', 'Co', '#5E5CE6'], ['nail', '美甲耗材', 'Me', '#FF2D55'], ['rent', '房租', 'Al', '#8E8E93'], ['sub', '订阅', 'Su', '#34C759'], ['other', '其他', '··', '#AEAEB2']]
+      : [['salary', '工资', 'Sa', '#34C759'], ['service', '美甲服务', 'Se', '#FF6B4A'], ['refund', '退款', 'Re', '#30B0C7'], ['other', '其他', '··', '#AEAEB2']];
+  }
+  renderVals() {
+    const out = this.state.kind === 'out';
+    const glyphs = { food: '餐', market: '超', transit: '行', shop: '购', nail: '甲', rent: '租', sub: '订', other: '…', salary: '薪', service: '服', refund: '退' };
+    const seg = (on) => 'flex: 1; position: relative; z-index: 1; border: 0; background: transparent; font: inherit; font-size: 13px; height: 30px; cursor: pointer; color: #1D1D1F; ' + (on ? 'font-weight: 600' : '');
+    const keyStyle = (fn) => 'height: 46px; border: 0; border-radius: 6px; font: inherit; font-size: 24px; cursor: pointer; color: #1D1D1F; ' + (fn ? 'background: transparent' : 'background: #FFFFFF; box-shadow: 0 1px 0 #898A8D');
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'];
+    return {
+      amount: (out ? '-' : '+') + this.pretty(),
+      amountStyle: 'font-size: 56px; font-weight: 700; letter-spacing: -1.5px; color: ' + (out ? '#1D1D1F' : '#1F8A5B') + '; display: inline-block',
+      kindThumb: 'position: absolute; top: 2px; bottom: 2px; width: calc(50% - 2px); left: ' + (out ? '2px' : '50%') + '; background: #FFFFFF; border-radius: 7px; box-shadow: 0 3px 8px rgba(0,0,0,.12); transition: left .3s cubic-bezier(.3,1.3,.5,1)',
+      outStyle: seg(out), inStyle: seg(!out),
+      setOut: () => this.setState({ kind: 'out', cat: 'food' }), setIn: () => this.setState({ kind: 'in', cat: 'salary' }),
+      cats: this.CATS().map(c => {
+        const on = this.state.cat === c[0];
+        return { name: c[1], glyph: glyphs[c[0]], on: on ? 'true' : 'false', pick: () => this.setState({ cat: c[0] }),
+          style: 'border: 0; border-radius: 14px; padding: 8px 2px; display: flex; flex-direction: column; align-items: center; gap: 5px; font: inherit; font-size: 12px; cursor: pointer; transition: background .2s, transform .2s; color: #1D1D1F; ' + (on ? 'background: #FFFFFF; box-shadow: 0 0 0 2px ' + c[3] + '; transform: scale(1.03)' : 'background: transparent'),
+          icon: 'width: 38px; height: 38px; border-radius: 19px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #FFFFFF; transition: transform .2s; background: ' + c[3] + (on ? '' : '; opacity: .85') };
+      }),
+      books: [['personal', '个人'], ['miora', 'Miora']].map(([id, name]) => ({ name, pick: () => this.setState({ book: id }),
+        style: 'border: 0; border-radius: 14px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; transition: all .2s; ' + (this.state.book === id ? 'background: #FF6B4A; color: #FFFFFF; font-weight: 600' : 'background: #F2F2F7; color: #3A3A3C') })),
+      keys: keys.map(k => ({ text: k === 'del' ? '⌫' : k, label: k === 'del' ? '删除' : k, press: () => this.press(k), style: keyStyle(k === 'del' || k === ',') })),
+      save: () => this.save(),
+      saveStyle: 'border: 0; background: transparent; font: inherit; font-size: 17px; font-weight: 600; cursor: pointer; color: ' + (this.state.s && Number(this.state.s.replace(',', '.')) > 0 ? '#D9472B' : '#C7C7CC'),
+      toast: this.state.toast, toastText: this.state.last || '',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 iPhone · 流水</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#D9472B}a:hover{color:#B23A22}
+@keyframes xx-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.xx-in{animation:xx-in .35s cubic-bezier(.2,.8,.2,1) both}
+.xx-row:active{background:#F2F2F7}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; border-radius: 48px; background: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif; color: #1D1D1F; box-shadow: 0 0 0 10px #1D1D1F, 0 30px 60px rgba(0,0,0,.25)">
+  <div style="padding: 58px 16px 0; display: flex; flex-direction: column; gap: 10px; height: 100%; box-sizing: border-box">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between"><h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.5px">流水</h1><span style="font-size: 13px; color: #86868B; padding-bottom: 6px">{{countText}}</span></div>
+    <label style="height: 36px; border-radius: 10px; background: rgba(118,118,128,.12); display: flex; align-items: center; gap: 6px; padding: 0 10px">
+      <svg width="15" height="15" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4.2" stroke="#8E8E93" stroke-width="1.4" fill="none"></circle><path d="M8.6 8.6l3.2 3.2" stroke="#8E8E93" stroke-width="1.4" stroke-linecap="round"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">搜索流水</span>
+      <input value="{{q}}" onInput="{{onQ}}" placeholder="搜索商家、分类、金额" style="flex-grow: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: #1D1D1F">
+    </label>
+    <div style="display: flex; gap: 6px; overflow: hidden">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="5"><button onClick="{{c.pick}}" style="{{c.style}}">{{c.name}}</button></sc-for>
+    </div>
+    <div style="flex-grow: 1; overflow-y: auto; padding-bottom: 100px; display: flex; flex-direction: column; gap: 14px">
+      <sc-for list="{{days}}" as="d" hint-placeholder-count="3">
+        <section class="xx-in" style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #86868B; padding: 0 4px"><span style="font-weight: 600">{{d.label}}</span><span style="font-variant-numeric: tabular-nums">{{d.total}}</span></div>
+          <div style="background: #FFFFFF; border-radius: 16px; overflow: hidden">
+            <sc-for list="{{d.rows}}" as="r" hint-placeholder-count="2">
+              <div style="border-bottom: 1px solid #F2F2F7">
+                <button class="xx-row" onClick="{{r.toggle}}" aria-expanded="{{r.expanded}}" style="width: 100%; border: 0; background: transparent; font: inherit; color: #1D1D1F; display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; text-align: left">
+                  <span style="{{r.icon}}">{{r.glyph}}</span>
+                  <span style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0"><span style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.desc}}</span><span style="font-size: 12px; color: #86868B">{{r.meta}}</span></span>
+                  <span style="{{r.amtStyle}}">{{r.amt}}</span>
+                </button>
+                <div style="{{r.detailWrap}}">
+                  <div style="display: grid; grid-template-columns: 56px 1fr; row-gap: 8px; padding: 0 14px 12px 62px; font-size: 13px">
+                    <span style="color: #86868B">账本</span><span>{{r.book}}</span>
+                    <span style="color: #86868B">分类</span><span>{{r.cat}}</span>
+                    <span style="color: #86868B">记录</span><span>{{r.by}}</span>
+                    <span></span><span style="display: flex; gap: 16px"><a href="PhoneTransactions.dc.html" style="text-decoration: none; font-weight: 600">编辑</a><a href="PhoneTransactions.dc.html" style="text-decoration: none; color: #86868B">撤销这次改动</a></span>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </sc-for>
+      <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+        <div style="text-align: center; color: #86868B; font-size: 15px; padding-top: 80px">没有找到相关流水</div>
+      </sc-if>
+    </div>
+  </div>
+  <nav aria-label="标签栏" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: rgba(249,249,249,.88); backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,.08); display: flex; justify-content: space-around; padding-top: 8px; box-sizing: border-box; font-size: 10px; font-weight: 500">
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="13" y="3" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="3" y="13" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="13" y="13" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect></svg>总览</a>
+    <a href="PhoneTransactions.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #FF6B4A; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="#FF6B4A" stroke-width="2.6" stroke-linecap="round"></path></svg>流水</a>
+    <a href="PhonePlans.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#8E8E93" stroke-width="2"></circle><circle cx="12" cy="12" r="4.5" fill="none" stroke="#8E8E93" stroke-width="2"></circle><circle cx="12" cy="12" r="1.5" fill="#8E8E93"></circle></svg>计划</a>
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="#8E8E93" stroke-width="2"></circle><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="#8E8E93" stroke-width="2" stroke-linecap="round"></path></svg>设置</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { q: '', f: 'all', open: 1 }; }
+  fmt(n) { const [i, f] = Math.abs(n).toFixed(2).split('.'); return (n < 0 ? '-' : '+') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + f + ' €'; }
+  renderVals() {
+    const C = { 超市: ['超', '#FFB340'], 美甲服务: ['服', '#FF6B4A'], 交通: ['行', '#30B0C7'], 耗材: ['甲', '#FF2D55'], 老板提款: ['提', '#5E5CE6'], 收入: ['收', '#34C759'], 店租: ['租', '#8E8E93'], 订阅: ['订', '#34C759'], 餐饮: ['餐', '#FF6B4A'] };
+    const TX = [
+      [1, '今天', 'Mercadona Usera', 'CaixaBank', '个人', '超市', -48.17, 'Claude 导入 · CaixaBank 对账单'],
+      [2, '今天', 'Bizum · 美甲服务', 'imagin', 'Miora 美甲店', '美甲服务', 45, 'Codex 导入 · imagin 对账单'],
+      [3, '今天', 'Bar La Esquina', '现金', '个人', '餐饮', -6.4, 'ming 手记'],
+      [4, '11 月 17 日 周二', 'Metro Madrid', 'Revolut', '个人', '交通', -21.8, 'Claude 导入 · Revolut 对账单'],
+      [5, '11 月 17 日 周二', 'Mercadona Usera', 'Revolut', '个人', '超市', -31.8, 'Claude 导入 · Revolut 对账单'],
+      [6, '11 月 14 日 周六', 'Proveedor esmaltes', 'imagin', 'Miora 美甲店', '耗材', -126.4, 'Codex 导入 · imagin 对账单'],
+      [7, '11 月 12 日 周四', '老板提款', 'imagin', 'Miora 美甲店', '老板提款', -600, 'Claude 记账本间转账（对话里确认过）'],
+      [8, '11 月 12 日 周四', '老板提款', 'CaixaBank', '个人', '收入', 600, 'Claude 记账本间转账（对话里确认过）'],
+      [9, '11 月 5 日 周四', 'Alquiler local', 'imagin', 'Miora 美甲店', '店租', -500, 'DeepSeek 导入 · imagin 对账单'],
+      [10, '11 月 1 日 周日', 'Spotify', 'Revolut', '个人', '订阅', -10.99, 'Claude 导入 · Revolut 对账单'],
+    ];
+    const q = this.state.q.trim().toLowerCase(), f = this.state.f;
+    const hit = TX.filter(t => (f === 'all' || (f === 'personal' && t[4] === '个人') || (f === 'miora' && t[4] !== '个人') || (f === 'out' && t[6] < 0) || (f === 'in' && t[6] > 0))
+      && (!q || (t[2] + t[3] + t[5] + Math.abs(t[6]).toFixed(2).replace('.', ',')).toLowerCase().includes(q)));
+    const days = [];
+    hit.forEach(t => { let d = days.find(x => x.label === t[1]); if (!d) { d = { label: t[1], list: [] }; days.push(d); } d.list.push(t); });
+    return {
+      q: this.state.q, onQ: (e) => this.setState({ q: e.target.value }),
+      countText: hit.length + ' 笔',
+      empty: hit.length === 0,
+      chips: [['all', '全部'], ['personal', '个人'], ['miora', 'Miora'], ['out', '支出'], ['in', '收入']].map(([id, name]) => ({ name, pick: () => this.setState({ f: id }),
+        style: 'flex-shrink: 0; border: 0; border-radius: 15px; height: 30px; padding: 0 14px; font: inherit; font-size: 14px; cursor: pointer; transition: background .2s, color .2s; ' + (f === id ? 'background: #1D1D1F; color: #FFFFFF; font-weight: 600' : 'background: #FFFFFF; color: #1D1D1F') })),
+      days: days.map(d => ({ label: d.label, total: this.fmt(d.list.reduce((a, t) => a + t[6], 0)),
+        rows: d.list.map(t => {
+          const open = this.state.open === t[0], c = C[t[5]] || ['·', '#AEAEB2'];
+          return { desc: t[2], meta: t[3] + ' · ' + (t[4] === '个人' ? '个人' : 'Miora'), book: t[4], cat: t[5], by: t[7], glyph: c[0],
+            expanded: open ? 'true' : 'false', toggle: () => this.setState({ open: open ? 0 : t[0] }),
+            icon: 'width: 36px; height: 36px; border-radius: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; font-weight: 700; background: ' + c[1],
+            amt: this.fmt(t[6]), amtStyle: 'font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; ' + (t[6] > 0 ? 'color: #1F8A5B' : 'color: #1D1D1F'),
+            detailWrap: 'overflow: hidden; transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s; max-height: ' + (open ? '160px' : '0') + '; opacity: ' + (open ? '1' : '0') };
+        }) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
