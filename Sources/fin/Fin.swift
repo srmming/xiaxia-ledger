@@ -357,6 +357,9 @@ struct ImportCommand: ParsableCommand {
     @Option(help: "通用 CSV：收入列。") var creditCol: String?
     @Option(help: "通用 CSV：说明列。") var descCol: String?
     @Option(help: "通用 CSV：表头前要跳过几行。") var skipRows: Int = 0
+    @Option(help: "通用 CSV（可选）：分类列。") var categoryCol: String?
+    @Option(help: "通用 CSV（可选）：账本列，写账本 id，如 personal / miora。") var bookCol: String?
+    @Option(help: "通用 CSV（可选）：性质列，debt / saving / opening，空着是普通收支。") var flowCol: String?
     @Option(help: "这批默认归哪个账本（不填就先不分，之后用 fin assign）。") var book: String?
     func run() throws {
         let url = URL(fileURLWithPath: file)
@@ -369,12 +372,15 @@ struct ImportCommand: ParsableCommand {
         case "csv":
             guard let dateCol, let descCol else { throw ValidationError("通用 CSV 要写 --date-col 和 --desc-col") }
             result = try Importers.genericCSV(text, map: .init(date: dateCol, amount: amountCol, debit: debitCol, credit: creditCol,
-                                                               description: descCol, skipRows: skipRows),
+                                                               description: descCol, skipRows: skipRows,
+                                                               category: categoryCol, book: bookCol, flow: flowCol),
                                               accountID: account, source: source)
         default: throw ValidationError("格式只能是 revolut 或 csv")
         }
-        if let book { result.transactions = result.transactions.map { var t = $0; t.bookID = book; return t } }
+        if let book { result.transactions = result.transactions.map { var t = $0; if t.bookID == nil { t.bookID = book }; return t } }
         var ledger = try loadLedger()
+        let unknownBooks = Set(result.transactions.compactMap(\.bookID)).subtracting(ledger.books.map(\.id))
+        if !unknownBooks.isEmpty { throw ValidationError("没有这些账本：\(unknownBooks.sorted().joined(separator: "、"))") }
         if w.dryRun {
             let fresh = Dedup.newTransactions(result.transactions, existing: ledger.transactions)
             if w.json { return try Output.json(fresh) }
