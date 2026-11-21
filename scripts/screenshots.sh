@@ -24,15 +24,16 @@ if [ -n "$IOS_APP" ]; then
     xcrun simctl io "$DEVICE" screenshot "$OUT/ios-$name.png" >/dev/null 2>&1
   }
   ios 1-overview -XiaxiaDemo
-  ios 2-transactions -XiaxiaDemo -XiaxiaSection transactions
-  ios 3-reports -XiaxiaDemo -XiaxiaSection reports
-  ios 4-plans -XiaxiaDemo -XiaxiaSection plans
-  ios 5-settings -XiaxiaDemo -XiaxiaSection settings -XiaxiaPrivate
-  ios 6-add -XiaxiaDemo -XiaxiaSheet add
-  ios 7-triage -XiaxiaDemo -XiaxiaSheet triage
-  ios 8-import -XiaxiaDemo -XiaxiaSheet import
-  ios 9-debt -XiaxiaDemo -XiaxiaSheet debt
-  ios 10-onboarding -XiaxiaEmpty
+  ios 2-spending -XiaxiaDemo -XiaxiaSection spending
+  ios 3-trends -XiaxiaDemo -XiaxiaSection trends
+  ios 4-wealth -XiaxiaDemo -XiaxiaSection wealth
+  ios 5-plans -XiaxiaDemo -XiaxiaSection plans
+  ios 6-ai -XiaxiaDemo -XiaxiaSection insights
+  ios 7-add -XiaxiaDemo -XiaxiaSheet add
+  xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
+  ios 8-dark -XiaxiaDemo
+  xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
+  ios 9-empty -XiaxiaEmpty
 fi
 
 # GitHub 的机器截不到 Mac 窗口（只有黑屏），所以 CI 上跳过 Mac 部分；在自己的 Mac 上跑会截。
@@ -55,14 +56,15 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
     sleep 1
   }
   mac 1-overview -XiaxiaDemo
-  mac 2-transactions -XiaxiaDemo -XiaxiaSection transactions
-  mac 3-reports -XiaxiaDemo -XiaxiaSection reports
-  mac 4-plans -XiaxiaDemo -XiaxiaSection plans
-  mac 5-import -XiaxiaDemo -XiaxiaSection import
-  mac 6-history -XiaxiaDemo -XiaxiaSection history
-  mac 7-settings -XiaxiaDemo -XiaxiaSection settings
-  mac 8-add -XiaxiaDemo -XiaxiaSheet add
-  mac 9-triage -XiaxiaDemo -XiaxiaSheet triage
-  mac 10-onboarding -XiaxiaEmpty
+  mac 2-spending -XiaxiaDemo -XiaxiaSection spending
+  mac 3-trends -XiaxiaDemo -XiaxiaSection trends
+  mac 4-wealth -XiaxiaDemo -XiaxiaSection wealth
+  mac 5-plans -XiaxiaDemo -XiaxiaSection plans
+  mac 6-ai -XiaxiaDemo -XiaxiaSection insights
+  mac 7-changes -XiaxiaDemo -XiaxiaSection changes
+  mac 8-transactions -XiaxiaDemo -XiaxiaSection transactions
+  mac 9-settings -XiaxiaDemo -XiaxiaSection settings
+  mac 10-add -XiaxiaDemo -XiaxiaSheet add
+  mac 11-empty -XiaxiaEmpty
 fi
 ls -la "$OUT"
