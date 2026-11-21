@@ -381,7 +381,7 @@ extension Ledger {
         let tid = UUID()
         let text = note ?? "\(bookName(fromBook)) → \(bookName(toBook))"
         let outTx = Transaction(date: date, amount: -amount, description: text, accountID: accountID, bookID: fromBook,
-                                category: fromBook == "miora" ? "老板提款" : "转出", transferID: tid, source: "手记")
+                                category: books.first(where: { $0.id == fromBook })?.isBusiness == true ? "老板提款" : "转出", transferID: tid, source: "手记")
         let inTx = Transaction(date: date, amount: amount, description: text, accountID: accountID, bookID: toBook,
                                category: "转入", transferID: tid, source: "手记")
         transactions += [outTx, inTx]

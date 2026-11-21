@@ -51,7 +51,7 @@ targets:
     info:
       path: Generated/macOS-Info.plist
       properties:
-        CFBundleDisplayName: 夏夏账本
+        CFBundleDisplayName: $(PRODUCT_NAME)
         CFBundleDevelopmentRegion: zh-Hans
         LSApplicationCategoryType: public.app-category.finance
         ITSAppUsesNonExemptEncryption: false
@@ -66,10 +66,32 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
+      configs:
+        # 开发用的 Debug 版换一个名字和 Bundle ID，免得程序坞 / Spotlight 把 build 文件夹里的旧 Debug 包当成正式的「夏夏账本」打开
+        # （2026-11-21 出过一次：旧 Debug 包读不懂新账本，整窗显示「账本读不出来」）。
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.mac.debug
+          PRODUCT_NAME: 夏夏账本 Debug
+  # iPhone 界面自动检查：从零新建账本、账户、记一笔，都在内存里的空账本 / 示例账本上做，不碰真账本。
+  XiaxiaLedger-iOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: XiaxiaLedger-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: XiaxiaLedger-iOS
+        CODE_SIGN_STYLE: Automatic
 schemes:
   XiaxiaLedger-iOS:
     build: { targets: { XiaxiaLedger-iOS: all } }
     run: { config: Debug }
+    test:
+      config: Debug
+      targets: [XiaxiaLedger-iOSUITests]
   XiaxiaLedger-macOS:
     build: { targets: { XiaxiaLedger-macOS: all } }
     run: { config: Debug }

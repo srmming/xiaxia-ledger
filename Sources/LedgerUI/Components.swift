@@ -4,78 +4,68 @@ import SwiftUI
 /// SwiftUI 也有 Transaction（动画事务），在 LedgerUI 里 Transaction 一律指流水。
 typealias Transaction = FinanceCore.Transaction
 
-/// logo 的珊瑚色，只用在重点处。
-public extension Color {
-    static let coral = Color(red: 1.0, green: 0.42, blue: 0.29)
-    static let income = Color(red: 0.12, green: 0.54, blue: 0.36)
+extension Money {
+    /// 界面上的写法：进账「+1.850,00 €」，花掉「−23,40 €」（真正的减号），不带符号就是「500,00 €」。
+    var display: String {
+        if cents > 0 { return "+" + formatted }
+        if cents < 0 { return "\u{2212}" + magnitude.formatted }
+        return formatted
+    }
+    /// 不带小数的写法：「1.150 €」，给一句话里用。
+    var rounded: String {
+        let euros = (magnitude.cents + 50) / 100
+        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 €", with: " €")
+        return (cents < 0 ? "\u{2212}" : "") + text
+    }
+    /// 余额：负数（信用卡欠款）带减号，正数不带。
+    var balance: String { cents < 0 ? "\u{2212}" + magnitude.formatted : formatted }
 }
 
-extension Color {
-    static var groupedBackground: Color {
-        #if os(iOS)
-        Color(uiColor: .systemGroupedBackground)
-        #else
-        Color(nsColor: .windowBackgroundColor)
-        #endif
-    }
-    static var cardBackground: Color {
-        #if os(iOS)
-        Color(uiColor: .secondarySystemGroupedBackground)
-        #else
-        Color(nsColor: .controlBackgroundColor)
-        #endif
-    }
-}
-
-/// 金额：等宽数字，收入绿色，支出正常色。
+/// 列表里的金额：进账绿色带 +，花掉正常颜色带 −，自己账户间转账灰色不带符号。
 struct AmountText: View {
     let money: Money
-    var signed = true
-    var font: Font = .body
+    var neutral = false
+    var font: Font = .kitAmount
 
     var body: some View {
-        Text(signed ? money.formatted : money.magnitude.formatted)
+        Text(neutral ? money.magnitude.formatted : money.display)
             .font(font)
-            .monospacedDigit()
-            .foregroundStyle(money.isIncome && signed ? Color.income : Color.primary)
+            .foregroundStyle(neutral ? Color.fg3 : (money.isIncome ? Color.income : Color.primary))
             .contentTransition(.numericText(value: Double(money.cents)))
-            .accessibilityLabel(money.formatted)
+            .lineLimit(1)
+            .accessibilityLabel(money.spoken)
     }
 }
 
-/// 大数字（总览顶部）：圆体。
-struct BigAmount: View {
+extension Money {
+    /// VoiceOver 念法：「1433 欧元 65 分」。
+    var spoken: String {
+        let c = magnitude.cents
+        let sign = cents < 0 ? "负 " : ""
+        return c % 100 == 0 ? "\(sign)\(c / 100) 欧元" : "\(sign)\(c / 100) 欧元 \(c % 100) 分"
+    }
+}
+
+/// 圆体大数字，小数和 € 小一号、灰一点：1.433,65 €。
+struct BigMoney: View {
     let money: Money
-    var size: CGFloat = 38
+    var size: CGFloat = 56
+    var color: Color = .primary
+
     var body: some View {
-        Text(money.formatted)
+        let text = money.balance
+        let parts = text.replacingOccurrences(of: " €", with: "").split(separator: ",", maxSplits: 1)
+        let whole = String(parts.first ?? "")
+        let cents = parts.count > 1 ? "," + parts[1] : ""
+        (Text(whole).foregroundColor(color)
+         + Text(cents + " €").font(.system(size: size * 0.5, weight: .semibold, design: .rounded)).foregroundColor(.fg3))
             .font(.system(size: size, weight: .bold, design: .rounded))
             .monospacedDigit()
-            .contentTransition(.numericText(value: Double(money.cents)))
-            .minimumScaleFactor(0.5)
+            .tracking(-0.5)
             .lineLimit(1)
-    }
-}
-
-/// 卡片：总览、报表里一块一块的内容。
-struct Card<Content: View>: View {
-    var spacing: CGFloat = 10
-    @ViewBuilder var content: () -> Content
-    @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var body: some View {
-        VStack(alignment: .leading, spacing: spacing, content: content)
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.primary.opacity(0.06)))
-            // 卡片出现时轻轻浮上来（系统开了「减弱动态效果」就直接显示）。
-            .opacity(shown || reduceMotion ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 12)
-            .onAppear {
-                guard !shown else { return }
-                withAnimation(.spring(duration: 0.45, bounce: 0.12)) { shown = true }
-            }
+            .minimumScaleFactor(0.5)
+            .contentTransition(.numericText(value: Double(money.cents)))
+            .accessibilityLabel(money.spoken)
     }
 }
 
@@ -85,7 +75,7 @@ extension View {
 }
 
 private struct HoverHighlight: ViewModifier {
-    @State private var hovering = false
+    @State var hovering = false
     func body(content: Content) -> some View {
         #if os(macOS)
         content
@@ -96,39 +86,6 @@ private struct HoverHighlight: ViewModifier {
         #else
         content
         #endif
-    }
-}
-
-/// 卡片标题行：左边标题，右边一个小动作。
-struct CardHeader<Trailing: View>: View {
-    let title: String
-    @ViewBuilder var trailing: () -> Trailing
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.headline)
-            Spacer()
-            trailing().font(.subheadline)
-        }
-    }
-}
-
-extension CardHeader where Trailing == EmptyView {
-    init(_ title: String) { self.init(title: title) { EmptyView() } }
-}
-
-/// 账本切换：全部 / 个人 / Miora 美甲店。
-struct BookPicker: View {
-    @Environment(LedgerModel.self) private var model
-    var body: some View {
-        @Bindable var model = model
-        Picker("账本", selection: $model.selectedBookID.animation(.snappy)) {
-            Text("全部").tag(String?.none)
-            ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: 420)
-        .accessibilityLabel("看哪个账本")
     }
 }
 
@@ -201,43 +158,32 @@ enum CategoryStyle {
         return symbols.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { symbols[$0] }
     }
 
-    static func defaults(bookID: String?, income: Bool) -> [String] {
-        let shop = bookID == "miora"
+    /// 分类颜色（设计稿那套）：图标底色、圆环、排行条。
+    static let colors: [String: UInt32] = [
+        "房租": 0xE8505B, "住房": 0xE8505B, "店租": 0xE8505B, "超市": 0x2E9E8F, "餐饮": 0xFF7A59, "美甲": 0xF472B6, "美容": 0xF472B6,
+        "耗材": 0xF472B6, "交通": 0x3B82F6, "宝宝": 0xFB7185, "购物": 0xEC4899, "衣服": 0xEC4899, "服饰": 0xEC4899,
+        "水电": 0xEAB308, "咖啡": 0xB7795A, "娱乐": 0xF97316, "工资": 0x16A34A, "收入": 0x16A34A, "营业收入": 0x16A34A,
+        "旅行": 0x0EA5E9, "医疗": 0xEF4444, "通讯": 0x6366F1, "礼物": 0xD946EF, "税费": 0x64748B, "社保": 0x64748B,
+        "员工工资": 0x8B5CF6, "设备": 0x0D9488, "订阅": 0x8B5CF6, "宠物": 0xA16207, "学习": 0x2563EB, "加油": 0xF59E0B,
+    ]
+
+    static func color(_ category: String?) -> Color {
+        guard let category else { return .fg3 }
+        let key = colors[category] != nil ? category : colors.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }
+        guard let key, let hex = colors[key] else {
+            // 没定颜色的分类：按名字算一个固定的颜色，同一个分类每次都一样。
+            let palette: [UInt32] = [0x0EA5E9, 0x8B5CF6, 0x14B8A6, 0xF59E0B, 0x6366F1, 0xA855F7]
+            let h = category.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
+            return Color.kit(palette[h % palette.count], palette[h % palette.count])
+        }
+        return Color.kit(hex, hex)
+    }
+
+    static func defaults(book: Book?, income: Bool) -> [String] {
+        let shop = book?.isBusiness == true
         if income { return shop ? ["营业收入", "退款", "其他"] : ["工资", "收入", "退款", "礼物", "其他"] }  // 「退款」选了会冲减支出
         return shop ? ["耗材", "店租", "员工工资", "水电", "设备", "税费", "社保", "营销", "手续费", "其他"]
             : ["餐饮", "超市", "交通", "房租", "水电", "购物", "娱乐", "医疗", "通讯", "旅行", "宝宝", "其他"]
-    }
-}
-
-/// 一排分类小按钮，点一个就选中。
-struct CategoryChips: View {
-    let categories: [String]
-    @Binding var selection: String
-    var onPick: ((String) -> Void)? = nil
-
-    var body: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(categories, id: \.self) { c in
-                let on = selection == c
-                Button {
-                    selection = c
-                    onPick?(c)
-                } label: {
-                    HStack(spacing: 4) {
-                        if let s = CategoryStyle.symbol(c) { Image(systemName: s).font(.caption) }
-                        Text(c)
-                    }
-                    .font(.subheadline)
-                    .padding(.horizontal, 11).padding(.vertical, 7)
-                    .foregroundStyle(on ? Color.white : Color.primary)
-                    .background(on ? AnyShapeStyle(Color.coral) : AnyShapeStyle(Color.primary.opacity(0.07)), in: Capsule())
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .animation(.snappy(duration: 0.15), value: selection)
     }
 }
 
@@ -333,55 +279,6 @@ extension View {
         #endif
     }
 
-    /// 页面内容：居中、限宽、滚动。
-    func pageScroll(maxWidth: CGFloat = 900) -> some View {
-        ScrollView {
-            self.padding()
-                .frame(maxWidth: maxWidth)
-                .frame(maxWidth: .infinity)
-        }
-        .background(Color.groupedBackground)
-    }
-}
-
-/// 金额输入框：大号圆体，前面带正负号提示。
-/// 单行输入框。Mac 的表单会把输入框的标题当成左边的标签、把填的字挤到右边，
-/// 这里统一成：提示文字灰灰地待在框里，填的字靠左、正常大小。iPhone 上本来就是这样。
-struct PromptField: View {
-    let prompt: String
-    @Binding var text: String
-    init(_ prompt: String, text: Binding<String>) { self.prompt = prompt; self._text = text }
-
-    var body: some View {
-        #if os(macOS)
-        TextField(prompt, text: $text, prompt: Text(prompt))
-            .labelsHidden()
-            .multilineTextAlignment(.leading)
-        #else
-        TextField(prompt, text: $text)
-        #endif
-    }
-}
-
-struct AmountField: View {
-    let prompt: String
-    @Binding var text: String
-    var color: Color = .primary
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            PromptField(prompt, text: $text)
-                .decimalKeyboard()
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(color)
-                #if os(macOS)
-                .textFieldStyle(.plain)
-                #endif
-            Text("€").font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
-        }
-        .accessibilityLabel("金额")
-    }
 }
 
 /// 底部冒出来的结果提示，带「撤销」。
@@ -392,7 +289,7 @@ struct ToastView: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: toast.isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(toast.isError ? Color.coral : Color.income)
+                .foregroundStyle(toast.isError ? Color.alert : Color.income)
             Text(toast.text).font(.subheadline).lineLimit(2)
             if toast.changeID != nil {
                 Button("撤销", action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
@@ -410,10 +307,10 @@ struct ToastView: View {
 /// 进度条：圆角，带颜色。
 struct Bar: View {
     let fraction: Double
-    var color: Color = .coral
+    var color: Color = .brand
     var height: CGFloat = 6
-    @State private var grown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var grown = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
@@ -425,10 +322,10 @@ struct Bar: View {
         .frame(height: height)
         .accessibilityHidden(true)
         // 进度条从左边长出来；数字变了就滑到新位置。
-        .animation(.spring(duration: 0.6, bounce: 0.1), value: fraction)
+        .animation(.easeOut(duration: 0.5), value: fraction)
         .onAppear {
             guard !grown else { return }
-            withAnimation(.spring(duration: 0.7, bounce: 0.1).delay(0.1)) { grown = true }
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) { grown = true }
         }
     }
 }

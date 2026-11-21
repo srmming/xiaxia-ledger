@@ -1,0 +1,1031 @@
+<title>夏夏账本 UI 套件</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* 布局概念：一份从上往下读的说明书。先讲 app 做什么、每页回答什么，再给规范和组件，最后是 Mac / iPhone 的完整页面（可点）。
+   主色取自 app 图标「晨光账本」；AI 写进来的东西一律用靛蓝，一眼分清「账本数据」和「AI 的意见」。 */
+:root, .t-light {
+  --bg:#F2F2F5; --surface:#FFFFFF; --surface2:#F6F6F8; --sunken:#EBEBEF;
+  --fg:#1D1D1F; --fg2:#5A5A62; --fg3:#68686F; --sep:rgba(60,60,67,.13);
+  --brand:#B4441F; --brand-soft:rgba(196,80,42,.11); --sun:#F4B23E;
+  --income:#0E6B40; --income-soft:rgba(19,122,74,.10);
+  --warn:#855500; --warn-soft:rgba(232,160,0,.14);
+  --alert:#B8322A; --alert-soft:rgba(211,63,53,.10);
+  --ai:#4644C4; --ai-soft:rgba(88,86,214,.09); --ai-line:rgba(88,86,214,.28);
+  --bar-exp:#C9C9D1; --ai-solid:#4644C4; --sidebar:#ECECF0; --window:#FFFFFF; --chrome:#F7F7F9;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 8px 28px rgba(20,20,40,.07);
+  --frame:#1D1D1F;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#0C0C0E; --surface:#1C1C1F; --surface2:#232327; --sunken:#141416;
+  --fg:#F5F5F7; --fg2:#B0B0B7; --fg3:#8C8C93; --sep:rgba(120,120,128,.26);
+  --brand:#FF8157; --brand-soft:rgba(255,129,87,.16); --sun:#FFC352;
+  --income:#36C77F; --income-soft:rgba(54,199,127,.15);
+  --warn:#FFB72B; --warn-soft:rgba(255,183,43,.15);
+  --alert:#FF6A5F; --alert-soft:rgba(255,106,95,.15);
+  --ai:#8C89FF; --ai-soft:rgba(140,137,255,.14); --ai-line:rgba(140,137,255,.35);
+  --bar-exp:#4A4A52; --ai-solid:#5552D9; --sidebar:#18181B; --window:#111113; --chrome:#1A1A1D;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+  --frame:#2C2C30;
+  color-scheme:dark; } }
+:root[data-theme="dark"], .t-dark {
+  --bg:#0C0C0E; --surface:#1C1C1F; --surface2:#232327; --sunken:#141416;
+  --fg:#F5F5F7; --fg2:#B0B0B7; --fg3:#8C8C93; --sep:rgba(120,120,128,.26);
+  --brand:#FF8157; --brand-soft:rgba(255,129,87,.16); --sun:#FFC352;
+  --income:#36C77F; --income-soft:rgba(54,199,127,.15);
+  --warn:#FFB72B; --warn-soft:rgba(255,183,43,.15);
+  --alert:#FF6A5F; --alert-soft:rgba(255,106,95,.15);
+  --ai:#8C89FF; --ai-soft:rgba(140,137,255,.14); --ai-line:rgba(140,137,255,.35);
+  --bar-exp:#4A4A52; --ai-solid:#5552D9; --sidebar:#18181B; --window:#111113; --chrome:#1A1A1D;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.45);
+  --frame:#2C2C30;
+  color-scheme:dark;
+}
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --num: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.t-light,.t-dark{color:var(--fg)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;margin:0;letter-spacing:-.01em}
+p{margin:0;text-wrap:pretty}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,.chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+a{color:var(--brand)}
+
+/* ---------- 展示页本身 ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-bottom:1px solid var(--sep)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
+.topbar .wrap{display:flex;align-items:center;gap:14px;padding-block:10px}
+.topbar .logo{width:28px;height:28px;border-radius:7px;flex:none}
+.topbar b{font-size:15px;white-space:nowrap}
+.toc{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
+.toc a{color:var(--fg2);text-decoration:none;font-size:13px;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.toc a:hover{background:var(--sunken);color:var(--fg)}
+.theme-sw{display:flex;background:var(--sunken);border-radius:9px;padding:2px;flex:none}
+.theme-sw button{border:0;background:transparent;font-size:12px;padding:4px 9px;border-radius:7px;color:var(--fg2)}
+.theme-sw button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+.intro{padding-block:56px 28px}
+.intro .kicker{font-size:13px;color:var(--brand);font-weight:600;letter-spacing:.04em}
+.intro h1{font-size:clamp(34px,5vw,56px);line-height:1.08;margin-top:10px;font-weight:700}
+.intro h1 span{color:var(--brand)}
+.intro .lede{font-size:18px;color:var(--fg2);max-width:640px;margin-top:16px}
+.intro .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.pill{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--sep);color:var(--fg2)}
+
+section.doc{padding-block:44px;border-top:1px solid var(--sep)}
+.sec-h{display:grid;gap:8px;margin-bottom:26px;max-width:720px}
+.sec-h .k{font-size:12px;font-weight:600;color:var(--fg3);letter-spacing:.08em}
+.sec-h h2{font-size:30px;line-height:1.2}
+.sec-h p{color:var(--fg2);font-size:16px}
+h3.sub{font-size:17px;margin:34px 0 14px}
+
+/* 架构图 */
+.arch{display:grid;grid-template-columns:1fr auto 1.1fr auto 1fr;gap:14px;align-items:stretch}
+.arch .box{background:var(--surface);border:1px solid var(--sep);border-radius:16px;padding:18px;display:grid;gap:8px;align-content:start}
+.arch .box .t4{margin:0;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.arch .box p{color:var(--fg2);font-size:14px}
+.arch .box.ai{border-color:var(--ai-line);background:linear-gradient(180deg,var(--ai-soft),transparent 70%),var(--surface)}
+.arch .box.core{border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+.arch .arrow{display:grid;place-items:center;color:var(--fg3);font-size:12px;text-align:center;gap:4px}
+.arch .arrow svg{width:46px;height:20px}
+.arch ul{margin:0;padding-left:18px;color:var(--fg2);font-size:14px}
+.rule-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.rule-cards > div{background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--sep)}
+.rule-cards b{display:block;margin-bottom:4px}
+.rule-cards p{color:var(--fg2);font-size:14px}
+
+/* 页面规划表 */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--sep);border-radius:14px;background:var(--surface)}
+table.plan{border-collapse:collapse;width:100%;min-width:820px;font-size:14px}
+table.plan th,table.plan td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--sep);vertical-align:top}
+table.plan th{font-size:12px;color:var(--fg2);font-weight:600;background:var(--surface2)}
+table.plan tr:last-child td{border-bottom:0}
+table.plan td.q{font-weight:600}
+table.plan td.focus{color:var(--brand)}
+table.plan .dim{color:var(--fg3)}
+.moved{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:14px}
+.moved > div{background:var(--surface);border:1px solid var(--sep);border-radius:12px;padding:12px 14px;font-size:14px}
+.moved s{color:var(--fg3)}
+.moved .to{color:var(--ai);font-weight:600}
+
+/* 规范 */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{background:var(--surface);border:1px solid var(--sep);border-radius:14px;overflow:hidden}
+.sw i{display:block;height:64px}
+.sw div{padding:10px 12px;font-size:13px}
+.sw div b{display:block;font-size:14px}
+.sw div span{color:var(--fg2)}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.cats > div{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--sep);border-radius:10px;padding:8px 10px;font-size:13px}
+.type-row{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--sep)}
+.type-row .lbl{font-size:12px;color:var(--fg2)}
+.type-row .lbl code{font-family:var(--mono);font-size:11px;color:var(--fg3);display:block}
+.spacing{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.spacing > div{display:grid;gap:6px;justify-items:center;font-size:12px;color:var(--fg2)}
+.spacing i{display:block;background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 40%,transparent);border-radius:3px}
+.icons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px}
+.icons-grid > div{background:var(--surface);border:1px solid var(--sep);border-radius:12px;padding:12px 6px;display:grid;justify-items:center;gap:6px;font-size:12px;color:var(--fg2)}
+.icons-grid svg{width:28px;height:28px;color:var(--fg)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.spec{border-top:1px solid var(--sep);padding:16px 0 0;display:grid;gap:12px;align-content:start;min-width:0}
+.spec > .cap{font-size:12px;color:var(--fg3);font-weight:600;letter-spacing:.04em}
+.spec > .note{font-size:13px;color:var(--fg2)}
+.motion{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.motion > div{background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:14px}
+.motion b{display:block;margin-bottom:4px}
+.motion p{color:var(--fg2);font-size:13px}
+.motion code{overflow-wrap:anywhere;font-family:var(--mono);font-size:12px;color:var(--fg3)}
+
+/* ---------- app 里的组件（Mac 和 iPhone 共用） ---------- */
+.app{font-size:13px;line-height:1.45;color:var(--fg)}
+.app .card{background:var(--surface);border-radius:14px;padding:16px;min-width:0}
+.app .card.flat{background:var(--surface2)}
+.app .eyebrow{font-size:12px;color:var(--fg2);font-weight:500}
+.app .hero{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.025em;line-height:1.02}
+.app .hero .cents{font-size:.5em;letter-spacing:0;color:var(--fg2);font-weight:600}
+.app .hero .cur{font-size:.5em;color:var(--fg2);font-weight:600;margin-left:4px}
+.app .verdict{font-size:14px;color:var(--fg);max-width:520px}
+.app .verdict em{font-style:normal;font-weight:600}
+.app .chiprow{display:flex;flex-wrap:wrap;gap:6px}
+.app .delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;font-family:var(--num);font-variant-numeric:tabular-nums}
+.app .delta.good{color:var(--income);background:var(--income-soft)}
+.app .delta.bad{color:var(--alert);background:var(--alert-soft)}
+.app .delta.neutral{color:var(--fg2);background:var(--sunken)}
+.app .mini-stats{display:flex;gap:22px;flex-wrap:wrap}
+.app .mini-stats div{display:grid;gap:1px}
+.app .mini-stats b{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:16px;font-weight:600}
+.app .mini-stats span{font-size:12px;color:var(--fg2)}
+.app .in{color:var(--income)}
+.app .sec-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 10px}
+.app .sec-title .t4{margin:0;font-size:15px;font-weight:600}
+.app .sec-title a,.app .link{color:var(--brand);font-size:12px;text-decoration:none;font-weight:500;cursor:pointer}
+.app .legend{display:flex;gap:14px;font-size:12px;color:var(--fg2);flex-wrap:wrap}
+.app .legend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.app svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.app svg.chart text{font-family:var(--font);font-size:11px;fill:var(--fg3)}
+
+/* 列表行 */
+.app .list{display:grid}
+.app .row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--sep)}
+.app .row:last-child{border-bottom:0}
+.app .row .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--surface2)}
+.app .row .ic svg{width:19px;height:19px}
+.app .row .t{display:grid;min-width:0}
+.app .row .t b{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app .row .t span{font-size:12px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app .row .amt{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap}
+.app .row .amt small{display:block;font-weight:400;font-size:12px;color:var(--fg2)}
+.app .who{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:0 5px;border-radius:5px;line-height:16px;vertical-align:1px}
+.app .who.ai{color:var(--ai);background:var(--ai-soft)}
+.app .who.me{color:var(--fg2);background:var(--sunken)}
+.app .bar{height:6px;border-radius:3px;background:var(--sunken);overflow:hidden}
+.app .bar i{display:block;height:100%;border-radius:3px}
+.app .catline{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 0}
+.app .catline .nm{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.app .catline .nm span{color:var(--fg2);font-size:12px}
+
+/* 按钮 */
+.app .btn{border:0;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.app .btn svg{width:15px;height:15px}
+.app .btn.primary{background:var(--brand);color:#fff}
+.app .btn.ai{background:var(--ai-solid);color:#fff}
+.app .btn.tinted{background:var(--ai-soft);color:var(--ai)}
+.app .btn.plain{background:var(--sunken);color:var(--fg)}
+.app .btn.ghost{background:transparent;color:var(--brand);padding-inline:4px}
+.app .btn.danger{background:var(--alert-soft);color:var(--alert)}
+.app .btn.lg{padding:10px 16px;font-size:15px;border-radius:12px}
+.app .btn:active{transform:scale(.97)}
+.app .seg{display:inline-flex;background:var(--sunken);border-radius:8px;padding:2px;gap:2px}
+.app .seg span{padding:3px 10px;border-radius:6px;font-size:12px;color:var(--fg2);cursor:pointer;white-space:nowrap}
+.app .seg span.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:500}
+.app .chip{border:1px solid var(--sep);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--fg);cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.app .chip.on{background:var(--fg);color:var(--bg);border-color:transparent}
+.app .search{display:flex;align-items:center;gap:8px;background:var(--sunken);border-radius:9px;padding:7px 10px;color:var(--fg3);font-size:13px}
+.app .search svg{width:14px;height:14px}
+
+/* AI 卡 */
+.app .ai-card{background:linear-gradient(160deg,var(--ai-soft),transparent 75%),var(--surface);border:1px solid var(--ai-line);border-radius:14px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.app .ai-card .hd{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ai);font-weight:600}
+.app .ai-card .hd svg{width:16px;height:16px}
+.app .ai-card .hd .when{margin-left:auto;color:var(--fg3);font-weight:400}
+.app .ai-card .t5{margin:0;font-size:15px;font-weight:600;line-height:1.35}
+.app .ai-card p{color:var(--fg2);font-size:13px}
+.app .ai-card .ft{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.app .ai-card.big .t5{font-size:19px}
+.app .ai-card.big p{font-size:14px;color:var(--fg)}
+.app .tag{font-size:12px;font-weight:600;padding:1px 7px;border-radius:5px;white-space:nowrap}
+.app .tag.good{color:var(--income);background:var(--income-soft)}
+.app .tag.warn{color:var(--warn);background:var(--warn-soft)}
+.app .tag.tip{color:var(--ai);background:var(--ai-soft)}
+.app .tag.alert{color:var(--alert);background:var(--alert-soft)}
+.app .insight{display:grid;grid-template-columns:4px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--sep)}
+.app .insight:last-child{border-bottom:0}
+.app .insight > i{border-radius:2px}
+.app .insight b{font-weight:600;font-size:14px;display:block;margin:3px 0 2px}
+.app .insight p{color:var(--fg2);font-size:13px}
+.app .insight .meta{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--fg3)}
+
+/* 问 AI */
+.app .ask{border-radius:14px;padding:14px 16px;background:var(--surface);border:1px dashed var(--ai-line);display:grid;gap:10px;min-width:0}
+.app .ask .q{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.app .ask .q svg{width:18px;height:18px;color:var(--ai)}
+.app .ask .sub{font-size:12px;color:var(--fg2)}
+.app .prompt{display:flex;align-items:center;gap:8px;border-radius:10px;background:var(--surface2);padding:8px 10px;font-size:13px;cursor:pointer;border:1px solid transparent;text-align:left;width:100%}
+.app .prompt:hover{border-color:var(--ai-line)}
+.app .prompt span{flex:1;min-width:0}
+.app .prompt svg{width:14px;height:14px;color:var(--fg3);flex:none}
+.app .prompt kbd{font-family:var(--font);font-size:11px;color:var(--ai);background:var(--ai-soft);border-radius:4px;padding:0 5px;flex:none}
+.app .conn{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg2);flex-wrap:wrap}
+.app .dot{width:7px;height:7px;border-radius:50%;background:var(--income);display:inline-block;flex:none}
+.app .dot.off{background:var(--fg3)}
+.app .dot.warn{background:var(--warn)}
+
+/* 账本卡 */
+.app .book{display:grid;gap:10px}
+.app .book .hd{display:flex;align-items:center;gap:8px}
+.app .book .hd b{font-size:14px}
+.app .book .badge{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700}
+.app .book .n{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.app .book .sm{display:flex;gap:14px;font-size:12px;color:var(--fg2)}
+.app .book .sm b{color:var(--fg);font-weight:600;font-family:var(--num)}
+
+/* 进度环 */
+.app .ringbox{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.app .ringbox .r{position:relative;display:grid;place-items:center}
+.app .ringbox .r .c{position:absolute;text-align:center;line-height:1.1}
+.app .ringbox .r .c b{font-family:var(--num);font-size:30px;font-weight:700;display:block}
+.app .ringbox .r .c span{font-size:12px;color:var(--fg2)}
+
+/* 时间线 */
+.app .tl{display:grid}
+.app .tl .ev{display:grid;grid-template-columns:30px 1fr auto;gap:10px;padding:11px 0;border-bottom:1px solid var(--sep);align-items:start}
+.app .tl .ev:last-child{border-bottom:0}
+.app .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
+.app .av.claude{background:#D97757}
+.app .av.codex{background:#1F1F23}
+.t-dark .app .av.codex,.app .av.codex{box-shadow:inset 0 0 0 1px var(--sep)}
+.app .av.me{background:var(--fg3)}
+.app .tl b{font-weight:600}
+.app .tl p{color:var(--fg2);font-size:12px}
+.app .tl ul{margin:6px 0 0;padding-left:16px;color:var(--fg2);font-size:12px}
+
+/* 状态 */
+.app .empty{display:grid;justify-items:center;text-align:center;gap:10px;padding:28px 18px}
+.app .empty .art{display:grid;place-items:center;color:var(--ai)}
+.app .empty .art svg{width:44px;height:44px}
+.app .empty .t5{margin:0;font-size:16px}
+.app .empty p{color:var(--fg2);font-size:13px;max-width:300px}
+.app .sk{background:linear-gradient(90deg,var(--sunken),var(--surface2),var(--sunken));background-size:200% 100%;border-radius:6px;animation:sk 1.4s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.app .err{display:grid;grid-template-columns:auto 1fr;gap:12px;background:var(--alert-soft);border-radius:12px;padding:14px}
+.app .err svg{width:22px;height:22px;color:var(--alert)}
+.app .err b{display:block;margin-bottom:2px}
+.app .err p{font-size:12px;color:var(--fg2)}
+.app .banner{display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 12px;border-radius:9px;background:var(--warn-soft);color:var(--fg)}
+
+/* 设置 */
+.app .group{background:var(--surface);border-radius:12px;padding:0 14px}
+.app .group .gi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--sep);font-size:13px}
+.app .group .gi:last-child{border-bottom:0}
+.app .group .gi .v{margin-left:auto;color:var(--fg2);display:flex;align-items:center;gap:6px;text-align:right}
+.app .group .gi .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;flex:none}
+.app .glabel{font-size:12px;color:var(--fg2);margin:16px 4px 6px;font-weight:500}
+.app .toggle{width:36px;height:22px;border-radius:11px;background:var(--income);position:relative;flex:none}
+.app .toggle::after{content:"";position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+
+/* ---------- Mac 窗口 ---------- */
+.stage{overflow-x:auto;padding:6px 4px 18px;margin-inline:-4px}
+.mac{width:1180px;height:760px;border-radius:12px;overflow:hidden;background:var(--window);box-shadow:var(--shadow),0 0 0 1px var(--sep);display:grid;grid-template-columns:220px 1fr;margin:0 auto}
+.mac .side{background:var(--sidebar);border-right:1px solid var(--sep);display:flex;flex-direction:column;padding:12px 10px;gap:2px;min-height:0}
+.mac .lights{display:flex;gap:8px;padding:2px 6px 16px}
+.mac .lights i{width:12px;height:12px;border-radius:50%;display:block}
+.mac .side .grp{font-size:12px;color:var(--fg3);font-weight:600;padding:12px 10px 4px}
+.mac .side button{border:0;background:transparent;display:flex;align-items:center;gap:9px;padding:6px 10px;border-radius:7px;font-size:13px;text-align:left;color:var(--fg)}
+.mac .side button svg{width:17px;height:17px;color:var(--brand)}
+.mac .side button.ai svg{color:var(--ai)}
+.mac .side button:hover{background:var(--sunken)}
+.mac .side button.on{background:color-mix(in srgb,var(--brand) 16%,transparent)}
+.mac .side button .cnt{margin-left:auto;font-size:11px;color:var(--ai);background:var(--ai-soft);border-radius:999px;padding:0 6px;font-weight:600}
+.mac .side .foot{margin-top:auto;display:grid;gap:6px;font-size:12px;color:var(--fg2);padding:10px;border-top:1px solid var(--sep)}
+.mac .main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+.mac .tb{height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--chrome);border-bottom:1px solid var(--sep)}
+.mac .tb h3{font-size:15px;font-weight:600;margin-right:auto}
+.mac .tb .month{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg)}
+.mac .tb .month span{color:var(--fg3);cursor:pointer;padding:0 4px}
+.mac .content{flex:1;overflow:auto;padding:22px 24px 28px;min-height:0}
+.mac .content > *{animation:fadein .25s ease}
+@keyframes fadein{from{opacity:.4;transform:translateY(3px)}to{opacity:1;transform:none}}
+.mgrid{display:grid;gap:16px}
+
+/* ---------- iPhone ---------- */
+.phones{display:flex;gap:26px;overflow-x:auto;padding:8px 4px 22px;margin-inline:-4px;scroll-snap-type:x mandatory}
+.phone-col{display:grid;gap:10px;justify-items:center;flex:none;scroll-snap-align:start}
+.phone-col .cap{font-size:13px;color:var(--fg2);text-align:center;max-width:300px}
+.phone-col .cap b{color:var(--fg);display:block}
+.phone{width:320px;height:680px;border-radius:46px;padding:10px;background:var(--frame);box-shadow:var(--shadow)}
+.phone .scr{min-width:0;width:100%;height:100%;border-radius:37px;overflow:hidden;background:var(--bg);position:relative;display:flex;flex-direction:column}
+.phone .sb{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:6px 24px 0 30px;font-size:13px;font-weight:600}
+.phone .sb .island{width:92px;height:26px;border-radius:14px;background:#000;position:absolute;left:50%;top:9px;transform:translateX(-50%)}
+.phone .sb .ind{display:flex;gap:5px;align-items:center}
+.phone .sb .ind i{display:block;background:var(--fg);border-radius:2px}
+.phone .nav{padding:4px 16px 8px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex:none}
+.phone .nav h2{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.phone .nav .me{width:30px;height:30px;border-radius:50%;background:var(--sunken);color:var(--fg);display:grid;place-items:center;font-size:13px;font-weight:700}
+.phone .body{flex:1;overflow:auto;padding:4px 14px 90px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;scrollbar-width:none}
+.phone .body::-webkit-scrollbar{display:none}
+.phone .tabs{position:absolute;left:0;right:0;bottom:0;height:78px;padding:8px 8px 0;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 96%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--sep)}
+.phone .tabs div{display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--fg2);font-weight:500}
+.phone .tabs svg{width:24px;height:24px}
+.phone .tabs .on{color:var(--brand)}
+.phone .tabs .on.ai{color:var(--ai)}
+.phone .ro{font-size:12px;color:var(--fg3);text-align:center;padding:2px 0 0}
+.phone .app .card{border-radius:16px;padding:14px}
+.phone .fab{position:absolute;right:16px;bottom:92px;border:0;border-radius:999px;background:var(--ai-solid);color:#fff;padding:10px 14px;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+.phone .fab svg{width:16px;height:16px}
+
+.app .qa{display:grid;gap:12px}
+.app .qa .amt-in{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:40px;font-weight:700;text-align:center;letter-spacing:-.02em;padding:6px 0}
+.app .qa .amt-in span{color:var(--fg3);font-size:.5em}
+.app .qa .inout{justify-self:center}
+.app .qa .cg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.app .qa .cg div{display:grid;justify-items:center;gap:3px;font-size:12px;color:var(--fg2);padding:8px 2px;border-radius:12px;cursor:pointer}
+.app .qa .cg div svg{width:24px;height:24px}
+.app .qa .cg div.on{background:var(--brand-soft);color:var(--fg);font-weight:600}
+.app .qa .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.app .qa .keys span{background:var(--surface);border-radius:9px;text-align:center;padding:5px 0;font-size:16px;font-family:var(--num)}
+.app .qa .opts{display:flex;gap:6px;flex-wrap:wrap}
+.app .qa .hint{font-size:12px;color:var(--fg2);text-align:center}
+.app .qa .hint a{color:var(--ai)}
+.phone .nav .acts{display:flex;gap:8px;align-items:center}
+.phone .nav .plus{width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center}
+.phone .nav .plus svg{width:16px;height:16px}
+.phone .sheet-dim{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.35)}
+.phone .sheet{z-index:6;position:absolute;left:0;right:0;bottom:0;top:54px;background:var(--bg);border-radius:14px 14px 0 0;padding:8px 14px 18px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.phone .sheet .grab{width:36px;height:5px;border-radius:3px;background:var(--fg3);opacity:.5;align-self:center}
+.phone .sheet .sh{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.phone .sheet .sh b{font-size:16px}
+.app .chat{display:grid;gap:10px}
+.app .bub{max-width:84%;padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.45}
+.app .bub.me{justify-self:end;background:var(--brand);color:#fff;border-bottom-right-radius:5px}
+.app .bub.ai{justify-self:start;background:var(--surface);border-bottom-left-radius:5px}
+.app .tool{justify-self:start;width:88%;background:var(--surface);border:1px solid var(--ai-line);border-radius:12px;padding:10px 12px;display:grid;gap:6px;font-size:12px}
+.app .tool .th{display:flex;align-items:center;gap:6px;color:var(--ai);font-weight:600;font-size:11px}
+.app .tool .th svg{width:13px;height:13px}
+.app .composer{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--sep);border-radius:22px;padding:6px 6px 6px 14px;font-size:13px;color:var(--fg3)}
+.app .composer .send{margin-left:auto;width:30px;height:30px;border-radius:50%;background:var(--ai-solid);display:grid;place-items:center;color:#fff}
+.app .composer .send svg{width:15px;height:15px}
+.app .model{display:inline-flex;gap:6px;align-items:center;font-size:12px;background:var(--sunken);border-radius:999px;padding:3px 10px}
+.app .pw{display:grid;gap:12px;text-align:center}
+.app .pw .logo-big{width:64px;height:64px;border-radius:16px;justify-self:center}
+.app .pw h3{font-size:22px}
+.app .pw ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;text-align:left}
+.app .pw li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px}
+.app .pw li i{width:20px;height:20px;border-radius:6px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700}
+.app .pw li span small{display:block;color:var(--fg2);font-size:11px}
+.app .plan-opt{border:2px solid var(--brand);border-radius:14px;padding:12px;display:flex;justify-content:space-between;align-items:center;text-align:left}
+.app .plan-opt b{font-family:var(--num);font-size:20px}
+.app .fine{font-size:12px;color:var(--fg3)}
+.big-text .app{font-size:16px}
+.big-text .app .verdict{font-size:18px}
+.big-text .app .row .t b{font-size:16px}
+.big-text .app .row .t span{font-size:14px}
+.big-text .app .eyebrow{font-size:15px}
+.big-text .app .mini-stats b{font-size:20px}
+.big-text .app .mini-stats span{font-size:14px}
+
+.states{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.state{display:grid;gap:8px}
+.state > .cap{font-size:13px;color:var(--fg2)}
+.state > .cap b{color:var(--fg)}
+.state .app{background:var(--bg);border:1px solid var(--sep);border-radius:16px;padding:14px;min-height:150px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:20px;overflow:hidden;border:1px solid var(--sep)}
+.pair > div{padding:24px;display:grid;justify-items:center;gap:10px;background:var(--bg)}
+.pair > div .cap{font-size:13px;color:var(--fg2)}
+
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.checklist > div{background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:14px}
+.checklist b{display:block;margin-bottom:4px}
+.checklist p{font-size:13px;color:var(--fg2)}
+.dev{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.dev pre{margin:0;background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:14px;font-family:var(--mono);font-size:12px;overflow-x:auto;color:var(--fg);line-height:1.6}
+.phase{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.phase > div{background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:16px}
+.phase .t4{margin:0 0 8px;font-size:15px;font-weight:600}
+.phase ul{margin:0;padding-left:18px;color:var(--fg2);font-size:14px;display:grid;gap:4px}
+.phase .now{border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.foot-note{padding-block:40px 60px;color:var(--fg3);font-size:13px;border-top:1px solid var(--sep)}
+
+@media (max-width:900px){
+  .arch{grid-template-columns:1fr}
+  .arch .arrow{transform:rotate(90deg);height:40px}
+  .rule-cards,.grid3,.phase{grid-template-columns:1fr}
+  .grid2,.dev{grid-template-columns:1fr}
+  .pair{grid-template-columns:1fr}
+  .type-row{grid-template-columns:1fr;gap:4px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="topbar"><div class="wrap">
+  <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#FFEFE4"/><circle cx="32" cy="30" r="13" fill="#FFB36B"/><circle cx="32" cy="30" r="8.5" fill="#FF7A59"/><path d="M10 40c7-4 15-4 22 0 7-4 15-4 22 0v12c-7-4-15-4-22 0-7-4-15-4-22 0z" fill="#E8505B"/><path d="M32 40v12" stroke="#FFEFE4" stroke-width="2"/></svg>
+  <b>夏夏账本 · UI 套件</b>
+  <nav class="toc" aria-label="目录">
+    <a href="#what">做什么</a><a href="#pages">页面规划</a><a href="#tokens">设计规范</a><a href="#components">组件</a><a href="#mac">Mac</a><a href="#iphone">iPhone</a><a href="#states">各种状态</a><a href="#build">怎么落地</a>
+  </nav>
+  <div class="theme-sw" role="group" aria-label="浅色深色">
+    <button data-t="system" aria-pressed="true">自动</button><button data-t="light" aria-pressed="false">浅色</button><button data-t="dark" aria-pressed="false">深色</button>
+  </div>
+</div></div>
+
+<main>
+<div class="wrap intro">
+    <h1>打开就知道钱怎么样，<br><span>记账交给 AI。</span></h1>
+  <p class="lede">夏夏账本以后是一块财务看板。app 负责把你的钱「画」清楚，记账、改账、对账交给 Claude 和 Codex，它们通过 MCP 直接读写同一本账，也把意见写回来给你看。iPhone 主要用来看，也能顺手记一笔现金，靠 iCloud 同步。</p>
+  <div class="meta"><span class="pill">设计稿 v1 · 2026-11-21</span><span class="pill">苹果原生组件 · SwiftUI · Swift Charts · SF Symbols</span><span class="pill">浅色 + 深色</span><span class="pill">Mac 9 页 · iPhone 5 个标签</span><span class="pill">所有数字都是编造的示例</span></div>
+</div>
+
+<!-- 1 做什么 -->
+<section class="doc" id="what"><div class="wrap">
+  <div class="sec-h"><h2>三方分工：AI 记，账本存，app 看</h2><p>以后你在 app 里几乎不用打字。想记账、导对账单、问「这个月为什么花这么多」，都是跟 AI 说。AI 写进账本的东西，Mac 和 iPhone 马上看得到。</p></div>
+  <div class="arch">
+    <div class="box ai"><div class="t4"><span data-icon="t_assistant" style="width:20px;height:20px;color:var(--ai)"></span>AI（Claude、Codex）</div><p>你跟它说话，它来动手。</p><ul><li>记一笔、改一笔、删一笔</li><li>导入对账单：任何银行的 CSV、Excel、PDF 或截图，AI 先整理成统一格式再导入</li><li>分类、去重、对账、月报</li><li><b style="color:var(--ai)">把意见写进账本</b>（本月点评、提醒）</li></ul></div>
+    <div class="arrow"><svg viewBox="0 0 46 20"><path d="M2 10h40M34 3l8 7-8 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>MCP / fin<br>读 + 写</div>
+    <div class="box core"><div class="t4"><span data-icon="t_transactions" style="width:20px;height:20px;color:var(--brand)"></span>一本账（iCloud「夏夏账本」）</div><p>一个 SQLite 文件，所有人共用。</p><ul><li>流水、账户、多个账本（比如个人、店里）</li><li>借款、分期、存钱目标</li><li>AI 意见（新增）</li><li>改动记录：谁改的，都能撤销</li></ul></div>
+    <div class="arrow"><svg viewBox="0 0 46 20"><path d="M2 10h40M34 3l8 7-8 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>iCloud 同步<br>只读为主</div>
+    <div class="box"><div class="t4"><span data-icon="t_overview" style="width:20px;height:20px;color:var(--brand)"></span>夏夏账本 app</div><p>负责「看」和「引你去找 AI」。</p><ul><li><b>Mac</b>：全部页面，能小改（改分类、删一笔、撤销）</li><li><b>iPhone</b>：5 个标签，右上角 + 能记一笔</li><li>每页一个「问 AI」入口，点一下复制好话术</li></ul></div>
+  </div>
+  <div class="rule-cards">
+    <div><b>每页只回答一个问题</b><p>问题的答案就是页面上最大的那个东西（视觉重心）。其它信息缩小，放在下面。</p></div>
+    <div><b>先给结论，再给图</b><p>大数字下面跟一句人话，比如「比上月同期多剩 266 €，月底约剩 1.150 €」。看一眼就懂，不用自己算。</p></div>
+    <div><b>靛蓝色 = AI</b><p>AI 写的意见、AI 记的账、去问 AI 的按钮，都用靛蓝。橙色是夏夏账本自己的主色，只用在关键数字和选中状态。</p></div>
+  </div>
+</div></section>
+
+<!-- 2 页面规划 -->
+<section class="doc" id="pages"><div class="wrap">
+  <div class="sec-h"><h2>9 个页面，每页一个问题</h2><p>前 5 页是「看」，第 6、7 页是「AI 做了什么」，最后是流水和设置。iPhone 把它们收进 5 个标签。</p></div>
+  <div class="tbl-wrap"><table class="plan">
+    <thead><tr><th>页面</th><th>回答的问题</th><th>视觉重心（最大的东西）</th><th>下面放什么</th><th>iPhone</th></tr></thead>
+    <tbody>
+      <tr><td>总览</td><td class="q">这个月我过得怎么样？</td><td class="focus">本月还剩多少 + 一句结论 + 花钱速度线</td><td>AI 最新一条意见、两个账本、问 AI、最近流水</td><td>标签 1「总览」</td></tr>
+      <tr><td>花销</td><td class="q">钱都花在哪了？</td><td class="focus">分类圆环，中间是本月花掉的总数</td><td>分类排行、花得最多的商户</td><td>标签 2「收支」上半</td></tr>
+      <tr><td>趋势</td><td class="q">比以前好还是差？</td><td class="focus">近 12 个月进账 / 花掉柱状图</td><td>平均每月剩多少、最好和最差的月份</td><td>标签 2「收支」下半</td></tr>
+      <tr><td>家底</td><td class="q">我一共有多少钱？</td><td class="focus">净资产数字 + 12 个月曲线</td><td>各账户余额、信用卡要还多少、借款往来、私房钱（默认藏起来）</td><td>标签 3「家底」</td></tr>
+      <tr><td>计划</td><td class="q">离目标还差多少？</td><td class="focus">最快到期的目标，一个大进度环</td><td>其它目标、分期还到第几期、谁欠谁</td><td>标签 4「计划」</td></tr>
+      <tr><td>AI 意见</td><td class="q">AI 怎么看我的钱？</td><td class="focus">本月点评大卡（AI 写的）</td><td>其它提醒、常用话术、AI 连接状态</td><td>标签 5「AI」</td></tr>
+      <tr><td>改动记录</td><td class="q">AI 最近动了什么？</td><td class="focus">按时间排的改动，谁改的一眼看出</td><td>每次改动的明细、撤销按钮</td><td class="dim">AI 标签里看（不能撤销）</td></tr>
+      <tr><td>流水</td><td class="q">这一笔是怎么回事？</td><td class="focus">搜索框 + 按天分组的列表</td><td>右侧详情：谁记的、能改分类、删除</td><td class="dim">从总览「全部流水」进</td></tr>
+      <tr><td>设置</td><td class="q">AI 连上了吗？同步正常吗？</td><td class="focus">AI 连接状态</td><td>iCloud、账本、隐私、外观</td><td class="dim">总览右上角头像进</td></tr>
+    </tbody>
+  </table></div>
+  <h3 class="sub">从 app 里拿掉、交给 AI 的功能</h3>
+  <div class="moved">
+    <div><s>原来那个字段很多的「记一笔」</s><br><span class="to">→ 换成极简记一笔</span>：金额 + 分类，3 秒记完（Mac、iPhone 都有）。复杂的跟 AI 说</div>
+    <div><s>导入对账单</s><br><span class="to">→ 把文件拖给 AI</span>「帮我把这份对账单整理好导进夏夏账本」。哪家银行、什么格式都行，AI 先整理成统一格式，确认没问题再写入</div>
+    <div><s>整理（批量分类）</s><br><span class="to">→ AI 导入时顺手分好</span>，拿不准的在对话里问你</div>
+    <div><s>记欠款 / 记分期 / 建目标</s><br><span class="to">→ 跟 AI 说</span>「建一个 2.000 € 的回国机票目标」</div>
+    <div><s>加账户、开账余额</s><br><span class="to">→ 跟 AI 说</span>，或第一次导入时 AI 自动建</div>
+    <div><b>保留</b>的手动操作：极简记一笔（Mac + iPhone）；Mac 上还能改分类、改备注、删一笔、撤销。手动点比打字快的事，留在 app 里。</div>
+  </div>
+</div></section>
+
+<!-- 3 规范 -->
+<section class="doc" id="tokens"><div class="wrap">
+  <div class="sec-h"><h2>颜色、字体、间距、图标</h2><p>骨架全用苹果系统组件和系统颜色；夏夏账本自己的味道只放在两处：圆体大数字和晨光橙。右上角能切浅色 / 深色看效果。</p></div>
+  <h3 class="sub">颜色</h3>
+  <div class="swatches" id="swatches"></div>
+  <h3 class="sub">分类颜色（沿用已定的分类图标）</h3>
+  <div class="cats" id="cats"></div>
+  <h3 class="sub">字体</h3>
+  <div class="spec" style="padding-block:6px">
+    <div class="type-row"><div class="lbl">大数字 · 圆体粗<code>.system(.rounded) 56 / 700</code></div><div class="num" style="font-size:52px;font-weight:700;letter-spacing:-.025em;line-height:1">1.433<span style="font-size:26px;color:var(--fg2)">,65 €</span></div></div>
+    <div class="type-row"><div class="lbl">页面标题<code>.largeTitle 26–34 / 700</code></div><div style="font-size:30px;font-weight:700">总览</div></div>
+    <div class="type-row"><div class="lbl">一句结论<code>.body 15 / 400，重点 600</code></div><div style="font-size:15px">比上月同期多剩 <b>266 €</b>。花钱速度正常，照这样月底约剩 1.150 €。</div></div>
+    <div class="type-row"><div class="lbl">分区标题<code>.headline 15 / 600</code></div><div style="font-size:15px;font-weight:600">两个账本</div></div>
+    <div class="type-row"><div class="lbl">列表正文 · 金额<code>.callout 13 / 500 · 圆体等宽数字</code></div><div style="font-size:13px">Mercadona <span class="num" style="float:right;font-weight:600">−23,40 €</span></div></div>
+    <div class="type-row" style="border-bottom:0"><div class="lbl">说明小字<code>.caption 11–12 / 400</code></div><div style="font-size:12px;color:var(--fg2)">Codex 昨天 22:40 导入 · 个人账本 · Revolut</div></div>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="spec"><span class="cap">间距（4 的倍数）</span><div class="spacing" id="spacing"></div><p class="note">卡片内边距 16；卡片之间 16；页面左右 24（Mac）/ 14（iPhone）。圆角：卡片 14，iPhone 卡片 16，按钮 8，小标签 5。</p></div>
+    <div class="spec"><span class="cap">金额写法</span>
+      <div class="app"><div class="list">
+        <div class="row"><div class="ic" data-cat="salary"></div><div class="t"><b>进账</b><span>绿色，带 +</span></div><div class="amt in">+1.850,00 €</div></div>
+        <div class="row"><div class="ic" data-cat="grocery"></div><div class="t"><b>花掉</b><span>正常颜色，带 −，不用红色</span></div><div class="amt">−23,40 €</div></div>
+        <div class="row"><div class="ic" data-cat="transfer"></div><div class="t"><b>自己账户间转账</b><span>灰色，不算收支</span></div><div class="amt" style="color:var(--fg3)">500,00 €</div></div>
+      </div></div>
+      <p class="note">西班牙格式 1.234,56 €。红色只留给「真的要注意」的事（超支、信用卡快到期），花钱本身不是坏事。</p>
+    </div>
+  </div>
+  <h3 class="sub">图标（双色分层，已定稿的那套）</h3>
+  <div class="icons-grid" id="icons"></div>
+  <h3 class="sub">动效</h3>
+  <div class="motion">
+    <div><b>数字滚动</b><p>切月份、切账本时，大数字像计数器一样滚到新值。</p><code>.contentTransition(.numericText()) · 0.35s spring</code></div>
+    <div><b>图表画出来</b><p>打开页面时，线从左往右画，柱子从底往上长。</p><code>Swift Charts + .animation(.smooth, value:)</code></div>
+    <div><b>新意见进来</b><p>AI 刚写入的意见卡轻轻亮一下，侧栏「AI 意见」出现小数字。</p><code>.symbolEffect(.bounce) on sparkles</code></div>
+    <div><b>按下有反馈</b><p>卡片、按钮按下缩到 97%，松手弹回。</p><code>.buttonStyle(.plain) + scaleEffect</code></div>
+    <div><b>减少动态效果</b><p>系统打开「减弱动态效果」时，全部改成淡入淡出。</p><code>@Environment(\.accessibilityReduceMotion)</code></div>
+  </div>
+</div></section>
+
+<!-- 4 组件 -->
+<section class="doc" id="components"><div class="wrap">
+  <div class="sec-h"><h2>拼页面用的零件</h2><p>每个零件都写了在 SwiftUI 里叫什么，方便开发直接对上。</p></div>
+  <div class="grid2">
+    <div class="spec"><span class="cap">结论大数字 KeyFigure</span><div class="app" id="cmp-key"></div><p class="note">每页最多一个。上面一行小字说「这是什么」，下面一句人话说「好还是不好」。</p></div>
+    <div class="spec"><span class="cap">AI 意见卡 InsightCard</span><div class="app" id="cmp-ai"></div><p class="note">内容由 AI 经 MCP 写进账本，app 只负责显示。「接着问」会复制一段带上下文的话，打开 Claude。</p></div>
+  </div>
+  <div class="grid3" style="margin-top:18px">
+    <div class="spec"><span class="cap">问 AI 入口 AskAI</span><div class="app" id="cmp-ask"></div><p class="note">点任意一句：复制到剪贴板，然后打开 Claude。第一版就做这个。</p></div>
+    <div class="spec"><span class="cap">提醒列表 InsightRow</span><div class="app" id="cmp-ins"></div><p class="note">左边色条：绿 = 好消息，黄 = 留意，靛蓝 = 建议，红 = 要处理。</p></div>
+    <div class="spec"><span class="cap">账本卡 BookCard</span><div class="app" id="cmp-book"></div><p class="note">宽窗口里两张并排铺满，不会只占三分之二。</p></div>
+  </div>
+  <div class="grid3" style="margin-top:18px">
+    <div class="spec"><span class="cap">流水行 TransactionRow</span><div class="app" id="cmp-row"></div><p class="note">AI 记的标一个小「AI」，你自己改过的标「你」。</p></div>
+    <div class="spec"><span class="cap">按钮 · 分段 · 筛选</span><div class="app" id="cmp-btn"></div></div>
+    <div class="spec"><span class="cap">进度 GoalRing / ProgressBar</span><div class="app" id="cmp-goal"></div></div>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="spec"><span class="cap">记一笔 QuickAdd（Mac 弹出面板 / iPhone 底部面板）</span><div class="app" style="max-width:360px;justify-self:center;width:100%" id="cmp-qa"></div></div>
+    <div class="spec"><span class="cap">为什么留一个极简记一笔</span><p class="note" style="font-size:14px;color:var(--fg)">家里人随手花了现金、或者在店里收了一笔现金，掏出手机点 +、输金额、点分类就记完了，比打开 AI 打字快。</p><p class="note">只留最常用的：花掉 / 进账、金额、分类、账本、账户、日期、备注。拆单、分期、借款、导对账单、批量改，还是交给 AI。<br><br>每笔都记下是谁记的（谁的设备、谁的名字），在流水里标「你」，写进改动记录，能撤销。AI 之后整理账时也能看到这些手记的流水。<br><br>Mac：工具栏「记一笔」或 ⌘N。iPhone：每页右上角 +。</p></div>
+  </div>
+  <h3 class="sub">图表（Swift Charts）</h3>
+  <div class="grid2">
+    <div class="spec"><span class="cap">花钱速度线 · 本月累计 vs 上月</span><div class="app" id="ch-pace"></div><p class="note">实线是这个月，虚线是上个月同一天。线在虚线下面 = 花得比上月慢。末端圆点标今天，浅色虚线是照现在速度到月底的预估。</p></div>
+    <div class="spec"><span class="cap">分类圆环</span><div class="app" id="ch-donut"></div><p class="note">只画前 6 类，其余合成「其它」。中间写总数。</p></div>
+    <div class="spec"><span class="cap">12 个月进账 / 花掉</span><div class="app" id="ch-bars"></div><p class="note">绿柱进账，灰柱花掉。本月还没过完，用斜纹表示。</p></div>
+    <div class="spec"><span class="cap">净资产曲线</span><div class="app" id="ch-area"></div><p class="note">面积图，末端圆点加数字。</p></div>
+  </div>
+</div></section>
+
+<!-- 5 Mac -->
+<section class="doc" id="mac"><div class="wrap">
+  <div class="sec-h"><h2>Mac 全部页面（左边侧栏可以点）</h2><p>工具栏固定几样：月份、账本切换（全部 / 每个账本）、「记一笔」、「问 AI」按钮。侧栏底部常驻同步状态和 AI 最近一次写入的时间。</p></div>
+  <div class="app" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="mac-pills"></div>
+  <div class="stage"><div class="mac app" id="macwin"></div></div>
+</div></section>
+
+<!-- 6 iPhone -->
+<section class="doc" id="iphone"><div class="wrap">
+  <div class="sec-h"><h2>iPhone：主要看，也能顺手记一笔</h2><p>和 Mac 读写同一本账。右上角 + 是极简记一笔；右下角「问 AI」点了打开手机上的 Claude，并把话术放进剪贴板。其它修改都不在手机上做。往右滑看全部。</p></div>
+  <div class="phones" id="phones"></div>
+</div></section>
+
+<!-- 7 状态 -->
+<section class="doc" id="states"><div class="wrap">
+  <div class="sec-h"><h2>空的、加载中、出错、没连 AI、大字号、深浅色</h2><p>按项目的界面标准清单，每页都要有这些情况的样子。空状态一律把人引去找 AI。</p></div>
+  <div class="states" id="state-grid"></div>
+  <h3 class="sub">深色和浅色对照</h3>
+  <div class="pair"><div class="t-light"><span class="cap">浅色</span><div id="pair-l"></div></div><div class="t-dark"><span class="cap">深色</span><div id="pair-d"></div></div></div>
+  <h3 class="sub">无障碍和键盘</h3>
+  <div class="checklist">
+    <div><b>大字号</b><p>上面「大字号」那台 iPhone：大数字不变大，正文和列表跟着系统字号变大，行自动变高，不截断。</p></div>
+    <div><b>VoiceOver</b><p>大数字读成「十一月还剩 1433 欧元 65 分，比上月同期多 266 欧元」。图表给一句摘要，不逐点念。</p></div>
+    <div><b>Mac 快捷键</b><p>⌘1–⌘9 切页面；⌥⌘B 反馈问题；⌘← / ⌘→ 切月份；⌘K 问 AI（复制话术）；⌘F 搜流水；⌘Z 撤销最近一次改动。</p></div>
+    <div><b>窗口缩放</b><p>Mac 窗口窄于 900 时，总览右栏落到下面，变成一列；侧栏可以收起。</p></div>
+  </div>
+</div></section>
+
+<!-- 8 落地 -->
+<section class="doc" id="build"><div class="wrap">
+  <div class="sec-h"><h2>分三步做</h2><p>按我的推荐，先做第一步。手机上的 AI 对话和同步收费放在第三步，因为它们要先上架 App Store。</p></div>
+  <div class="phase">
+    <div class="now"><div class="t4">第一步 · 换界面（马上做）</div><ul><li>按这份设计重做 Mac 9 页、iPhone 5 个标签</li><li>拿掉导入、整理、记欠款等面板，记一笔换成极简版</li><li>每页加「问 AI」：复制话术 + 打开 Claude</li><li>空状态、出错、深浅色、大字号都做</li></ul></div>
+    <div><div class="t4">第二步 · AI 意见进账本</div><ul><li>账本加一张「AI 意见」表</li><li>MCP 和 fin 加写意见、列意见、标记已读</li><li>全局 skill 里教 AI：月初写本月点评、发现异常写提醒</li><li>总览和 AI 页显示它们</li><li>多币种：账户有自己的币种，每笔记原币金额和汇率，主币种可以改</li><li>订阅表：AI 从流水认出订阅，MCP 加写订阅、列订阅</li></ul></div>
+    <div><div class="t4">第三步 · 手机 AI + 同步收费</div><ul><li>iPhone 上和 AI 对话：用户填自己的 DeepSeek / Claude 等密钥，免费，AI 调的是和 MCP 同一套记账功能</li><li>只收同步的钱：2,99 €/年（示例价）；AI 代付档以后再看</li><li>先自己和身边人用顺了再上架</li><li>前提：上架 App Store（苹果开发者账号 99 美元/年，要你本人注册）</li><li>之后：宝宝存钱、小组件</li></ul></div>
+  </div>
+  <h3 class="sub">给开发看的：要新增的东西</h3>
+  <div class="dev">
+<pre>// FinanceCore 新增（AI 意见）
+struct Insight {
+  id, month: YearMonth, book: Book.ID?
+  kind: .monthlyReview | .alert | .tip | .goodNews
+  title: String        // 一句话
+  body: String         // 两三句解释
+  metric: String?      // 关联的数字，比如 "category:grocery"
+  author: String       // "Claude" / "Codex"
+  createdAt, readAt?, dismissedAt?
+}
+// 写入记进 ChangeRecord，能撤销</pre>
+<pre>// MCP / fin 新增
+add_insight      写一条意见（AI 用）
+list_insights    列出某月的意见
+dismiss_insight  用户点「知道了」
+ai_status        最近一次谁写了什么（侧栏底部用）
+
+// app 里「问 AI」
+复制话术 → 打开 claude:// 或 Codex
+话术自动带上：当前页面、月份、账本</pre>
+  </div>
+</div></section>
+
+<div class="wrap foot-note">设计稿里所有金额、商户、人名都是编造的示例，不是你的真实账目。源文件在仓库 design/ui-kit/。</div>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const ICONS = __ICONS__;
+const icon = (k, cls='') => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true">${ICONS[k]||''}</svg>`;
+const SYM = {
+  search:'<circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V6a2 2 0 0 1 2-2h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  chev:'<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  undo:'<path d="M9 7L4 12l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" transform="translate(0,-5)"/>',
+  warn:'<path d="M12 3l10 18H2z" fill="currentColor" opacity=".25"/><path d="M12 9v5M12 17.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  cloud:'<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.5A4 4 0 0 1 17.5 18z" fill="currentColor" opacity=".3"/><path d="M9 13l2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  lock:'<rect x="5" y="10" width="14" height="10" rx="3" fill="currentColor" opacity=".3"/><path d="M8 10V8a4 4 0 0 1 8 0v2" fill="none" stroke="currentColor" stroke-width="2"/>',
+  eye:'<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" fill="currentColor" opacity=".3"/><circle cx="12" cy="12" r="3" fill="currentColor"/>',
+  plus:'<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+};
+const sym = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${SYM[k]}</svg>`;
+document.querySelectorAll('[data-icon]').forEach(el=>{el.style.display='inline-grid';el.innerHTML=icon(el.dataset.icon);el.firstChild.style.width='100%';el.firstChild.style.height='100%';});
+
+/* 金额：西班牙格式 */
+function eur(n,{sign=false,dec=2,cur=true}={}){
+  const neg=n<0, a=Math.abs(n);
+  let [i,f]=a.toFixed(dec).split('.');
+  i=i.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  let s=i+(dec?','+f:'');
+  s=(neg?'−':(sign&&n>0?'+':''))+s;
+  return cur? s+' €' : s;
+}
+function heroNum(n,size){
+  const neg=n<0,a=Math.abs(n);let [i,f]=a.toFixed(2).split('.');i=i.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return `<div class="hero" style="font-size:${size}px">${neg?'−':''}${i}<span class="cents">,${f}</span><span class="cur">€</span></div>`;
+}
+
+/* ---------- 示例数据（全部编造） ---------- */
+const D = {
+  month:'2026 年 11 月', day:21,
+  income:4380.00, spent:2946.35, left:1433.65, lastSame:3212.80, projLeft:1150,
+  books:[
+    {name:'个人',color:'#C4502A',ch:'个',income:2650,spent:2104.35,spark:[310,420,380,520,460,545.65]},
+    {name:'我的小店',color:'#A8407F',ch:'M',income:1730,spent:842,spark:[620,540,710,690,820,888]}
+  ],
+  cats:[['housing','住房房租',950],['grocery','超市',486.2],['dining','餐饮',412.75],['beauty','美甲材料',318.4],['transport','交通',196.3],['baby','宝宝',184.9],['shopping','购物',162.8],['utilities','水电网',128],['coffee','咖啡',58.4],['entertainment','娱乐',48.6]],
+  merchants:[['Mercadona','超市',6,212.40],['Lidl','超市',4,148.90],['Nails Pro 批发','美甲材料',2,318.40],['Glovo','餐饮',5,96.30],['Renfe','交通',3,84.00]],
+  months:['12月','1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月'],
+  inc:[4120,3980,4250,4410,4060,4580,4720,4390,4150,4630,4510,4380],
+  exp:[4380,3720,3910,4120,4310,3980,4650,4020,3870,4210,4080,2946.35],
+  worth:[13120,13480,13950,13680,13910,14420,14390,14830,15220,15810,16020,16426.40],
+  accounts:[
+    ['银行卡',[['CaixaBank','个人 · 尾号 4821',6212.30],['imagin','个人 · 尾号 0377',2845.10],['Revolut','个人 · 欧元',1104.55],['店里账户','我的小店',7630.85]]],
+    ['信用卡',[['Visa 信用卡','12 月 5 日自动还款',-1746.40]]],
+    ['现金',[['钱包','个人',380.00]]],
+    ['外币',[['美元卡','个人 · 美元',380.95,'412,00 $'],['人民币卡','个人 · 人民币',312.60,'2.400,00 ¥']]]
+  ],
+  subs:[['Netflix','entertainment',12.99,'每月','12月2日',11,''],['Disney+','entertainment',10.99,'每月','12月6日',15,''],['Spotify 家庭','entertainment',17.99,'每月','12月9日',18,''],['ChatGPT Plus','education',18.52,'每月','12月11日',20,'20,00 $ · 美元卡'],['iCloud+ 200 GB','utilities',2.99,'每月','12月14日',23,''],['Amazon Prime','shopping',49.90,'每年','明年3月14日',113,'']],
+  goals:[{name:'宝宝教育金',save:3100,target:5000,note:'每月存 300 €，明年 4 月存满',color:'#FB7185'},{name:'回国机票',save:1260,target:1800,note:'3 月前要存够，还差 540 €',color:'#0EA5E9'},{name:'店里新美甲灯',save:220,target:650,note:'我的小店',color:'#A8407F'}],
+  inst:[['iPhone 17 分期','每期 104,08 €',7,12],['沙发','每期 133,00 €',5,6]],
+  debts:[['小林欠我','10 月 12 日借出',600,'in'],['我欠阿姨','已还 400 €',-600,'out']],
+  tx:[
+    ['今天 · 11月21日',-61.70,[['grocery','Mercadona','超市 · 个人 · CaixaBank','ai',-23.40],['coffee','Café Nómada','咖啡 · 个人 · Revolut','ai',-3.80],['dining','Glovo','餐饮 · 个人 · Revolut','ai',-34.50],['entertainment','Steam','娱乐 · 美元卡 · −19,99 $','ai',-18.48]]],
+    ['昨天 · 11月20日',1793.10,[['salary','工资 · Acme SL','工资收入 · 个人 · CaixaBank','ai',1850.00],['transport','Renfe','交通 · 个人 · imagin','me',-28.00],['beauty','Nails Pro 批发','美甲材料 · 小店 · 店里账户','ai',-28.90]]],
+    ['11月19日',-152.40,[['transfer','转到 Revolut','自己账户间 · 不算收支','ai',500],['baby','Primark Kids','宝宝 · 个人 · CaixaBank','ai',-41.20],['grocery','Lidl','超市 · 个人 · imagin','ai',-37.90],['utilities','Iberdrola','水电网 · 个人 · CaixaBank','ai',-73.30]]]
+  ],
+  review:{title:'这个月花钱比上月慢 8%，月底大概能剩 1.150 €。',body:'少的主要是餐饮（−96 €）。房租已经付了，剩下的大头是 12 月 5 日 信用卡 自动还款 1.746,40 €，CaixaBank 余额够。超市已连续 3 周超过每周 110 €，可以留意一下。',who:'Claude',when:'今天 09:12'},
+  insights:[
+    ['warn','超市连续 3 周超过每周 110 €','11 月到现在超市 486,20 €，比 10 月同期多 74 €。多的主要在 Mercadona。','Claude · 今天 09:12'],
+    ['tip','两个视频会员都在扣钱','Netflix 和 Disney+ 每月一共 23,98 €。你最近两个月只看过 Netflix，可以考虑停掉一个。','Claude · 11月18日'],
+    ['good','宝宝教育金进度比计划快','已经存到 62%，照每月 300 € 存，明年 4 月就能存满，比原定早一个月。','Codex · 11月15日'],
+    ['alert','信用卡 12 月 5 日要还 1.746,40 €','会从 CaixaBank 自动扣。现在余额 6.212,30 €，够。','Claude · 11月14日']
+  ],
+  prompts:[
+    ['记账','记一笔：今天在 Mercadona 买菜 23,40 €，个人账本'],
+    ['导入','这是我的银行对账单，帮我整理好导进夏夏账本'],
+    ['问问题','这个月为什么比上个月花得多？'],
+    ['问问题','月底的钱够还信用卡吗？'],
+    ['订阅','帮我从流水里找出所有订阅，写进夏夏账本'],
+    ['月报','给我写一份 11 月的月报，写进夏夏账本']
+  ],
+  changes:[
+    ['今天',[['claude','Claude','写了 11 月点评和 1 条提醒','09:12',['本月点评：「这个月花钱比上月慢 8%…」','提醒：超市连续 3 周超过每周 110 €']]]],
+    ['昨天',[['codex','Codex','导入 Revolut 对账单，新增 38 笔，跳过重复 4 笔','22:40',['Café Nómada −3,80 €','Glovo −34,50 €','…还有 36 笔']],['claude','Claude','给 12 笔没分类的流水分了类','22:46',['Nails Pro 批发 → 美甲材料（小店）','Primark Kids → 宝宝','…还有 10 笔']]]],
+    ['11月18日',[['me','你（Mac）','把 Renfe −28,00 € 的分类从「其它」改成「交通」','19:05',[]]]]
+  ]
+};
+const catColor = id => (({housing:'#E8505B',grocery:'#2E9E8F',dining:'#FF7A59',beauty:'#F472B6',transport:'#3B82F6',baby:'#FB7185',shopping:'#EC4899',utilities:'#EAB308',coffee:'#B7795A',entertainment:'#F97316',salary:'#16A34A',transfer:'#0A64D6'})[id]||'#999');
+
+/* ---------- 图表 ---------- */
+function rng(seed){return ()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646}}
+function cumSeries(total, days, upto, seed, rentDay1){
+  const r=rng(seed), w=[];for(let d=1;d<=days;d++)w.push(0.4+r()*1.2+(d%7==6?0.8:0));
+  const rent=rentDay1, rest=total-rent;const sw=w.slice(0,upto).reduce((a,b)=>a+b,0);
+  let c=0;const out=[];for(let d=1;d<=days;d++){c+=(d==1?rent:0)+(d<=upto? w[d-1]/sw*rest : 0);out.push(c)}return out;
+}
+function paceChart(w=560,h=210){
+  const thisM=cumSeries(D.spent,30,21,7,950).slice(0,21);
+  const lastFull=cumSeries(4080,30,30,11,950);
+  const k=D.lastSame/lastFull[20]; const last=lastFull.map((v,i)=>i==0?v:950+(v-950)*k);
+  const proj=[thisM[20]]; for(let d=22;d<=30;d++) proj.push(thisM[20]+(d-21)*((D.income-D.projLeft-thisM[20])/9));
+  const P={l:44,r:12,t:12,b:24}, max=4500, X=d=>P.l+(d-1)/(29)*(w-P.l-P.r), Y=v=>h-P.b-v/max*(h-P.t-P.b);
+  const path=(arr,start=1)=>arr.map((v,i)=>(i?'L':'M')+X(i+start).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  let g='';[0,1500,3000,4500].forEach(v=>{g+=`<line x1="${P.l}" x2="${w-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--sep)"/><text x="${P.l-8}" y="${Y(v)+3}" text-anchor="end">${v?eur(v,{dec:0,cur:false}):'0'}</text>`});
+  [1,10,20,30].forEach(d=>g+=`<text x="${X(d)}" y="${h-6}" text-anchor="middle">${d}日</text>`);
+  const area=path(thisM)+`L${X(21)} ${Y(0)}L${X(1)} ${Y(0)}Z`;
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="本月累计花销 2946 欧，比上月同期少 266 欧">
+  <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--brand)" stop-opacity=".22"/><stop offset="1" stop-color="var(--brand)" stop-opacity="0"/></linearGradient></defs>
+  ${g}<path d="${path(last)}" fill="none" stroke="var(--fg3)" stroke-width="1.6" stroke-dasharray="4 4"/>
+  <path d="${area}" fill="url(#pg)"/><path d="${path(proj,21)}" fill="none" stroke="var(--brand)" stroke-opacity=".45" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>
+  <path d="${path(thisM)}" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+  <line x1="${X(21)}" x2="${X(21)}" y1="${Y(thisM[20])}" y2="${Y(0)}" stroke="var(--brand)" stroke-opacity=".3"/>
+  <circle cx="${X(21)}" cy="${Y(thisM[20])}" r="5" fill="var(--brand)" stroke="var(--surface)" stroke-width="2"/>
+  <text x="${X(21)+8}" y="${Y(thisM[20])-8}" style="fill:var(--fg);font-weight:600;font-size:11px">今天 ${eur(D.spent,{dec:0})}</text>
+  <text x="${X(21)+8}" y="${Y(thisM[20])+18}" style="font-size:11px">上月这天 ${eur(D.lastSame,{dec:0})}</text></svg>`;
+}
+function donut(size=200,stroke=26){
+  const top=D.cats.slice(0,6), other=D.cats.slice(6).reduce((a,c)=>a+c[2],0);
+  const segs=[...top.map(c=>[catColor(c[0]),c[2]]),['var(--fg3)',other]];
+  const r=(size-stroke)/2,C=2*Math.PI*r;let off=0,s='';
+  segs.forEach(([col,v])=>{const len=v/D.spent*C;s+=`<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-dasharray="${Math.max(len-2,0)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 ${size/2} ${size/2})"/>`;off+=len});
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="花销分类：房租最多 950 欧">${s}
+  <text x="50%" y="${size/2-8}" text-anchor="middle" style="font-size:12px;fill:var(--fg2);font-family:var(--font)">11 月花掉</text>
+  <text x="50%" y="${size/2+18}" text-anchor="middle" style="font-size:${size>180?24:19}px;font-weight:700;fill:var(--fg);font-family:var(--num)">${eur(D.spent,{dec:0})}</text></svg>`;
+}
+function bars(w=560,h=220){
+  const P={l:40,r:8,t:10,b:24},max=5000,n=12,gw=(w-P.l-P.r)/n,bw=gw*0.3,Y=v=>h-P.b-v/max*(h-P.t-P.b);
+  let s=`<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--bar-exp)" opacity=".35"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--bar-exp)" stroke-width="2.5"/></pattern></defs>`;
+  [0,2500,5000].forEach(v=>s+=`<line x1="${P.l}" x2="${w-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--sep)"/><text x="${P.l-6}" y="${Y(v)+3}" text-anchor="end">${v?eur(v,{dec:0,cur:false}):'0'}</text>`);
+  D.inc.forEach((v,i)=>{const x=P.l+i*gw+gw/2;const cur=i==11;
+    s+=`<rect x="${x-bw-1}" y="${Y(v)}" width="${bw}" height="${Y(0)-Y(v)}" rx="2.5" fill="var(--income)" opacity="${cur?.55:.9}"/>`;
+    s+=`<rect x="${x+1}" y="${Y(D.exp[i])}" width="${bw}" height="${Y(0)-Y(D.exp[i])}" rx="2.5" fill="${cur?'url(#hatch)':'var(--bar-exp)'}"/>`;
+    s+=`<text x="${x}" y="${h-6}" text-anchor="middle" ${cur?'style="fill:var(--fg);font-weight:600"':''}>${D.months[i]}</text>`;
+    if(D.exp[i]>v) s+=`<circle cx="${x}" cy="${Y(Math.max(v,D.exp[i]))-7}" r="2.5" fill="var(--alert)"/>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="近 12 个月进账和花掉，有 2 个月花得比挣得多">${s}</svg>`;
+}
+function area(w=560,h=200){
+  const P={l:46,r:60,t:14,b:22},min=12000,max=17000,n=12,X=i=>P.l+i/(n-1)*(w-P.l-P.r),Y=v=>h-P.b-(v-min)/(max-min)*(h-P.t-P.b);
+  const line=D.worth.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  let g='';[12000,14500,17000].forEach(v=>g+=`<line x1="${P.l}" x2="${w-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--sep)"/><text x="${P.l-6}" y="${Y(v)+3}" text-anchor="end">${eur(v,{dec:0,cur:false})}</text>`);
+  [0,3,6,9,11].forEach(i=>g+=`<text x="${X(i)}" y="${h-5}" text-anchor="middle">${D.months[i]}</text>`);
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="净资产一年从 13120 涨到 16426 欧"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--income)" stop-opacity=".25"/><stop offset="1" stop-color="var(--income)" stop-opacity="0"/></linearGradient></defs>${g}
+  <path d="${line}L${X(11)} ${Y(min)}L${X(0)} ${Y(min)}Z" fill="url(#ag)"/><path d="${line}" fill="none" stroke="var(--income)" stroke-width="2.4" stroke-linejoin="round"/>
+  <circle cx="${X(11)}" cy="${Y(D.worth[11])}" r="5" fill="var(--income)" stroke="var(--surface)" stroke-width="2"/><text x="${X(11)+9}" y="${Y(D.worth[11])+4}" style="fill:var(--fg);font-weight:600;font-size:11px">${eur(D.worth[11],{dec:0})}</text></svg>`;
+}
+function spark(arr,col,w=110,h=30){const mn=Math.min(...arr),mx=Math.max(...arr),X=i=>i/(arr.length-1)*(w-6)+3,Y=v=>h-3-(v-mn)/(mx-mn||1)*(h-6);
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"><path d="${arr.map((v,i)=>(i?'L':'M')+X(i)+' '+Y(v)).join('')}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${X(arr.length-1)}" cy="${Y(arr[arr.length-1])}" r="3" fill="${col}"/></svg>`}
+function ring(p,size=150,stroke=14,col='var(--brand)'){const r=(size-stroke)/2,C=2*Math.PI*r;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--sunken)" stroke-width="${stroke}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${C*p} ${C}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>`}
+
+/* ---------- 组件 ---------- */
+const catIc = id => `<div class="ic" style="background:color-mix(in srgb,${catColor(id)} 13%,transparent)">${icon('c_'+id)}</div>`;
+const who = w => w=='ai'?'<span class="who ai">AI</span>':'<span class="who me">你</span>';
+function keyFigure(m){const big=m=='mac'?60:44;return `<div style="display:grid;gap:8px">
+  <div class="eyebrow">11 月还剩 · 截至 21 日</div>${heroNum(D.left,big)}
+  <p class="verdict">比上月同期多剩 <em class="in">266 €</em>。花钱速度正常，照这样月底约剩 <em>1.150 €</em>。</p>
+  <div class="mini-stats" style="margin-top:4px"><div><b class="in">+${eur(D.income,{cur:false})}</b><span>进账</span></div><div><b>−${eur(D.spent,{cur:false})}</b><span>花掉</span></div></div></div>`}
+function aiCard({big=false,compact=false}={}){const r=D.review;return `<div class="ai-card ${big?'big':''}">
+  <div class="hd">${icon('t_assistant')}${big?'11 月点评':'AI 意见'}<span class="when">${r.who} · ${r.when}</span></div>
+  <div class="t5">${r.title}</div>${compact?'':`<p>${r.body}</p>`}
+  <div class="ft"><button class="btn tinted" data-copy="关于夏夏账本里 11 月点评：${r.title} 我想再问问：">${icon('t_assistant')}接着问</button><button class="btn plain">知道了</button>${big?'':'<a class="link" style="margin-left:auto;align-self:center">全部意见 ›</a>'}</div></div>`}
+function askBox(n=3,title='想记账或问问题？跟 AI 说就行'){return `<div class="ask"><div class="q">${icon('t_assistant')}${title}</div>
+  <div class="sub">点一句，复制好话术并打开 Claude。记好的账会自动出现在这里。</div>
+  <div style="display:grid;gap:6px">${D.prompts.slice(0,n).map(p=>`<button class="prompt" data-copy="${p[1]}"><kbd>${p[0]}</kbd><span>${p[1]}</span>${sym('copy')}</button>`).join('')}</div></div>`}
+function bookCard(b){return `<div class="card book"><div class="hd"><span class="badge" style="background:${b.color}">${b.ch}</span><b>${b.name}</b><span style="margin-left:auto">${spark(b.spark,b.color)}</span></div>
+  <div><div class="eyebrow">本月剩下</div><div class="n">${eur(b.income-b.spent)}</div></div>
+  <div class="sm"><span>进账 <b class="in">${eur(b.income,{cur:false})}</b></span><span>花掉 <b>${eur(b.spent,{cur:false})}</b></span></div></div>`}
+function txRow(t){return `<div class="row">${catIc(t[0])}<div class="t"><b>${t[1]}</b><span>${who(t[3])} ${t[2]}</span></div><div class="amt ${t[4]>0&&t[0]!='transfer'?'in':''}" ${t[0]=='transfer'?'style="color:var(--fg3)"':''}>${t[0]=='transfer'?eur(t[4]):eur(t[4],{sign:true})}</div></div>`}
+function insightRow(i){const col={good:'var(--income)',warn:'var(--warn)',tip:'var(--ai)',alert:'var(--alert)'}[i[0]],lab={good:'好消息',warn:'留意',tip:'建议',alert:'要处理'}[i[0]];
+  return `<div class="insight"><i style="background:${col}"></i><div><div class="meta"><span class="tag ${i[0]}">${lab}</span>${i[3]}</div><b>${i[1]}</b><p>${i[2]}</p></div></div>`}
+function catList(n=10){return D.cats.slice(0,n).map(c=>`<div class="catline">${catIc(c[0]).replace('class="ic"','class="ic" style="width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,'+catColor(c[0])+' 13%,transparent)"')}<div><div class="nm">${c[1]}<span>${Math.round(c[2]/D.spent*100)}%</span></div><div class="bar"><i style="width:${c[2]/950*100}%;background:${catColor(c[0])}"></i></div></div><div class="amt num" style="font-weight:600">${eur(c[2])}</div></div>`).join('')}
+function conn(){return `<div class="conn"><span class="dot"></span>Claude 已连上<span class="dot"></span>Codex 已连上<span style="color:var(--fg3)">· iCloud 已同步</span></div>`}
+
+/* ---------- 记一笔（极简） ---------- */
+function quickAdd(m){const cs=[['grocery','超市'],['dining','餐饮'],['coffee','咖啡'],['transport','交通'],['baby','宝宝'],['shopping','购物'],['beauty','美甲材料'],['entertainment','娱乐']];
+ return `<div class="qa"><span class="seg inout"><span class="on">花掉</span><span>进账</span></span>
+  <div class="amt-in">23,40<span> €</span></div>
+  <div class="cg">${cs.map((c,i)=>`<div class="${i==0?'on':''}">${icon('c_'+c[0])}${c[1]}</div>`).join('')}</div>
+  <div class="opts"><span class="chip on">个人</span><span class="chip">小店</span><span class="chip">现金 ▾</span><span class="chip">€ 欧元 ▾</span><span class="chip">今天 ▾</span><span class="chip" style="color:var(--fg3)">备注</span></div>
+  ${m=='phone'?`<div class="keys">${['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>`<span>${k}</span>`).join('')}</div>`:''}
+  <button class="btn primary lg" style="justify-content:center">记下</button>
+  <div class="hint">记下的这笔会标「你」，写进改动记录，能撤销。<br>要拆单、记分期、导对账单？<a data-copy="记一笔：今天在 Mercadona 买菜 23,40 €，个人账本">跟 AI 说更快</a></div></div>`}
+
+/* ---------- 手机 AI 对话 & 付费 ---------- */
+function chatScreen(){return `<div style="display:flex;justify-content:space-between;align-items:center"><span class="model">DeepSeek ▾</span><span style="font-size:11px;color:var(--fg3)">用你自己的密钥</span></div>
+ <div class="chat">
+  <div class="bub me">今天超市花了 23,40，还有咖啡 3,80</div>
+  <div class="tool"><div class="th">${icon('t_assistant')}记了 2 笔 · 个人账本</div>
+   <div class="list">${txRow(['grocery','超市','今天 · 现金','ai',-23.40])}${txRow(['coffee','咖啡','今天 · 现金','ai',-3.80])}</div>
+   <div style="display:flex;gap:6px"><button class="btn plain" style="padding:4px 10px">${sym('undo')}撤销</button><button class="btn plain" style="padding:4px 10px">改一下</button></div></div>
+  <div class="bub me">这个月为什么比上个月花得多？</div>
+  <div class="bub ai">其实这个月比上月同期<b>少</b>花了 266 €。多的只有超市，比 10 月同期多 74 €，主要是 Mercadona 去了 6 次。要我把每周超市预算设成 110 € 吗？</div>
+ </div>
+ <div class="chiprow"><span class="chip">好，设上</span><span class="chip">先不用</span><span class="chip">看看超市明细</span></div>
+ <div class="composer">问问题，或者直接说记一笔…<span class="send">${sym('chev')}</span></div>`}
+function paywall(){return `<div class="pw">
+ <svg class="logo-big" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#FFEFE4"/><circle cx="32" cy="30" r="13" fill="#FFB36B"/><circle cx="32" cy="30" r="8.5" fill="#FF7A59"/><path d="M10 40c7-4 15-4 22 0 7-4 15-4 22 0v12c-7-4-15-4-22 0-7-4-15-4-22 0z" fill="#E8505B"/></svg>
+ <h3>多台设备同步</h3><p style="color:var(--fg2);font-size:13px">看板、记一笔、接 AI 全部免费。只有想让 Mac 和 iPhone 用同一本账时，才需要开同步。</p>
+ <div class="plan-opt" style="border-color:var(--sep);border-width:1px"><span><b style="font-size:16px">免费</b><br><span style="font-size:12px;color:var(--fg2)">一台设备 · 全部看板 · 多个账本 · 自己接 AI（Claude、Codex 或填 API 密钥）</span></span></div>
+ <div class="plan-opt"><span><b>2,99 €</b> / 年<br><span style="font-size:12px;color:var(--fg2)">iCloud 同步：Mac、iPhone、iPad 用同一本账</span></span><span class="tag good">每月约 0,25 €</span></div>
+ <button class="btn primary lg" style="justify-content:center">开通同步 · 前 1 个月免费</button>
+ <p class="fine" style="text-align:center">以后可能加「AI 代付」档：不用自己申请密钥，按月收费。现在不做。</p>
+ <div class="fine">到期自动续费，可随时在 App Store 取消 · 恢复购买 · 隐私政策</div></div></div>`}
+
+function feedback(){return `<div style="display:grid;gap:10px">
+ <span class="seg" style="justify-self:center"><span class="on">报 bug</span><span>提想法</span></span>
+ <div class="card" style="padding:12px;min-height:96px;font-size:13px">打开「家底」页，切到小店账本后数字一直在转圈，等了 1 分钟也没出来。</div>
+ <div class="card" style="padding:10px 12px;display:flex;gap:10px;align-items:center"><div style="width:44px;height:60px;border-radius:6px;background:var(--sunken);display:grid;place-items:center;font-size:11px;color:var(--fg3)">截图</div><div style="font-size:12px;color:var(--fg2)">已附上刚才的截图<br><span style="color:var(--alert)">金额已自动打码</span></div></div>
+ <div class="group"><div class="gi">带上诊断信息<span class="v"><span class="toggle"></span></span></div></div>
+ <p style="font-size:12px;color:var(--fg2);margin:0 4px">诊断信息只有：app 版本、系统版本、是哪一页、最近的报错。<b>不带</b>任何金额、商户和账本内容。发送前可以点开看全部内容。</p>
+ <button class="btn ghost" style="justify-self:start">查看要发送的内容</button>
+ <button class="btn primary lg" style="justify-content:center">发送</button>
+ <p class="fine" style="text-align:center">也可以摇一摇手机直接报 bug · Mac：帮助 › 反馈问题（⌥⌘B）</p></div>`}
+
+/* ---------- 页面 ---------- */
+const P = {};
+P.overview = m => m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.7fr 1fr;align-items:start">
+   <div class="card" style="display:grid;gap:18px;padding:22px">${keyFigure(m)}<div><div class="legend" style="margin-bottom:6px"><span><i style="background:var(--brand)"></i>本月累计花掉</span><span><i style="background:var(--fg3)"></i>上月同期</span><span><i style="background:var(--brand);opacity:.45"></i>照现在速度到月底</span></div>${paceChart(640,220)}</div></div>
+   <div class="mgrid">${aiCard()}${askBox(3)}</div></div>
+   <div class="mgrid" style="grid-template-columns:1fr 1fr 1fr;margin-top:16px">${D.books.map(bookCard).join('')}
+   <div class="card"><div class="sec-title"><div class="t4">最近流水</div><a>全部 ›</a></div><div class="list">${D.tx[0][2].map(txRow).join('')}</div></div></div>`
+ : `<div class="card" style="display:grid;gap:12px">${keyFigure(m)}${paceChart(300,150)}</div>${aiCard({compact:true})}
+   <div class="mgrid" style="grid-template-columns:1fr;gap:10px">${D.books.map(bookCard).join('')}</div>
+   <div class="card"><div class="sec-title"><div class="t4">最近流水</div><a>全部流水 ›</a></div><div class="list">${D.tx[0][2].map(txRow).join('')}</div></div>`;
+
+P.spending = m => {const merch=`<div class="card"><div class="sec-title"><div class="t4">花得最多的商户</div></div><div class="list">${D.merchants.map(x=>`<div class="row"><div class="ic" style="font-weight:700;color:var(--fg2)">${x[0][0]}</div><div class="t"><b>${x[0]}</b><span>${x[1]} · ${x[2]} 笔</span></div><div class="amt">${eur(x[3])}</div></div>`).join('')}</div></div>`;
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1fr 1.25fr;align-items:start"><div class="card" style="display:grid;justify-items:center;gap:14px;padding:24px">${donut(260,34)}<div style="text-align:center"><span class="delta good">比上月同期少花 266 €</span><p class="verdict" style="margin-top:8px">房租之外，<em>超市</em>是最大的一块，比 10 月多 74 €。</p></div></div>
+   <div class="card"><div class="sec-title"><div class="t4">分类排行</div><span class="seg"><span class="on">按金额</span><span>按变化</span></span></div>${catList()}</div></div><div style="margin-top:16px" class="mgrid">${merch}</div>`
+ : `<div class="card" style="display:grid;justify-items:center;gap:10px">${donut(190,26)}<span class="delta good">比上月同期少花 266 €</span></div><div class="card">${catList(6)}<a class="link">全部 10 个分类 ›</a></div>`};
+
+P.trends = m => {const avg=(D.inc.slice(0,11).reduce((a,b)=>a+b,0)-D.exp.slice(0,11).reduce((a,b)=>a+b,0))/11;
+ const head=`<div style="display:grid;gap:6px"><div class="eyebrow">近 12 个月，平均每月剩下</div>${heroNum(avg,m=='mac'?52:40)}<p class="verdict">12 个月里有 <em>10 个月</em>是剩钱的。花得比挣得多的是 12 月（过节）和 4 月（交了一年保险）。</p></div>`;
+ return m=='mac' ? `<div class="card" style="display:grid;gap:16px;padding:22px">${head}<div><div class="legend" style="margin-bottom:6px"><span><i style="background:var(--income)"></i>进账</span><span><i style="background:var(--bar-exp)"></i>花掉</span><span><i style="background:var(--alert);width:6px;height:6px;border-radius:50%"></i>花得比挣得多</span></div>${bars(860,240)}</div></div>
+  <div class="mgrid" style="grid-template-columns:repeat(3,1fr);margin-top:16px"><div class="card"><div class="eyebrow">剩得最多</div><div class="n num" style="font-size:22px;font-weight:700">9 月 · +420 €</div></div><div class="card"><div class="eyebrow">花得最多</div><div class="num" style="font-size:22px;font-weight:700">6 月 · 4.650 €</div></div><div class="card"><div class="eyebrow">今年一共剩下</div><div class="num in" style="font-size:22px;font-weight:700">+3.026 €</div></div></div>`
+ : `<div class="card" style="display:grid;gap:10px">${head}${bars(300,170)}</div>`};
+
+P.worth = m => {const acc=D.accounts.map(([g,list])=>`<div class="sec-title" style="margin-top:6px"><div class="t4" style="font-size:13px;color:var(--fg2)">${g}</div></div><div class="list">${list.map(a=>`<div class="row"><div class="ic">${icon(g=='信用卡'?'t_accounts':g=='现金'?'c_salary':'t_accounts')}</div><div class="t"><b>${a[0]}</b><span>${a[1]}</span></div>${a[3]?`<div class="amt" style="text-align:right">${a[3]}<div style="font-size:11px;color:var(--fg2);font-weight:400">≈ ${eur(a[2])}</div></div>`:`<div class="amt" ${a[2]<0?'style="color:var(--alert)"':''}>${eur(a[2])}</div>`}</div>`).join('')}</div>`).join('')
+  +`<p style="font-size:12px;color:var(--fg2);margin:6px 2px 0">外币账户按今天的汇率换成欧元，算进净资产。</p>`
+  +`<div class="row" style="border:0;margin-top:4px"><div class="ic">${sym('lock')}</div><div class="t"><b>私房钱 · 1 个账户</b><span>默认藏起来，不算进上面的数</span></div><button class="btn plain">${sym('eye')}显示</button></div>`;
+ const head=`<div style="display:grid;gap:6px"><div class="eyebrow">净资产（所有账户加起来，减掉信用卡）</div>${heroNum(D.worth[11],m=='mac'?56:42)}<p class="verdict">比 3 个月前多了 <em class="in">1.204 €</em>，一年多了 3.306 €。</p></div>`;
+ const debts=`<div class="card"><div class="sec-title"><div class="t4">借款往来</div></div><div class="list">${D.debts.map(d=>`<div class="row"><div class="ic">${icon('c_loans')}</div><div class="t"><b>${d[0]}</b><span>${d[1]}</span></div><div class="amt ${d[3]=='in'?'in':''}">${eur(Math.abs(d[2]))}</div></div>`).join('')}</div></div>`;
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.4fr 1fr;align-items:start"><div class="mgrid"><div class="card" style="display:grid;gap:14px;padding:22px">${head}${area(620,210)}</div>${debts}</div><div class="card">${acc}</div></div>`
+ : `<div class="card" style="display:grid;gap:10px">${head}${area(300,150)}</div><div class="card">${acc}</div>${debts}`};
+
+function subsCard(m){const mo=D.subs.reduce((s,x)=>s+(x[3]=='每月'?x[2]:x[2]/12),0),yr=D.subs.reduce((s,x)=>s+(x[3]=='每月'?x[2]*12:x[2]),0);
+ return `<div class="card"><div class="sec-title"><div class="t4">订阅</div><span style="font-size:12px;color:var(--fg2)">按下次扣款排</span></div>
+  <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:2px 0 8px"><span class="num" style="font-size:${m=='mac'?28:26}px;font-weight:700">${eur(mo)}</span><span style="color:var(--fg2)">每月固定在扣 · 一年约 <b class="num" style="color:var(--fg)">${eur(yr,{dec:0})}</b></span></div>
+  <div class="list">${D.subs.map(s=>`<div class="row">${catIc(s[1])}<div class="t"><b>${s[0]}</b><span>${s[3]} · 下次 ${s[4]}${s[5]<=14?`（${s[5]} 天后）`:''}${s[6]?' · '+s[6]:''}</span></div><div class="amt">${eur(s[2])}</div></div>`).join('')}</div>
+  <div style="font-size:12px;color:var(--fg2);margin-top:8px;display:flex;gap:6px;align-items:flex-start">${icon('t_assistant').replace('<svg','<svg style="width:13px;height:13px;flex:none;margin-top:2px;color:var(--ai)"')}<span>AI 从流水里认出了这 6 个订阅。涨价、新出现的扣款或快到期的年费，会写进 AI 意见提醒你。</span></div>
+  <button class="prompt" style="margin-top:8px" data-copy="帮我从流水里找出所有订阅，写进夏夏账本"><kbd>订阅</kbd><span>帮我从流水里找出所有订阅，写进夏夏账本</span>${sym('copy')}</button></div>`}
+P.plan = m => {const g=D.goals[0],p=g.save/g.target;
+ const hero=`<div class="card" style="padding:${m=='mac'?24:16}px"><div class="ringbox"><div class="r">${ring(p,m=='mac'?170:120,m=='mac'?16:12,g.color)}<div class="c"><b>${Math.round(p*100)}%</b><span>已存</span></div></div><div style="display:grid;gap:6px"><div class="eyebrow">${g.name}</div><div class="num" style="font-size:${m=='mac'?30:22}px;font-weight:700">${eur(g.save,{dec:0})} <span style="color:var(--fg3);font-size:.6em">/ ${eur(g.target,{dec:0})}</span></div><p class="verdict">还差 <em>1.900 €</em>。${g.note}。</p></div></div></div>`;
+ const others=`<div class="card"><div class="sec-title"><div class="t4">其它目标</div></div>${D.goals.slice(1).map(x=>`<div style="padding:8px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b style="font-weight:500">${x.name}</b><span class="num">${eur(x.save,{dec:0})} / ${eur(x.target,{dec:0})}</span></div><div class="bar"><i style="width:${x.save/x.target*100}%;background:${x.color}"></i></div><div style="font-size:12px;color:var(--fg2);margin-top:4px">${x.note}</div></div>`).join('')}</div>`;
+ const inst=`<div class="card"><div class="sec-title"><div class="t4">分期</div></div>${D.inst.map(x=>`<div style="padding:8px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b style="font-weight:500">${x[0]}</b><span style="color:var(--fg2)">第 ${x[2]} / ${x[3]} 期</span></div><div style="display:flex;gap:3px">${Array.from({length:x[3]},(_,i)=>`<i style="flex:1;height:6px;border-radius:3px;background:${i<x[2]?'var(--brand)':'var(--sunken)'}"></i>`).join('')}</div><div style="font-size:12px;color:var(--fg2);margin-top:4px">${x[1]}</div></div>`).join('')}</div>`;
+ const hint=`<div class="ask" style="padding:12px 14px"><div class="q" style="font-size:13px">${icon('t_assistant')}想加目标、记欠款、记分期？</div><button class="prompt" data-copy="帮我在夏夏账本建一个 2.000 € 的回国机票目标，明年 6 月前存够"><kbd>目标</kbd><span>帮我建一个 2.000 € 的回国机票目标，明年 6 月前存够</span>${sym('copy')}</button></div>`;
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.3fr 1fr;align-items:start"><div class="mgrid">${hero}${others}</div><div class="mgrid">${subsCard('mac')}${inst}<div class="card"><div class="sec-title"><div class="t4">借款往来</div></div><div class="list">${D.debts.map(d=>`<div class="row"><div class="ic">${icon('c_loans')}</div><div class="t"><b>${d[0]}</b><span>${d[1]}</span></div><div class="amt">${eur(Math.abs(d[2]))}</div></div>`).join('')}</div></div>${hint}</div></div>`
+ : `${hero}${others}${inst}`};
+
+P.ai = m => {const prompts=`<div class="ask"><div class="q">${icon('t_assistant')}常用的话，点一下就复制</div><div style="display:grid;gap:6px">${D.prompts.map(p=>`<button class="prompt" data-copy="${p[1]}"><kbd>${p[0]}</kbd><span>${p[1]}</span>${sym('copy')}</button>`).join('')}</div>
+  <div class="sub" style="border-top:1px solid var(--sep);padding-top:8px">以后（第三步）：直接在这里和 AI 对话，不用切出去。</div></div>`;
+ const list=`<div class="card"><div class="sec-title"><div class="t4">其它提醒</div><span class="seg"><span class="on">本月</span><span>全部</span></span></div>${D.insights.map(insightRow).join('')}</div>`;
+ return m=='mac' ? `<div style="margin-bottom:14px">${conn()}</div><div class="mgrid" style="grid-template-columns:1.4fr 1fr;align-items:start"><div class="mgrid">${aiCard({big:true})}${list}</div><div class="mgrid">${prompts}<div class="card"><div class="sec-title"><div class="t4">AI 最近做了什么</div><a>改动记录 ›</a></div>${changeList(2)}</div></div></div>`
+ : `${conn()}${aiCard({big:true})}${list}${prompts}`};
+
+function changeList(limit=9,undo=false){let out='',n=0;D.changes.forEach(([day,evs])=>{if(n>=limit)return;out+=`<div class="eyebrow" style="margin-top:8px">${day}</div><div class="tl">`;evs.forEach(e=>{if(n++>=limit)return;out+=`<div class="ev"><div class="av ${e[0]}">${e[0]=='claude'?'C':e[0]=='codex'?'Cx':'你'}</div><div><b>${e[1]}</b> ${e[2]}<p>${e[3]}</p>${undo&&e[4].length?`<ul>${e[4].map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div>${undo?`<button class="btn plain">${sym('undo')}撤销</button>`:''}</div>`});out+='</div>'});return out}
+P.changes = m => `<div class="mgrid" style="grid-template-columns:1.6fr 1fr;align-items:start"><div class="card"><div class="sec-title"><div class="t4">所有改动</div><span class="seg"><span class="on">全部</span><span>只看 AI</span><span>只看我</span></span></div>${changeList(9,true)}</div>
+ <div class="mgrid"><div class="card" style="display:grid;gap:6px"><div class="eyebrow">这个月 AI 帮你做了</div><div class="num" style="font-size:34px;font-weight:700">212 <span style="font-size:14px;color:var(--fg2)">笔改动</span></div><p style="color:var(--fg2)">导入 186 笔 · 分类 24 笔 · 写意见 2 条。你自己改了 3 笔。</p></div><div class="card flat"><p style="color:var(--fg2);font-size:12px">每次写入都会记下是谁、什么时候、改了什么。撤销后账本回到改之前的样子，撤销本身也会记一条。</p></div></div></div>`;
+
+P.tx = m => {const list=D.tx.map(([day,tot,rows])=>`<div class="sec-title" style="margin:12px 0 2px"><div class="t4" style="font-size:12px;color:var(--fg2);font-weight:500">${day}</div><span class="num" style="font-size:12px;color:var(--fg2)">${eur(tot,{sign:true})}</span></div><div class="list">${rows.map(txRow).join('')}</div>`).join('');
+ const filters=`<div class="chiprow"><span class="chip on">全部</span><span class="chip">个人</span><span class="chip">小店</span><span class="chip">分类 ▾</span><span class="chip">账户 ▾</span><span class="chip">${icon('t_assistant').replace('<svg','<svg style="width:12px;height:12px;color:var(--ai)"')}只看 AI 记的</span></div>`;
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1.5fr 1fr;align-items:start"><div class="card"><div class="search">${sym('search')}搜商户、备注、金额…</div><div style="margin-top:10px">${filters}</div>${list}<p style="font-size:12px;color:var(--fg2);margin-top:12px">要补记、批量改？<a class="link" data-copy="帮我把夏夏账本 11 月没分类的流水都分好类">跟 AI 说 ›</a></p></div>
+  <div class="card" style="display:grid;gap:12px"><div style="display:flex;gap:10px;align-items:center">${catIc('grocery')}<div><b style="font-size:15px">Mercadona</b><div style="font-size:12px;color:var(--fg2)">11 月 21 日 · 10:42</div></div></div><div class="num" style="font-size:30px;font-weight:700">−23,40 €</div>
+  <div class="group" style="padding:0;background:transparent"><div class="gi">分类<span class="v"><span class="chip" style="padding:2px 8px">${icon('c_grocery').replace('<svg','<svg style="width:12px;height:12px"')}超市 ▾</span></span></div><div class="gi">账本<span class="v">个人</span></div><div class="gi">账户<span class="v">CaixaBank · 4821</span></div><div class="gi">银行原文<span class="v" style="font-family:var(--mono);font-size:11px">COMPRA MERCADONA VALENCIA</span></div><div class="gi">备注<span class="v" style="color:var(--fg3)">添加备注</span></div></div>
+  <div class="banner" style="background:var(--ai-soft)">${icon('t_assistant').replace('<svg','<svg style="width:14px;height:14px;color:var(--ai)"')}Codex 昨天 22:40 从 Revolut 对账单导入</div><div style="display:flex;gap:8px"><button class="btn plain">${sym('undo')}撤销这次导入</button><button class="btn danger" style="margin-left:auto">删除这笔</button></div></div></div>`
+ : `<div class="search">${sym('search')}搜商户、备注、金额…</div>${filters}<div class="card" style="padding-top:2px">${list}</div>`};
+
+P.settings = m => {const ai=`<div class="glabel">AI 连接（MCP）</div><div class="group">
+  <div class="gi"><span class="ic" style="background:#D97757">C</span>Claude 桌面版<span class="v"><span class="dot"></span>已连上 · 今天 09:12 写过</span></div>
+  <div class="gi"><span class="ic" style="background:#D97757">C</span>Claude Code<span class="v"><span class="dot"></span>已连上</span></div>
+  <div class="gi"><span class="ic" style="background:#1F1F23">Cx</span>Codex<span class="v"><span class="dot"></span>已连上 · 昨天 22:40 写过</span></div>
+  <div class="gi"><span class="ic" style="background:#2F6BFF">CS</span>Cherry Studio（DeepSeek / 通义千问 / Kimi）<span class="v"><span class="dot off"></span>没连</span></div>
+  <div class="gi"><span class="ic" style="background:var(--fg3)">+</span>连别的 AI（Cursor、Trae、Gemini CLI…）<span class="v"><button class="btn tinted">${sym('copy')}复制 MCP 配置</button></span></div>
+</div>`;
+ const apple=m=="mac"
+  ?`<div class="gi"><span class="ic" style="background:#1C1C1E">A</span>Apple 智能<span class="v"><span class="dot"></span>可用 · 在这台 Mac 上算，不联网</span></div>`
+  :`<div class="gi" style="opacity:.55"><span class="ic" style="background:#1C1C1E">A</span>Apple 智能<span class="v">这台 iPhone 用不了</span></div><div class="gi"><span class="ic" style="background:#8E8E93">i</span><span style="font-size:12px;color:var(--fg2)">要 iPhone 15 Pro、iPhone 16 或更新，并在系统设置里打开 Apple 智能。先用下面的 API。</span></div>`;
+ const api=`<div class="glabel">app 自带的 AI（免费，Mac 和 iPhone 共用）</div><div class="group">
+  <div class="gi"><span class="ic" style="background:var(--ai-solid)">AI</span>用哪个<span class="v">${m=="mac"?"Apple 智能（本机） ▾":"接 API ▾"}</span></div>${apple}</div>
+  <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">Apple 智能：不用密钥、不花钱、账目不出这台设备，适合记一笔、猜分类、写一句点评；长对话和月度分析用 API 更好。要 iPhone 15 Pro / 16 及更新或 M1 及更新的 Mac，系统 iOS / macOS 26 以上，并打开 Apple 智能；中国大陆买的设备或大陆 Apple 账号暂时用不了。</p>
+  <div class="glabel">接 API</div><div class="group">
+  <div class="gi"><span class="ic" style="background:#4D6BFE">DS</span>用哪家<span class="v">DeepSeek ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">◎</span>模型<span class="v">deepseek-chat ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">↗</span>接口地址<span class="v" style="font-size:11px">api.deepseek.com（自定义可改）</span></div>
+  <div class="gi"><span class="ic" style="background:#8E8E93">${sym('lock').replace('<svg','<svg style="width:15px;height:15px"')}</span>API 密钥<span class="v">sk-••••3f2a · 存在钥匙串</span></div>
+  <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>AI 记账前先给我看一眼<span class="v"><span class="toggle"></span></span></div>
+  <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>测试连接<span class="v"><button class="btn tinted">测试</button></span></div><div class="gi"><span class="ic" style="background:#8E8E93">€</span>本月用量<span class="v">约 0,12 €（DeepSeek 收）</span></div></div>
+  <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">可选：DeepSeek、通义千问、Kimi、智谱、Claude、ChatGPT、Gemini，或任何兼容 OpenAI 格式的地址。对话时会把相关的账目发给你选的这家 AI。</p>`;
+ const sync=`<div class="glabel">iCloud 同步</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>状态<span class="v"><span class="dot"></span>已同步 · 1 分钟前</span></div><div class="gi"><span class="ic" style="background:var(--fg3)">≡</span>账本文件<span class="v" style="font-size:12px">iCloud › 夏夏账本 › ledger.sqlite</span></div>${m=='phone'?'<div class="gi"><span class="ic" style="background:var(--fg3)">i</span>在这台 iPhone 上记的账<span class="v">记作「你的名字」</span></div>':''}</div>`;
+ const cur=`<div class="glabel">币种</div><div class="group"><div class="gi"><span class="ic" style="background:var(--brand)">€</span>主币种<span class="v">欧元 € ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">1,2</span>金额写法<span class="v">1.234,56 €（跟随地区）</span></div><div class="gi"><span class="ic" style="background:#8E8E93">⇄</span>汇率<span class="v">自动 · 欧洲央行 · 今天 16:00</span></div><div class="gi"><span class="ic" style="background:#8E8E93">$</span>外币账户<span class="v">2 个（美元、人民币）</span></div></div>
+  <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种。银行实际扣了多少欧元，就以银行为准。取汇率只下载一张公开汇率表，不会发出任何账目。</p>`;
+ const mysub=`<div class="glabel">我的订阅</div><div class="group"><div class="gi"><span class="ic" style="background:#0A84FF">${sym('cloud').replace('<svg','<svg style="width:16px;height:16px"')}</span>iCloud 同步<span class="v">已开通 · 2,99 €/年</span></div><div class="gi"><span class="ic" style="background:#8E8E93">↻</span>下次续费<span class="v">2027 年 11 月 21 日</span></div><div class="gi"><span class="ic" style="background:#8E8E93">›</span>管理订阅 · 恢复购买<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div></div>`;
+ const books=`<div class="glabel">账本</div><div class="group"><div class="gi"><span class="ic" style="background:#C4502A">个</span>个人<span class="v">5 个账户</span></div><div class="gi"><span class="ic" style="background:#A8407F">M</span>我的小店<span class="v">1 个账户</span></div></div>`;
+ const priv=`<div class="glabel">隐私和外观</div><div class="group"><div class="gi"><span class="ic" style="background:#8E8E93">${sym('lock').replace('<svg','<svg style="width:15px;height:15px"')}</span>打开 app 要面容 ID<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">${sym('eye').replace('<svg','<svg style="width:15px;height:15px"')}</span>私房钱默认藏起来<span class="v"><span class="toggle"></span></span></div><div class="gi"><span class="ic" style="background:#8E8E93">◐</span>外观<span class="v">跟随系统</span></div></div>
+ <div class="glabel">帮助与反馈</div><div class="group"><div class="gi"><span class="ic" style="background:var(--alert)">!</span>反馈问题 / 报 bug<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:var(--ai)">?</span>提个想法<span class="v">${sym('chev').replace('<svg','<svg style="width:12px;height:12px"')}</span></div><div class="gi"><span class="ic" style="background:#8E8E93">i</span>版本<span class="v">1.0（42）</span></div></div>`;
+ return m=='mac' ? `<div class="mgrid" style="grid-template-columns:1fr 1fr;align-items:start"><div>${api}${ai.replace('AI 连接（MCP）','外部 AI 工具（MCP）')}</div><div>${sync}${mysub}${cur}${books}${priv}</div></div>` : `${api}${sync}${mysub}${cur}<div class="glabel">电脑上的 AI（MCP）</div><p style="font-size:12px;color:var(--fg2);margin:0 4px">Claude、Codex、Cherry Studio 等在 Mac 上连，见 Mac 版设置。</p>${priv}`};
+
+/* ---------- Mac 窗口 ---------- */
+const MAC_NAV=[['看',[['overview','总览','t_overview'],['spending','花销','t_transactions'],['trends','趋势','t_trends'],['worth','家底','t_accounts'],['plan','计划','t_plan']]],['AI',[['ai','AI 意见','t_assistant',4],['changes','改动记录','t_import']]],['记录',[['tx','流水','t_transactions']]]];
+const TITLES={overview:'总览',spending:'花销',trends:'趋势',worth:'家底',plan:'计划',ai:'AI 意见',changes:'改动记录',tx:'流水',settings:'设置'};
+let macPage='overview';
+function renderMac(){
+  const el=document.getElementById("macwin");
+  const nav=MAC_NAV.map(([g,items])=>`<div class="grp">${g}</div>`+items.map(([id,n,ic,c])=>`<button data-p="${id}" class="${id==macPage?'on':''} ${g=='AI'?'ai':''}">${icon(ic)}${n}${c?`<span class="cnt">${c}</span>`:''}</button>`).join('')).join('');
+  el.innerHTML=`<aside class="side"><div class="lights"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>${nav}
+    <button data-p="settings" class="${macPage=='settings'?'on':''}" style="margin-top:10px">${icon('t_settings')}设置</button>
+    <div class="foot"><span><span class="dot"></span> iCloud 已同步</span><span style="color:var(--ai)">${icon('t_assistant').replace('<svg','<svg style="width:11px;height:11px;vertical-align:-1px"')} Claude 今天 09:12 写入</span></div></aside>
+   <div class="main"><div class="tb"><h3>${TITLES[macPage]}</h3>
+     ${['changes','settings','ai'].includes(macPage)?'':`<div class="month"><span>‹</span>${D.month}<span>›</span></div><span class="seg"><span class="on">全部</span><span>个人</span><span>小店</span></span>`}
+     <button class="btn plain" title="⌘N">${sym('plus')}记一笔</button><button class="btn ai" data-copy="我在看夏夏账本的「${TITLES[macPage]}」页（${D.month}），想问：">${icon('t_assistant')}问 AI</button></div>
+     <div class="content">${P[macPage]('mac')}</div></div>`;
+}
+document.getElementById('mac-pills').innerHTML=Object.entries(TITLES).map(([k,v],i)=>`<button class="chip ${k==macPage?'on':''}" data-p="${k}">${i+1} · ${v}</button>`).join('');
+function goMac(p){macPage=p;renderMac();document.querySelectorAll('#mac-pills .chip').forEach(c=>c.classList.toggle('on',c.dataset.p==p));}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b&&(b.closest("#macwin")||b.closest('#mac-pills'))){goMac(b.dataset.p)}});
+renderMac();
+
+/* ---------- iPhone ---------- */
+const TABS=[['overview','总览','t_overview'],['money','收支','t_trends'],['worth','家底','t_accounts'],['plan','计划','t_plan'],['ai','AI','t_assistant']];
+function phone(tab,title,body,{cls='',fab=true,me=true,sheet=''}={}){
+  return `<div class="phone ${cls}"><div class="scr app"><div class="sb"><span>9:41</span><span class="island"></span><span class="ind"><i style="width:16px;height:9px"></i><i style="width:22px;height:11px;border-radius:3px"></i></span></div>
+   <div class="nav"><h2>${title}</h2><span class="acts">${me?`<span class="plus" title="记一笔">${sym('plus')}</span><span class="me">我</span>`:''}</span></div><div class="body">${body}<div class="ro">iCloud 已同步</div></div>
+   ${fab?`<button class="fab" data-copy="我在看夏夏账本（${title}），想问：">${icon('t_assistant')}问 AI</button>`:''}
+   ${sheet?`<div class="sheet-dim"></div><div class="sheet"><span class="grab"></span><div class="sh"><span style="color:var(--brand)">取消</span><b>记一笔</b><span style="width:28px"></span></div>${sheet}</div>`:''}<div class="tabs">${TABS.map(([id,n,ic])=>`<div class="${id==tab?'on':''} ${id=='ai'?'ai':''}">${icon(ic)}${n}</div>`).join('')}</div></div></div>`;
+}
+const moneySeg=on=>`<span class="seg" style="justify-self:start"><span class="${on==0?'on':''}">花在哪</span><span class="${on==1?'on':''}">趋势</span></span>`;
+const planSeg=on=>`<span class="seg" style="justify-self:start"><span class="${on==0?'on':''}">目标</span><span class="${on==1?'on':''}">订阅</span></span>`;
+const PH=[
+  ['overview','总览',P.overview('phone'),'总览','这个月过得怎么样'],
+  ['money','收支',moneySeg(0)+P.spending('phone'),'收支 · 花在哪','钱都花在哪了'],
+  ['money','收支',moneySeg(1)+P.trends('phone'),'收支 · 趋势','比以前好还是差'],
+  ['worth','家底',P.worth('phone'),'家底','我一共有多少钱'],
+  ['plan','计划',planSeg(0)+P.plan('phone'),'计划 · 目标','离目标还差多少'],
+  ['plan','计划',planSeg(1)+subsCard('phone'),'计划 · 订阅','每月固定在扣哪些钱'],
+  ['ai','AI',P.ai('phone'),'AI','AI 怎么看我的钱'],
+  ['ai','和 AI 说',chatScreen(),'AI · 对话（自己的密钥，免费）','直接在手机上和 AI 记账、问问题'],
+  ['overview','流水',P.tx('phone'),'流水（从总览进）','这一笔是怎么回事'],
+  ['overview','设置',P.settings('phone'),'设置（点头像进）','AI 连上了吗，同步正常吗'],
+  ['overview','',paywall(),'开通同步（价格是示例）','什么免费、什么收费'],
+  ['overview','反馈问题',feedback(),'反馈问题（设置里进，或摇一摇）','哪里坏了，怎么告诉开发']
+];
+document.getElementById('phones').innerHTML=PH.map(([t,ti,b,cap,q],i)=>`<div class="phone-col">${phone(t,ti,b,{fab:t!='ai'&&ti!='设置'&&ti!=''&&ti!='反馈问题',me:ti!='设置'&&ti!='流水'&&ti!=''&&ti!='和 AI 说'&&ti!='反馈问题'})}<div class="cap"><b>${cap}</b>${q}？</div></div>`+(i==0?`<div class="phone-col">${phone('overview','总览',P.overview('phone'),{fab:false,sheet:quickAdd('phone')})}<div class="cap"><b>记一笔（右上角 +）</b>自己顺手记一笔现金？3 秒记完</div></div>`:'')).join('');
+
+/* ---------- 规范区 ---------- */
+const SW=[['--brand','晨光橙','主色：关键数字、选中、强调'],['--ai','靛蓝','AI：意见、AI 记的账、问 AI'],['--income','进账绿','进账、好消息、净资产涨'],['--warn','琥珀','留意'],['--alert','警示红','要处理、超支（少用）'],['--fg','文字','正文和大数字'],['--fg2','次要文字','说明、标签'],['--bg','底色','页面背景（系统分组底色）'],['--surface','卡片','卡片和列表']];
+document.getElementById('swatches').innerHTML=SW.map(([v,n,d])=>`<div class="sw"><i style="background:var(${v});${v=='--surface'||v=='--bg'?'border-bottom:1px solid var(--sep)':''}"></i><div><b>${n}</b><span>${d}</span></div></div>`).join('');
+const CATS=[['dining','餐饮'],['grocery','超市'],['coffee','咖啡'],['transport','交通'],['fuel','加油'],['housing','住房房租'],['utilities','水电网'],['shopping','购物'],['clothing','服饰'],['beauty','美容美甲'],['medical','医疗'],['education','教育'],['entertainment','娱乐'],['travel','旅行'],['pets','宠物'],['baby','宝宝'],['gifts','礼物人情'],['salary','工资收入'],['transfer','转账'],['loans','借款还款']];
+document.getElementById('cats').innerHTML=CATS.map(([k,n])=>`<div>${icon('c_'+k).replace('<svg','<svg style="width:20px;height:20px;flex:none"')}${n}</div>`).join('');
+document.getElementById('spacing').innerHTML=[4,8,12,16,24,32].map(s=>`<div><i style="width:${s}px;height:${s}px"></i>${s}</div>`).join('');
+document.getElementById('icons').innerHTML=[['t_overview','总览'],['t_transactions','花销 / 流水'],['t_trends','趋势'],['t_accounts','家底'],['t_plan','计划'],['t_assistant','AI'],['t_import','改动记录'],['t_settings','设置']].map(([k,n])=>`<div>${icon(k)}${n}</div>`).join('');
+
+/* 组件区 */
+document.getElementById('cmp-qa').innerHTML=`<div style="background:var(--bg);border-radius:14px;padding:14px">${quickAdd('mac')}</div>`;
+document.getElementById('cmp-key').innerHTML=`<div class="card">${keyFigure('mac')}</div>`;
+document.getElementById('cmp-ai').innerHTML=aiCard();
+document.getElementById('cmp-ask').innerHTML=askBox(3);
+document.getElementById('cmp-ins').innerHTML=`<div class="card" style="padding-block:4px">${D.insights.slice(0,3).map(insightRow).join('')}</div>`;
+document.getElementById('cmp-book').innerHTML=bookCard(D.books[1]);
+document.getElementById('cmp-row').innerHTML=`<div class="card" style="padding-block:4px"><div class="list">${[D.tx[1][2][0],D.tx[1][2][1],D.tx[2][2][0]].map(txRow).join('')}</div></div>`;
+document.getElementById('cmp-btn').innerHTML=`<div style="display:grid;gap:12px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ai">${icon('t_assistant')}问 AI</button><button class="btn tinted">${icon('t_assistant')}接着问</button><button class="btn plain">${sym('undo')}撤销</button><button class="btn danger">删除</button></div><span class="seg"><span class="on">全部</span><span>个人</span><span>小店</span></span><div class="chiprow"><span class="chip on">全部</span><span class="chip">分类 ▾</span><span class="chip">只看 AI 记的</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="delta good">−266 €</span><span class="delta bad">+74 €</span><span class="tag good">好消息</span><span class="tag warn">留意</span><span class="tag tip">建议</span><span class="tag alert">要处理</span></div></div>`;
+document.getElementById('cmp-goal').innerHTML=`<div class="ringbox"><div class="r">${ring(.62,96,10,'#FB7185')}<div class="c"><b style="font-size:20px">62%</b></div></div><div style="display:grid;gap:10px"><div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>回国机票</span><span class="num">70%</span></div><div class="bar"><i style="width:70%;background:#0EA5E9"></i></div></div><div><div style="font-size:12px;margin-bottom:4px">iPhone 分期 7 / 12</div><div style="display:flex;gap:2px">${Array.from({length:12},(_,i)=>`<i style="flex:1;height:6px;border-radius:3px;background:${i<7?'var(--brand)':'var(--sunken)'}"></i>`).join('')}</div></div></div></div>`;
+document.getElementById('ch-pace').innerHTML=paceChart(560,210);
+document.getElementById('ch-donut').innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center">${donut(170,24)}<div>${D.cats.slice(0,6).map(c=>`<div style="display:flex;gap:6px;align-items:center;font-size:12px;padding:2px 0"><i style="width:8px;height:8px;border-radius:2px;background:${catColor(c[0])}"></i>${c[1]}<span class="num" style="margin-left:auto;color:var(--fg2)">${eur(c[2],{dec:0})}</span></div>`).join('')}</div></div>`;
+document.getElementById('ch-bars').innerHTML=bars(560,210);
+document.getElementById('ch-area').innerHTML=area(560,200);
+
+/* 状态 */
+const ST=[
+ ['空账本','还没有任何流水',`<div class="empty"><div class="art">${icon('t_assistant')}</div><div class="t5">账本还是空的</div><p>把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」。导好就会出现在这里。</p><button class="btn ai" data-copy="帮我把这份对账单导进夏夏账本">${sym('copy')}复制这句话</button></div>`],
+ ['这个月还没花钱','月初第一天',`<div class="empty"><div class="art" style="color:var(--brand)">${icon('t_overview')}</div><div class="t5">11 月还没有流水</div><p>上个月剩了 430 €。新的流水导进来后，这里会画出花钱速度。</p></div>`],
+ ['加载中','打开 app、iCloud 还在下载',`<div style="display:grid;gap:10px;padding:6px"><div class="sk" style="height:12px;width:40%"></div><div class="sk" style="height:42px;width:70%"></div><div class="sk" style="height:12px;width:85%"></div><div class="sk" style="height:90px"></div><div class="conn"><span class="dot warn"></span>正在从 iCloud 读取账本…</div></div>`],
+ ['出错','账本读不出来',`<div class="err">${sym('warn')}<div><b>账本读不出来</b><p>第 1.204 笔流水里有这个版本不认识的写法（flow = internal）。账本本身没坏。</p><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary">更新 app</button><button class="btn tinted" data-copy="夏夏账本读不出来，报错说第 1204 笔流水 flow=internal 不认识，帮我检查一下">${sym('copy')}让 AI 检查</button></div></div></div>`],
+ ['还没连 AI','第一次打开',`<div class="empty"><div class="art">${icon('t_assistant')}</div><div class="t5">还没连上 AI</div><p>夏夏账本靠 AI 记账。在 Claude 或 Codex 里装上夏夏账本的 MCP，就能让它读写这本账。</p><div style="display:flex;gap:8px"><button class="btn ai">${sym('copy')}复制 MCP 配置</button><button class="btn plain">怎么装？</button></div></div>`],
+ ['iCloud 有冲突','Mac 和 iPhone 同时改过',`<div class="banner">${sym('warn').replace('<svg','<svg style="width:16px;height:16px;color:var(--warn)"')}iCloud 上有一份更新的账本。<a class="link" style="margin-left:auto">用新的</a></div><div style="margin-top:12px">${D.tx[0][2].slice(0,2).map(txRow).join('')}</div>`]
+];
+document.getElementById('state-grid').innerHTML=ST.map(([t,d,h])=>`<div class="state"><div class="cap"><b>${t}</b> · ${d}</div><div class="app">${h}</div></div>`).join('')
+ + `<div class="state" style="grid-column:1/-1"><div class="cap"><b>大字号</b> · 系统字号调到最大一档附近，正文跟着变大，大数字保持不变</div><div class="phones" style="padding-top:0">${['普通字号','大字号'].map((c,i)=>`<div class="phone-col ${i?'big-text':''}">${phone('overview','总览',P.overview('phone'))}<div class="cap">${c}</div></div>`).join('')}</div></div>`;
+document.getElementById('pair-l').innerHTML=phone('overview','总览',P.overview('phone'));
+document.getElementById('pair-d').innerHTML=phone('overview','总览',P.overview('phone'));
+/* 深色对照里的 SVG 渐变 id 会重复，给每个副本改名 */
+let gid=0;document.querySelectorAll('svg').forEach(s=>{const defs=s.querySelectorAll('[id]');if(!defs.length)return;gid++;defs.forEach(d=>{const o=d.id,n=o+'_'+gid;d.id=n;s.innerHTML=s.innerHTML.split('url(#'+o+')').join('url(#'+n+')')})});
+
+/* 复制话术 */
+const toast=document.getElementById('toast');let tt;
+function showToast(t){toast.textContent=t;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),2600)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-copy]');if(!b)return;const txt=b.dataset.copy;
+  const done=()=>showToast('已复制：「'+txt.slice(0,22)+(txt.length>22?'…':'')+'」。真 app 里这时会打开 Claude。');
+  try{navigator.clipboard.writeText(txt).then(done,done)}catch(_){done()}});
+
+/* 主题切换 */
+const root=document.documentElement;
+function setTheme(t){if(t=='system')root.removeAttribute('data-theme');else root.setAttribute('data-theme',t);document.querySelectorAll('.theme-sw button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t==t));try{localStorage.setItem('xx-theme',t)}catch(_){}}
+document.querySelectorAll('.theme-sw button').forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+try{const s=localStorage.getItem('xx-theme');if(s)setTheme(s)}catch(_){}
+</script>

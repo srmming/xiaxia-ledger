@@ -8,9 +8,9 @@ struct Fin: ParsableCommand {
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
         discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
-        subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
+        subcommands: [ContextCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, MCPCommand.self]
     )
 
     /// 负数金额（-12,50）会被当成选项，报「缺少参数」。这里先把开头的减号换成全角减号「−」，金额解析认得它。
@@ -26,10 +26,10 @@ struct GlobalOptions: ParsableArguments {
     @Flag(name: .long, help: "输出 JSON，方便 AI 读。")
     var json = false
 
-    @Option(name: .long, help: "账本 id，如 personal、miora。不填 = 全部。")
+    @Option(name: .long, help: "账本 id，如 personal（fin books 能看到全部）。不填 = 全部。")
     var book: String?
 
-    @Flag(name: .long, help: "算上私房钱账户。默认不显示、不算进汇总，只有 ming 本人问时才用。")
+    @Flag(name: .long, help: "算上私房钱账户。默认不显示、不算进汇总，只有 用户本人问时才用。")
     var includePrivate = false
 }
 
@@ -48,10 +48,10 @@ func saveLedger(_ ledger: Ledger) throws { try LedgerStores.defaultStore().save(
 
 /// 写入类命令共用：谁在改、日期、金额。
 struct WriteOptions: ParsableArguments {
-    @Option(help: "谁在改：ming、Claude、Codex、DeepSeek……不填就读环境变量 XIAXIA_AUTHOR，再没有就是「AI」。")
+    @Option(help: "谁在改：你的名字、Claude、Codex、DeepSeek……不填就读环境变量 XIAXIA_AUTHOR，再没有就是「AI」。")
     var author: String?
     @Flag(name: .long, help: "输出 JSON。") var json = false
-    @Flag(name: .long, help: "预演：显示会改什么，但不写进账本。拿不准时先预演给 ming 看。") var dryRun = false
+    @Flag(name: .long, help: "预演：显示会改什么，但不写进账本。拿不准时先预演给用户 看。") var dryRun = false
 
     var who: String { author ?? ProcessInfo.processInfo.environment["XIAXIA_AUTHOR"] ?? "AI" }
 }
@@ -113,6 +113,48 @@ struct BooksCommand: ParsableCommand {
         let books = try loadLedger().books
         if options.json { return try Output.json(books) }
         for b in books { print("\(b.id)\t\(b.name)\t\(b.currency)") }
+    }
+}
+
+struct BookCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "book", abstract: "管理账本：新建、改名、删除。",
+                                                    subcommands: [Add.self, Rename.self, Remove.self])
+
+    struct Add: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "add", abstract: "新建一个账本。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "账本名字，如「家庭」。") var name: String
+        @Option(help: "personal（生活）或 business（生意）。") var kind: String = "personal"
+        func run() throws {
+            guard let k = BookKind(rawValue: kind) else { throw ValidationError("kind 只能是 personal 或 business") }
+            var ledger = try loadLedger()
+            let change = try ledger.addBook(name: name, kind: k, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Rename: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "rename", abstract: "给账本改名。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "账本 id。") var book: String
+        @Argument(help: "新名字。") var name: String
+        func run() throws {
+            var ledger = try loadLedger()
+            let change = try ledger.renameBook(book, to: name, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Remove: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "rm", abstract: "删账本。里面有东西时要用 --move-to 指定挪到哪个账本。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "账本 id。") var book: String
+        @Option(help: "里面的流水、借款、分期、目标挪到哪个账本。") var moveTo: String?
+        func run() throws {
+            var ledger = try loadLedger()
+            let change = try ledger.removeBook(book, moveTo: moveTo, author: w.who)
+            try finish(ledger, change, w)
+        }
     }
 }
 
@@ -230,7 +272,7 @@ struct SummaryCommand: ParsableCommand {
         let moved = list.reduce(Money.zero) { $0 + $1.betweenBooks }
         return text(list, months: months, book: book,
                     movedLabel: Reports.betweenBooksLabel(moved, bookID: book, books: ledger.books),
-                    unmatched: Summaries.unmatchedInternal(ledger.transactions, months: months, bookID: book, hiddenAccounts: hidden))
+                    unmatched: Summaries.unmatchedInternal(ledger.transactions, months: months, hiddenAccounts: hidden))
     }
 
     static func text(_ list: [MonthlySummary], months: [YearMonth], book: String?, movedLabel: String? = nil,
@@ -244,7 +286,7 @@ struct SummaryCommand: ParsableCommand {
             lines.append("\(word) \(moved.magnitude.formatted)（自己账户间转账，不算收支）  算上它结余 \((t.income + t.expense + moved).formatted)")
         }
         if let unmatched, unmatched.count > 0 {
-            lines.append("另有 \(unmatched.count) 笔互转只记了一边（共 \(unmatched.total.formatted)），没算进上面这行")
+            lines.append("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），多半也是两个账本之间的，没算进上面这行")
         }
         if list.count > 1 {
             lines.append("按月：")
@@ -445,7 +487,7 @@ struct UndoCommand: ParsableCommand {
 struct ImportCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "import",
-        abstract: "导入对账单，自动去重。先加 --dry-run 看会导入什么，跟 ming 确认后再正式导入。",
+        abstract: "导入对账单，自动去重。先加 --dry-run 看会导入什么，跟用户确认后再正式导入。",
         discussion: """
         Revolut：fin import 文件.csv --account revolut（自动认出 Revolut 格式）
         其他银行（CSV）：fin import 文件.csv --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto
@@ -462,7 +504,7 @@ struct ImportCommand: ParsableCommand {
     @Option(help: "通用 CSV：说明列。") var descCol: String?
     @Option(help: "通用 CSV：表头前要跳过几行。") var skipRows: Int = 0
     @Option(help: "通用 CSV（可选）：分类列。") var categoryCol: String?
-    @Option(help: "通用 CSV（可选）：账本列，写账本 id，如 personal / miora。") var bookCol: String?
+    @Option(help: "通用 CSV（可选）：账本列，写账本 id，如 personal。") var bookCol: String?
     @Option(help: "通用 CSV（可选）：性质列，debt / saving / opening / internal（自己账户互转），空着是普通收支。") var flowCol: String?
     @Option(help: "这批默认归哪个账本（不填就先不分，之后用 fin assign）。") var book: String?
     func run() throws {
@@ -518,7 +560,7 @@ struct CategorizeCommand: ParsableCommand {
 struct AssignCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "assign", abstract: "分账本：这几笔属于个人还是店里。")
     @OptionGroup var w: WriteOptions
-    @Option(help: "账本 id，如 personal、miora。") var book: String
+    @Option(help: "账本 id，如 personal（fin books 能看到全部）。") var book: String
     @Argument(help: "流水编号，可以一次写多个。") var ids: [String]
 
     func run() throws {

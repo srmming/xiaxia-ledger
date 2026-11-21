@@ -2,29 +2,12 @@ import FinanceCore
 import Foundation
 import Observation
 
-/// app 里能弹出来的窗口。放在一处，任何页面都能叫出「记一笔」「导入」。
-public enum AppSheet: Identifiable, Hashable {
+/// app 里能弹出来的窗口。导入、整理、记欠款这些都交给 AI 了，app 里只留极简「记一笔」。
+public enum AppSheet: String, Identifiable, Hashable {
     case add
-    case edit(UUID)
-    case addDebt(Debt.Direction)
-    case addInstallment
-    case addGoal
-    case importer
-    case triage
-    case addAccount
-
-    public var id: String {
-        switch self {
-        case .add: "add"
-        case .edit(let id): "edit-\(id)"
-        case .addDebt(let d): "debt-\(d.rawValue)"
-        case .addInstallment: "installment"
-        case .addGoal: "goal"
-        case .importer: "import"
-        case .triage: "triage"
-        case .addAccount: "account"
-        }
-    }
+    /// 管理账本、账户、分类。
+    case books, accounts, categories
+    public var id: String { rawValue }
 }
 
 /// app 里的账本状态。和 fin 读写同一份账本，所有写入都走 FinanceCore 的规则，记进改动记录。
@@ -38,13 +21,26 @@ public final class LedgerModel {
     }
 
     public let store: any LedgerStore
-    public private(set) var ledger: Ledger = .starter
+    public private(set) var ledger: Ledger = .fresh
     public var selectedBookID: String?        // nil = 全部
     public var showPrivate = false            // 私房钱默认藏起来
     public var loadError: String?
     public var isLoading = true
-    /// app 里的写入都算 ming 记的。
-    public var author = "ming"
+    /// app 里的写入记在谁名下：设置里填的名字，没填就用这台设备的用户名。
+    public var author: String = LedgerModel.defaultAuthor {
+        didSet { UserDefaults.standard.set(author, forKey: "xiaxia.userName") }
+    }
+
+    static var defaultAuthor: String {
+        if let saved = UserDefaults.standard.string(forKey: "xiaxia.userName"), !saved.isEmpty { return saved }
+        #if os(macOS)
+        return NSUserName()
+        #else
+        return "我"
+        #endif
+    }
+
+    @ObservationIgnored var authorCache: (count: Int, map: [UUID: String])?
 
     /// 现在在哪一页、弹着哪个窗口。
     public var section: AppSection? = .overview
@@ -65,7 +61,7 @@ public final class LedgerModel {
     public func reload() {
         isLoading = true
         defer { isLoading = false }
-        do { ledger = try store.load(); loadError = nil; cache = nil }
+        do { ledger = try store.load(); loadError = nil; cache = nil; authorCache = nil }
         catch { loadError = error.localizedDescription }
     }
 
@@ -73,7 +69,8 @@ public final class LedgerModel {
     public func refreshIfChanged() {
         guard loadError == nil, let fresh = try? store.load(), fresh != ledger else { return }
         ledger = fresh
-        cache = nil
+        cache = nil; authorCache = nil
+        authorCache = nil
     }
 
     /// 改一次账本：成功就保存并在底部给提示（能撤销），失败把错误抛给界面显示。
@@ -83,7 +80,8 @@ public final class LedgerModel {
         let change = try body(&copy)
         try store.save(copy)
         ledger = copy
-        cache = nil
+        cache = nil; authorCache = nil
+        dropMissingSelection()
         if change.canUndo { undoStack.append(change.id) }
         if !quiet { toast = Toast(text: change.summary, changeID: change.canUndo ? change.id : nil) }
         return change
@@ -101,12 +99,18 @@ public final class LedgerModel {
             let change = try copy.undo(changeID: changeID, author: author)
             try store.save(copy)
             ledger = copy
-            cache = nil
+            cache = nil; authorCache = nil
+            dropMissingSelection()
             undoStack.removeAll { $0 == changeID }
             toast = Toast(text: change.summary, changeID: nil)
         } catch {
             toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
         }
+    }
+
+    /// 正在看的账本被删了：回到「全部」。
+    private func dropMissingSelection() {
+        if let b = selectedBookID, !ledger.books.contains(where: { $0.id == b }) { selectedBookID = nil }
     }
 
     public func undoLast() {
@@ -199,18 +203,10 @@ public final class LedgerModel {
             count[c, default: 0] += 1
         }
         let used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
-        let defaults = CategoryStyle.defaults(bookID: bookID, income: income)
+        let defaults = CategoryStyle.defaults(book: ledger.books.first { $0.id == bookID }, income: income)
         // 账本里已经有「交通出行」，就不再另给一个「交通」，免得同一件事记成两个分类。
         let extra = defaults.filter { d in !used.contains { $0 == d || $0.hasPrefix(d) } }
         return Array((used + extra).prefix(limit))
-    }
-
-    /// 还没整理的：普通收支里没分类或没分账本的（不管现在筛的是哪个账本）。
-    public var untidy: [FinanceCore.Transaction] {
-        let hidden = hiddenAccounts
-        return ledger.transactions
-            .filter { $0.flow == nil && !$0.isTransfer && ($0.category == nil || $0.bookID == nil) && !hidden.contains($0.accountID) }
-            .sorted { ($0.date, $0.description) > ($1.date, $1.description) }
     }
 
     // MARK: 记住上次用的账户和账本
@@ -240,6 +236,8 @@ public final class LedgerModel {
 
     /// 跳到流水页并带上筛选。
     public var pendingFilter: TransactionFilter?
+    /// 按 ⌘F 去流水页时，把光标放进搜索框。
+    public var focusSearch = false
     public func showTransactions(_ filter: TransactionFilter) {
         pendingFilter = filter
         section = .transactions
@@ -250,5 +248,5 @@ extension LedgerModel {
     /// 预览和截图用的内存账本，数字全是编的。
     public static func demo() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.demo)) }
     /// 空账本：看第一次打开的样子。
-    public static func empty() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.starter)) }
+    public static func empty() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.fresh)) }
 }

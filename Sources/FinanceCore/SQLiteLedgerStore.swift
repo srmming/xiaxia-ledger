@@ -14,22 +14,26 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public init(url: URL) { self.url = url }
 
-    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals"]
+    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights"]
 
     public func load() throws -> Ledger {
-        guard FileManager.default.fileExists(atPath: url.path) else { return .starter }
+        guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
         let db = try SQLiteDB(url: url)
         try db.migrate()
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         func rows<T: Decodable>(_ table: String, _ type: T.Type) throws -> [T] {
-            try db.query("SELECT json FROM \(table) ORDER BY seq").map { try dec.decode(T.self, from: Data($0.utf8)) }
+            try db.query("SELECT json FROM \(table) ORDER BY seq").enumerated().map { i, json in
+                do { return try dec.decode(T.self, from: Data(json.utf8)) }
+                catch { throw LedgerReadError(table: table, row: i + 1, underlying: error) }
+            }
         }
         var ledger = Ledger(books: try rows("books", Book.self), accounts: try rows("accounts", Account.self),
                             transactions: try rows("transactions", Transaction.self), changes: try rows("changes", ChangeRecord.self))
         ledger.debts = try rows("debts", Debt.self)
         ledger.installments = try rows("installments", Installment.self)
         ledger.goals = try rows("goals", Goal.self)
+        ledger.insights = try rows("insights", Insight.self)
         if let v = try db.query("SELECT value FROM meta WHERE key = 'schemaVersion'").first, let n = Int(v) { ledger.schemaVersion = n }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'lastStatementDate'").first {
             ledger.lastStatementDate = try dec.decode([String: LocalDate].self, from: Data(v.utf8))
@@ -65,6 +69,7 @@ public struct SQLiteLedgerStore: LedgerStore {
             for (i, d) in ledger.debts.enumerated() { try db.run("INSERT INTO debts (id, seq, json) VALUES (?, ?, ?)", [d.id.uuidString, i, js(d)]) }
             for (i, x) in ledger.installments.enumerated() { try db.run("INSERT INTO installments (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
             for (i, g) in ledger.goals.enumerated() { try db.run("INSERT INTO goals (id, seq, json) VALUES (?, ?, ?)", [g.id.uuidString, i, js(g)]) }
+            for (i, x) in ledger.insights.enumerated() { try db.run("INSERT INTO insights (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])
             try db.exec("COMMIT")
@@ -73,6 +78,31 @@ public struct SQLiteLedgerStore: LedgerStore {
             throw error
         }
     }
+}
+
+/// 账本里某一条读不出来：说清楚是哪张表的第几条、哪个字段，方便修，而不是只说「格式不正确」。
+public struct LedgerReadError: Error, LocalizedError {
+    public let table: String
+    public let row: Int
+    public let underlying: Error
+
+    public var errorDescription: String? {
+        let names = ["books": "账本", "accounts": "账户", "transactions": "流水", "changes": "改动记录",
+                     "debts": "借款", "installments": "分期", "goals": "存钱目标", "insights": "AI 意见"]
+        var detail = underlying.localizedDescription
+        if let e = underlying as? DecodingError {
+            switch e {
+            case .dataCorrupted(let c): detail = "字段 \(Self.path(c.codingPath)) 的值不认识：\(c.debugDescription)"
+            case .keyNotFound(let k, _): detail = "缺少字段 \(k.stringValue)"
+            case .typeMismatch(_, let c): detail = "字段 \(Self.path(c.codingPath)) 的类型不对"
+            case .valueNotFound(_, let c): detail = "字段 \(Self.path(c.codingPath)) 是空的"
+            @unknown default: break
+            }
+        }
+        return "「\(names[table] ?? table)」里第 \(row) 条读不出来（\(detail)）。账本文件没有被改动。"
+    }
+
+    private static func path(_ p: [CodingKey]) -> String { p.isEmpty ? "（整条）" : p.map(\.stringValue).joined(separator: ".") }
 }
 
 public struct SQLiteError: Error, LocalizedError {
@@ -111,6 +141,7 @@ final class SQLiteDB {
             CREATE TABLE IF NOT EXISTS debts (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS installments (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS insights (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             """)
     }
 
