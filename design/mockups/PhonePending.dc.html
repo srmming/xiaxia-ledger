@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 iPhone · 待确认</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#D9472B}a:hover{color:#B23A22}
+@keyframes xx-draw{from{stroke-dashoffset:40}to{stroke-dashoffset:0}}
+@keyframes xx-grow{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+.xx-done-ring{animation:xx-grow .5s cubic-bezier(.2,.8,.2,1) both}
+.xx-done-check{stroke-dasharray:40;animation:xx-draw .45s .2s ease-out both}
+.xx-press:active{transform:scale(.96)}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; border-radius: 48px; background: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif; color: #1D1D1F; box-shadow: 0 0 0 10px #1D1D1F, 0 30px 60px rgba(0,0,0,.25)">
+  <div style="padding: 58px 16px 0; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 17px">
+      <a href="PhoneHome.dc.html" style="color: #D9472B; text-decoration: none">‹ 总览</a>
+      <sc-if value="{{hasLive}}" hint-placeholder-val="{{ true }}"><button onClick="{{confirmAll}}" style="border: 0; background: transparent; font: inherit; font-size: 17px; font-weight: 600; color: #D9472B; cursor: pointer">全部确认</button></sc-if>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px"><h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.5px">待确认</h1><span style="font-size: 15px; color: #86868B">{{subtitle}}</span></div>
+    <sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+      <section style="{{it.wrap}}">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="{{it.tag}}">{{it.kind}}</span>
+            <span style="flex-grow: 1"></span>
+            <span style="font-size: 12px; color: #86868B">{{it.who}}</span>
+          </div>
+          <div style="font-size: 17px; font-weight: 600; line-height: 1.3">{{it.title}}</div>
+          <div style="font-size: 14px; color: #3A3A3C; line-height: 1.45">{{it.detail}}</div>
+          <div style="display: flex; gap: 8px; margin-top: 2px">
+            <button class="xx-press" onClick="{{it.undo}}" style="flex: 1; height: 40px; border: 0; border-radius: 12px; background: #F2F2F7; font: inherit; font-size: 15px; font-weight: 600; color: #1D1D1F; cursor: pointer; transition: transform .15s">撤销</button>
+            <button class="xx-press" onClick="{{it.ok}}" style="flex: 1.4; height: 40px; border: 0; border-radius: 12px; background: #FF6B4A; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF; cursor: pointer; transition: transform .15s">确认</button>
+          </div>
+        </div>
+      </section>
+    </sc-for>
+    <sc-if value="{{allDone}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 110px; text-align: center">
+        <svg class="xx-done-ring" width="88" height="88" viewBox="0 0 88 88" role="img" aria-label="全部处理完"><circle cx="44" cy="44" r="40" fill="#34C759"></circle><path class="xx-done-check" d="M28 45l11 11 21-23" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <div style="font-size: 22px; font-weight: 700">都处理完了</div>
+        <div style="font-size: 15px; color: #86868B; line-height: 1.5">确认的改动已经进了报表。<br>想反悔，在「设置 › 历史」里还能撤销。</div>
+        <button onClick="{{reset}}" style="margin-top: 8px; border: 0; background: transparent; font: inherit; font-size: 15px; color: #D9472B; cursor: pointer">再演示一次</button>
+      </div>
+    </sc-if>
+  </div>
+  <nav aria-label="标签栏" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: rgba(249,249,249,.88); backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,.08); display: flex; justify-content: space-around; padding-top: 8px; box-sizing: border-box; font-size: 10px; font-weight: 500">
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="13" y="3" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="3" y="13" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect><rect x="13" y="13" width="8" height="8" rx="2.5" fill="none" stroke="#8E8E93" stroke-width="2"></rect></svg>总览</a>
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="#8E8E93" stroke-width="2.2" stroke-linecap="round"></path></svg>流水</a>
+    <a href="PhonePending.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #FF6B4A; text-decoration: none; width: 70px; position: relative"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FF6B4A"></circle><path d="M8 12.3l2.7 2.7 5.3-5.5" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>待确认<sc-if value="{{hasLive}}" hint-placeholder-val="{{ true }}"><span style="position: absolute; top: -3px; left: 40px; background: #FF3B30; color: #FFFFFF; font-size: 11px; font-weight: 700; border-radius: 9px; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center">{{liveCount}}</span></sc-if></a>
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="#8E8E93" stroke-width="2"></circle><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="#8E8E93" stroke-width="2" stroke-linecap="round"></path></svg>设置</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { st: this.fresh() }; this.timers = []; }
+  fresh() { return { a: 'live', b: 'live', c: 'live' }; }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); }
+  act(id, how, delay) {
+    const go = () => {
+      this.setState({ st: { ...this.state.st, [id]: how } });
+      this.timers.push(setTimeout(() => this.setState({ st: { ...this.state.st, [id]: 'gone' } }), 480));
+    };
+    if (delay) this.timers.push(setTimeout(go, delay)); else go();
+  }
+  renderVals() {
+    const ITEMS = [
+      { id: 'a', kind: '导入', color: '#30B0C7', who: 'Claude · 09:12', title: 'Revolut 11 月对账单', detail: '新增 37 笔，跳过重复的 4 笔。35 笔已自动分好类。' },
+      { id: 'b', kind: '分账本', color: '#FFB340', who: 'Claude · 09:12', title: '2 笔拿不准是个人还是店里的', detail: 'Amazon -34,99 €、Leroy Merlin -58,20 €。Claude 猜是美甲店的店铺耗材。' },
+      { id: 'c', kind: '账本间转账', color: '#5E5CE6', who: 'Claude · 09:13', title: '识别到一笔老板提款', detail: '店里 -600,00 € 和个人 +600,00 € 配成一对，「全部」里互相抵消。' },
+    ];
+    const st = this.state.st;
+    const live = ITEMS.filter(i => st[i.id] === 'live');
+    const visible = ITEMS.filter(i => st[i.id] !== 'gone');
+    return {
+      items: visible.map(i => {
+        const s = st[i.id];
+        const leaving = s !== 'live';
+        const dx = s === 'ok' ? '40px' : s === 'undo' ? '-40px' : '0';
+        return { ...i,
+          ok: () => this.act(i.id, 'ok'), undo: () => this.act(i.id, 'undo'),
+          tag: 'font-size: 12px; font-weight: 600; color: #FFFFFF; background: ' + i.color + '; border-radius: 6px; padding: 2px 8px',
+          wrap: 'max-height: ' + (leaving ? '0' : '240px') + '; opacity: ' + (leaving ? '0' : '1') + '; transform: translateX(' + dx + ') scale(' + (leaving ? '.96' : '1') + '); overflow: hidden; transition: max-height .45s cubic-bezier(.4,0,.2,1) .05s, opacity .3s, transform .35s; margin-bottom: ' + (leaving ? '-12px' : '0') };
+      }),
+      liveCount: live.length,
+      hasLive: live.length > 0,
+      subtitle: live.length ? live.length + ' 项 AI 的改动，确认后才计入报表' : '没有等你确认的改动',
+      allDone: visible.length === 0,
+      confirmAll: () => live.forEach((i, n) => this.act(i.id, 'ok', n * 120)),
+      reset: () => this.setState({ st: this.fresh() }),
+    };
+  }
+}
+</script>
+</body>
+</html>
