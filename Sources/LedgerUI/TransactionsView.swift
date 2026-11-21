@@ -436,7 +436,7 @@ struct TransactionRow: View {
             return model.ledger.installments.contains { $0.paidIDs.contains(tx.id) || $0.purchaseID == tx.id } ? "calendar" : "person.2"
         case .saving: return "target"
         case .opening: return "flag"
-        case .move: return "arrow.left.arrow.right"
+        case .internal: return "arrow.left.arrow.right"
         case nil:
             if tx.isTransfer { return "arrow.left.arrow.right" }
             if let symbol = CategoryStyle.symbol(tx.category) { return symbol }

@@ -106,7 +106,7 @@ public enum Importers {
             txs.append(Transaction(date: date, amount: amount - fee.magnitude, description: at(cDesc), accountID: accountID,
                                    category: type == "TOPUP" ? "充值" : nil, source: source,
                                    // 充值是自己别的卡转进 Revolut 的钱，不是收入。
-                                   flow: type == "TOPUP" ? .move : nil))
+                                   flow: type == "TOPUP" ? .internal : nil))
         }
         return ImportResult(transactions: txs, skipped: skipped)
     }
@@ -121,7 +121,7 @@ public enum Importers {
         public var description: String
         public var skipRows: Int
         /// 可选：分类、账本、性质三列。从别的记账工具（如 Notion 表格）搬过来时用，
-        /// 性质写 debt / saving / opening（或「往来」「储蓄」「期初」），空着就是普通收支。
+        /// 性质写 debt / saving / opening / internal（或「往来」「储蓄」「期初」「互转」），空着就是普通收支。
         public var category: String?
         public var book: String?
         public var flow: String?
@@ -170,9 +170,10 @@ public enum Importers {
                 case "debt", "往来", "借款往来": flow = .debt
                 case "saving", "储蓄": flow = .saving
                 case "opening", "期初", "开账": flow = .opening
+                case "internal", "互转", "账户互转", "内部转账": flow = .internal
                 case let other:
                     guard let f = Transaction.Flow(rawValue: other) else {
-                        throw ImportError.badRow(line, "性质「\(other)」看不懂，只能是 debt / saving / opening 或空着")
+                        throw ImportError.badRow(line, "性质「\(other)」看不懂，只能是 debt / saving / opening / internal 或空着")
                     }
                     flow = f
                 }

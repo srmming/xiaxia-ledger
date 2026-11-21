@@ -35,9 +35,9 @@ extension Ledger {
         let text = (note?.isEmpty == false ? note! : "\(fromName) → \(toName)")
         let tid = UUID()
         let outTx = Transaction(date: date, amount: -amount, description: text, accountID: from, bookID: bookID,
-                                category: "账户间转账", transferID: tid, source: "手记", flow: .move)
+                                category: "账户间转账", transferID: tid, source: "手记", flow: .internal)
         let inTx = Transaction(date: date, amount: amount, description: text, accountID: to, bookID: bookID,
-                               category: "账户间转账", transferID: tid, source: "手记", flow: .move)
+                               category: "账户间转账", transferID: tid, source: "手记", flow: .internal)
         transactions += [outTx, inTx]
         return record(.transfer, "账户间转账：\(fromName) → \(toName) \(amount.formatted)", ids: [outTx.id, inTx.id], author: author)
     }
@@ -57,12 +57,12 @@ extension Ledger {
                 let tid = UUID()
                 links[t.id] = tid
                 extra.append(Transaction(date: t.date, amount: -t.amount, description: t.description, accountID: counterAccount,
-                                         bookID: t.bookID, category: "账户间转账", transferID: tid, source: "手记", flow: .move))
+                                         bookID: t.bookID, category: "账户间转账", transferID: tid, source: "手记", flow: .internal))
             }
         }
         var change = modify(targets.map(\.id), kind: .transfer,
                             summary: "\(targets.count) 笔标成账户间转账，不算收支", author: author) {
-            $0.flow = .move
+            $0.flow = .internal
             $0.category = "账户间转账"
             if let tid = links[$0.id] { $0.transferID = tid }
         }

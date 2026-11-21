@@ -54,10 +54,10 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     /// 来源：导入文件名或「手记」，方便追溯。
     public var source: String?
     /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额、
-    /// 自己账户之间挪钱（取现、转到另一张卡）。nil = 普通收支。
+    /// 自己账户之间转钱（互转：转去 Revolut 充值、还信用卡、主账户转 imagin）。nil = 普通收支。
     public var flow: Flow?
 
-    public enum Flow: String, Codable, Sendable { case debt, saving, opening, move }
+    public enum Flow: String, Codable, Sendable { case debt, saving, opening, `internal` }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,
@@ -65,6 +65,24 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
         self.id = id; self.date = date; self.amount = amount; self.description = description
         self.accountID = accountID; self.bookID = bookID; self.category = category
         self.transferID = transferID; self.source = source; self.flow = flow
+    }
+
+    enum CodingKeys: String, CodingKey { case id, date, amount, description, accountID, bookID, category, transferID, source, flow }
+
+    /// 自己写解码：flow 遇到不认识的值（比如更新版本写的）不让整本账打不开，当成普通收支读进来。
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        date = try c.decode(LocalDate.self, forKey: .date)
+        amount = try c.decode(Money.self, forKey: .amount)
+        description = try c.decode(String.self, forKey: .description)
+        accountID = try c.decode(String.self, forKey: .accountID)
+        bookID = try c.decodeIfPresent(String.self, forKey: .bookID)
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        transferID = try c.decodeIfPresent(UUID.self, forKey: .transferID)
+        source = try c.decodeIfPresent(String.self, forKey: .source)
+        let raw = try c.decodeIfPresent(String.self, forKey: .flow)
+        flow = raw.flatMap { Flow(rawValue: $0 == "move" ? "internal" : $0) }
     }
 
     public var isTransfer: Bool { transferID != nil }

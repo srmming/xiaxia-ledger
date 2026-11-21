@@ -314,7 +314,7 @@ struct LockedTransactionView: View {
             return ("借款往来", "借出、借入、还款都不算收入或支出。要改，到「计划」里点对应的那笔借款。")
         case .saving: return ("存钱目标", "存进目标或从目标取出，不算收支。要改，到「计划」里点那个目标。")
         case .opening: return ("期初余额", "开始用账本那天账户里的钱。要改，到「设置」里点这个账户。")
-        case .move: return ("自己账户间转账", "钱从一个账户挪到另一个，不算收入也不算支出。记错了就删掉重记。")
+        case .internal: return ("自己账户间转账", "钱从一个账户挪到另一个，不算收入也不算支出。记错了就删掉重记。")
         case nil: return ("账本间转账", "钱从一个账本挪到另一个。单看一个账本时照常算，看「全部」时两笔抵消。记错了就删掉重记。")
         }
     }
@@ -333,7 +333,7 @@ struct LockedTransactionView: View {
             if !pair.isEmpty {
                 Section("成对的另一笔") { ForEach(pair) { TransactionRow(tx: $0, showDate: true) } }
             }
-            if tx.flow == .move || (tx.flow == nil && tx.isTransfer) {
+            if tx.flow == .internal || (tx.flow == nil && tx.isTransfer) {
                 Section {
                     Button(role: .destructive) {
                         do {
@@ -341,7 +341,7 @@ struct LockedTransactionView: View {
                             dismiss()
                         } catch { self.error = error.localizedDescription }
                     } label: { Label(pair.isEmpty ? "删掉这一笔" : "两笔一起删掉", systemImage: "trash") }
-                    if tx.flow == .move, pair.isEmpty {
+                    if tx.flow == .internal, pair.isEmpty {
                         Button("改回普通的收入 / 支出") {
                             var t = tx
                             t.flow = nil; t.category = nil; t.transferID = nil

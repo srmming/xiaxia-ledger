@@ -64,8 +64,8 @@ extension Ledger {
         // 账户间转账：取现，不算收支。
         let atm = UUID()
         txs += [
-            Transaction(date: d(11, 10), amount: c(-200), description: "取现金", accountID: "caixa", category: "账户间转账", transferID: atm, flow: .move),
-            Transaction(date: d(11, 10), amount: c(200), description: "取现金", accountID: "cash", category: "账户间转账", transferID: atm, flow: .move),
+            Transaction(date: d(11, 10), amount: c(-200), description: "取现金", accountID: "caixa", category: "账户间转账", transferID: atm, flow: .internal),
+            Transaction(date: d(11, 10), amount: c(200), description: "取现金", accountID: "cash", category: "账户间转账", transferID: atm, flow: .internal),
         ]
         // 刚导入、还没整理的几笔：演示「整理」。Mercadona 以前分过类，会自动猜成「超市 · 个人」。
         txs += [

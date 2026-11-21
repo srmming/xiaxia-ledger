@@ -52,7 +52,7 @@ public enum Reports {
             case .debt: nature = "借款往来"
             case .saving: nature = "储蓄"
             case .opening: nature = "期初余额"
-            case .move: nature = "账户间转账"
+            case .internal: nature = "账户间转账"
             case nil: nature = t.isTransfer ? "账本间转账" : (t.amount.isIncome ? "收入" : "支出")
             }
             lines.append([t.date.description, t.amount.decimalString, q(t.description), q(t.category ?? ""),

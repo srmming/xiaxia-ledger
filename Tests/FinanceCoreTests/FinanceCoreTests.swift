@@ -228,15 +228,20 @@ final class ImportTests: XCTestCase {
         日期,金额,说明,分类,账本,性质
         2026-11-01,"-12,50",超市,超市日用,personal,
         2026-11-02,"80,00",刷卡结算,营业收入,miora,
-        2026-11-03,-50,转去 Revolut,内部转账,,debt
+        2026-11-03,-50,还朋友,借款往来,,debt
+        2026-11-04,-20,转去 Revolut,内部转账,,互转
         """
         let r = try Importers.genericCSV(text, map: .init(date: "日期", amount: "金额", description: "说明",
                                                           category: "分类", book: "账本", flow: "性质"),
                                          accountID: "caixa", source: "x.csv")
-        XCTAssertEqual(r.transactions.map(\.amount.cents), [-1250, 8000, -5000])
-        XCTAssertEqual(r.transactions.map(\.category), ["超市日用", "营业收入", "内部转账"])
-        XCTAssertEqual(r.transactions.map(\.bookID), ["personal", "miora", nil])
-        XCTAssertEqual(r.transactions.map(\.flow), [nil, nil, .debt])
+        XCTAssertEqual(r.transactions.map(\.amount.cents), [-1250, 8000, -5000, -2000])
+        XCTAssertEqual(r.transactions.map(\.category), ["超市日用", "营业收入", "借款往来", "内部转账"])
+        XCTAssertEqual(r.transactions.map(\.bookID), ["personal", "miora", nil, nil])
+        XCTAssertEqual(r.transactions.map(\.flow), [nil, nil, .debt, .internal])
+        // 互转不算收支：这个月只有 80 收入、12,50 支出。
+        let s = Summaries.monthly(r.transactions, month: YearMonth(year: 2026, month: 11), bookID: nil)
+        XCTAssertEqual(s.income.cents, 8000)
+        XCTAssertEqual(s.expense.cents, -1250)
         let bad = "日期,金额,说明,性质\n2026-11-01,-1,x,什么\n"
         XCTAssertThrowsError(try Importers.genericCSV(bad, map: .init(date: "日期", amount: "金额", description: "说明", flow: "性质"),
                                                       accountID: "caixa", source: "x.csv"))
@@ -458,6 +463,16 @@ final class FixMistakesTests: XCTestCase {
 final class ManageTests: XCTestCase {
     let day = LocalDate(year: 2026, month: 11, day: 3)
 
+    func testFlowDecodingIsLenient() throws {
+        func tx(_ flow: String) throws -> Transaction {
+            let json = #"{"id":"11111111-1111-1111-1111-111111111111","date":"2026-11-03","amount":{"cents":-500},"description":"x","accountID":"bank","flow":"\#(flow)"}"#
+            return try JSONDecoder().decode(Transaction.self, from: Data(json.utf8))
+        }
+        XCTAssertEqual(try tx("internal").flow, .internal)
+        XCTAssertEqual(try tx("move").flow, .internal)      // 旧写法
+        XCTAssertNil(try tx("something-new").flow)          // 不认识的值不让整本账打不开
+    }
+
     func ledger() -> Ledger {
         var l = Ledger.starter
         l.accounts = [Account(id: "bank", name: "银行", kind: .bank), Account(id: "cash", name: "现金", kind: .cash)]
@@ -630,7 +645,7 @@ final class ReportTests: XCTestCase {
             Transaction(date: d, amount: Money(cents: -20000), description: "R", accountID: "bank", bookID: "miora", category: "老板提款", transferID: t),
             Transaction(date: d, amount: Money(cents: 20000), description: "R", accountID: "bank", bookID: "personal", category: "收入", transferID: t),
             Transaction(date: d, amount: Money(cents: -1500), description: "M", accountID: "cash", bookID: "personal", category: "餐饮"),
-            Transaction(date: d, amount: Money(cents: -9900), description: "ATM", accountID: "bank", flow: .move),
+            Transaction(date: d, amount: Money(cents: -9900), description: "ATM", accountID: "bank", flow: .internal),
         ]
         let m = YearMonth(year: 2026, month: 10)
         for book in [nil, "miora", "personal"] as [String?] {
