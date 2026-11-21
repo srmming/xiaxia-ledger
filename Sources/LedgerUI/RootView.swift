@@ -73,12 +73,19 @@ public struct RootView: View {
             guard let new else { return nil }
             return new.isError ? .error : .success
         }
-        .sheet(item: $model.sheet) { _ in
-            NavigationStack { QuickAdd() }
+        .sheet(item: $model.sheet) { sheet in
+            NavigationStack {
+                switch sheet {
+                case .add: QuickAdd()
+                case .books: BookManager()
+                case .accounts: AccountManager()
+                case .categories: CategoryManager()
+                }
+            }
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
-                .frame(width: 440)
+                .frame(width: sheet == .add ? 440 : 520, height: sheet == .add ? nil : 580)
                 #else
                 .presentationDetents([.large])
                 #endif
@@ -220,7 +227,7 @@ struct MacToolbar: ToolbarContent {
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
                              latest: LocalDate.today.yearMonth)
             }
-            if section.usesBook, model.ledger.books.count > 1 {
+            if section.usesBook {
                 BookSwitch().environment(model)
             }
         }
@@ -233,23 +240,27 @@ struct MacToolbar: ToolbarContent {
 }
 #endif
 
-/// 账本切换：全部 / 每个账本。
+/// 账本切换：全部 / 每个账本，最下面是「管理账本…」（新建、改名、删除）。
 struct BookSwitch: View {
     @Environment(LedgerModel.self) var model
     var body: some View {
-        Picker("账本", selection: Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })) {
-            Text("全部").tag(String?.none)
-            ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
+        let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
+        Menu {
+            Picker("看哪个账本", selection: selection) {
+                if model.ledger.books.count > 1 { Text("全部").tag(String?.none) }
+                ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button { model.sheet = .books } label: { Label("管理账本…", systemImage: "books.vertical") }
+        } label: {
+            Label(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? "账本"),
+                  systemImage: "books.vertical")
+                .labelStyle(.titleAndIcon)
         }
-        #if os(macOS)
-        // 工具栏里用下拉菜单：比分段控件窄一半，窗口窄时不会把「记一笔」挤进 >> 菜单。
-        .pickerStyle(.menu)
-        #else
-        .pickerStyle(.segmented)
-        #endif
-        .labelsHidden()
         .fixedSize()
-        .accessibilityLabel("看哪个账本")
+        .help("切换账本，或新建、改名、删除账本")
+        .accessibilityLabel("账本：\(model.bookName(model.selectedBookID))")
     }
 }
 
@@ -318,16 +329,8 @@ struct PhoneRoot: View {
                 .navigationTitle(title)
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        if section != .insights, model.ledger.books.count > 1 {
-                            Menu {
-                                Picker("账本", selection: Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })) {
-                                    Text("全部账本").tag(String?.none)
-                                    ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
-                                }
-                            } label: {
-                                Label(model.selectedBookID.map { model.bookName($0) } ?? "全部", systemImage: "line.3.horizontal.decrease.circle")
-                                    .labelStyle(.titleAndIcon)
-                            }
+                        if section != .insights {
+                            BookSwitch()
                         }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
@@ -389,7 +392,7 @@ public struct XiaxiaScene: Scene {
     }
     #endif
 
-    /// 截图和自动检查用：-XiaxiaSection spending 直接打开某一页，-XiaxiaSheet add 直接弹出记一笔，
+    /// 截图和自动检查用：-XiaxiaSection spending 直接打开某一页，-XiaxiaSheet add / books / accounts / categories 直接弹出记一笔或管理页，
     /// -XiaxiaPrivate 显示私房钱，-XiaxiaBook personal 直接看某个账本（all = 全部）。
     private static func applyLaunchOptions(_ args: [String], to model: LedgerModel) {
         func value(_ key: String) -> String? {
@@ -402,7 +405,7 @@ public struct XiaxiaScene: Scene {
             "transactions": .transactions, "settings": .settings,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
-        if value("-XiaxiaSheet") == "add" { model.sheet = .add }
+        if let v = value("-XiaxiaSheet"), let sheet = AppSheet(rawValue: v) { model.sheet = sheet }
         if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }

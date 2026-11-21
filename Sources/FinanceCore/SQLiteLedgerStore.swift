@@ -17,7 +17,7 @@ public struct SQLiteLedgerStore: LedgerStore {
     static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights"]
 
     public func load() throws -> Ledger {
-        guard FileManager.default.fileExists(atPath: url.path) else { return .starter }
+        guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
         let db = try SQLiteDB(url: url)
         try db.migrate()
         let dec = JSONDecoder()

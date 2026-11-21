@@ -8,10 +8,14 @@ struct WealthPage: View {
     var body: some View {
         Group {
             if model.ledger.accounts.isEmpty {
-                KitEmptyState(symbol: "building.columns", title: "还没有账户",
-                              message: "第一次导入对账单时，AI 会顺手把账户建好。也可以直接跟它说。",
-                              prompt: "帮我在夏夏账本里建一个银行账户，现在余额是 1.000 €", page: "家底")
-                    .kitCard()
+                VStack(spacing: Kit.gap) {
+                    KitEmptyState(symbol: "building.columns", title: "还没有账户",
+                                  message: "第一次导入对账单时，AI 会顺手把账户建好。也可以自己加一个。",
+                                  prompt: "帮我在夏夏账本里建一个银行账户，现在余额是 1.000 €", page: "家底")
+                    Button { model.sheet = .accounts } label: { Label("自己加一个账户", systemImage: "plus") }
+                        .buttonStyle(.soft)
+                }
+                .kitCard()
             } else {
                 Columns(sideWidth: 380, breakpoint: 760) {
                     heroCard
@@ -66,10 +70,16 @@ struct WealthPage: View {
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
         return VStack(alignment: .leading, spacing: 4) {
+            SectionHeader(title: "账户") {
+                Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
+                    .buttonStyle(.soft)
+                    .help("加账户、改名、删除")
+            }
+            .padding(.bottom, 6)
             ForEach(kinds, id: \.self) { kind in
                 let list = model.visibleAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
-                    Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 0 : 10)
+                    Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
                         .padding(.bottom, 4)
                     ForEach(list) { a in
                         let b = balances[a.id] ?? .zero

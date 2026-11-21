@@ -915,3 +915,52 @@ final class InsightTests: XCTestCase {
         XCTAssertEqual(i.body, "")
     }
 }
+
+
+final class BookManageTests: XCTestCase {
+    func testAddRenameRemoveEmptyBook() throws {
+        var l = Ledger.fresh
+        XCTAssertEqual(l.books.map(\.name), ["个人"])
+        try l.addBook(name: "家庭", author: "我")
+        XCTAssertThrowsError(try l.addBook(name: "家庭", author: "我"))
+        let id = try XCTUnwrap(l.books.first { $0.name == "家庭" }?.id)
+        try l.renameBook(id, to: "一家人", author: "我")
+        XCTAssertEqual(l.books.last?.name, "一家人")
+        let change = try l.removeBook(id, author: "我")
+        XCTAssertEqual(l.books.count, 1)
+        try l.undo(changeID: change.id, author: "我")
+        XCTAssertEqual(l.books.map(\.name).sorted(), ["一家人", "个人"].sorted())
+    }
+
+    func testLastBookCannotBeRemoved() {
+        var l = Ledger.fresh
+        XCTAssertThrowsError(try l.removeBook("personal", author: "我")) { XCTAssertEqual($0 as? ManageError, .lastBook) }
+    }
+
+    func testRemoveBookWithContentNeedsTargetAndUndoMovesBack() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]
+        let d = LocalDate(year: 2026, month: 11, day: 3)
+        let tx = Transaction(date: d, amount: Money(cents: -1200), description: "测试", accountID: "bank", bookID: "miora", category: "耗材")
+        l.transactions = [tx]
+        _ = try l.addGoal(name: "新设备", bookID: "miora", target: Money(cents: 50000), author: "我")
+        XCTAssertEqual(l.bookUsage("miora").transactions, 1)
+        XCTAssertThrowsError(try l.removeBook("miora", author: "我")) { XCTAssertEqual($0 as? ManageError, .bookInUse("Miora 美甲店", 2)) }
+        XCTAssertThrowsError(try l.removeBook("miora", moveTo: "miora", author: "我"))
+        let change = try l.removeBook("miora", moveTo: "personal", author: "我")
+        XCTAssertEqual(l.books.map(\.id), ["personal"])
+        XCTAssertEqual(l.transactions[0].bookID, "personal")
+        XCTAssertEqual(l.goals[0].bookID, "personal")
+        try l.undo(changeID: change.id, author: "我")
+        XCTAssertTrue(l.books.contains { $0.id == "miora" })
+        XCTAssertEqual(l.transactions[0].bookID, "miora")
+        XCTAssertEqual(l.goals[0].bookID, "miora")
+    }
+
+    func testOldBookWithoutKindStillDecodes() throws {
+        let data = Data(#"{"id":"x","name":"店","currency":"EUR"}"#.utf8)
+        let b = try JSONDecoder().decode(Book.self, from: data)
+        XCTAssertNil(b.kind)
+        XCTAssertFalse(b.isBusiness)
+    }
+}

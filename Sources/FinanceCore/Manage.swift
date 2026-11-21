@@ -8,6 +8,10 @@ public enum ManageError: Error, LocalizedError, Equatable {
     case sameAccount
     case emptyName
     case nothingToChange
+    case bookInUse(String, Int)
+    case lastBook
+    case sameBook
+    case duplicateName(String)
 
     public var errorDescription: String? {
         switch self {
@@ -15,6 +19,10 @@ public enum ManageError: Error, LocalizedError, Equatable {
         case .sameAccount: "转出和转入不能是同一个账户"
         case .emptyName: "名字不能空着"
         case .nothingToChange: "没有要改的内容"
+        case .bookInUse(let name, let n): "「\(name)」里还有 \(n) 样东西（流水、借款、分期、目标），删之前要选一个账本把它们挪过去。"
+        case .lastBook: "这是最后一个账本，至少要留一个。"
+        case .sameBook: "不能挪到要删的这个账本里。"
+        case .duplicateName(let name): "已经有叫「\(name)」的了，换个名字。"
         }
     }
 }
@@ -173,12 +181,13 @@ extension Ledger {
     }
 
     @discardableResult
-    public mutating func addBook(name: String, author: String) throws -> ChangeRecord {
+    public mutating func addBook(name: String, kind: BookKind = .personal, author: String) throws -> ChangeRecord {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { throw ManageError.emptyName }
         var id = trimmed.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
         if id.isEmpty || books.contains(where: { $0.id == id }) { id = "book-" + UUID().uuidString.prefix(6).lowercased() }
-        books.append(Book(id: id, name: trimmed))
+        guard !books.contains(where: { $0.name == trimmed }) else { throw ManageError.duplicateName(trimmed) }
+        books.append(Book(id: id, name: trimmed, kind: kind))
         let change = snapshotChange(.account, "加账本「\(trimmed)」", before: PlanSnapshot(addedBookIDs: [id]), author: author)
         changes.append(change)
         return change
@@ -191,8 +200,50 @@ extension Ledger {
         guard let i = books.firstIndex(where: { $0.id == id }) else { throw EditError.unknownBook(id) }
         let old = books[i]
         guard old.name != trimmed else { throw ManageError.nothingToChange }
+        guard !books.contains(where: { $0.name == trimmed }) else { throw ManageError.duplicateName(trimmed) }
         books[i].name = trimmed
         let change = snapshotChange(.account, "账本「\(old.name)」改名为「\(trimmed)」", before: PlanSnapshot(books: [old]), author: author)
+        changes.append(change)
+        return change
+    }
+
+    /// 这个账本里有多少东西：流水、借款、分期、目标。删账本前给人看后果。
+    public func bookUsage(_ id: String) -> (transactions: Int, plans: Int) {
+        (transactions.filter { $0.bookID == id }.count,
+         debts.filter { $0.bookID == id }.count + installments.filter { $0.bookID == id }.count + goals.filter { $0.bookID == id }.count)
+    }
+
+    /// 删账本。空账本直接删；里面有东西就要给 moveTo，把流水、借款、分期、目标、AI 意见都挪过去再删。整个能撤销。
+    @discardableResult
+    public mutating func removeBook(_ id: String, moveTo target: String? = nil, author: String) throws -> ChangeRecord {
+        guard let old = books.first(where: { $0.id == id }) else { throw EditError.unknownBook(id) }
+        guard books.count > 1 else { throw ManageError.lastBook }
+        let usage = bookUsage(id)
+        let total = usage.transactions + usage.plans
+        if let target {
+            guard target != id else { throw ManageError.sameBook }
+            guard books.contains(where: { $0.id == target }) else { throw EditError.unknownBook(target) }
+        } else if total > 0 {
+            throw ManageError.bookInUse(old.name, total)
+        }
+        var snapshot = PlanSnapshot(books: [old])
+        snapshot.debts = debts.filter { $0.bookID == id }
+        snapshot.installments = installments.filter { $0.bookID == id }
+        snapshot.goals = goals.filter { $0.bookID == id }
+        snapshot.insights = insights.filter { $0.bookID == id }
+        let previous = transactions.filter { $0.bookID == id }
+        if let target {
+            for k in transactions.indices where transactions[k].bookID == id { transactions[k].bookID = target }
+            for k in debts.indices where debts[k].bookID == id { debts[k].bookID = target }
+            for k in installments.indices where installments[k].bookID == id { installments[k].bookID = target }
+            for k in goals.indices where goals[k].bookID == id { goals[k].bookID = target }
+            for k in insights.indices where insights[k].bookID == id { insights[k].bookID = target }
+        }
+        books.removeAll { $0.id == id }
+        let into = target.flatMap { t in books.first { $0.id == t }?.name }
+        let summary = into.map { "删账本「\(old.name)」，里面的 \(total) 样东西挪到「\($0)」" } ?? "删账本「\(old.name)」"
+        let change = snapshotChange(.account, summary, ids: previous.map(\.id), before: snapshot,
+                                    previous: previous.isEmpty ? nil : previous, author: author)
         changes.append(change)
         return change
     }

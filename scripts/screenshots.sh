@@ -34,6 +34,11 @@ if [ -n "$IOS_APP" ]; then
   ios 8-dark -XiaxiaDemo
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
   ios 9-empty -XiaxiaEmpty
+  ios 10-books -XiaxiaDemo -XiaxiaSheet books
+  ios 11-accounts -XiaxiaDemo -XiaxiaSheet accounts
+  ios 12-categories -XiaxiaDemo -XiaxiaSheet categories
+  ios 13-empty-wealth -XiaxiaEmpty -XiaxiaSection wealth
+  ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
 fi
 
 # GitHub 的机器截不到 Mac 窗口（只有黑屏），所以 CI 上跳过 Mac 部分；在自己的 Mac 上跑会截。
@@ -66,5 +71,7 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   mac 9-settings -XiaxiaDemo -XiaxiaSection settings
   mac 10-add -XiaxiaDemo -XiaxiaSheet add
   mac 11-empty -XiaxiaEmpty
+  mac 12-books -XiaxiaDemo -XiaxiaSheet books
+  mac 13-accounts -XiaxiaDemo -XiaxiaSheet accounts
 fi
 ls -la "$OUT"

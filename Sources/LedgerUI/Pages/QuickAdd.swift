@@ -14,6 +14,10 @@ struct QuickAdd: View {
     @State var date = LocalDate.today
     @State var note = ""
     @State var error: String?
+    @State var customCategory: String?
+    @State var askCategory = false
+    @State var askAccount = false
+    @State var newName = ""
     @FocusState var amountFocused: Bool
 
     private var amount: Money? {
@@ -42,7 +46,9 @@ struct QuickAdd: View {
                     }
                     Menu {
                         ForEach(model.visibleAccounts) { a in Button(a.name) { accountID = a.id } }
-                    } label: { pillLabel(model.accountName(accountID) + " ▾", on: false) }
+                        if !model.visibleAccounts.isEmpty { Divider() }
+                        Button { newName = ""; askAccount = true } label: { Label("新账户…", systemImage: "plus") }
+                    } label: { pillLabel((accountID.isEmpty ? "选账户" : model.accountName(accountID)) + " ▾", on: accountID.isEmpty) }
                         .menuStyle(.button).buttonStyle(.plain).fixedSize()
                     Menu {
                         Button("今天") { date = .today }
@@ -68,7 +74,7 @@ struct QuickAdd: View {
             .buttonStyle(.borderedProminent)
             .tint(.brand)
             .controlSize(.large)
-            .disabled(amount == nil || category == nil)
+            .disabled(amount == nil || category == nil || accountID.isEmpty)
             .keyboardShortcut(.defaultAction)
 
             AskAIReader { ask in
@@ -84,12 +90,28 @@ struct QuickAdd: View {
             ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
         }
         .onAppear(perform: setup)
-        .onChange(of: income) { _, _ in category = nil }
+        .onChange(of: income) { _, _ in category = nil; customCategory = nil }
+        .alert("新分类", isPresented: $askCategory) {
+            TextField("分类名字", text: $newName)
+            Button("取消", role: .cancel) {}
+            Button("用这个") {
+                let n = newName.trimmingCharacters(in: .whitespaces)
+                if !n.isEmpty { customCategory = n; category = n }
+            }
+        }
+        .alert("新账户", isPresented: $askAccount) {
+            TextField("名字，比如「现金」「银行卡」", text: $newName)
+            Button("取消", role: .cancel) {}
+            Button("加上") { addAccount() }
+        } message: { Text("类型、余额以后可以在「设置 → 管理账户」里改。") }
         .onChange(of: bookID) { _, _ in if let c = category, !categories.contains(c) { category = nil } }
         .errorAlert($error)
     }
 
-    private var categories: [String] { model.categories(bookID: bookID, income: income, limit: 8) }
+    private var categories: [String] {
+        let list = model.categories(bookID: bookID, income: income, limit: customCategory == nil ? 7 : 6)
+        return list + [customCategory].compactMap { $0 }.filter { !list.contains($0) }
+    }
 
     private var amountDisplay: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -131,6 +153,16 @@ struct QuickAdd: View {
                 .buttonStyle(.pressable)
                 .accessibilityAddTraits(category == c ? .isSelected : [])
             }
+            Button { newName = ""; askCategory = true } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.fg2)
+                        .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
+                    Text("新分类").font(.caption).foregroundStyle(Color.fg2)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 7)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.pressable)
         }
     }
 
@@ -154,6 +186,16 @@ struct QuickAdd: View {
         // 稍等一下再把光标放进金额框：面板刚弹出来时系统还在给它找焦点。
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { amountFocused = true }
         #endif
+    }
+
+    private func addAccount() {
+        let name = newName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let a = Account(id: model.ledger.newAccountID(for: name), name: name, kind: name.contains("现金") ? .cash : .bank)
+        do {
+            try model.edit(quiet: true) { try $0.createAccount(a, author: model.author) }
+            accountID = a.id
+        } catch { self.error = error.localizedDescription }
     }
 
     private func save() {

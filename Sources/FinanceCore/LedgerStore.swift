@@ -23,7 +23,7 @@ public struct JSONFileLedgerStore: LedgerStore {
     }
 
     public func load() throws -> Ledger {
-        guard FileManager.default.fileExists(atPath: url.path) else { return .starter }
+        guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

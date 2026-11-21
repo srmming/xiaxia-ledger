@@ -7,6 +7,7 @@ struct SettingsPage: View {
     @Environment(\.openURL) var openURL
     @State var name = ""
     @FocusState var nameFocused: Bool
+    @State var manage: AppSheet?
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
@@ -51,13 +52,16 @@ struct SettingsPage: View {
                         .multilineTextAlignment(.trailing).textSelection(.enabled)
                 }
             }
-            group("账本") {
+            group("账本、账户和分类") {
                 ForEach(model.ledger.books) { b in
-                    let n = Set(model.ledger.transactions.filter { $0.bookID == b.id }.map(\.accountID)).count
+                    let n = model.ledger.bookUsage(b.id).transactions
                     item(monogram: Monogram(text: b.name, color: model.bookColor(b.id), size: 26), title: b.name) {
-                        Text("\(n) 个账户").foregroundStyle(Color.fg2)
+                        Text("\(n) 笔流水").foregroundStyle(Color.fg2)
                     }
                 }
+                manageRow("books.vertical", "管理账本（新建、改名、删除）", .books)
+                manageRow("building.columns", "管理账户（\(model.ledger.accounts.count) 个）", .accounts)
+                manageRow("square.grid.2x2", "管理分类", .categories)
             }
             group("隐私和外观") {
                 item(symbol: "eye.slash.fill", color: .fg3, title: "显示私房钱") {
@@ -76,12 +80,36 @@ struct SettingsPage: View {
             }
         }
         .kitPage()
+        // 设置在 iPhone 上本身就是弹出的一页，管理页从这里再弹一层，不走总的 sheet。
+        .sheet(item: $manage) { sheet in
+            NavigationStack {
+                switch sheet {
+                case .books: BookManager()
+                case .accounts: AccountManager()
+                default: CategoryManager()
+                }
+            }
+            .environment(model)
+            .tint(Color.brand)
+            #if os(macOS)
+            .frame(width: 520, height: 580)
+            #endif
+        }
         .onAppear {
             name = model.author
             // 别让名字框一打开就抢走光标（Mac 会把第一个输入框自动选中）。
             DispatchQueue.main.async { nameFocused = false }
         }
         .onDisappear { saveName() }
+    }
+
+    private func manageRow(_ symbol: String, _ title: String, _ sheet: AppSheet) -> some View {
+        Button { manage = sheet } label: {
+            item(symbol: symbol, color: .brand, title: title) {
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var version: String {

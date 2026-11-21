@@ -34,7 +34,7 @@ public enum Reports {
     }
 
     /// 「和别的账本之间挪的钱」该怎么叫：进来的叫「从别的账本拿的」，出去的叫「拿去别的账本的」。
-    /// 只有两个账本时直接说对方的名字，比如个人账本里显示「从 Miora 美甲店拿的」。
+    /// 只有两个账本时直接说对方的名字，比如个人账本里显示「从小店拿的」。
     public static func betweenBooksLabel(_ amount: Money, bookID: String, books: [Book]) -> String {
         let others = books.filter { $0.id != bookID }
         let other = others.count == 1 ? others[0].name : "别的账本"
