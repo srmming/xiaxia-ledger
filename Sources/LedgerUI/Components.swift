@@ -1,6 +1,9 @@
 import FinanceCore
 import SwiftUI
 
+/// SwiftUI 也有 Transaction（动画事务），在 LedgerUI 里 Transaction 一律指流水。
+typealias Transaction = FinanceCore.Transaction
+
 /// logo 的珊瑚色，只用在重点处。
 public extension Color {
     static let coral = Color(red: 1.0, green: 0.42, blue: 0.29)
