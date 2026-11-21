@@ -4,17 +4,17 @@ import SwiftUI
 /// 极简记一笔：花掉 / 进账、金额、常用 8 个分类、账本、账户、日期、备注。3 秒记完。
 /// 拆单、分期、借款、导对账单、批量改，都交给 AI。记下的这笔标「你」，写进改动记录，能撤销。
 struct QuickAdd: View {
-    @Environment(LedgerModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var income = false
-    @State private var amountText = ""
-    @State private var category: String?
-    @State private var bookID = ""
-    @State private var accountID = ""
-    @State private var date = LocalDate.today
-    @State private var note = ""
-    @State private var error: String?
-    @FocusState private var amountFocused: Bool
+    @Environment(LedgerModel.self) var model
+    @Environment(\.dismiss) var dismiss
+    @State var income = false
+    @State var amountText = ""
+    @State var category: String?
+    @State var bookID = ""
+    @State var accountID = ""
+    @State var date = LocalDate.today
+    @State var note = ""
+    @State var error: String?
+    @FocusState var amountFocused: Bool
 
     private var amount: Money? {
         guard let m = Money(parsing: amountText.replacingOccurrences(of: " ", with: "")), m.cents != 0 else { return nil }

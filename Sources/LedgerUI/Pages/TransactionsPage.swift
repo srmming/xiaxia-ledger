@@ -14,13 +14,13 @@ public struct TransactionFilter: Hashable {
 
 /// 流水：这一笔是怎么回事？搜索框 + 按天分组的列表，Mac 右边是详情（能改分类、账本，能删、能撤销）。
 struct TransactionsPage: View {
-    @Environment(LedgerModel.self) private var model
-    @State private var query = ""
-    @State private var filter: TransactionFilter
+    @Environment(LedgerModel.self) var model
+    @State var query = ""
+    @State var filter: TransactionFilter
 
     init(filter: TransactionFilter = TransactionFilter()) { _filter = State(initialValue: filter) }
-    @State private var selected: UUID?
-    @State private var width: CGFloat = 1000
+    @State var selected: UUID?
+    @State var width: CGFloat = 1000
 
     var body: some View {
         let list = filtered
@@ -198,7 +198,7 @@ struct TransactionsPage: View {
 
 /// 去别的页面：Mac 上切侧栏，iPhone 上推进去。
 struct SectionLink<L: View>: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let section: AppSection
     var filter: TransactionFilter? = nil
     @ViewBuilder var label: () -> L
@@ -223,9 +223,9 @@ struct SectionLink<L: View>: View {
 
 /// 一笔流水的详情。Mac 上能改分类、账本，能删、能撤销；iPhone 上只看。
 struct TransactionDetail: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let tx: Transaction
-    @State private var confirmDelete = false
+    @State var confirmDelete = false
 
     private var editable: Bool {
         #if os(macOS)

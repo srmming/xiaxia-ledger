@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 家底：我一共有多少钱？视觉重心是净资产 + 12 个月曲线。
 struct WealthPage: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         Group {

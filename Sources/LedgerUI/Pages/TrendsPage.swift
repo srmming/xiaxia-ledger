@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 趋势：比以前好还是差？视觉重心是近 12 个月进账 / 花掉柱状图上面的「平均每月剩多少」。
 struct TrendsPage: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         let months = Reports.months(endingAt: model.shownMonth, count: 12)

@@ -6,7 +6,7 @@ struct Columns<Main: View, Side: View>: View {
     var breakpoint: CGFloat = 720
     @ViewBuilder var main: () -> Main
     @ViewBuilder var side: () -> Side
-    @State private var width: CGFloat = 1000
+    @State var width: CGFloat = 1000
 
     var body: some View {
         let wide = width >= breakpoint
@@ -39,7 +39,7 @@ struct CardRow<Item: Identifiable, Content: View>: View {
     let items: [Item]
     var minWidth: CGFloat = 260
     @ViewBuilder var content: (Item) -> Content
-    @State private var width: CGFloat = 1000
+    @State var width: CGFloat = 1000
 
     var body: some View {
         let perRow = max(1, min(items.count, Int((width + Kit.gap) / (minWidth + Kit.gap))))

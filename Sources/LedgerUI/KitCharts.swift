@@ -4,8 +4,8 @@ import SwiftUI
 
 /// 图表打开时从左往右画出来；系统开了「减弱动态效果」就直接显示。
 private struct RevealFromLeading: ViewModifier {
-    @State private var progress: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var progress: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     func body(content: Content) -> some View {
         content
             .mask(alignment: .leading) {
@@ -132,8 +132,8 @@ struct CategoryDonut: View {
     let centerLabel: String
     let total: Money
     var size: CGFloat = 240
-    @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var shown = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     static func slices(_ totals: [(name: String, amount: Money)]) -> [CategorySlice] {
         let top = totals.prefix(6).map { CategorySlice(name: $0.name, amount: $0.amount) }

@@ -3,8 +3,8 @@ import SwiftUI
 
 /// 花销：钱都花在哪了？视觉重心是分类圆环，中间是本月花掉的总数。
 struct SpendingPage: View {
-    @Environment(LedgerModel.self) private var model
-    @State private var byChange = false
+    @Environment(LedgerModel.self) var model
+    @State var byChange = false
 
     var body: some View {
         let month = model.shownMonth

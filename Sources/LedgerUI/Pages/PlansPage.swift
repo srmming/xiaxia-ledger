@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 计划：离目标还差多少？视觉重心是最快到期（或最接近完成）的目标，一个大进度环。
 struct PlansPage: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         let goals = filteredGoals

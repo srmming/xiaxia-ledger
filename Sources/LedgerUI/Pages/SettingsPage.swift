@@ -3,9 +3,9 @@ import SwiftUI
 
 /// 设置：AI 连上了吗？同步正常吗？
 struct SettingsPage: View {
-    @Environment(LedgerModel.self) private var model
-    @Environment(\.openURL) private var openURL
-    @State private var name = ""
+    @Environment(LedgerModel.self) var model
+    @Environment(\.openURL) var openURL
+    @State var name = ""
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {

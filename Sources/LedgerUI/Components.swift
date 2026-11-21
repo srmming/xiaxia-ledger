@@ -75,7 +75,7 @@ extension View {
 }
 
 private struct HoverHighlight: ViewModifier {
-    @State private var hovering = false
+    @State var hovering = false
     func body(content: Content) -> some View {
         #if os(macOS)
         content
@@ -309,8 +309,8 @@ struct Bar: View {
     let fraction: Double
     var color: Color = .brand
     var height: CGFloat = 6
-    @State private var grown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var grown = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {

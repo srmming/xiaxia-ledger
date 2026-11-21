@@ -3,7 +3,7 @@ import SwiftUI
 
 /// AI 意见：AI 怎么看我的钱？以后 AI 经 MCP 把点评和提醒写进账本，这里显示；现在先引你去问 AI，并列出 AI 最近做了什么。
 struct InsightsPage: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         let tools = model.aiTools
@@ -85,8 +85,8 @@ struct StatusDot: View {
 
 /// 还没连上 AI：复制 MCP 配置，粘进 Claude / Codex 的设置。
 struct NotConnectedCard: View {
-    @Environment(LedgerModel.self) private var model
-    @Environment(\.openURL) private var openURL
+    @Environment(LedgerModel.self) var model
+    @Environment(\.openURL) var openURL
 
     var body: some View {
         VStack(spacing: 10) {
@@ -116,8 +116,8 @@ struct NotConnectedCard: View {
 
 /// 改动记录：AI 最近动了什么？按时间排，谁改的一眼看出，能撤销。
 struct ChangesPage: View {
-    @Environment(LedgerModel.self) private var model
-    @State private var who = 0   // 0 全部、1 只看 AI、2 只看我
+    @Environment(LedgerModel.self) var model
+    @State var who = 0   // 0 全部、1 只看 AI、2 只看我
 
     var body: some View {
         let all = model.ledger.changes.sorted { $0.createdAt > $1.createdAt }
@@ -179,7 +179,7 @@ struct ChangesPage: View {
 
 /// 一条改动：头像、「谁 做了什么」、时间、涉及的几笔、撤销。
 struct ChangeRow: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let change: ChangeRecord
     var showUndo = true
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 总览：这个月我过得怎么样？视觉重心是「本月还剩多少」+ 一句结论 + 花钱速度线。
 struct OverviewPage: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         if model.ledger.transactions.isEmpty {

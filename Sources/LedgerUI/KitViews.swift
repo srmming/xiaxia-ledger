@@ -163,7 +163,7 @@ extension LedgerModel {
 
 /// 一笔流水：图标、商户名、「AI / 你」小标签 + 分类 · 账本 · 账户、金额。
 struct TxRow: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let tx: Transaction
     var showDate = false
 
@@ -208,7 +208,7 @@ struct TxRow: View {
 // MARK: - 账本卡
 
 struct BookCard: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let book: Book
 
     var body: some View {
@@ -282,8 +282,8 @@ struct GoalRing: View {
     var color: Color = Color.kit(0xF4607A, 0xFF7A90)
     var lineWidth: CGFloat = 16
     var caption = "已存"
-    @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var shown = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         let f = min(max(fraction, 0), 1)

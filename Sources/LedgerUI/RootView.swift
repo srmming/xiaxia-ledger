@@ -49,8 +49,8 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
 
 /// app 的根视图：iPhone 用 5 个标签，Mac 用侧栏 + 工具栏。
 public struct RootView: View {
-    @Environment(LedgerModel.self) private var model
-    @Environment(\.scenePhase) private var scenePhase
+    @Environment(LedgerModel.self) var model
+    @Environment(\.scenePhase) var scenePhase
 
     public init() {}
 
@@ -119,7 +119,7 @@ public struct RootView: View {
 
 /// 账本读不出来：说清楚原因，给「再试一次」和「让 AI 检查」。
 struct LoadErrorView: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     let error: String
 
     var body: some View {
@@ -152,7 +152,7 @@ struct LoadErrorView: View {
 
 #if os(macOS)
 struct MacRoot: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
 
     var body: some View {
         @Bindable var model = model
@@ -170,7 +170,7 @@ struct MacRoot: View {
             NavigationStack {
                 section.screen
                     .navigationTitle(section.rawValue)
-                    .toolbar { MacToolbar(section: section) }
+                    .toolbar { MacToolbar(model: model, section: section) }
             }
             .id(section)
         }
@@ -183,7 +183,7 @@ struct MacRoot: View {
 
 /// 侧栏底部：同步状态和 AI 最近一次写入。
 struct SidebarFooter: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Divider().padding(.bottom, 6)
@@ -208,7 +208,7 @@ struct SidebarFooter: View {
 
 /// 工具栏：月份、账本切换（全部 / 每个账本）、记一笔、问 AI。
 struct MacToolbar: ToolbarContent {
-    @Environment(LedgerModel.self) private var model
+    let model: LedgerModel
     let section: AppSection
 
     var body: some ToolbarContent {
@@ -218,11 +218,11 @@ struct MacToolbar: ToolbarContent {
                              latest: LocalDate.today.yearMonth)
             }
             if section.usesBook, model.ledger.books.count > 1 {
-                BookSwitch()
+                BookSwitch().environment(model)
             }
             Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
-            AskAIButton(page: section.rawValue)
+            AskAIButton(page: section.rawValue).environment(model)
         }
     }
 }
@@ -230,7 +230,7 @@ struct MacToolbar: ToolbarContent {
 
 /// 账本切换：全部 / 每个账本。
 struct BookSwitch: View {
-    @Environment(LedgerModel.self) private var model
+    @Environment(LedgerModel.self) var model
     var body: some View {
         Picker("账本", selection: Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })) {
             Text("全部").tag(String?.none)
@@ -248,9 +248,9 @@ struct BookSwitch: View {
 #if os(iOS)
 /// iPhone 的 5 个标签：总览、收支（花销 + 趋势）、家底、计划、AI。
 struct PhoneRoot: View {
-    @Environment(LedgerModel.self) private var model
-    @State private var flowsTab = 0
-    @State private var showSettings = false
+    @Environment(LedgerModel.self) var model
+    @State var flowsTab = 0
+    @State var showSettings = false
 
     private var tab: Binding<AppSection> {
         Binding(get: {
@@ -341,7 +341,7 @@ struct PhoneRoot: View {
 
 /// 两个 app 共用的场景。
 public struct XiaxiaScene: Scene {
-    @State private var model: LedgerModel
+    @State var model: LedgerModel
 
     public init() {
         // 截图和演示：启动参数带 -XiaxiaDemo 就用编造的示例账本，-XiaxiaEmpty 是空账本，都不碰真实数据。

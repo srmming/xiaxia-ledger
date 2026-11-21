@@ -87,8 +87,8 @@ struct AskAIAction {
 
 /// 页面里用：@Environment(\.openURL) + model 拼出 AskAIAction。
 struct AskAIReader<Content: View>: View {
-    @Environment(LedgerModel.self) private var model
-    @Environment(\.openURL) private var openURL
+    @Environment(LedgerModel.self) var model
+    @Environment(\.openURL) var openURL
     @ViewBuilder var content: (AskAIAction) -> Content
     var body: some View { content(AskAIAction(model: model, openURL: openURL)) }
 }
