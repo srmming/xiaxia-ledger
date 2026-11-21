@@ -211,6 +211,14 @@ for spec in \
   call "${spec%%|*}" "${spec#*|}"
 done
 
+echo; echo "===== fin connect：让 AI 自己把夏夏账本连上（在假的主目录里试） ====="
+FAKEHOME="$WORK/home"; mkdir -p "$FAKEHOME/.codex"
+HOME="$FAKEHOME" run connect --list
+HOME="$FAKEHOME" run connect codex
+HOME="$FAKEHOME" run connect --all --dry-run
+expect_fail connect nosuchtool
+grep -q "mcp_servers.xiaxia-ledger" "$FAKEHOME/.codex/config.toml" && cat "$FAKEHOME/.codex/config.toml" || { echo "↳ Codex 配置没写进去"; FAILS=$((FAILS + 1)); }
+
 echo; echo "===== 历史里的作者 ====="
 "$FIN" history --limit 4
 

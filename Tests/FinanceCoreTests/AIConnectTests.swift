@@ -126,6 +126,13 @@ final class AIConnectTests: XCTestCase {
         XCTAssertEqual(AIApp.displayName(clientName: "cherry-studio"), "cherry-studio")
     }
 
+    func testSetupPromptAndCLINames() {
+        let p = AIConnector.setupPrompt(fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
+        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" connect --list"#))
+        XCTAssertTrue(p.contains("xiaxia-ledger"))
+        for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.cliName)) }
+    }
+
     func testConnectionsLog() {
         let url = home.appendingPathComponent("ai-connections.json")
         XCTAssertTrue(AIConnections.load(url).isEmpty)

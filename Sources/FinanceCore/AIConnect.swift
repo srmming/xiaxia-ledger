@@ -17,6 +17,19 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// 命令行里的名字：fin connect claude-desktop
+    public var cliName: String {
+        switch self {
+        case .claudeDesktop: "claude-desktop"
+        case .claudeCode: "claude-code"
+        case .codex: "codex"
+        case .cursor: "cursor"
+        case .gemini: "gemini"
+        }
+    }
+
+    public static func from(cliName: String) -> AIApp? { allCases.first { $0.cliName == cliName.lowercased() } }
+
     /// 写好配置之后要做什么才能用上。
     public var afterConnect: String {
         switch self {
@@ -107,6 +120,23 @@ public struct AIConnector: Sendable {
         let obj: [String: Any] = ["mcpServers": [serverName: ["command": fin, "args": ["mcp"]]]]
         let data = (try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])) ?? Data()
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// 「复制一段话给 AI，让它自己配好」：能在这台 Mac 上跑命令的 AI（Claude Code、Codex……）直接跑 fin connect；
+    /// 不能跑命令的，照着里面的配置自己加，或者告诉用户去哪儿粘。
+    public static func setupPrompt(fin: String) -> String {
+        let names = AIApp.allCases.map(\.cliName).joined(separator: " / ")
+        return """
+        请帮我把记账软件「夏夏账本」接到你身上（MCP），接好后我就能让你帮我记账、看账。
+
+        夏夏账本已经装在这台 Mac 上，它的 MCP 服务是：\(fin) mcp
+
+        1. 如果你能在这台 Mac 上运行命令：先运行 "\(fin)" connect --list 看看状态，再运行 "\(fin)" connect 你自己的名字（\(names) 之一）。
+        2. 如果你不在上面这些里，或者不能运行命令：把下面这段加进你的 MCP 服务器设置（stdio 类型）；你自己改不了设置的话，告诉我该点哪里、粘到哪儿。
+        \(configSnippet(fin: fin))
+        3. 配好后告诉我要不要重启你、怎么重启。重启后调用 xiaxia-ledger 的 context 工具，确认能读到账本，再跟我说一句「连好了」。
+        不要改这段以外的设置，也不要动账本文件。
+        """
     }
 
     public func configURL(_ app: AIApp) -> URL { home.appendingPathComponent(app.configPath) }

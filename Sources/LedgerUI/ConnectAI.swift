@@ -39,6 +39,9 @@ extension LedgerModel {
         return AIConnector(home: fake, fin: fin, appFolders: [fake.appendingPathComponent("Applications")])
     }
 
+    /// 「复制一段话给 AI，让它自己配好」。
+    var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
+
     /// 有没有任何 AI 连过账本：写过账、握过手、或者配置里已经有了。
     var anyAIConnected: Bool {
         if !aiTools.isEmpty { return true }
@@ -106,6 +109,7 @@ struct ConnectAIView: View {
                 }
             } else {
                 toolsSection
+                selfSetupSection
                 otherSection
                 trySection
             }
@@ -203,6 +207,28 @@ struct ConnectAIView: View {
         case .claudeDesktop: "bubble.left.and.text.bubble.right.fill"
         case .claudeCode, .codex, .gemini: "terminal.fill"
         case .cursor: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+
+    // MARK: 或者让 AI 自己配
+
+    private var selfSetupSection: some View {
+        Section {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("复制一段话发给你的 AI，它会自己把夏夏账本配好").font(.body)
+                    Text("适合 Claude Code、Codex 这类能在电脑上执行命令的 AI，也适合上面没列出来的工具：AI 会告诉你粘到哪儿。")
+                        .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    Clipboard.copy(model.aiSetupPrompt)
+                    model.toast = .init(text: "已复制，粘贴给你的 AI 就行", changeID: nil)
+                } label: { Label("复制这段话", systemImage: "doc.on.doc") }
+                    .buttonStyle(.softAI)
+            }
+        } header: {
+            Text("或者：让 AI 自己配")
         }
     }
 
@@ -347,5 +373,79 @@ struct ConnectAIPhoneNote: View {
     var body: some View {
         Text("AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，设置 →「连上你的 AI」。连好后 AI 记的账会同步到这里。")
             .font(.caption).foregroundStyle(Color.fg2)
+    }
+}
+
+/// 设置页「AI 连接（MCP）」：每个 AI 工具连没连、最近一次用账本是什么时候；没连的一键连上。
+struct AIStatusRows: View {
+    @Environment(LedgerModel.self) var model
+    @State private var rows: [(app: AIApp, installed: Bool, connected: Bool, repair: Bool)] = []
+    @State private var handshakes: [String: Date] = [:]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            let shown = rows.filter { $0.installed || $0.connected || $0.repair }
+            if shown.isEmpty {
+                line(symbol: "sparkles", color: .fg3, title: "这台 Mac 上没找到能自动连的 AI 工具", detail: "点下面「连上你的 AI」看看别的办法") { EmptyView() }
+            }
+            ForEach(shown, id: \.app) { r in
+                line(symbol: r.connected ? "checkmark" : "link", color: r.connected ? .income : .fg3, title: r.app.name, detail: detail(r)) {
+                    if !r.connected {
+                        Button(r.repair ? "重新连" : "连上") { connect(r.app) }.buttonStyle(.softAI)
+                    }
+                }
+            }
+            // 握手过、但不是上面能自动连的工具（比如 Cherry Studio）
+            ForEach(otherClients, id: \.self) { name in
+                line(symbol: "checkmark", color: .income, title: name, detail: "已连上 · \(handshakes[name]!.friendly) 用过账本") { EmptyView() }
+            }
+        }
+        .task {
+            while !Task.isCancelled { refresh(); try? await Task.sleep(for: .seconds(3)) }
+        }
+    }
+
+    private var otherClients: [String] {
+        handshakes.keys.filter { AIApp.from(clientName: $0) == nil && $0 != "AI" }.sorted()
+    }
+
+    private func detail(_ r: (app: AIApp, installed: Bool, connected: Bool, repair: Bool)) -> String {
+        let seen = handshakes.filter { AIApp.from(clientName: $0.key) == r.app }.map(\.value).max()
+        if r.connected { return seen.map { "已连上 · \($0.friendly) 用过账本" } ?? "已连上 · 还没用过（\(r.app.afterConnect)）" }
+        if r.repair { return "以前连过，夏夏账本换了位置，要重新连" }
+        return "装了，还没连"
+    }
+
+    private func line<Trailing: View>(symbol: String, color: Color, title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                .frame(width: 26, height: 26).background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.callout)
+                Text(detail).font(.caption).foregroundStyle(Color.fg2)
+            }
+            Spacer(minLength: 8)
+            trailing().font(.callout)
+        }
+        .padding(.vertical, 7)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func refresh() {
+        guard let c = model.aiConnector else { return }
+        rows = AIApp.allCases.map { ($0, c.isInstalled($0), c.isConnected($0), c.needsRepair($0)) }
+        if !model.usesSampleData { handshakes = AIConnections.load() }
+    }
+
+    private func connect(_ app: AIApp) {
+        guard let c = model.aiConnector else { return }
+        do {
+            try c.connect(app)
+            model.toast = .init(text: "已连上 \(app.name)，\(app.afterConnect)就能用", changeID: nil)
+        } catch {
+            model.toast = .init(text: error.localizedDescription, changeID: nil, isError: true)
+        }
+        refresh()
     }
 }
