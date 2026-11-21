@@ -127,7 +127,7 @@ public struct TransactionsView: View {
         }
         .animation(.snappy, value: selection.isEmpty)
         .alert("改成什么分类？", isPresented: Binding(get: { customCategoryFor != nil }, set: { if !$0 { customCategoryFor = nil } })) {
-            PromptField("分类名", text: $customCategory)
+            TextField("分类名", text: $customCategory)
             Button("取消", role: .cancel) { customCategoryFor = nil }
             Button("改") {
                 let name = customCategory.trimmingCharacters(in: .whitespaces)

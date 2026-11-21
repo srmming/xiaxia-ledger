@@ -66,12 +66,12 @@ public struct SettingsView: View {
         content
         .navigationTitle("设置")
         .alert("新账本叫什么？", isPresented: $addingBook) {
-            PromptField("如「房东收租」", text: $newBook)
+            TextField("如「房东收租」", text: $newBook)
             Button("取消", role: .cancel) {}
             Button("加上") { model.perform { try $0.addBook(name: newBook, author: model.author) } }
         }
         .alert("账本改名", isPresented: Binding(get: { renamingBook != nil }, set: { if !$0 { renamingBook = nil } })) {
-            PromptField("名字", text: $bookName)
+            TextField("名字", text: $bookName)
             Button("取消", role: .cancel) { renamingBook = nil }
             Button("改") {
                 if let b = renamingBook { model.perform { try $0.renameBook(b.id, to: bookName, author: model.author) } }
@@ -412,7 +412,7 @@ struct CategoriesView: View {
         }
         .navigationTitle("分类")
         .alert("「\(renaming ?? "")」改成什么？", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            PromptField("新名字", text: $newName)
+            TextField("新名字", text: $newName)
             Button("取消", role: .cancel) { renaming = nil }
             Button("改") {
                 if let old = renaming, newName.trimmingCharacters(in: .whitespaces) != old {

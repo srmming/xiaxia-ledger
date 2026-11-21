@@ -13,8 +13,8 @@
 | 说明书（先看这个） | `fin context [--json]` | `context` |
 | 账本列表 | `fin books` | 在 `context` 里 |
 | 账户和余额 | `fin accounts` | `accounts` |
-| 查流水 | `fin tx [--book miora] [--account caixa] [--month 2026-11] [--category 餐饮] [--limit 50]` | `list_transactions`（还能 `query` 搜说明；私房钱要 `include_private`） |
-| 月度收支和分类 | `fin summary --month 2026-11 [--book personal]` | `summary` |
+| 查流水 | `fin tx [--include-private] [--book miora] [--account caixa] [--month 2026-11] [--category 餐饮] [--limit 50]` | `list_transactions`（还能 `query` 搜说明；私房钱要 `include_private`） |
+| 收支和分类汇总 | `fin summary --month 2026-11｜--year 2026｜--from 2026-01 --to 2026-06 [--book personal] [--include-private]`（JSON 字段：period book income expense net byCategory months） | `summary`（month 或 year 或 from+to） |
 | 谁欠我、我欠谁 | `fin debts [--all]` | `debts` |
 | 分期 | `fin installments` | `installments` |
 | 目标和储蓄 | `fin goals` | `goals` |
@@ -37,16 +37,15 @@
 | 删流水 | `fin rm <编号…>`（先 `--dry-run`） | `delete_transactions` |
 | 自己账户间挪钱 | `fin transfer move 50 --from-account caixa --to-account cash` | `account_transfer` |
 | 已导入的标成互转 | `fin transfer mark <编号…> [--counter-account cash]` | `mark_account_transfer` |
-| 账本间转账 | `fin transfer new 200 --from miora --to personal --account caixa`；已有两笔：`fin transfer link <转出> <转入>` | 暂无 |
+| 账本间转账 | `fin transfer new 200 --from miora --to personal --account caixa`；已有两笔：`fin transfer link <转出> <转入>` | `book_transfer`（新记） |
 | 导入对账单 | `fin import 文件.csv --account revolut`（Revolut 自动认）；通用：`--date-col --amount-col｜--debit-col --credit-col --desc-col [--skip-rows] [--category-col --book-col --flow-col] [--book]` | `import_statement` |
 | 加账户 | `fin account add stash 私房钱 --kind bank｜credit｜cash｜wallet｜savings [--private]` | `add_account`（可带 `opening_balance`） |
 | 开账余额 | `fin account opening caixa 382,64 [--date …]`（信用卡欠款写负数） | `set_opening_balance` |
 | 分期 | `fin installment add 名称 总额 --count 6 --account … --book … [--first] [--fee] [--category]`；`fin installment pay 名称 [--tx 编号] [--amount]` | `add_installment`、`pay_installment` |
-| 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`（取钱暂无） |
+| 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
 | 撤销 | `fin undo <改动编号>` | `undo` |
 
 ## 还做不到的（要做就告诉 ming，别绕过去直接改文件）
 
 - 转账、借款、分期、目标里的流水不能 `edit`，要先 `undo` 再重记。
-- 按日期范围、按全年汇总（按月跑 `summary` / `report` 再加）。
-- MCP 里没有账本间转账（`transfer new/link`）和目标取钱（`goal withdraw`），用命令行。
+- MCP 里没有 `transfer link`（把已有两笔标成账本间转账），用命令行。
