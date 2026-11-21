@@ -10,6 +10,8 @@ public enum EditError: Error, LocalizedError, Equatable {
     case notUndoable
     case amountMustBePositive
     case lockedGoal(String)
+    case unknownTransaction(String, Int)
+    case transferMismatch
 
     public var errorDescription: String? {
         switch self {
@@ -21,6 +23,8 @@ public enum EditError: Error, LocalizedError, Equatable {
         case .notUndoable: "这条改动后面还有依赖它的改动，先撤销后面的"
         case .amountMustBePositive: "金额要大于 0"
         case .lockedGoal(let name): "「\(name)」是锁定的储蓄，到期前不能动"
+        case .unknownTransaction(let key, let n): n == 0 ? "找不到流水 \(key)" : "流水编号 \(key) 对上了 \(n) 笔，多写几位"
+        case .transferMismatch: "转账两笔要一笔支出、一笔收入，金额相同"
         }
     }
 }
@@ -112,9 +116,104 @@ extension Ledger {
         return debts.filter { open.contains($0.id) && $0.counterparty.lowercased().contains(key) }
     }
 
+    // MARK: 改已有流水
+
+    /// 找流水：完整 id 或前几位（fin tx 里显示的 8 位）。
+    public func findTransactions(_ keys: [String]) throws -> [Transaction] {
+        try keys.map { key in
+            let k = key.lowercased()
+            let hits = transactions.filter { $0.id.uuidString.lowercased().hasPrefix(k) }
+            guard hits.count == 1 else { throw EditError.unknownTransaction(key, hits.count) }
+            return hits[0]
+        }
+    }
+
+    /// 改一批流水，并把改之前的样子存进改动记录，方便撤销。
+    mutating func modify(_ ids: [UUID], kind: ChangeRecord.Kind, summary: String, author: String,
+                         _ body: (inout Transaction) -> Void) -> ChangeRecord {
+        let set = Set(ids)
+        var before: [Transaction] = []
+        for k in transactions.indices where set.contains(transactions[k].id) {
+            before.append(transactions[k])
+            body(&transactions[k])
+        }
+        var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
+        change.previous = before
+        changes.append(change)
+        return change
+    }
+
+    /// 改分类。
+    @discardableResult
+    public mutating func categorize(_ ids: [UUID], category: String, author: String) -> ChangeRecord {
+        modify(ids, kind: .categorize, summary: "\(ids.count) 笔改成「\(category)」", author: author) { $0.category = category }
+    }
+
+    /// 分账本：这几笔属于哪个账本。
+    @discardableResult
+    public mutating func assignBook(_ ids: [UUID], bookID: String, author: String) throws -> ChangeRecord {
+        try requireBook(bookID)
+        let name = books.first { $0.id == bookID }?.name ?? bookID
+        return modify(ids, kind: .assignBook, summary: "\(ids.count) 笔分到「\(name)」", author: author) { $0.bookID = bookID }
+    }
+
+    /// 把已有的两笔标成账本间转账（比如店账户转出、个人账户转入）。金额要一正一负、绝对值相同。
+    @discardableResult
+    public mutating func linkTransfer(out: UUID, into: UUID, author: String) throws -> ChangeRecord {
+        guard let a = transactions.first(where: { $0.id == out }), let b = transactions.first(where: { $0.id == into }) else {
+            throw EditError.unknownTransaction(out.uuidString, 0)
+        }
+        guard a.amount.isExpense, b.amount.isIncome, a.amount.magnitude == b.amount.magnitude else {
+            throw EditError.transferMismatch
+        }
+        let tid = UUID()
+        return modify([out, into], kind: .transfer,
+                      summary: "标成转账：\(bookName(a.bookID)) → \(bookName(b.bookID)) \(b.amount.formatted)", author: author) {
+            $0.transferID = tid
+        }
+    }
+
+    /// 新记一笔账本间转账：同一个账户里，钱从一个账本挪到另一个（比如店里的现金拿回家用）。
+    /// 记两笔，账户余额不变；单个账本照常算，「全部」里抵消。
+    @discardableResult
+    public mutating func addTransfer(amount: Money, fromBook: String, toBook: String, accountID: String, date: LocalDate,
+                                     note: String? = nil, author: String) throws -> ChangeRecord {
+        guard amount.cents > 0 else { throw EditError.amountMustBePositive }
+        try requireBook(fromBook); try requireBook(toBook); try requireAccount(accountID)
+        let tid = UUID()
+        let text = note ?? "\(bookName(fromBook)) → \(bookName(toBook))"
+        let outTx = Transaction(date: date, amount: -amount, description: text, accountID: accountID, bookID: fromBook,
+                                category: fromBook == "miora" ? "老板提款" : "转出", transferID: tid, source: "手记")
+        let inTx = Transaction(date: date, amount: amount, description: text, accountID: accountID, bookID: toBook,
+                               category: "转入", transferID: tid, source: "手记")
+        transactions += [outTx, inTx]
+        return record(.transfer, "记转账：\(text) \(amount.formatted)", ids: [outTx.id, inTx.id], author: author)
+    }
+
+    func bookName(_ id: String?) -> String { books.first { $0.id == id }?.name ?? (id ?? "未分") }
+
+    // MARK: 导入
+
+    /// 导入一批流水：去掉账本里已有的，剩下的加进来，记一条改动记录（整批能撤销）。
+    @discardableResult
+    public mutating func importTransactions(_ incoming: [Transaction], accountID: String, source: String,
+                                            author: String) throws -> (added: [Transaction], duplicates: Int, change: ChangeRecord?) {
+        try requireAccount(accountID)
+        let fresh = Dedup.newTransactions(incoming, existing: transactions)
+        let dupes = incoming.count - fresh.count
+        guard !fresh.isEmpty else { return ([], dupes, nil) }
+        transactions += fresh
+        if let last = fresh.map(\.date).max(), last > (lastStatementDate[accountID] ?? LocalDate(year: 1, month: 1, day: 1)) {
+            lastStatementDate[accountID] = last
+        }
+        let name = accounts.first { $0.id == accountID }?.name ?? accountID
+        let change = record(.importBatch, "导入 \(name) \(fresh.count) 笔（\(source)，跳过重复 \(dupes) 笔）", ids: fresh.map(\.id), author: author)
+        return (fresh, dupes, change)
+    }
+
     // MARK: 撤销
 
-    /// 撤销一条改动：删掉它新增的流水；记欠款的改动连借款一起删。
+    /// 撤销一条改动：新增的流水删掉，改过的流水换回改之前的样子；记欠款的改动连借款一起删。
     @discardableResult
     public mutating func undo(changeID: UUID, author: String) throws -> ChangeRecord {
         guard let i = changes.firstIndex(where: { $0.id == changeID }) else { throw EditError.unknownChange }
@@ -125,11 +224,17 @@ extension Ledger {
             if let d = debts.first(where: { $0.id == debtID }), !d.repaymentIDs.isEmpty { throw EditError.notUndoable }
             debts.removeAll { $0.id == debtID }
         }
-        let ids = Set(change.transactionIDs)
-        transactions.removeAll { ids.contains($0.id) }
-        for k in debts.indices { debts[k].repaymentIDs.removeAll { ids.contains($0) } }
-        for k in installments.indices { installments[k].paidIDs.removeAll { ids.contains($0) } }
-        for k in goals.indices { goals[k].contributionIDs.removeAll { ids.contains($0) } }
+        if let previous = change.previous {
+            // 改过的流水：换回原样。
+            let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+            for k in transactions.indices { if let o = old[transactions[k].id] { transactions[k] = o } }
+        } else {
+            let ids = Set(change.transactionIDs)
+            transactions.removeAll { ids.contains($0.id) }
+            for k in debts.indices { debts[k].repaymentIDs.removeAll { ids.contains($0) } }
+            for k in installments.indices { installments[k].paidIDs.removeAll { ids.contains($0) } }
+            for k in goals.indices { goals[k].contributionIDs.removeAll { ids.contains($0) } }
+        }
         changes[i].undone = true
         return record(.delete, "撤销：\(change.summary)", ids: [], author: author)
     }

@@ -35,12 +35,8 @@ public struct TransactionsView: View {
                 }
             }
         }
-        #if os(iOS)
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索说明、分类、账户、金额")
-        .navigationBarTitleDisplayMode(.large)
-        #else
+        // 不用常驻搜索框：iOS 上常驻会把大标题压成小标题。往下拉就出现搜索框。
         .searchable(text: $query, prompt: "搜索说明、分类、账户、金额")
-        #endif
         .navigationTitle("流水")
         .sheet(item: $selected) { t in
             NavigationStack { TransactionDetail(tx: t) }

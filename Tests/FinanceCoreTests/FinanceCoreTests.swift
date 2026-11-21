@@ -168,3 +168,112 @@ final class EditorTests: XCTestCase {
         XCTAssertFalse(a.isPrivate)
     }
 }
+
+final class ImportTests: XCTestCase {
+    // 编造的 Revolut 导出，格式和真实文件一样。
+    let revolut = """
+    Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+    CARD_PAYMENT,Current,2026-11-03 10:01:02,2026-11-04 09:00:00,Mercadona,-23.45,0.00,EUR,COMPLETED,976.55
+    TOPUP,Current,2026-11-01 08:00:00,2026-11-01 08:00:01,"Top-up by *1234",1000.00,0.00,EUR,COMPLETED,1000.00
+    CARD_PAYMENT,Current,2026-11-05 12:00:00,,Pending shop,-5.00,0.00,EUR,PENDING,
+    CARD_PAYMENT,Current,2026-11-06 12:00:00,2026-11-06 12:00:00,Tienda UK,-10.00,0.00,GBP,COMPLETED,
+    EXCHANGE,Current,2026-11-07 12:00:00,2026-11-07 12:00:00,"Café, bar",-3.10,0.20,EUR,COMPLETED,972.25
+    """
+
+    func testRevolutCSV() throws {
+        let r = try Importers.revolutCSV(revolut, accountID: "revolut", source: "test.csv")
+        XCTAssertEqual(r.transactions.count, 3)
+        XCTAssertEqual(r.skipped.count, 2)
+        XCTAssertEqual(r.transactions[0].date, LocalDate(year: 2026, month: 11, day: 4))
+        XCTAssertEqual(r.transactions[0].amount.cents, -2345)
+        XCTAssertEqual(r.transactions[2].description, "Café, bar")
+        XCTAssertEqual(r.transactions[2].amount.cents, -330)  // 手续费算进去
+    }
+
+    func testImportDedupAndUndo() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "revolut", name: "Revolut", kind: .wallet)]
+        let r = try Importers.revolutCSV(revolut, accountID: "revolut", source: "a.csv")
+        let first = try l.importTransactions(r.transactions, accountID: "revolut", source: "a.csv", author: "测试")
+        XCTAssertEqual(first.added.count, 3)
+        XCTAssertEqual(l.lastStatementDate["revolut"], LocalDate(year: 2026, month: 11, day: 7))
+        let again = try l.importTransactions(r.transactions, accountID: "revolut", source: "a.csv", author: "测试")
+        XCTAssertEqual(again.added.count, 0)
+        XCTAssertEqual(again.duplicates, 3)
+        XCTAssertNil(again.change)
+        try l.undo(changeID: first.change!.id, author: "测试")
+        XCTAssertTrue(l.transactions.isEmpty)
+    }
+
+    func testGenericCSVSpanishBank() throws {
+        // 编造的西班牙银行格式：分号分隔、日在前、千分位用点、收支分两列，前面有两行说明。
+        let text = """
+        Cuenta;ES00 0000
+        Periodo;noviembre
+        Fecha;Concepto;Cargo;Abono;Saldo
+        03/11/2026;RECIBO LUZ;45,20;;1.954,80
+        05/11/2026;TRANSFERENCIA NOMINA;;2.900,00;4.854,80
+        Total;;45,20;2.900,00;
+        """
+        let r = try Importers.genericCSV(text, map: .init(date: "Fecha", debit: "Cargo", credit: "Abono", description: "Concepto", skipRows: 2),
+                                         accountID: "caixa", source: "x.csv")
+        XCTAssertEqual(r.transactions.map(\.amount.cents), [-4520, 290000])
+        XCTAssertEqual(r.transactions[0].date, LocalDate(year: 2026, month: 11, day: 3))
+        XCTAssertEqual(r.skipped.count, 1)  // 合计行
+    }
+
+    func testCSVQuotes() {
+        let rows = CSV.parse("a,b\n\"x, y\",\"he said \"\"hi\"\"\"\n")
+        XCTAssertEqual(rows, [["a", "b"], ["x, y", "he said \"hi\""]])
+    }
+}
+
+final class EditTests: XCTestCase {
+    func ledger() -> (Ledger, Transaction, Transaction) {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "caixa", name: "Caixa", kind: .bank), Account(id: "imagin", name: "imagin", kind: .bank)]
+        let d = LocalDate(year: 2026, month: 11, day: 10)
+        let out = Transaction(date: d, amount: Money(cents: -50000), description: "转账给自己", accountID: "caixa", bookID: "miora")
+        let inn = Transaction(date: d, amount: Money(cents: 50000), description: "来自店里", accountID: "imagin", bookID: "personal")
+        l.transactions = [out, inn]
+        return (l, out, inn)
+    }
+
+    func testCategorizeAssignAndUndoRestores() throws {
+        var (l, out, _) = ledger()
+        let c1 = l.categorize([out.id], category: "老板提款", author: "测试")
+        XCTAssertEqual(l.transactions[0].category, "老板提款")
+        let c2 = try l.assignBook([out.id], bookID: "personal", author: "测试")
+        XCTAssertEqual(l.transactions[0].bookID, "personal")
+        try l.undo(changeID: c2.id, author: "测试")
+        XCTAssertEqual(l.transactions[0].bookID, "miora")
+        XCTAssertEqual(l.transactions[0].category, "老板提款")
+        try l.undo(changeID: c1.id, author: "测试")
+        XCTAssertNil(l.transactions[0].category)
+        XCTAssertEqual(l.transactions.count, 2)  // 撤销改动不会删流水
+        XCTAssertThrowsError(try l.assignBook([out.id], bookID: "nope", author: "测试"))
+    }
+
+    func testLinkTransferCancelsInAll() throws {
+        var (l, out, inn) = ledger()
+        try l.linkTransfer(out: out.id, into: inn.id, author: "测试")
+        let m = YearMonth(year: 2026, month: 11)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: m, bookID: nil).expense.cents, 0)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: m, bookID: "miora").expense.cents, -50000)
+        XCTAssertThrowsError(try l.linkTransfer(out: inn.id, into: out.id, author: "测试"))
+    }
+
+    func testAddTransferSameAccount() throws {
+        var (l, _, _) = ledger()
+        try l.addTransfer(amount: Money(cents: 2000), fromBook: "miora", toBook: "personal", accountID: "caixa",
+                          date: LocalDate(year: 2026, month: 11, day: 12), author: "测试")
+        XCTAssertEqual(Summaries.balances(l.transactions)["caixa"]?.cents, -50000)  // 同账户两笔抵消
+        XCTAssertEqual(l.transactions.filter(\.isTransfer).count, 2)
+    }
+
+    func testFindByPrefix() throws {
+        let (l, out, _) = ledger()
+        XCTAssertEqual(try l.findTransactions([String(out.id.uuidString.prefix(8)).lowercased()]).first?.id, out.id)
+        XCTAssertThrowsError(try l.findTransactions(["zzzzzzzz"]))
+    }
+}

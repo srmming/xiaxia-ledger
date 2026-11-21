@@ -52,7 +52,9 @@ swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Pack
 | `fin add`、`fin debt add` / `repay`（记一笔、记欠款、记还款）、`fin account add [--private]`（私房钱） | ✅ 可用 |
 | `fin history` / `undo`（改动记录、撤销） | ✅ 可用 |
 | iPhone + Mac app（App/，XcodeGen 生成工程） | 🚧 第一版界面 |
-| `fin import` / `categorize` / `transfer` | 🚧 下一步 |
+| `fin import`（Revolut CSV、通用 CSV，自动去重）、`categorize`、`assign`、`transfer link/new` | ✅ 写好，待 Mac 上编译验证 |
+| `fin mcp`（MCP 服务，给 Claude 桌面版、Codex、DeepSeek 用） | ✅ 写好，待验证 |
+| 所有写入命令都能加 `--dry-run` 预演 | ✅ |
 
 路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 

@@ -9,7 +9,8 @@ struct Fin: ParsableCommand {
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
         discussion: "数据位置默认 ~/Library/Application Support/XiaxiaLedger/ledger.json，可用 XIAXIA_LEDGER_PATH 覆盖。",
         subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
-                      AddCommand.self, DebtCommand.self, AccountCommand.self, HistoryCommand.self, UndoCommand.self]
+                      AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
+                      AssignCommand.self, TransferCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
     )
 }
 
@@ -39,6 +40,7 @@ struct WriteOptions: ParsableArguments {
     @Option(help: "谁在改：ming、Claude、Codex、DeepSeek……不填就读环境变量 XIAXIA_AUTHOR，再没有就是「AI」。")
     var author: String?
     @Flag(name: .long, help: "输出 JSON。") var json = false
+    @Flag(name: .long, help: "预演：显示会改什么，但不写进账本。拿不准时先预演给 ming 看。") var dryRun = false
 
     var who: String { author ?? ProcessInfo.processInfo.environment["XIAXIA_AUTHOR"] ?? "AI" }
 }
@@ -52,6 +54,17 @@ func parseDate(_ s: String?) throws -> LocalDate {
     guard let s else { return .today }
     guard let d = LocalDate(s) else { throw ValidationError("日期格式要像 2026-11-21") }
     return d
+}
+
+/// 写入命令的收尾：预演就只显示，不保存。
+func finish(_ ledger: Ledger, _ change: ChangeRecord, _ w: WriteOptions) throws {
+    if w.dryRun {
+        if w.json { return try Output.json(change) }
+        print("预演（没有写入）：\(change.summary)")
+        return
+    }
+    try saveLedger(ledger)
+    try report(change, json: w.json)
 }
 
 func report(_ change: ChangeRecord, json: Bool) throws {
@@ -130,7 +143,7 @@ struct TxCommand: ParsableCommand {
         if options.json { return try Output.json(Array(txs)) }
         if txs.isEmpty { print("没有符合条件的流水。") }
         for t in txs {
-            print("\(t.date)\t\(t.amount.formatted)\t\(t.bookID ?? "未分")\t\(t.category ?? "未分类")\t\(t.description)")
+            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(t.amount.formatted)\t\(t.bookID ?? "未分")\t\(t.category ?? "未分类")\t\(t.description)")
         }
     }
 }
@@ -214,8 +227,7 @@ struct AddCommand: ParsableCommand {
         let tx = Transaction(date: try parseDate(date), amount: try parseMoney(amount), description: text,
                              accountID: account, bookID: book, category: category, source: "手记")
         let change = try ledger.addTransaction(tx, author: w.who)
-        try saveLedger(ledger)
-        try report(change, json: w.json)
+        try finish(ledger, change, w)
     }
 }
 
@@ -246,8 +258,7 @@ struct DebtCommand: ParsableCommand {
                                                  amount: try parseMoney(amount).magnitude, bookID: book,
                                                  date: try parseDate(date), accountID: account,
                                                  dueDate: try due.map { try parseDate($0) }, note: note, author: w.who)
-            try saveLedger(ledger)
-            try report(change, json: w.json)
+            try finish(ledger, change, w)
         }
     }
 
@@ -268,8 +279,7 @@ struct DebtCommand: ParsableCommand {
             }
             let change = try ledger.repay(debtID: debt.id, amount: try parseMoney(amount).magnitude,
                                           date: try parseDate(date), accountID: account, author: w.who)
-            try saveLedger(ledger)
-            try report(change, json: w.json)
+            try finish(ledger, change, w)
         }
     }
 }
@@ -290,8 +300,7 @@ struct AccountCommand: ParsableCommand {
             var ledger = try loadLedger()
             guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ValidationError("已经有 \(id) 这个账户了") }
             let change = ledger.addAccount(Account(id: id, name: name, kind: k, isPrivate: `private`), author: w.who)
-            try saveLedger(ledger)
-            try report(change, json: w.json)
+            try finish(ledger, change, w)
         }
     }
 }
@@ -325,7 +334,123 @@ struct UndoCommand: ParsableCommand {
             throw ValidationError(hits.isEmpty ? "没有编号是 \(id) 的改动" : "编号 \(id) 对上了好几条，多写几位")
         }
         let change = try ledger.undo(changeID: target.id, author: w.who)
-        try saveLedger(ledger)
-        try report(change, json: w.json)
+        try finish(ledger, change, w)
+    }
+}
+
+struct ImportCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "import",
+        abstract: "导入对账单，自动去重。先加 --dry-run 看会导入什么，跟 ming 确认后再正式导入。",
+        discussion: """
+        Revolut：fin import 文件.csv --account revolut --format revolut
+        其他银行（CSV）：fin import 文件.csv --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto
+        收支分两列：用 --debit-col / --credit-col 代替 --amount-col。列名或列号（从 1 开始）都行。
+        """)
+    @OptionGroup var w: WriteOptions
+    @Argument(help: "对账单文件（CSV）。") var file: String
+    @Option(help: "导进哪个账户。") var account: String
+    @Option(help: "格式：revolut 或 csv。") var format: String = "csv"
+    @Option(help: "通用 CSV：日期列。") var dateCol: String?
+    @Option(help: "通用 CSV：金额列（正收入负支出）。") var amountCol: String?
+    @Option(help: "通用 CSV：支出列。") var debitCol: String?
+    @Option(help: "通用 CSV：收入列。") var creditCol: String?
+    @Option(help: "通用 CSV：说明列。") var descCol: String?
+    @Option(help: "通用 CSV：表头前要跳过几行。") var skipRows: Int = 0
+    @Option(help: "这批默认归哪个账本（不填就先不分，之后用 fin assign）。") var book: String?
+    func run() throws {
+        let url = URL(fileURLWithPath: file)
+        let data = try Data(contentsOf: url)
+        let text = String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
+        let source = url.lastPathComponent
+        var result: ImportResult
+        switch format {
+        case "revolut": result = try Importers.revolutCSV(text, accountID: account, source: source)
+        case "csv":
+            guard let dateCol, let descCol else { throw ValidationError("通用 CSV 要写 --date-col 和 --desc-col") }
+            result = try Importers.genericCSV(text, map: .init(date: dateCol, amount: amountCol, debit: debitCol, credit: creditCol,
+                                                               description: descCol, skipRows: skipRows),
+                                              accountID: account, source: source)
+        default: throw ValidationError("格式只能是 revolut 或 csv")
+        }
+        if let book { result.transactions = result.transactions.map { var t = $0; t.bookID = book; return t } }
+        var ledger = try loadLedger()
+        if w.dryRun {
+            let fresh = Dedup.newTransactions(result.transactions, existing: ledger.transactions)
+            if w.json { return try Output.json(fresh) }
+            print("读到 \(result.transactions.count) 笔，新的 \(fresh.count) 笔，重复 \(result.transactions.count - fresh.count) 笔（没有写入）")
+            for t in fresh.prefix(30) { print("  \(t.date)\t\(t.amount.formatted)\t\(t.description)") }
+            if fresh.count > 30 { print("  …还有 \(fresh.count - 30) 笔") }
+            for s in result.skipped { print("  跳过：\(s)") }
+            return
+        }
+        let (_, dupes, change) = try ledger.importTransactions(result.transactions, accountID: account, source: source, author: w.who)
+        if let change { try finish(ledger, change, w) } else { print("没有新流水（\(dupes) 笔都已经有了）。") }
+        for s in result.skipped { print("跳过：\(s)") }
+    }
+}
+
+struct CategorizeCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "categorize", abstract: "改分类。流水编号用 fin tx 里的 8 位。")
+    @OptionGroup var w: WriteOptions
+    @Option(help: "分类，如「餐饮」。") var category: String
+    @Argument(help: "流水编号，可以一次写多个。") var ids: [String]
+
+    func run() throws {
+        var ledger = try loadLedger()
+        let txs = try ledger.findTransactions(ids)
+        let change = ledger.categorize(txs.map(\.id), category: category, author: w.who)
+        try finish(ledger, change, w)
+    }
+}
+
+struct AssignCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "assign", abstract: "分账本：这几笔属于个人还是店里。")
+    @OptionGroup var w: WriteOptions
+    @Option(help: "账本 id，如 personal、miora。") var book: String
+    @Argument(help: "流水编号，可以一次写多个。") var ids: [String]
+
+    func run() throws {
+        var ledger = try loadLedger()
+        let txs = try ledger.findTransactions(ids)
+        let change = try ledger.assignBook(txs.map(\.id), bookID: book, author: w.who)
+        try finish(ledger, change, w)
+    }
+}
+
+struct TransferCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "transfer", abstract: "账本间转账（比如店里取钱给个人）。",
+                                                    subcommands: [Link.self, New.self])
+
+    struct Link: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "link", abstract: "把已有的一笔转出、一笔转入标成转账。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "转出那笔（支出）的编号。") var out: String
+        @Argument(help: "转入那笔（收入）的编号。") var into: String
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let txs = try ledger.findTransactions([out, into])
+            let change = try ledger.linkTransfer(out: txs[0].id, into: txs[1].id, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct New: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "new", abstract: "同一个账户里，钱从一个账本挪到另一个（如店里现金拿回家）。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "金额，正数。") var amount: String
+        @Option(help: "从哪个账本。") var from: String
+        @Option(help: "到哪个账本。") var to: String
+        @Option(help: "哪个账户。") var account: String
+        @Option(help: "日期，默认今天。") var date: String?
+        @Option(help: "说明。") var note: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let change = try ledger.addTransfer(amount: try parseMoney(amount).magnitude, fromBook: from, toBook: to,
+                                                accountID: account, date: try parseDate(date), note: note, author: w.who)
+            try finish(ledger, change, w)
+        }
     }
 }

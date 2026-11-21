@@ -27,6 +27,10 @@ fin context --json
 | `fin debt add 阿华 500 --they-owe-me --account revolut --author Claude` | 记一笔欠款（我欠别人用 `--i-owe`） |
 | `fin debt repay 阿华 100 --account revolut --author Claude` | 记一笔还款 |
 | `fin account add stash 私房钱 --kind cash --private` | 加账户；`--private` 是私房钱 |
+| `fin import 文件.csv --account revolut --format revolut --dry-run` | 导入对账单；先预演，ming 确认后去掉 `--dry-run` |
+| `fin categorize --category 餐饮 <编号…>` | 改分类（编号是 `fin tx` 第一列的 8 位） |
+| `fin assign --book miora <编号…>` | 分账本 |
+| `fin transfer link <转出编号> <转入编号>` / `fin transfer new 200 --from miora --to personal --account cash` | 账本间转账 |
 | `fin history` / `fin undo <编号>` | 看改动记录、撤销 |
 | `fin goals --json` | 目标和储蓄进度（有专门储蓄账户时按该账户余额算） |
 
@@ -37,6 +41,7 @@ fin context --json
 - 用户提到「借给某某」「某某还我」「分期买了」「存进应急金」时，先确认对方、金额、账本，再记。
 - 拿不准的事（某笔属于个人还是店里、怎么分类、是不是账本间转账）先在对话里问 ming，确认后再写，不要猜着写。
 - 写入会记进改动记录，写明是你（如 Claude / Codex）改的；写错了用 `fin undo` 撤销。
-- 写入一律用 fin 命令，并用 `--author` 写清你是谁（Claude、Codex、DeepSeek）；不要手改 ledger.json。导入、改分类还没做好。
+- 任何写入命令都能加 `--dry-run` 预演；批量改动（导入、改一批分类）先预演给 ming 看。
+- 写入一律用 fin 命令，并用 `--author` 写清你是谁（Claude、Codex、DeepSeek）；不要手改 ledger.json。
 - 私房钱（isPrivate 账户）只在 ming 问到时说，给店里、合伙人、gestoría 的报表不算进去。
 - 真实财务数据不要贴到公开地方，也不要提交进 git。

@@ -142,6 +142,8 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     public var undone: Bool
     /// 记欠款的改动指向那笔借款，撤销时一起删。
     public var debtID: UUID?
+    /// 改分类、分账本、标转账这类「改已有流水」的改动：改之前的样子。撤销时换回去。
+    public var previous: [Transaction]?
 
     public init(id: UUID = UUID(), kind: Kind, summary: String, transactionIDs: [UUID],
                 author: String, createdAt: Date = Date(), undone: Bool = false) {

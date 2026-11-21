@@ -6,10 +6,12 @@
 - [x] logo、界面设计稿初稿（design/）
 - [ ] 界面设计稿定稿（ming 看过再写页面代码）
 - [ ] 定正式存储（SQLite / iCloud 同步），保证 app 和 CLI 读同一份
-- [ ] 导入 CaixaBank、imagin、Revolut 对账单，自动去重
+- [x] 导入框架：Revolut CSV、通用 CSV（列名可配），自动去重，整批能撤销
+- [ ] 用真实 CaixaBank、imagin 导出文件确认列名（等 ming 同意读对账单）
 - [ ] 改动记录：每次写入记下谁改的、改了什么，`fin undo` 和 app 里都能撤销
 - [ ] Mac 页面：总览、趋势、分类、流水（搜索、筛选）、改动记录、导入
-- [ ] `fin` 写入命令 + skill
+- [x] `fin` 写入命令 + skill（add、debt、categorize、assign、transfer、import、undo，都能 --dry-run）
+- [x] MCP 服务 `fin mcp`（stdio）
 - [x] 借款往来、分期、目标的数据模型和只读命令（`fin debts` / `installments` / `goals`）
 - [x] 记欠款、记还款、私房钱（`fin debt add/repay`、`fin account add --private`）
 - [x] `fin add`、`fin history`、`fin undo`
@@ -19,7 +21,7 @@
 
 ## 第二版
 
-目标和储蓄的 app 页面与提醒（到期、扣款日）；iPhone 随手记、Apple Pay 快捷指令自动记、小组件；MCP。
+目标和储蓄的 app 页面与提醒（到期、扣款日）；Apple Pay 快捷指令自动记、小组件。
 
 ## 以后
 
