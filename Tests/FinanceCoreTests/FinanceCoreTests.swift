@@ -65,7 +65,7 @@ final class StoreTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
         defer { try? FileManager.default.removeItem(at: url) }
         let store = JSONFileLedgerStore(url: url)
-        XCTAssertEqual(try store.load(), .starter)
+        XCTAssertEqual(try store.load(), .fresh)
         var ledger = Ledger.starter
         ledger.accounts = [Account(id: "cash", name: "现金", kind: .cash)]
         ledger.transactions = [Transaction(date: LocalDate(year: 2026, month: 1, day: 5), amount: Money(cents: -999), description: "x", accountID: "cash")]
@@ -348,7 +348,7 @@ final class SQLiteStoreTests: XCTestCase {
         let url = tempURL("sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
         let store = SQLiteLedgerStore(url: url)
-        XCTAssertEqual(try store.load(), .starter)
+        XCTAssertEqual(try store.load(), .fresh)
         var l = Ledger.starter
         l.accounts = [Account(id: "cash", name: "现金", kind: .cash), Account(id: "stash", name: "私房钱", kind: .cash, isPrivate: true)]
         let t = Transaction(date: LocalDate(year: 2026, month: 11, day: 1), amount: Money(cents: -1234), description: "咖啡 \"拿铁\"",
