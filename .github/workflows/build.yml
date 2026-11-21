@@ -28,6 +28,16 @@ jobs:
         run: set -o pipefail; swift build 2>&1 | tee ci-out/swift-build.log
       - name: swift test
         run: set -o pipefail; swift test 2>&1 | tee ci-out/swift-test.log
+      - name: fin 和 MCP 实际跑一遍（临时示例账本）
+        run: bash scripts/fin-smoke.sh .build/debug/fin 2>&1 | tee ci-out/fin-smoke.log
+      - name: 全局安装脚本（在假的 HOME 里试装）
+        run: |
+          set -o pipefail
+          FAKE=$(mktemp -d); mkdir -p "$FAKE/.claude" "$FAKE/.codex" "$FAKE/Library/Application Support/Claude"
+          for i in 1 2; do HOME=$FAKE XIAXIA_SKIP_BUILD=1 XIAXIA_FIN_BINARY=$PWD/.build/debug/fin PATH=/usr/bin:/bin bash scripts/install-global.sh; done 2>&1 | tee ci-out/install-global.log
+          { echo; ls -la "$FAKE/.claude/skills" "$FAKE/.agents/skills"; cat "$FAKE/.codex/config.toml"; cat "$FAKE/Library/Application Support/Claude/claude_desktop_config.json"; grep -c xiaxia-ledger:start "$FAKE/.codex/AGENTS.md"; } 2>&1 | tee -a ci-out/install-global.log
+          test "$(grep -c xiaxia-ledger:start "$FAKE/.codex/AGENTS.md")" = 1
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | "$FAKE/.local/bin/fin" mcp | grep -q xiaxia-ledger
       - name: 生成 Xcode 工程
         run: |
           which xcodegen || brew install xcodegen

@@ -4,26 +4,30 @@
 
 ## 装
 
+一条命令装好 fin、skill、通用提示词和 MCP（各 AI 工具的全局配置，可以反复跑）：
+
 ```bash
-swift build -c release
-cp .build/release/fin /usr/local/bin/fin
+bash scripts/install-global.sh --dry-run   # 先看会改哪些文件
+bash scripts/install-global.sh
 ```
+
+下面是手动配置的写法。
 
 ## 配置
 
 Claude 桌面版（`~/Library/Application Support/Claude/claude_desktop_config.json`）：
 
 ```json
-{ "mcpServers": { "xiaxia-ledger": { "command": "/usr/local/bin/fin", "args": ["mcp"] } } }
+{ "mcpServers": { "xiaxia-ledger": { "command": "/Users/ming/.local/bin/fin", "args": ["mcp"] } } }
 ```
 
-Claude Code：`claude mcp add xiaxia-ledger -- /usr/local/bin/fin mcp`
+Claude Code：`claude mcp add xiaxia-ledger -- ~/.local/bin/fin mcp`
 
 Codex（`~/.codex/config.toml`）：
 
 ```toml
 [mcp_servers.xiaxia-ledger]
-command = "/usr/local/bin/fin"
+command = "/Users/ming/.local/bin/fin"
 args = ["mcp"]
 ```
 
