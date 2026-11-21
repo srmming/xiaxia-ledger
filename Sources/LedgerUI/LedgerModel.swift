@@ -44,7 +44,7 @@ public final class LedgerModel {
 
     public var visibleAccounts: [Account] { ledger.accounts.filter { showPrivate || !$0.isPrivate } }
 
-    public var visibleTransactions: [Transaction] {
+    public var visibleTransactions: [FinanceCore.Transaction] {
         ledger.transactions.filter { !hiddenAccounts.contains($0.accountID) }
             .filter { selectedBookID == nil || $0.bookID == selectedBookID }
             .sorted { ($0.date, $0.description) > ($1.date, $1.description) }
