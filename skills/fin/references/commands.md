@@ -43,6 +43,10 @@
 | 开账余额 | `fin account opening caixa 382,64 [--date …]`（信用卡欠款写负数） | `set_opening_balance` |
 | 分期 | `fin installment add 名称 总额 --count 6 --account … --book … [--first] [--fee] [--category]`；`fin installment pay 名称 [--tx 编号] [--amount]` | `add_installment`、`pay_installment` |
 | 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
+| AI 意见 | `fin insight add review｜alert｜tip｜good｜action "结论" [--body] [--month] [--book] [--metric]`；`fin insight list [--month] [--book] [--all]`；`fin insight dismiss <编号>` | `add_insight`、`list_insights`、`dismiss_insight`；`ai_status` 看谁最近写过 |
+| 账本 | `fin book add 名字 [--kind personal｜business]`；`fin book rename <id> 新名字`；`fin book rm <id> [--move-to <id>]`（先 `--dry-run`） | `add_book`、`rename_book`、`remove_book` |
+| 改 / 删账户 | 暂无 | `edit_account`、`remove_account` |
+| 分类改名或合并 | 暂无 | `rename_category` |
 | 撤销 | `fin undo <改动编号>` | `undo` |
 
 ## 还做不到的（要做就告诉 ming，别绕过去直接改文件）
