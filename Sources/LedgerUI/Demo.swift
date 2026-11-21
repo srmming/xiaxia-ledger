@@ -106,6 +106,18 @@ extension Ledger {
             lendChange, borrowChange,
             ChangeRecord(kind: .importBatch, summary: "导入 11 月对账单，新增 \(imported.count) 笔", transactionIDs: imported.map(\.id), author: "Claude"),
         ]
+        // AI 写进来的意见（编的）。
+        let nov = YearMonth(year: 2026, month: 11)
+        let ago: (Double) -> Date = { Date().addingTimeInterval(-$0 * 3600) }
+        l.insights = [
+            Insight(month: nov, kind: .monthlyReview, title: "这个月花钱比上月慢，月底大概能剩 1.900 €。",
+                    body: "少的主要是店里的耗材。房租和店租都已经付了，剩下的大头是 12 月 5 日的分期 54,90 €，余额够。超市这个月比上月多一点，可以留意。",
+                    author: "Claude", createdAt: ago(2)),
+            Insight(month: nov, kind: .alert, title: "超市比上月同期多花了一些", body: "多的主要是 Mercadona，去了 4 次。", metric: "category:超市",
+                    author: "Claude", createdAt: ago(2)),
+            Insight(month: nov, kind: .goodNews, title: "应急金已经存了一半", body: "照每月 300 € 存，明年 4 月前能存满。", author: "Codex", createdAt: ago(30)),
+            Insight(month: nov, kind: .action, title: "阿华的 300 € 过了约定日期还没还", body: "10 月 31 日就该还了，要不要提醒一下？", author: "Claude", createdAt: ago(50)),
+        ]
         return l
     }
 }

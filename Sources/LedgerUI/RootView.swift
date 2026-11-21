@@ -177,7 +177,9 @@ struct MacRoot: View {
     }
 
     private func row(_ s: AppSection) -> some View {
-        Label(s.rawValue, systemImage: s.symbol).tag(s)
+        Label(s.rawValue, systemImage: s.symbol)
+            .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
+            .tag(s)
     }
 }
 

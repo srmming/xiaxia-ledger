@@ -313,6 +313,11 @@ extension Ledger {
         for g in s.goals ?? [] {
             if let i = goals.firstIndex(where: { $0.id == g.id }) { goals[i] = g } else { goals.append(g) }
         }
+        for x in s.insights ?? [] {
+            if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
+        }
+        let addedInsights = Set(s.addedInsightIDs ?? [])
+        if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {
             accounts.removeAll { $0.id == id }
         }

@@ -239,6 +239,24 @@ enum MCPTools {
             "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "from_account": prop("string", "钱从哪个账户来"),
             "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
         ], required: ["name", "amount", "from_account"], readOnly: false),
+        tool("add_insight", "把你对 ming 财务的看法写进账本，app 的总览和「AI 意见」页会显示。kind：review = 本月点评（每月每账本一条，新的替换旧的，月初或被问到时写），alert = 留意，tip = 建议，good = 好消息，action = 要处理（超支、信用卡快到期）。title 一句话结论，body 两三句解释，数字用 1.234,56 € 写法。", [
+            "kind": prop("string", "review / alert / tip / good / action"),
+            "title": prop("string", "一句话结论，如「这个月花钱比上月慢 8%，月底大概能剩 1.150 €」"),
+            "body": prop("string", "两三句解释：原因、要留意什么"),
+            "month": prop("string", "哪个月，如 2026-11；默认这个月"),
+            "book": prop("string", "账本 id；不填 = 全部"),
+            "metric": prop("string", "关联的东西，如 category:超市、account:caixa（可不填）"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["kind", "title"], readOnly: false),
+        tool("list_insights", "列出写进账本的 AI 意见（默认这个月、没点「知道了」的）。写新意见前先看看，别重复。", [
+            "month": prop("string", "月份，如 2026-11；不填 = 全部月份"),
+            "book": prop("string", "账本 id"),
+            "include_dismissed": prop("boolean", "连 ming 点过「知道了」的也列出"),
+        ], readOnly: true),
+        tool("dismiss_insight", "把一条意见标成「知道了」（ming 说不用再提醒时用）。", [
+            "id": prop("string", "意见 id（前 8 位也行）"), "author": author,
+        ], required: ["id"], readOnly: false),
+        tool("ai_status", "最近谁写过账本：每个作者最后一次写入的时间和内容。", [:], readOnly: true),
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
@@ -463,6 +481,32 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
             return try commit(try ledger.withdraw(goalID: hits[0].id, amount: try money("amount").magnitude,
                                                   toAccount: try req("to_account"), date: try date("date") ?? .today, author: who))
+        case "add_insight":
+            let kinds: [String: Insight.Kind] = ["review": .monthlyReview, "monthly_review": .monthlyReview, "alert": .alert,
+                                                 "tip": .tip, "good": .goodNews, "good_news": .goodNews, "action": .action]
+            guard let kind = kinds[try req("kind").lowercased()] else { throw ToolError(message: "kind 只能是 review / alert / tip / good / action") }
+            let month = try s("month").map { m -> YearMonth in
+                guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
+                return v
+            } ?? LocalDate.today.yearMonth
+            if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
+            let insight = Insight(month: month, bookID: s("book"), kind: kind, title: try req("title"), body: s("body") ?? "",
+                                  metric: s("metric"), author: who)
+            return try commit(try ledger.addInsight(insight, author: who))
+        case "list_insights":
+            let month = try s("month").map { m -> YearMonth in
+                guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
+                return v
+            }
+            return try json(ledger.insights(month: month, bookID: s("book"), includeDismissed: flag("include_dismissed")))
+        case "dismiss_insight":
+            guard let hit = ledger.findInsight(try req("id")) else { throw ToolError(message: "没有这条意见，先用 list_insights 看 id") }
+            return try commit(try ledger.dismissInsight(hit.id, author: who))
+        case "ai_status":
+            struct Row: Encodable { var author: String; var last: Date; var summary: String }
+            var latest: [String: ChangeRecord] = [:]
+            for c in ledger.changes where latest[c.author].map({ $0.createdAt < c.createdAt }) ?? true { latest[c.author] = c }
+            return try json(latest.values.sorted { $0.createdAt > $1.createdAt }.map { Row(author: $0.author, last: $0.createdAt, summary: $0.summary) })
         case "undo":
             let key = try req("change_id").lowercased()
             let hits = ledger.changes.filter { $0.id.uuidString.lowercased().hasPrefix(key) }
