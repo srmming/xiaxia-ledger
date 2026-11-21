@@ -176,22 +176,43 @@ struct AddMenu: ToolbarContent {
     let model: LedgerModel
 
     var body: some ToolbarContent {
+        #if os(macOS)
+        // Mac 上拆成两个按钮：＋ 只管记一笔，旁边的箭头放别的。
+        // （不用带 primaryAction 的 Menu：它在工具栏里有时一启动就自己触发，面板会自己弹出来。）
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus") }
+                .help("记一笔（⌘N）")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                moreItems
+            } label: {
+                Label("记别的", systemImage: "chevron.down")
+            }
+            .menuIndicator(.hidden)
+            .help("记欠款、分期、存钱目标，或导入对账单")
+        }
+        #else
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus") }
                 Divider()
-                Button { model.sheet = .addDebt(.theyOweMe) } label: { Label("记一笔欠款", systemImage: "person.2") }
-                Button { model.sheet = .addInstallment } label: { Label("记一个分期", systemImage: "calendar") }
-                Button { model.sheet = .addGoal } label: { Label("建一个存钱目标", systemImage: "target") }
-                Divider()
-                Button { model.sheet = .importer } label: { Label("导入对账单", systemImage: "tray.and.arrow.down") }
+                moreItems
             } label: {
                 Label("记一笔", systemImage: "plus")
             } primaryAction: {
                 model.sheet = .add
             }
-            .help("记一笔（⌘N）。点旁边的箭头还能记欠款、分期、目标、导入对账单")
         }
+        #endif
+    }
+
+    @ViewBuilder private var moreItems: some View {
+        Button { model.sheet = .addDebt(.theyOweMe) } label: { Label("记一笔欠款", systemImage: "person.2") }
+        Button { model.sheet = .addInstallment } label: { Label("记一个分期", systemImage: "calendar") }
+        Button { model.sheet = .addGoal } label: { Label("建一个存钱目标", systemImage: "target") }
+        Divider()
+        Button { model.sheet = .importer } label: { Label("导入对账单", systemImage: "tray.and.arrow.down") }
     }
 }
 
