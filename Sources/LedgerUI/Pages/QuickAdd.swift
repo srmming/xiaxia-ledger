@@ -33,6 +33,16 @@ struct QuickAdd: View {
         #if os(iOS)
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
+            // 「记下」钉在底部，键盘和数字键盘再长也不用往下翻才找得到。
+            .safeAreaInset(edge: .bottom) {
+                Button(action: save) {
+                    Text("记下").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+                .disabled(!canSave)
+                .padding(.horizontal, 20).padding(.vertical, 10)
+                .background(.bar)
+            }
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
         #else
         content
@@ -93,11 +103,6 @@ struct QuickAdd: View {
 
             #if os(iOS)
             if focus == nil { Keypad(text: $amountText) }
-            Button(action: save) {
-                Text("记下").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
-            .disabled(!canSave)
             #else
             HStack(spacing: 10) {
                 Button("取消") { dismiss() }
