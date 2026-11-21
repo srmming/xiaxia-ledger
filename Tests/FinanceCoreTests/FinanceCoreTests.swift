@@ -355,3 +355,42 @@ final class SQLiteStoreTests: XCTestCase {
     }
 }
 #endif
+
+final class GoalEditTests: XCTestCase {
+    func base() -> Ledger {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "caixa", name: "Caixa", kind: .bank), Account(id: "pot", name: "储蓄罐", kind: .savings)]
+        l.transactions = [Transaction(date: LocalDate(year: 2026, month: 11, day: 1), amount: Money(cents: 300000), description: "工资",
+                                      accountID: "caixa", bookID: "personal", category: "收入")]
+        return l
+    }
+
+    func testEarmarkInExistingAccount() throws {
+        var l = base()
+        let d = LocalDate(year: 2026, month: 11, day: 5)
+        let (g, add) = try l.addGoal(name: "店铺装修", bookID: "personal", target: Money(cents: 400000), author: "测试")
+        let dep = try l.deposit(goalID: g.id, amount: Money(cents: 50000), fromAccount: "caixa", date: d, author: "测试")
+        XCTAssertEqual(Plans.goals(l).first?.saved.cents, 50000)
+        XCTAssertEqual(Summaries.balances(l.transactions)["caixa"]?.cents, 300000)   // 划出不改余额
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: d.yearMonth, bookID: "personal").expense.cents, 0)
+        try l.withdraw(goalID: g.id, amount: Money(cents: 20000), toAccount: "caixa", date: d, author: "测试")
+        XCTAssertEqual(Plans.goals(l).first?.saved.cents, 30000)
+        XCTAssertThrowsError(try l.undo(changeID: add.id, author: "测试"))   // 还有存取记录
+        _ = dep
+    }
+
+    func testSavingsAccountAndLocked() throws {
+        var l = base()
+        let d = LocalDate(year: 2026, month: 11, day: 5)
+        let (g, _) = try l.addGoal(name: "宝宝", bookID: "personal", target: Money(cents: 100000), savingsAccountID: "pot", locked: true, author: "测试")
+        let dep = try l.deposit(goalID: g.id, amount: Money(cents: 8000), fromAccount: "caixa", date: d, author: "测试")
+        XCTAssertEqual(Summaries.balances(l.transactions)["pot"]?.cents, 8000)
+        XCTAssertEqual(Summaries.balances(l.transactions)["caixa"]?.cents, 292000)
+        XCTAssertEqual(Plans.goals(l).first?.saved.cents, 8000)
+        XCTAssertEqual(Plans.goals(l).first?.locked, true)
+        XCTAssertThrowsError(try l.withdraw(goalID: g.id, amount: Money(cents: 100), toAccount: "caixa", date: d, author: "测试"))
+        try l.undo(changeID: dep.id, author: "测试")
+        XCTAssertEqual(Summaries.balances(l.transactions)["pot"] ?? .zero, .zero)
+        XCTAssertTrue(l.goals[0].contributionIDs.isEmpty)
+    }
+}

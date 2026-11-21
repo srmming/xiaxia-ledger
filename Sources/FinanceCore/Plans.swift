@@ -161,7 +161,12 @@ public enum Plans {
         return ledger.goals.map { g in
             let saved: Money
             if let acct = g.savingsAccountID { saved = Money(cents: max(0, (balances[acct] ?? .zero).cents)) }
-            else { saved = amounts(g.contributionIDs, in: ledger.transactions) }
+            else {
+                // 存入是正数那笔、取出是负数那笔，按正负累加。
+                let ids = Set(g.contributionIDs)
+                let sum = ledger.transactions.filter { ids.contains($0.id) }.reduce(Money.zero) { $0 + $1.amount }
+                saved = Money(cents: max(0, sum.cents))
+            }
             let pct = g.target.cents > 0 ? Int(min(100, saved.cents * 100 / g.target.cents)) : 0
             return GoalStatus(id: g.id, name: g.name, target: g.target, saved: saved, percent: pct, deadline: g.deadline, locked: g.locked)
         }

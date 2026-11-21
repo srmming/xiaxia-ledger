@@ -32,6 +32,7 @@ fin context --json
 | `fin assign --book miora <编号…>` | 分账本 |
 | `fin transfer link <转出编号> <转入编号>` / `fin transfer new 200 --from miora --to personal --account cash` | 账本间转账 |
 | `fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora` / `fin installment pay 美甲灯 [--tx 编号]` | 记分期（买的那天全额算支出）、记一期还款（不算支出） |
+| `fin goal add 应急金 6000 [--savings-account pot] [--locked]` / `fin goal deposit 应急金 300 --from caixa` / `fin goal withdraw …` | 目标：有储蓄账户按余额算，没有就在现有账户里划出；存取不算收支；锁定的不能取 |
 | `fin history` / `fin undo <编号>` | 看改动记录、撤销 |
 | `fin goals --json` | 目标和储蓄进度（有专门储蓄账户时按该账户余额算） |
 

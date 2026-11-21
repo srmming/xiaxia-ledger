@@ -13,6 +13,7 @@ public enum EditError: Error, LocalizedError, Equatable {
     case unknownTransaction(String, Int)
     case transferMismatch
     case unknownInstallment
+    case unknownGoal
 
     public var errorDescription: String? {
         switch self {
@@ -27,6 +28,7 @@ public enum EditError: Error, LocalizedError, Equatable {
         case .unknownTransaction(let key, let n): n == 0 ? "找不到流水 \(key)" : "流水编号 \(key) 对上了 \(n) 笔，多写几位"
         case .transferMismatch: "转账两笔要一笔支出、一笔收入，金额相同"
         case .unknownInstallment: "找不到这个分期"
+        case .unknownGoal: "找不到这个目标"
         }
     }
 }
@@ -191,6 +193,73 @@ extension Ledger {
         return installments.filter { $0.name.lowercased().contains(key) }
     }
 
+    // MARK: 目标和储蓄
+
+    /// 建一个目标。有专门的储蓄账户（如 Revolut 储蓄罐）就挂上，进度 = 那个账户余额；
+    /// 没有就在现有账户里「划出」，进度 = 每笔存入累加（2026-11-21 ming 定：两种都支持）。
+    /// locked = 锁定储蓄，存进去到期前不能取（宝宝存钱小游戏用）。
+    @discardableResult
+    public mutating func addGoal(name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
+                                 savingsAccountID: String? = nil, locked: Bool = false, author: String) throws -> (Goal, ChangeRecord) {
+        guard target.cents > 0 else { throw EditError.amountMustBePositive }
+        try requireBook(bookID)
+        if let savingsAccountID { try requireAccount(savingsAccountID) }
+        let goal = Goal(name: name, bookID: bookID, target: target, deadline: deadline, savingsAccountID: savingsAccountID, locked: locked)
+        goals.append(goal)
+        var change = ChangeRecord(kind: .goal, summary: "建目标「\(name)」\(target.formatted)\(locked ? "（锁定）" : "")",
+                                  transactionIDs: [], author: author)
+        change.goalID = goal.id
+        changes.append(change)
+        return (goal, change)
+    }
+
+    /// 往目标里存钱。挂了储蓄账户：从 fromAccount 转进储蓄账户（两笔，转进储蓄，不算支出）。
+    /// 没挂：在 fromAccount 里划出（一出一进两笔，账户余额不变，存入那笔记进进度）。
+    @discardableResult
+    public mutating func deposit(goalID: UUID, amount: Money, fromAccount: String, date: LocalDate, author: String) throws -> ChangeRecord {
+        guard amount.cents > 0 else { throw EditError.amountMustBePositive }
+        guard let i = goals.firstIndex(where: { $0.id == goalID }) else { throw EditError.unknownGoal }
+        try requireAccount(fromAccount)
+        let g = goals[i]
+        let target = g.savingsAccountID ?? fromAccount
+        let out = Transaction(date: date, amount: -amount, description: "存进「\(g.name)」", accountID: fromAccount, bookID: g.bookID,
+                              category: "储蓄", source: "手记", flow: .saving)
+        let inn = Transaction(date: date, amount: amount, description: "存进「\(g.name)」", accountID: target, bookID: g.bookID,
+                              category: "储蓄", source: "手记", flow: .saving)
+        transactions += [out, inn]
+        goals[i].contributionIDs.append(inn.id)
+        var change = ChangeRecord(kind: .goalDeposit, summary: "往「\(g.name)」存 \(amount.formatted)", transactionIDs: [out.id, inn.id], author: author)
+        change.goalID = goalID
+        changes.append(change)
+        return change
+    }
+
+    /// 从目标里取钱（存入的反过来）。锁定的目标不能取。
+    @discardableResult
+    public mutating func withdraw(goalID: UUID, amount: Money, toAccount: String, date: LocalDate, author: String) throws -> ChangeRecord {
+        guard amount.cents > 0 else { throw EditError.amountMustBePositive }
+        guard let i = goals.firstIndex(where: { $0.id == goalID }) else { throw EditError.unknownGoal }
+        let g = goals[i]
+        guard !g.locked else { throw EditError.lockedGoal(g.name) }
+        try requireAccount(toAccount)
+        let source = g.savingsAccountID ?? toAccount
+        let out = Transaction(date: date, amount: -amount, description: "从「\(g.name)」取出", accountID: source, bookID: g.bookID,
+                              category: "储蓄", source: "手记", flow: .saving)
+        let inn = Transaction(date: date, amount: amount, description: "从「\(g.name)」取出", accountID: toAccount, bookID: g.bookID,
+                              category: "储蓄", source: "手记", flow: .saving)
+        transactions += [out, inn]
+        goals[i].contributionIDs.append(out.id)   // 负数那笔，进度会减掉
+        var change = ChangeRecord(kind: .goalDeposit, summary: "从「\(g.name)」取出 \(amount.formatted)", transactionIDs: [out.id, inn.id], author: author)
+        change.goalID = goalID
+        changes.append(change)
+        return change
+    }
+
+    public func findGoals(named name: String) -> [Goal] {
+        let key = name.trimmingCharacters(in: .whitespaces).lowercased()
+        return goals.filter { $0.name.lowercased().contains(key) }
+    }
+
     // MARK: 改已有流水
 
     /// 找流水：完整 id 或前几位（fin tx 里显示的 8 位）。
@@ -298,6 +367,10 @@ extension Ledger {
             // 还款记录还在时不能先撤销借款本身。
             if let d = debts.first(where: { $0.id == debtID }), !d.repaymentIDs.isEmpty { throw EditError.notUndoable }
             debts.removeAll { $0.id == debtID }
+        }
+        if let goalID = change.goalID, change.kind == .goal {
+            if let g = goals.first(where: { $0.id == goalID }), !g.contributionIDs.isEmpty { throw EditError.notUndoable }
+            goals.removeAll { $0.id == goalID }
         }
         if let instID = change.installmentID {
             if change.kind == .installment {

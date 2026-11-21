@@ -31,6 +31,6 @@ args = ["mcp"]
 
 只读：`context`、`list_transactions`、`summary`、`debts`、`installments`、`goals`、`history`。
 
-写入（都能 `dry_run`）：`add_transaction`、`add_debt`、`repay_debt`、`categorize`、`assign_book`、`import_statement`、`undo`。
+写入（都能 `dry_run`）：`add_transaction`、`add_debt`、`repay_debt`、`categorize`、`assign_book`、`import_statement`、`add_installment`、`pay_installment`、`add_goal`、`goal_deposit`、`undo`。
 
 私房钱账户默认不出现在 `list_transactions` 和 `summary` 里，要 `include_private: true`，只有 ming 本人问时才用。

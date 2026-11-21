@@ -163,6 +163,27 @@ enum MCPTools {
             "book": prop("string", "这批默认归哪个账本"),
             "author": author, "dry_run": dryRun,
         ], required: ["file", "account", "format"], readOnly: false),
+        tool("add_installment", "记分期：买的那天按全额算支出，之后每期还款算还债。", [
+            "name": prop("string", "名称"), "total": prop("string", "总额（不含手续费）"), "count": prop("integer", "共几期"),
+            "account": prop("string", "从哪个账户扣"), "book": prop("string", "账本 id"),
+            "date": prop("string", "买的日期，默认今天"), "first": prop("string", "第一期扣款日"),
+            "category": prop("string", "分类"), "fee": prop("string", "手续费或利息"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["name", "total", "count", "account", "book"], readOnly: false),
+        tool("pay_installment", "记一期分期还款；导入的银行扣款用 transaction_id 认领。", [
+            "name": prop("string", "分期名称"), "transaction_id": prop("string", "已导入的扣款流水 id"),
+            "amount": prop("string", "金额，默认每期金额"), "date": prop("string", "日期，默认今天"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["name"], readOnly: false),
+        tool("add_goal", "建一个存钱目标。有专门储蓄账户就填 savings_account，没有就在现有账户里划出。", [
+            "name": prop("string", "名称"), "target": prop("string", "目标金额"), "book": prop("string", "账本 id，默认 personal"),
+            "deadline": prop("string", "截止日期"), "savings_account": prop("string", "专门的储蓄账户 id"),
+            "locked": prop("boolean", "锁定：到期前不能取"), "author": author, "dry_run": dryRun,
+        ], required: ["name", "target"], readOnly: false),
+        tool("goal_deposit", "往目标里存钱（不算支出）。", [
+            "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "from_account": prop("string", "钱从哪个账户来"),
+            "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["name", "amount", "from_account"], readOnly: false),
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
@@ -295,6 +316,35 @@ enum MCPTools {
                                                                     source: url.lastPathComponent, author: who)
             guard let change else { return "没有新流水（\(dupes) 笔都已经有了）。\(skipped)" }
             return try commit(change) + skipped
+        case "add_installment":
+            let buy = try date("date") ?? .today
+            let firstDate = try date("first") ?? LocalDate(year: buy.month == 12 ? buy.year + 1 : buy.year,
+                                                           month: buy.month == 12 ? 1 : buy.month + 1, day: min(buy.day, 28))
+            let fee: Money? = s("fee").flatMap { Money(parsing: $0) }
+            let (_, change) = try ledger.addInstallment(name: try req("name"), bookID: try req("book"), accountID: try req("account"),
+                                                        total: try money("total").magnitude, count: int("count", 0),
+                                                        purchaseDate: buy, firstPayment: firstDate, category: s("category"),
+                                                        fee: fee, author: who)
+            return try commit(change)
+        case "pay_installment":
+            let hits = ledger.findInstallments(named: try req("name"))
+            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个分期" : "对上了 \(hits.count) 个分期，写完整一点") }
+            if let key = s("transaction_id") {
+                let t = try ledger.findTransactions([key])[0]
+                return try commit(try ledger.linkInstallmentPayment(hits[0].id, transactionID: t.id, author: who))
+            }
+            let amount: Money? = s("amount").flatMap { Money(parsing: $0) }
+            return try commit(try ledger.payInstallment(hits[0].id, amount: amount, date: try date("date") ?? .today, author: who))
+        case "add_goal":
+            let (_, change) = try ledger.addGoal(name: try req("name"), bookID: s("book") ?? "personal", target: try money("target").magnitude,
+                                                 deadline: try date("deadline"), savingsAccountID: s("savings_account"),
+                                                 locked: flag("locked"), author: who)
+            return try commit(change)
+        case "goal_deposit":
+            let hits = ledger.findGoals(named: try req("name"))
+            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
+            return try commit(try ledger.deposit(goalID: hits[0].id, amount: try money("amount").magnitude,
+                                                 fromAccount: try req("from_account"), date: try date("date") ?? .today, author: who))
         case "undo":
             let key = try req("change_id").lowercased()
             let hits = ledger.changes.filter { $0.id.uuidString.lowercased().hasPrefix(key) }

@@ -10,7 +10,7 @@ struct Fin: ParsableCommand {
         discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, TransferCommand.self, InstallmentCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
+                      AssignCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
     )
 }
 
@@ -507,6 +507,70 @@ struct InstallmentCommand: ParsableCommand {
             } else {
                 change = try ledger.payInstallment(inst.id, amount: try amount.map { try parseMoney($0) }, date: try parseDate(date), author: w.who)
             }
+            try finish(ledger, change, w)
+        }
+    }
+}
+
+struct GoalCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "goal", abstract: "目标和储蓄：建目标、存钱、取钱。存取都不算收支。",
+                                                    subcommands: [Add.self, Deposit.self, Withdraw.self])
+
+    static func find(_ ledger: Ledger, _ name: String) throws -> Goal {
+        let hits = ledger.findGoals(named: name)
+        guard hits.count == 1 else { throw ValidationError(hits.isEmpty ? "没有叫「\(name)」的目标" : "「\(name)」对上了 \(hits.count) 个目标") }
+        return hits[0]
+    }
+
+    struct Add: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "add", abstract: "建一个目标。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "名称，如「应急金」。") var name: String
+        @Argument(help: "目标金额。") var target: String
+        @Option(help: "账本 id。") var book: String = "personal"
+        @Option(help: "截止日期。") var deadline: String?
+        @Option(help: "专门的储蓄账户 id（如 Revolut 储蓄罐）；不填就在现有账户里划出。") var savingsAccount: String?
+        @Flag(help: "锁定：存进去到期前不能取。") var locked = false
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let (_, change) = try ledger.addGoal(name: name, bookID: book, target: try parseMoney(target).magnitude,
+                                                 deadline: try deadline.map { try parseDate($0) }, savingsAccountID: savingsAccount,
+                                                 locked: locked, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Deposit: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "deposit", abstract: "往目标里存钱。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "目标名称。") var name: String
+        @Argument(help: "金额。") var amount: String
+        @Option(help: "钱从哪个账户来。") var from: String
+        @Option(help: "日期，默认今天。") var date: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let g = try GoalCommand.find(ledger, name)
+            let change = try ledger.deposit(goalID: g.id, amount: try parseMoney(amount).magnitude, fromAccount: from,
+                                            date: try parseDate(date), author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Withdraw: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "withdraw", abstract: "从目标里取钱（锁定的不能取）。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "目标名称。") var name: String
+        @Argument(help: "金额。") var amount: String
+        @Option(help: "取到哪个账户。") var to: String
+        @Option(help: "日期，默认今天。") var date: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let g = try GoalCommand.find(ledger, name)
+            let change = try ledger.withdraw(goalID: g.id, amount: try parseMoney(amount).magnitude, toAccount: to,
+                                             date: try parseDate(date), author: w.who)
             try finish(ledger, change, w)
         }
     }
