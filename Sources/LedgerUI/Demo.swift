@@ -41,9 +41,14 @@ extension Ledger {
         let borrow = Transaction(date: d(6, 1), amount: c(2000), description: "向妈妈借", accountID: "caixa", bookID: "personal", category: "借款往来", flow: .debt)
         let payMom = Transaction(date: d(9, 1), amount: c(-1000), description: "还妈妈", accountID: "caixa", bookID: "personal", category: "借款往来", flow: .debt)
         let lamp = (1...3).map { k in
-            Transaction(date: d(8 + k, 5), amount: c(-54.9), description: "美甲灯分期 \(k)/6", accountID: "caixa", bookID: "miora", category: "设备")
+            Transaction(date: d(8 + k, 5), amount: c(-54.9), description: "美甲灯分期 \(k)/6", accountID: "caixa", bookID: "miora",
+                        category: "分期还款", flow: .debt)
         }
-        txs += [lend, back, borrow, payMom] + lamp
+        // 分期口径：买的那天全额算支出，同时记一笔分期借款进来；每期还款是还债。
+        let lampBuy = Transaction(date: d(8, 20), amount: c(-329.4), description: "美甲灯和打磨机", accountID: "caixa", bookID: "miora", category: "设备")
+        let lampLoan = Transaction(date: d(8, 20), amount: c(329.4), description: "美甲灯和打磨机（分期借款）", accountID: "caixa", bookID: "miora",
+                                   category: "分期", flow: .debt)
+        txs += [lend, back, borrow, payMom, lampBuy, lampLoan] + lamp
         let openings: [(String, Double)] = [("caixa", 3200), ("imagin", 3600), ("revolut", 2900), ("cash", 180)]
         txs += openings.map { Transaction(date: d(1, 1), amount: c($0.1), description: "期初余额", accountID: $0.0, category: "期初余额", flow: .opening) }
         // 只留到 11 月 20 日，不出现未来日期。
@@ -54,8 +59,10 @@ extension Ledger {
             Debt(counterparty: "妈妈", direction: .iOweThem, principal: c(2000), bookID: "personal", startDate: d(6, 1),
                  dueDate: LocalDate(year: 2027, month: 3, day: 1), repaymentIDs: [payMom.id]),
         ]
-        l.installments = [Installment(name: "美甲灯和打磨机", bookID: "miora", accountID: "caixa", total: c(329.4), count: 6,
-                                      firstDate: d(9, 5), paidIDs: lamp.map(\.id))]
+        var lampPlan = Installment(name: "美甲灯和打磨机", bookID: "miora", accountID: "caixa", total: c(329.4), count: 6,
+                                   firstDate: d(9, 5), paidIDs: lamp.map(\.id))
+        lampPlan.purchaseID = lampBuy.id
+        l.installments = [lampPlan]
         l.goals = [
             Goal(name: "应急金", bookID: "personal", target: c(6000), savingsAccountID: "pot"),
             Goal(name: "店铺装修", bookID: "miora", target: c(4000), deadline: LocalDate(year: 2027, month: 6, day: 30)),
