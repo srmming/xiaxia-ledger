@@ -366,7 +366,13 @@ public struct XiaxiaScene: Scene {
         // 截图和演示：启动参数带 -XiaxiaDemo 就用编造的示例账本，-XiaxiaEmpty 是空账本，都不碰真实数据。
         let args = ProcessInfo.processInfo.arguments
         let model: LedgerModel
-        if args.contains("-XiaxiaDemo") {
+        #if DEBUG
+        // 开发版（Debug）默认用示例账本，不去读 iCloud 里的真账本；真要读加 -XiaxiaReal。
+        let useDemo = args.contains("-XiaxiaDemo") || (!args.contains("-XiaxiaEmpty") && !args.contains("-XiaxiaReal"))
+        #else
+        let useDemo = args.contains("-XiaxiaDemo")
+        #endif
+        if useDemo {
             model = LedgerModel.demo()
         } else if args.contains("-XiaxiaEmpty") {
             model = LedgerModel.empty()

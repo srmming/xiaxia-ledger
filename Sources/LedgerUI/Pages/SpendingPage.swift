@@ -20,12 +20,13 @@ struct SpendingPage: View {
                     .kitCard()
             } else {
                 VStack(alignment: .leading, spacing: Kit.gap) {
+                    // 商户放在圆环下面，和右边的分类排行差不多高，不留一大块空。
                     Columns(sideWidth: 440, breakpoint: 760) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
+                        merchantsCard(month: month)
                     } side: {
                         rankingCard(totals: totals, previous: previous, total: now.expense.magnitude)
                     }
-                    merchantsCard(month: month)
                 }
             }
         }
@@ -111,7 +112,7 @@ struct SpendingPage: View {
                     Monogram(text: m.name, color: Color.fg3.opacity(0.6), size: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(m.name).font(.callout.weight(.medium)).lineLimit(1)
-                        Text("\(m.category ?? "未分类") · \(m.count) 笔").font(.caption).foregroundStyle(Color.fg2)
+                        Text(m.category == nil ? "未分类 · \(m.count) 笔" : m.category == m.name ? "\(m.count) 笔" : "\(m.category!) · \(m.count) 笔").font(.caption).foregroundStyle(Color.fg2)
                     }
                     Spacer()
                     Text(m.amount.formatted).font(.kitAmount)
