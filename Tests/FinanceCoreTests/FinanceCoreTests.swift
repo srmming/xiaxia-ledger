@@ -832,11 +832,15 @@ final class BetweenBooksTests: XCTestCase {
         ]
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "personal").betweenBooks, Money(cents: 40_000))
         XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "shop").betweenBooks, Money(cents: -40_000))
-        let all = Summaries.unmatchedInternal(txs, months: [m])
-        XCTAssertEqual(all.count, 2)
-        XCTAssertEqual(all.total, Money(cents: 27_900))
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m], bookID: "personal").total, Money(cents: 7_000))
-        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [YearMonth(year: 2026, month: 6)]).count, 1)
+        // 没有哪个账户是两个账本都在用的：这些单边转账和别的账本无关，不提醒。
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]).count, 0)
+        XCTAssertEqual(Summaries.pairInternal(txs).unpaired.count, 3)
+        // 店里的账户也刷过个人开销：从它转出去没配上的那笔可能是拿回家了，要提醒。
+        let shared = txs + [tx(15, -1_200, "shopbank", "personal", flow: nil)]
+        let flagged = Summaries.unmatchedInternal(shared, months: [m])
+        XCTAssertEqual(flagged.count, 1)
+        XCTAssertEqual(flagged.total, Money(cents: 20_900))
+        XCTAssertEqual(Summaries.unmatchedInternal(shared, months: [YearMonth(year: 2026, month: 6)]).count, 0)
     }
 
     func testPairsNearestDateAndNeverSameAccount() {

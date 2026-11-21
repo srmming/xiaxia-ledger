@@ -103,13 +103,16 @@ public enum Summaries {
         return out.filter { $0.value.cents != 0 }
     }
 
-    /// 这几个月里只记了一边的「自己账户间转账」：几笔、金额加起来多少（不分正负）。bookID 不填就是所有账本。
-    /// 比如还信用卡只记了银行卡扣款、信用卡那边没记进账。这些钱没法确定去了哪个账本，所以不算进「从店里拿的」，单独提醒。
-    public static func unmatchedInternal(_ txs: [Transaction], months: [YearMonth], bookID: String? = nil,
+    /// 这几个月里只记了一边、而且可能是和别的账本之间的「自己账户间转账」：几笔、金额加起来多少（不分正负）。
+    /// 只看「两个账本都在用的账户」上的：比如店里的 Caixa 也刷过个人开销，从它转出去却没配上对的钱，可能是拿回家了。
+    /// 只有一个账本在用的账户（比如个人的 imagin 还个人的信用卡，卡那边没记进账）和别的账本无关，不提醒，免得吓人。
+    public static func unmatchedInternal(_ txs: [Transaction], months: [YearMonth],
                                          hiddenAccounts: Set<String> = []) -> (count: Int, total: Money) {
+        var booksOfAccount: [String: Set<String>] = [:]
+        for tx in txs { if let b = tx.bookID { booksOfAccount[tx.accountID, default: []].insert(b) } }
         let wanted = Set(months)
         let list = pairInternal(txs).unpaired.filter {
-            wanted.contains($0.date.yearMonth) && (bookID == nil || $0.bookID == bookID) && !hiddenAccounts.contains($0.accountID)
+            wanted.contains($0.date.yearMonth) && (booksOfAccount[$0.accountID]?.count ?? 0) > 1 && !hiddenAccounts.contains($0.accountID)
         }
         return (list.count, list.reduce(Money.zero) { $0 + $1.amount.magnitude })
     }
