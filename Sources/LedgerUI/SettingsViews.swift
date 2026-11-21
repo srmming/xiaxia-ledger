@@ -82,6 +82,9 @@ public struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        #if os(iOS)
+        .contentMargins(.bottom, 40, for: .scrollContent)
+        #endif
         .navigationTitle("设置")
         .sheet(isPresented: $adding) { NavigationStack { AddAccountView() }.sheetSize() }
     }

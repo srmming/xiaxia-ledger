@@ -37,6 +37,7 @@ public struct TransactionsView: View {
         }
         #if os(iOS)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索说明、分类、账户、金额")
+        .navigationBarTitleDisplayMode(.large)
         #else
         .searchable(text: $query, prompt: "搜索说明、分类、账户、金额")
         #endif
@@ -72,12 +73,21 @@ struct TransactionRow: View {
         .accessibilityElement(children: .combine)
     }
 
+    static let categorySymbols: [String: String] = [
+        "餐饮": "fork.knife", "超市": "cart", "交通": "tram", "房租": "house", "店租": "storefront",
+        "水电": "bolt", "耗材": "paintbrush", "设备": "wrench.and.screwdriver", "员工工资": "person.crop.rectangle",
+        "工资": "person.crop.rectangle", "收入": "arrow.down.circle", "营业收入": "sparkles", "其他": "tag",
+    ]
+
     private var icon: String {
         switch tx.flow {
-        case .debt: "person.2"
-        case .saving: "dollarsign.circle"
-        case .opening: "flag"
-        case nil: tx.isTransfer ? "arrow.left.arrow.right" : (tx.amount.isIncome ? "arrow.down.circle" : "cart")
+        case .debt: return "person.2"
+        case .saving: return "dollarsign.circle"
+        case .opening: return "flag"
+        case nil:
+            if tx.isTransfer { return "arrow.left.arrow.right" }
+            if let symbol = Self.categorySymbols[tx.category ?? ""] { return symbol }
+            return tx.amount.isIncome ? "arrow.down.circle" : "tag"
         }
     }
 }
