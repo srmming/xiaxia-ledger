@@ -5,19 +5,28 @@ import AppKit
 /// 是 app 画自己的窗口，不用「屏幕录制」权限，GitHub 的 Mac 机器上也能截（screencapture 在那里只有黑屏）。
 /// 弹着窗口（比如「连上你的 AI」）时另存一张 <文件>-sheet.png。
 enum WindowSnapshot {
-    static func schedule(to path: String, after seconds: Double = 6) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            let url = URL(fileURLWithPath: path)
+    /// 等窗口出来（最多 30 秒）再多等几秒让内容画完，然后存图退出。
+    static func schedule(to path: String, settle: Double = 4, tries: Int = 30) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             let windows = NSApp.windows
             guard let window = windows.first(where: { $0.isVisible && $0.canBecomeMain }) ?? windows.first(where: { $0.isVisible }) else {
-                FileHandle.standardError.write(Data("没有可见窗口，截不了图（共 \(windows.count) 个窗口）\n".utf8))
-                exit(3)
+                if tries > 0 {
+                    NSApp.activate(ignoringOtherApps: true)
+                    schedule(to: path, settle: settle, tries: tries - 1)
+                } else {
+                    FileHandle.standardError.write(Data("没有可见窗口，截不了图（共 \(windows.count) 个窗口）\n".utf8))
+                    exit(3)
+                }
+                return
             }
-            save(window, to: url)
-            if let sheet = window.attachedSheet {
-                save(sheet, to: url.deletingPathExtension().appendingPathExtension("sheet").appendingPathExtension("png"))
+            DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
+                let url = URL(fileURLWithPath: path)
+                save(window, to: url)
+                if let sheet = window.attachedSheet {
+                    save(sheet, to: url.deletingPathExtension().appendingPathExtension("sheet").appendingPathExtension("png"))
+                }
+                exit(0)
             }
-            exit(0)
         }
     }
 
