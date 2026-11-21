@@ -35,7 +35,8 @@ if [ -n "$IOS_APP" ]; then
   ios 10-onboarding -XiaxiaEmpty
 fi
 
-if [ -n "$MAC_APP" ]; then
+# GitHub 的机器截不到 Mac 窗口（只有黑屏），所以 CI 上跳过 Mac 部分；在自己的 Mac 上跑会截。
+if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   mac() {
     local name="$1"; shift

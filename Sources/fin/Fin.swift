@@ -10,8 +10,16 @@ struct Fin: ParsableCommand {
         discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
     )
+
+    /// 负数金额（-12,50）会被当成选项，报「缺少参数」。这里先把开头的减号换成全角减号「−」，金额解析认得它。
+    static func main() {
+        let args = CommandLine.arguments.dropFirst().map { a -> String in
+            a.range(of: #"^-\d"#, options: .regularExpression) != nil ? "\u{2212}" + a.dropFirst() : a
+        }
+        Self.main(Array(args))
+    }
 }
 
 struct GlobalOptions: ParsableArguments {
@@ -115,7 +123,7 @@ struct AccountsCommand: ParsableCommand {
             struct Row: Encodable { var account: Account; var balance: String }
             return try Output.json(ledger.accounts.map { Row(account: $0, balance: (balances[$0.id] ?? .zero).decimalString) })
         }
-        for a in ledger.accounts { print("\(a.id)\t\(a.name)\t\((balances[a.id] ?? .zero).formatted)") }
+        for a in ledger.accounts { print("\(a.id)\t\(a.name)\(a.isPrivate ? "（私房钱）" : "")\t\((balances[a.id] ?? .zero).formatted)") }
     }
 }
 
@@ -143,7 +151,7 @@ struct TxCommand: ParsableCommand {
         if options.json { return try Output.json(Array(txs)) }
         if txs.isEmpty { print("没有符合条件的流水。") }
         for t in txs {
-            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(t.amount.formatted)\t\(t.bookID ?? "未分")\t\(t.category ?? "未分类")\t\(t.description)")
+            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(t.amount.formatted)\t\(t.bookID ?? (t.flow != nil ? "—" : "未分"))\t\(t.category ?? "未分类")\t\(t.description)")
         }
     }
 }
@@ -285,7 +293,21 @@ struct DebtCommand: ParsableCommand {
 }
 
 struct AccountCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "account", abstract: "管理账户。", subcommands: [AccountAdd.self])
+    static let configuration = CommandConfiguration(commandName: "account", abstract: "管理账户。", subcommands: [AccountAdd.self, AccountOpening.self])
+
+    struct AccountOpening: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "opening", abstract: "记开账余额：开始记账那天账户里已经有多少钱（不算收入）。已经记过就改成新的。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "账户 id。") var account: String
+        @Argument(help: "余额。信用卡欠款写负数。") var amount: String
+        @Option(help: "哪天的余额，默认今天。") var date: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let change = try ledger.setOpeningBalance(accountID: account, amount: try parseMoney(amount), date: try parseDate(date), author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
 
     struct AccountAdd: ParsableCommand {
         static let configuration = CommandConfiguration(commandName: "add", abstract: "加一个账户。")
@@ -343,14 +365,14 @@ struct ImportCommand: ParsableCommand {
         commandName: "import",
         abstract: "导入对账单，自动去重。先加 --dry-run 看会导入什么，跟 ming 确认后再正式导入。",
         discussion: """
-        Revolut：fin import 文件.csv --account revolut --format revolut
+        Revolut：fin import 文件.csv --account revolut（自动认出 Revolut 格式）
         其他银行（CSV）：fin import 文件.csv --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto
         收支分两列：用 --debit-col / --credit-col 代替 --amount-col。列名或列号（从 1 开始）都行。
         """)
     @OptionGroup var w: WriteOptions
     @Argument(help: "对账单文件（CSV）。") var file: String
     @Option(help: "导进哪个账户。") var account: String
-    @Option(help: "格式：revolut 或 csv。") var format: String = "csv"
+    @Option(help: "格式：revolut 或 csv。不填就自己认（Revolut 的 CSV 认得出）。") var format: String?
     @Option(help: "通用 CSV：日期列。") var dateCol: String?
     @Option(help: "通用 CSV：金额列（正收入负支出）。") var amountCol: String?
     @Option(help: "通用 CSV：支出列。") var debitCol: String?
@@ -367,7 +389,8 @@ struct ImportCommand: ParsableCommand {
         let text = String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
         let source = url.lastPathComponent
         var result: ImportResult
-        switch format {
+        let kind = format ?? (ImportGuess.detect(text).format == .revolut ? "revolut" : "csv")
+        switch kind {
         case "revolut": result = try Importers.revolutCSV(text, accountID: account, source: source)
         case "csv":
             guard let dateCol, let descCol else { throw ValidationError("通用 CSV 要写 --date-col 和 --desc-col") }
@@ -446,7 +469,8 @@ struct TransferCommand: ParsableCommand {
     }
 
     struct Mark: ParsableCommand {
-        static let configuration = CommandConfiguration(commandName: "mark", abstract: "把已导入的流水标成自己账户间转账，不再算收支（如对账单里的取现、转到 Revolut）。")
+        static let configuration = CommandConfiguration(commandName: "mark", abstract: "把已导入的流水标成自己账户间转账，不再算收支（如对账单里的取现、转到 Revolut）。",
+                                                        discussion: "注意：写了 --counter-account 会在那个账户新记一笔相反金额的流水（比如银行卡取现 -100，现金账户就多一笔 +100）。另一半已经导入过就不要写，改用 fin transfer link。")
         @OptionGroup var w: WriteOptions
         @Argument(help: "流水编号（fin tx 里的 8 位），可以多个。") var ids: [String]
         @Option(name: .customLong("counter-account"), help: "在这个账户补上另一半（如取现补到 cash）。另一半已经导入过就不填。") var counter: String?

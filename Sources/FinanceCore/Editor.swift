@@ -14,6 +14,7 @@ public enum EditError: Error, LocalizedError, Equatable {
     case transferMismatch
     case unknownInstallment
     case unknownGoal
+    case repayTooMuch(String)
 
     public var errorDescription: String? {
         switch self {
@@ -29,6 +30,7 @@ public enum EditError: Error, LocalizedError, Equatable {
         case .transferMismatch: "转账两笔要一笔支出、一笔收入，金额相同"
         case .unknownInstallment: "找不到这个分期"
         case .unknownGoal: "找不到这个目标"
+        case .repayTooMuch(let left): "还得比欠的多了，这笔只剩 \(left) 没还"
         }
     }
 }
@@ -102,6 +104,9 @@ extension Ledger {
         guard let i = debts.firstIndex(where: { $0.id == debtID }) else { throw EditError.unknownDebt }
         try requireAccount(accountID)
         let d = debts[i]
+        if let now = Plans.debts(self, today: date, includeClosed: true).first(where: { $0.id == debtID }), amount > now.outstanding {
+            throw EditError.repayTooMuch(now.outstanding.formatted)
+        }
         let signed = d.direction == .theyOweMe ? amount : -amount
         let tx = Transaction(date: date, amount: signed,
                              description: d.direction == .theyOweMe ? "\(d.counterparty)还款" : "还\(d.counterparty)",
@@ -117,7 +122,10 @@ extension Ledger {
     public func openDebts(named name: String) -> [Debt] {
         let key = name.trimmingCharacters(in: .whitespaces).lowercased()
         let open = Set(Plans.debts(self, today: .today).map(\.id))
-        return debts.filter { open.contains($0.id) && $0.counterparty.lowercased().contains(key) }
+        let candidates = debts.filter { open.contains($0.id) }
+        // 名字完全一样的优先（同时有「阿华」和「阿华2」时，说「阿华」就是阿华）。
+        let exact = candidates.filter { $0.counterparty.trimmingCharacters(in: .whitespaces).lowercased() == key }
+        return exact.isEmpty ? candidates.filter { $0.counterparty.lowercased().contains(key) } : exact
     }
 
     // MARK: 分期
