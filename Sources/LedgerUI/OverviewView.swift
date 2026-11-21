@@ -76,7 +76,9 @@ public struct OverviewView: View {
                                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(a.name).font(.caption).foregroundStyle(.secondary)
-                                    AmountText(money: model.balances[a.id] ?? .zero, signed: false, font: .subheadline.weight(.semibold))
+                                    Text((model.balances[a.id] ?? .zero).formatted)
+                                        .font(.subheadline.weight(.semibold)).monospacedDigit()
+                                        .foregroundStyle((model.balances[a.id] ?? .zero).isExpense ? Color.coral : .primary)
                                 }
                             }
                             .accessibilityElement(children: .combine)

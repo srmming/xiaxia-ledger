@@ -91,7 +91,7 @@ public struct PlansView: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(d.outstanding.formatted).monospacedDigit().bold()
                         if let due = d.dueDate {
-                            Text(d.overdue ? "已过 \(due.short)" : "\(due.short) 前")
+                            Text(d.overdue ? "已过 \(due.short)" : "\(due.short)前")
                                 .font(.caption).foregroundStyle(d.overdue ? Color.coral : .secondary)
                         }
                     }

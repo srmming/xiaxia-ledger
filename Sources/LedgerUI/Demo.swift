@@ -27,7 +27,7 @@ extension Ledger {
                 Transaction(date: d(m, 3), amount: c(4600 + wiggle * 5), description: "美甲收入（刷卡）", accountID: "caixa", bookID: "miora", category: "营业收入"),
                 Transaction(date: d(m, 4), amount: c(700 + wiggle), description: "美甲收入（现金）", accountID: "cash", bookID: "miora", category: "营业收入"),
                 Transaction(date: d(m, 5), amount: c(-500), description: "店租", accountID: "caixa", bookID: "miora", category: "店租"),
-                Transaction(date: d(m, 8), amount: c(-1200), description: "员工工资", accountID: "caixa", bookID: "miora", category: "工资"),
+                Transaction(date: d(m, 8), amount: c(-1200), description: "员工工资", accountID: "caixa", bookID: "miora", category: "员工工资"),
                 Transaction(date: d(m, 15), amount: c(-640 - wiggle * 2), description: "甲油胶和耗材", accountID: "caixa", bookID: "miora", category: "耗材"),
                 Transaction(date: d(m, 20), amount: c(-115.2), description: "水电", accountID: "caixa", bookID: "miora", category: "水电"),
                 Transaction(date: d(m, 25), amount: c(-300), description: "转进应急金", accountID: "caixa", bookID: "personal", category: "储蓄", flow: .saving),
@@ -44,7 +44,10 @@ extension Ledger {
             Transaction(date: d(8 + k, 5), amount: c(-54.9), description: "美甲灯分期 \(k)/6", accountID: "caixa", bookID: "miora", category: "设备")
         }
         txs += [lend, back, borrow, payMom] + lamp
-        l.transactions = txs
+        let openings: [(String, Double)] = [("caixa", 3200), ("imagin", 3600), ("revolut", 2900), ("cash", 180)]
+        txs += openings.map { Transaction(date: d(1, 1), amount: c($0.1), description: "期初余额", accountID: $0.0, category: "期初余额", flow: .opening) }
+        // 只留到 11 月 20 日，不出现未来日期。
+        l.transactions = txs.filter { $0.date <= d(11, 20) }
         l.debts = [
             Debt(counterparty: "阿华", direction: .theyOweMe, principal: c(500), bookID: "personal", startDate: d(9, 3),
                  dueDate: d(10, 31), repaymentIDs: [back.id]),

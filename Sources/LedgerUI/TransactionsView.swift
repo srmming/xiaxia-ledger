@@ -35,7 +35,11 @@ public struct TransactionsView: View {
                 }
             }
         }
+        #if os(iOS)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索说明、分类、账户、金额")
+        #else
         .searchable(text: $query, prompt: "搜索说明、分类、账户、金额")
+        #endif
         .navigationTitle("流水")
         .sheet(item: $selected) { t in
             NavigationStack { TransactionDetail(tx: t) }
@@ -72,6 +76,7 @@ struct TransactionRow: View {
         switch tx.flow {
         case .debt: "person.2"
         case .saving: "dollarsign.circle"
+        case .opening: "flag"
         case nil: tx.isTransfer ? "arrow.left.arrow.right" : (tx.amount.isIncome ? "arrow.down.circle" : "cart")
         }
     }
@@ -93,7 +98,7 @@ struct TransactionDetail: View {
                 LabeledContent("账本", value: model.bookName(tx.bookID))
                 LabeledContent("分类", value: tx.category ?? "未分类")
                 if let flow = tx.flow {
-                    LabeledContent("性质", value: flow == .debt ? "借款往来（不算收支）" : "转进储蓄（不算收支）")
+                    LabeledContent("性质", value: flow == .debt ? "借款往来（不算收支）" : flow == .saving ? "转进储蓄（不算收支）" : "期初余额（不算收支）")
                 }
                 if let source = tx.source { LabeledContent("来源", value: source) }
             }
