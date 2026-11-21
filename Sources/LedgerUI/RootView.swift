@@ -127,6 +127,22 @@ public struct RootView: View {
                 .tag(s)
             }
         }
+        // 记一笔是最常做的事：除了设置页，右下角一直有一个大按钮。
+        .overlay(alignment: .bottomTrailing) {
+            if (model.section ?? .overview) != .settings {
+                Button { model.sheet = .add } label: {
+                    Label("记一笔", systemImage: "plus")
+                        .font(.headline)
+                        .padding(.horizontal, 6).padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+                .padding(.trailing, 18)
+                .padding(.bottom, 62)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
     }
     #else
     private var layout: some View {
@@ -185,7 +201,8 @@ struct AddMenu: ToolbarContent {
         // Mac 上拆成两个按钮：＋ 只管记一笔，旁边的箭头放别的。
         // （不用带 primaryAction 的 Menu：它在工具栏里有时一启动就自己触发，面板会自己弹出来。）
         ToolbarItem(placement: .primaryAction) {
-            Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus") }
+            Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
+                .buttonStyle(.borderedProminent)
                 .help("记一笔（⌘N）")
         }
         ToolbarItem(placement: .primaryAction) {

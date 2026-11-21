@@ -67,29 +67,42 @@ public struct TransactionEditor: View {
 
     private var form: some View {
         Form {
+            // 视觉重心：金额。大字、居中，一打开光标就在这里。
             Section {
-                Picker("类型", selection: $kind.animation(.snappy)) {
-                    Text("支出").tag(Kind.expense)
-                    Text("收入").tag(Kind.income)
-                    Text("转账").tag(Kind.transfer)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                // 系统自带的输入框，只是金额字大一点、靠右，像「钱包」里输金额那样。
-                LabeledContent {
-                    HStack(spacing: 4) {
+                VStack(spacing: 14) {
+                    Picker("类型", selection: $kind.animation(.snappy)) {
+                        Text("支出").tag(Kind.expense)
+                        Text("收入").tag(Kind.income)
+                        Text("转账").tag(Kind.transfer)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(maxWidth: 320)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         TextField("0,00", text: $amountText)
                             .labelsHidden()
                             .decimalKeyboard()
-                            .multilineTextAlignment(.trailing)
-                            .font(.title2.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(kind == .income ? Color.income : Color.primary)
+                            .fixedSize()
                             .focused($focus, equals: .amount)
                             .onSubmit { focus = .text }
-                        Text("€").font(.title3).foregroundStyle(.secondary)
+                            #if os(macOS)
+                            .textFieldStyle(.plain)
+                            #endif
+                        Text("€").font(.system(size: 28, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
                     }
-                } label: { Text("金额") }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("金额")
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Color.coral) }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .listRowBackground(Color.clear)
+            }
+            Section {
                 LabeledContent {
                     TextField(placeholder, text: $text)
                         .labelsHidden()
@@ -97,7 +110,6 @@ public struct TransactionEditor: View {
                         .focused($focus, equals: .text)
                         .onChange(of: text) { suggest() }
                 } label: { Text("说明") }
-                if let problem { Text(problem).font(.footnote).foregroundStyle(Color.coral) }
             } footer: {
                 if editing != nil, kind == .transfer {
                     Text("改成转账后，这笔不再算收入或支出。比如银行对账单里的「取现」「转到 Revolut」。")

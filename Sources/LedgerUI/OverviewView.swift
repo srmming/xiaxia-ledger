@@ -47,25 +47,21 @@ public struct OverviewView: View {
         })
     }
 
+    /// 总览只回答一个问题：「我现在怎么样」。重心是最上面的大数字（这个月全部剩下多少）和一句大白话；
+    /// 下面小一号是每个账本各一张「赚了 / 亏了」的卡；再往下才是要处理的事和明细。
     private var content: some View {
         let month = model.shownMonth
-        let months = Reports.months(endingAt: max(month, model.currentMonth), count: chartMonths)
-        let series = model.summaries(months)
-        let s = model.summary(month)
-        let previous = model.summary(month.adding(months: -1))
+        let all = model.summaries([month], bookID: nil)[0]
+        let previous = model.summaries([month.adding(months: -1)], bookID: nil)[0]
         let hasRealFlow = model.ledger.transactions.contains { $0.flow == nil }
         return Form {
-            Section {
-                BookPicker().frame(maxWidth: .infinity)
-            }
+            heroSection(month: month, s: all, previous: previous)
+            if model.ledger.books.count > 1 { booksSection(month: month) }
             if !hasRealFlow { startSection }
-            monthSection(month: month, s: s, previous: previous)
             todoSection
-            spendingSection(month: month, s: s)
-            chartSection(month: month, series: series)
+            spendingSection(month: month, s: all)
             accountsSection
             recentSection
-            plansSection
         }
         .formStyle(.grouped)
     }
@@ -81,51 +77,78 @@ public struct OverviewView: View {
         }
     }
 
-    // MARK: 这个月
+    // MARK: 视觉重心：这个月剩多少
 
-    private func monthSection(month: YearMonth, s: MonthlySummary, previous: MonthlySummary) -> some View {
+    private func heroSection(month: YearMonth, s: MonthlySummary, previous: MonthlySummary) -> some View {
         Section {
-            HStack {
-                MonthStepper(month: monthBinding)
-                Spacer()
-                if model.selectedMonth != nil {
-                    Button("回到这个月") { withAnimation(.snappy) { model.selectedMonth = nil } }.buttonStyle(.borderless)
-                }
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(model.bookName(model.selectedBookID)) · \(month.month) 月剩下").font(.subheadline).foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline) {
-                    BigAmount(money: grown ? s.net : .zero)
-                        .foregroundStyle(s.net.isExpense ? Color.coral : Color.primary)
-                    if let rate = Plans.savingsRate(s), rate > 0 {
-                        Text("存下 \(rate)%").font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color.income.opacity(0.15), in: Capsule())
-                            .foregroundStyle(Color.income)
+            VStack(spacing: 10) {
+                HStack {
+                    MonthStepper(month: monthBinding)
+                    if model.selectedMonth != nil {
+                        Button("回到这个月") { withAnimation(.snappy) { model.selectedMonth = nil } }.buttonStyle(.borderless).font(.subheadline)
                     }
+                }
+                Text(s.net.isExpense ? "\(month.month) 月超支了" : "\(month.month) 月还剩").font(.headline).foregroundStyle(.secondary)
+                BigAmount(money: grown ? s.net.magnitude : .zero, size: 56)
+                    .foregroundStyle(s.net.isExpense ? Color.coral : Color.primary)
+                Text(sentence(s, previous))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .listRowBackground(Color.clear)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// 一句大白话：进了多少、花了多少、和上个月比。
+    private func sentence(_ s: MonthlySummary, _ p: MonthlySummary) -> String {
+        var line = "进账 \(s.income.formatted)，花掉 \(s.expense.magnitude.formatted)"
+        if let more = compare(s, p) { line += "\n" + more }
+        return line
+    }
+
+    // MARK: 每个账本赚了还是亏了
+
+    private func booksSection(month: YearMonth) -> some View {
+        Section {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                ForEach(model.ledger.books) { b in
+                    let s = model.summaries([month], bookID: b.id)[0]
+                    Button {
+                        withAnimation(.snappy) { model.selectedBookID = b.id }
+                        model.section = .reports
+                    } label: { bookTile(b, s) }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
-            .accessibilityElement(children: .combine)
-            NavigationLink {
-                TransactionsView(filter: TransactionFilter(month: month, sign: .income), title: "\(month.month) 月进账")
-            } label: {
-                amountRow("进账", symbol: "arrow.down.left.circle.fill", money: s.income, color: .income)
-            }
-            NavigationLink {
-                TransactionsView(filter: TransactionFilter(month: month, sign: .expense), title: "\(month.month) 月花掉")
-            } label: {
-                amountRow("花掉", symbol: "arrow.up.right.circle.fill", money: s.expense.magnitude, color: .coral)
-            }
-            if let bookID = model.selectedBookID, s.betweenBooks.cents != 0 {
-                // 从店里拿回家的钱 / 老板从店里拿走的钱：不算收入也不算支出，单独一行说清楚。
-                amountRow(Reports.betweenBooksLabel(s.betweenBooks, bookID: bookID, books: model.ledger.books),
-                          symbol: "arrow.left.arrow.right.circle.fill", money: s.betweenBooks.magnitude, color: .secondary)
-                    .help("自己账户之间挪的钱，不算收入也不算支出")
-            }
-        } footer: {
-            if let line = compare(s, previous) { Text(line) }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
         }
+    }
+
+    private func bookTile(_ b: Book, _ s: MonthlySummary) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(b.name).font(.subheadline.weight(.semibold))
+            Text(s.net.isExpense ? "亏了" : "赚了").font(.caption).foregroundStyle(.secondary)
+            Text(s.net.magnitude.formatted)
+                .font(.system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
+                .foregroundStyle(s.net.isExpense ? Color.coral : Color.income)
+                .minimumScaleFactor(0.6).lineLimit(1)
+            if s.betweenBooks.cents != 0 {
+                Text("\(Reports.betweenBooksLabel(s.betweenBooks, bookID: b.id, books: model.ledger.books)) \(s.betweenBooks.magnitude.formatted)")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("看这个账本的报表")
     }
 
     private func amountRow(_ title: String, symbol: String, money: Money, color: Color) -> some View {
@@ -148,42 +171,6 @@ public struct OverviewView: View {
 
     static func compact(_ v: Double) -> String {
         abs(v) >= 1000 ? String(format: "%.0fk", v / 1000).replacingOccurrences(of: ".0k", with: "k") : String(format: "%.0f", v)
-    }
-
-    // MARK: 近几个月
-
-    private func chartSection(month: YearMonth, series: [MonthlySummary]) -> some View {
-        Section {
-            Chart {
-                ForEach(series, id: \.month) { m in
-                    BarMark(x: .value("月份", m.month.shortLabel), y: .value("金额", grown ? Double(m.income.cents) / 100 : 0), width: .ratio(0.7))
-                        .foregroundStyle(by: .value("类型", "进账"))
-                        .position(by: .value("类型", "进账"))
-                        .opacity(m.month == month ? 1 : 0.4)
-                    BarMark(x: .value("月份", m.month.shortLabel), y: .value("金额", grown ? Double(m.expense.magnitude.cents) / 100 : 0), width: .ratio(0.7))
-                        .foregroundStyle(by: .value("类型", "花掉"))
-                        .position(by: .value("类型", "花掉"))
-                        .opacity(m.month == month ? 1 : 0.4)
-                }
-            }
-            .chartForegroundStyleScale(["进账": Color.income, "花掉": Color.coral])
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
-                    AxisGridLine().foregroundStyle(Color.primary.opacity(0.08))
-                    AxisValueLabel {
-                        if let v = value.as(Double.self) { Text(Self.compact(v)).font(.caption2) }
-                    }
-                }
-            }
-            .chartXSelection(value: $chartPick)
-            .frame(height: 170)
-            .padding(.vertical, 8)
-            .onChange(of: chartPick) { _, label in
-                guard let label, let hit = series.first(where: { $0.month.shortLabel == label }) else { return }
-                monthBinding.wrappedValue = hit.month
-            }
-            .accessibilityLabel("近 \(series.count) 个月每月进账和花掉的柱状图，点一个月可以切过去")
-        } header: { Text("近 \(series.count) 个月") } footer: { Text("点一根柱子看那个月。") }
     }
 
     // MARK: 要处理的事
@@ -315,42 +302,5 @@ public struct OverviewView: View {
         } header: { Text("最近几笔") }
     }
 
-    // MARK: 借款、分期、存钱
 
-    @ViewBuilder
-    private var plansSection: some View {
-        let debts = Plans.debts(model.ledger, today: .today)
-        let owed = debts.filter { $0.direction == .theyOweMe }.reduce(Money.zero) { $0 + $1.outstanding }
-        let owe = debts.filter { $0.direction == .iOweThem }.reduce(Money.zero) { $0 + $1.outstanding }
-        let goals = Plans.goals(model.ledger)
-        let insts = Plans.installments(model.ledger).filter { $0.paidCount < $0.count }
-        if !debts.isEmpty || !goals.isEmpty || !insts.isEmpty {
-            Section {
-                if owed.cents != 0 {
-                    LabeledContent { Text(owed.formatted).monospacedDigit().foregroundStyle(Color.income) } label: {
-                        Label("别人欠我", systemImage: "arrow.down.left.circle")
-                    }
-                }
-                if owe.cents != 0 {
-                    LabeledContent { Text(owe.formatted).monospacedDigit() } label: { Label("我欠别人", systemImage: "arrow.up.right.circle") }
-                }
-                if !insts.isEmpty {
-                    LabeledContent { Text(insts.reduce(Money.zero) { $0 + $1.remaining }.formatted).monospacedDigit() } label: {
-                        Label("分期还没还完（\(insts.count) 个）", systemImage: "calendar")
-                    }
-                }
-                ForEach(goals.prefix(3), id: \.id) { g in
-                    VStack(alignment: .leading, spacing: 6) {
-                        LabeledContent {
-                            Text("\(g.saved.formatted) / \(g.target.formatted)").monospacedDigit()
-                        } label: {
-                            Label(g.name, systemImage: g.locked ? "lock.fill" : "target")
-                        }
-                        ProgressView(value: grown ? Double(min(g.percent, 100)) : 0, total: 100).tint(Color.income)
-                    }
-                }
-                Button("看借款、分期和存钱") { model.section = .plans }
-            } header: { Text("借款、分期、存钱") }
-        }
-    }
 }
