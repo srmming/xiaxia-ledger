@@ -200,7 +200,9 @@ public final class LedgerModel {
         }
         let used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
         let defaults = CategoryStyle.defaults(bookID: bookID, income: income)
-        return Array((used + defaults.filter { !used.contains($0) }).prefix(limit))
+        // 账本里已经有「交通出行」，就不再另给一个「交通」，免得同一件事记成两个分类。
+        let extra = defaults.filter { d in !used.contains { $0 == d || $0.hasPrefix(d) } }
+        return Array((used + extra).prefix(limit))
     }
 
     /// 还没整理的：普通收支里没分类或没分账本的（不管现在筛的是哪个账本）。
