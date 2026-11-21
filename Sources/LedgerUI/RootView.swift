@@ -240,7 +240,7 @@ public struct XiaxiaScene: Scene {
         _model = State(initialValue: model)
     }
 
-    /// 截图和自动检查用：-XiaxiaSection reports 直接打开某一页，-XiaxiaSheet add 直接弹出某个窗口，-XiaxiaPrivate 显示私房钱，-XiaxiaBook personal 直接看某个账本。
+    /// 截图和自动检查用：-XiaxiaSection reports 直接打开某一页，-XiaxiaSheet add 直接弹出某个窗口，-XiaxiaPrivate 显示私房钱，-XiaxiaBook personal 直接看某个账本（all = 全部）。
     private static func applyLaunchOptions(_ args: [String], to model: LedgerModel) {
         func value(_ key: String) -> String? {
             guard let i = args.firstIndex(of: key), i + 1 < args.count else { return nil }
@@ -254,7 +254,9 @@ public struct XiaxiaScene: Scene {
         if let s = value("-XiaxiaSheet"), let sheet = sheets[s] { model.sheet = sheet }
         if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
         // -XiaxiaBook personal：直接看某个账本（截图用）。
-        if let b = value("-XiaxiaBook"), model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
+        if let b = value("-XiaxiaBook") {
+            if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
+        }
     }
 
     public var body: some Scene {

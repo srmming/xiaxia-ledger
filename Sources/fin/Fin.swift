@@ -244,7 +244,7 @@ struct SummaryCommand: ParsableCommand {
             lines.append("\(word) \(moved.magnitude.formatted)（自己账户间转账，不算收支）  算上它结余 \((t.income + t.expense + moved).formatted)")
         }
         if let unmatched, unmatched.count > 0 {
-            lines.append("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），可能也是两个账本之间的，没算进上面这行")
+            lines.append("另有 \(unmatched.count) 笔转账只记了一边（共 \(unmatched.total.formatted)），多半也是两个账本之间的，没算进上面这行")
         }
         if list.count > 1 {
             lines.append("按月：")

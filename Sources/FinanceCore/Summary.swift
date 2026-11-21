@@ -103,16 +103,24 @@ public enum Summaries {
         return out.filter { $0.value.cents != 0 }
     }
 
-    /// 这几个月里只记了一边、而且可能是和别的账本之间的「自己账户间转账」：几笔、金额加起来多少（不分正负）。
-    /// 只看「两个账本都在用的账户」上的：比如店里的 Caixa 也刷过个人开销，从它转出去却没配上对的钱，可能是拿回家了。
-    /// 只有一个账本在用的账户（比如个人的 imagin 还个人的信用卡，卡那边没记进账）和别的账本无关，不提醒，免得吓人。
+    /// 这几个月里只记了一边、而且只可能是和别的账本之间的「自己账户间转账」：几笔、金额加起来多少（不分正负）。
+    /// 判断办法：先看每个账户平时主要归哪个账本（按笔数取多数）。如果一个账本只有一个账户（比如店只有一张 Caixa），
+    /// 从这个账户转出去却没配上对的钱，对面只可能是别的账本的账户，所以要提醒。
+    /// 账本里有好几个账户的（个人有 imagin、Revolut、信用卡），单边转账多半是自己几个账户之间的（还信用卡、充值），和别的账本无关，不提醒。
     public static func unmatchedInternal(_ txs: [Transaction], months: [YearMonth],
                                          hiddenAccounts: Set<String> = []) -> (count: Int, total: Money) {
-        var booksOfAccount: [String: Set<String>] = [:]
-        for tx in txs { if let b = tx.bookID { booksOfAccount[tx.accountID, default: []].insert(b) } }
+        var counts: [String: [String: Int]] = [:]
+        for tx in txs { if let b = tx.bookID { counts[tx.accountID, default: [:]][b, default: 0] += 1 } }
+        var mainBook: [String: String] = [:]
+        for (account, books) in counts {
+            mainBook[account] = books.max { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value }?.key
+        }
+        var accountsInBook: [String: Int] = [:]
+        for b in mainBook.values { accountsInBook[b, default: 0] += 1 }
         let wanted = Set(months)
         let list = pairInternal(txs).unpaired.filter {
-            wanted.contains($0.date.yearMonth) && (booksOfAccount[$0.accountID]?.count ?? 0) > 1 && !hiddenAccounts.contains($0.accountID)
+            guard wanted.contains($0.date.yearMonth), !hiddenAccounts.contains($0.accountID), let b = mainBook[$0.accountID] else { return false }
+            return accountsInBook[b] == 1
         }
         return (list.count, list.reduce(Money.zero) { $0 + $1.amount.magnitude })
     }
