@@ -110,8 +110,26 @@ extension Ledger {
         let name = new.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { throw ManageError.emptyName }
         let ids = transactions.filter { $0.category == old }.map(\.id)
-        guard !ids.isEmpty else { throw ManageError.nothingToChange }
-        return modify(ids, kind: .categorize, summary: "分类「\(old)」改名为「\(name)」（\(ids.count) 笔）", author: author) { $0.category = name }
+        let custom = profile.categories.contains { $0.name == old }
+        guard !ids.isEmpty || custom, name != old else { throw ManageError.nothingToChange }
+        let oldProfile = profile
+        if custom {
+            // 自己加的分类也跟着改名；改成已有的名字就是并进去，去掉重复的那个。
+            for i in profile.categories.indices where profile.categories[i].name == old { profile.categories[i].name = name }
+            var seen = Set<CustomCategory>()
+            profile.categories = profile.categories.filter { seen.insert($0).inserted }
+        }
+        if ids.isEmpty {
+            return appendProfileChange("分类「\(old)」改名为「\(name)」", before: oldProfile, author: author)
+        }
+        var change = modify(ids, kind: .categorize, summary: "分类「\(old)」改名为「\(name)」（\(ids.count) 笔）", author: author) { $0.category = name }
+        if custom {
+            var snapshot = PlanSnapshot()
+            snapshot.profile = oldProfile
+            change.before = snapshot
+            changes[changes.count - 1] = change
+        }
+        return change
     }
 
     // MARK: 账户和账本
@@ -367,6 +385,7 @@ extension Ledger {
         for x in s.insights ?? [] {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
         }
+        if let p = s.profile { profile = p }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

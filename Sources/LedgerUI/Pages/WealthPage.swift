@@ -19,6 +19,8 @@ struct WealthPage: View {
             } else {
                 Columns(sideWidth: 380, breakpoint: 760) {
                     heroCard
+                    XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
+                               question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
                     debtsCard
                 } side: {
                     accountsCard
@@ -50,6 +52,21 @@ struct WealthPage: View {
             NetWorthChart(points: Array(series.suffix(12)))
         }
         .kitCard(padding: 20)
+    }
+
+    /// 夏夏先说的一句：比 3 个月前多了还是少了；信用卡欠着的提一句。
+    private var xiaxia: String {
+        let months = Reports.months(endingAt: model.shownMonth, count: 4)
+        let series = model.netWorthSeries(months: months)
+        let now = series.last?.value ?? model.totalBalance
+        let owed = model.visibleAccounts.filter { $0.kind == .credit }.reduce(Money.zero) { $0 + (model.balances[$0.id] ?? .zero) }
+        let card = owed.isExpense ? "信用卡还欠着 \(owed.magnitude.rounded)。" : ""
+        guard series.count == 4, series[0].value.cents != 0 else {
+            return model.voiced("现在一共有 \(now.rounded)。" + card, .neutral)
+        }
+        let diff = now - series[0].value
+        return diff.isExpense ? model.voiced("家底比 3 个月前少了 \(diff.magnitude.rounded)。" + card, .bad)
+            : model.voiced("家底比 3 个月前多了 \(diff.rounded)。" + card, .good)
     }
 
     @ViewBuilder private var debtsCard: some View {

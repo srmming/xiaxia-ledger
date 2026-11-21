@@ -42,6 +42,9 @@ struct SettingsPage: View {
                 Text("你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。").font(.caption).foregroundStyle(Color.fg2)
                     .padding(.horizontal, 4).padding(.top, 4)
             }
+            group("夏夏怎么跟你说话", note: "夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。") {
+                PersonaPicker()
+            }
         } side: {
             group("同步") {
                 item(symbol: "icloud.fill", color: Color.kit(0x0A84FF, 0x409CFF), title: "状态") {

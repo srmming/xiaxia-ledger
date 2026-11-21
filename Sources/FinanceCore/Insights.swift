@@ -36,14 +36,16 @@ public struct Insight: Identifiable, Hashable, Codable, Sendable {
     public var body: String
     /// 关联的东西，比如 "category:超市"、"account:caixa"，app 以后可以点进去。
     public var metric: String?
+    /// 写给哪一页：overview / spending / trends / wealth / plans。不填 = 总览。
+    public var page: String?
     public var author: String
     public var createdAt: Date
     public var dismissedAt: Date?
 
     public init(id: UUID = UUID(), month: YearMonth, bookID: String? = nil, kind: Kind, title: String, body: String,
-                metric: String? = nil, author: String, createdAt: Date = Date(), dismissedAt: Date? = nil) {
+                metric: String? = nil, page: String? = nil, author: String, createdAt: Date = Date(), dismissedAt: Date? = nil) {
         self.id = id; self.month = month; self.bookID = bookID; self.kind = kind; self.title = title; self.body = body
-        self.metric = metric; self.author = author; self.createdAt = createdAt; self.dismissedAt = dismissedAt
+        self.metric = metric; self.page = page; self.author = author; self.createdAt = createdAt; self.dismissedAt = dismissedAt
     }
 
     /// 读到不认识的种类（更新版本写的）当成「建议」，不让整本账打不开。
@@ -56,12 +58,16 @@ public struct Insight: Identifiable, Hashable, Codable, Sendable {
         title = try c.decode(String.self, forKey: .title)
         body = try c.decodeIfPresent(String.self, forKey: .body) ?? ""
         metric = try c.decodeIfPresent(String.self, forKey: .metric)
+        page = try c.decodeIfPresent(String.self, forKey: .page)
         author = try c.decodeIfPresent(String.self, forKey: .author) ?? "AI"
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         dismissedAt = try c.decodeIfPresent(Date.self, forKey: .dismissedAt)
     }
 
-    enum CodingKeys: String, CodingKey { case id, month, bookID, kind, title, body, metric, author, createdAt, dismissedAt }
+    enum CodingKeys: String, CodingKey { case id, month, bookID, kind, title, body, metric, page, author, createdAt, dismissedAt }
+
+    /// 能写给的页面。
+    public static let pages = ["overview", "spending", "trends", "wealth", "plans"]
 }
 
 public enum InsightError: Error, LocalizedError, Equatable {
@@ -84,6 +90,11 @@ extension Ledger {
                 && (includeDismissed || i.dismissedAt == nil)
         }
         .sorted { ($0.kind == .monthlyReview ? 0 : 1, $1.createdAt) < ($1.kind == .monthlyReview ? 0 : 1, $0.createdAt) }
+    }
+
+    /// 某一页该显示的那条：写给这一页、没点「知道了」的，本月点评优先，再按新旧。没写页面的算总览。
+    public func insight(forPage page: String, month: YearMonth, bookID: String?) -> Insight? {
+        insights(month: month, bookID: bookID).first { ($0.page ?? "overview") == page }
     }
 
     /// 写一条意见。本月点评每个月、每个账本只留一条：新写的替换旧的。记进改动记录，能撤销。

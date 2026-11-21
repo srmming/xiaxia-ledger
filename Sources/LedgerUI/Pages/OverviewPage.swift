@@ -25,15 +25,30 @@ struct OverviewPage: View {
         return VStack(alignment: .leading, spacing: Kit.gap) {
             Columns {
                 heroCard(status)
+                XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
+                           question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
                 if model.selectedBookID == nil, model.ledger.books.count > 1 {
                     CardRow(items: model.ledger.books, minWidth: 230) { BookCard(book: $0) }
                 }
             } side: {
-                if let lead = model.leadInsight { InsightCard(insight: lead) }
                 AskAICard(page: "总览", prompts: Array(model.prompts(for: .overview).prefix(3)))
                 recentCard
             }
         }
+    }
+
+    /// 夏夏先说的一句：月底大概剩多少（这个月），或者这个月剩了多少（以前的月）。
+    private func xiaxia(_ s: MonthStatus) -> String {
+        let m = s.month.month
+        if s.summary.income.cents == 0 && s.summary.expense.cents == 0 {
+            return model.voiced("\(m) 月还没有流水，导进来我再帮你看。", .neutral)
+        }
+        if s.isCurrent, let end = s.projectedEnd {
+            return end.isExpense ? model.voiced("照现在的花钱速度，\(m) 月底大概会超支 \(end.magnitude.rounded)。", .bad)
+                : model.voiced("照现在的花钱速度，\(m) 月底大概能剩 \(end.rounded)。", .good)
+        }
+        return s.net.isExpense ? model.voiced("\(m) 月花得比挣得多，超支了 \(s.net.magnitude.rounded)。", .bad)
+            : model.voiced("\(m) 月剩下了 \(s.net.rounded)。", .good)
     }
 
     // MARK: 结论大数字

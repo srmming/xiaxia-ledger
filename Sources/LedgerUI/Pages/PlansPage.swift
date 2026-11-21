@@ -1,7 +1,7 @@
 import FinanceCore
 import SwiftUI
 
-/// 计划：离目标还差多少？视觉重心是最快到期（或最接近完成）的目标，一个大进度环。
+/// 计划：离目标还差多少？视觉重心是最快到期（或最接近完成）的目标，一个大进度环。右上角「新计划」自己登记。
 struct PlansPage: View {
     @Environment(LedgerModel.self) var model
 
@@ -16,15 +16,25 @@ struct PlansPage: View {
         Group {
             if goals.isEmpty && installments.isEmpty && debts.isEmpty {
                 VStack(spacing: Kit.gap) {
-                    KitEmptyState(symbol: "target", title: "还没有计划",
-                                  message: "存钱目标、分期、谁欠谁，都跟 AI 说一句就建好，进度会画在这里。",
-                                  prompt: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够", page: "计划")
-                        .kitCard()
+                    VStack(spacing: 12) {
+                        KitEmptyState(symbol: "target", title: "还没有计划",
+                                      message: "存钱目标、分期、谁欠谁，自己登记或者跟夏夏说一句都行，进度会画在这里。",
+                                      prompt: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够", page: "计划")
+                        newPlanButton
+                    }
+                    .kitCard()
                     AskAICard(title: "想加目标、记欠款、记分期？", note: nil, page: "计划", prompts: model.prompts(for: .plans))
                 }
             } else {
                 Columns(sideWidth: 390, breakpoint: 780) {
+                    HStack {
+                        Text("目标、分期、借款").font(.kitSection)
+                        Spacer()
+                        newPlanButton
+                    }
                     if let first = goals.first { heroGoal(first) }
+                    XiaxiaSays(page: "plans", pageName: "计划", sentence: xiaxia(goals: goals, installments: installments, debts: debts),
+                               question: "看看我的存钱目标、分期和借款：照现在的速度来得及吗？要怎么调整？")
                     if goals.count > 1 { otherGoals(Array(goals.dropFirst())) }
                 } side: {
                     if !installments.isEmpty { installmentsCard(installments) }
@@ -32,7 +42,10 @@ struct PlansPage: View {
                         VStack(alignment: .leading, spacing: 4) {
                             SectionHeader("借款往来").padding(.bottom, 6)
                             ForEach(debts, id: \.id) { d in
-                                DebtRow(debt: d)
+                                HStack(spacing: 6) {
+                                    DebtRow(debt: d)
+                                    PlanRowMenu(target: .debt(d.id), name: d.counterparty)
+                                }
                                 if d.id != debts.last?.id { Divider().padding(.leading, 42) }
                             }
                         }
@@ -71,7 +84,11 @@ struct PlansPage: View {
             GoalRing(fraction: Double(g.percent) / 100)
                 .frame(width: ringSize, height: ringSize)
             VStack(alignment: .leading, spacing: 8) {
-                Text(g.name).font(.caption).foregroundStyle(Color.fg2)
+                HStack {
+                    Text(g.name).font(.caption).foregroundStyle(Color.fg2)
+                    Spacer()
+                    PlanRowMenu(target: .goal(g.id), name: g.name)
+                }
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(g.saved.rounded).font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
@@ -87,7 +104,31 @@ struct PlansPage: View {
             }
         }
         .kitCard(padding: 20)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var newPlanButton: some View {
+        Button { model.sheet = .plan } label: { Label("新计划", systemImage: "plus") }
+            .buttonStyle(.soft)
+            .help("登记存钱目标、分期或借款")
+    }
+
+    /// 夏夏先说的一句：最该先看的目标来不来得及；没有目标就说分期或借款。
+    private func xiaxia(goals: [GoalStatus], installments: [InstallmentStatus], debts: [DebtStatus]) -> String {
+        if let g = goals.first {
+            let left = g.target - g.saved
+            if left.cents <= 0 { return model.voiced("「\(g.name)」已经存够了。", .good) }
+            if let due = g.deadline {
+                let months = max(1, (due.year - LocalDate.today.year) * 12 + due.month - LocalDate.today.month)
+                return model.voiced("「\(g.name)」还差 \(left.rounded)，要在 \(due.year) 年 \(due.month) 月前存够，每月得存 \(Money(cents: left.cents / Int64(months)).rounded)。", .neutral)
+            }
+            return model.voiced("「\(g.name)」还差 \(left.rounded)，已经存了 \(g.percent)%。", .neutral)
+        }
+        let monthly = installments.filter { $0.nextDate != nil }.reduce(Money.zero) { $0 + $1.perPayment }
+        if monthly.cents > 0 { return model.voiced("分期每月要还 \(monthly.rounded)，还没有存钱目标。", .neutral) }
+        let owed = debts.filter { $0.direction == .theyOweMe }.reduce(Money.zero) { $0 + $1.outstanding }
+        if owed.cents > 0 { return model.voiced("别人还欠你 \(owed.rounded)。", .neutral) }
+        return model.voiced("还没有存钱目标，定一个吧。", .neutral)
     }
 
     private var ringSize: CGFloat {
@@ -107,11 +148,12 @@ struct PlansPage: View {
                         Text(g.name).font(.callout)
                         Spacer()
                         Text("\(g.saved.rounded) / \(g.target.rounded)").font(.kitAmount)
+                        PlanRowMenu(target: .goal(g.id), name: g.name)
                     }
                     Bar(fraction: Double(g.percent) / 100, color: Color.kit(0x0EA5E9, 0x38BDF8), height: 6)
                     Text(goalNote(g)).font(.caption).foregroundStyle(Color.fg2)
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .contain)
             }
         }
         .kitCard()
@@ -135,12 +177,13 @@ struct PlansPage: View {
                         Text(i.name).font(.callout).lineLimit(1)
                         Spacer()
                         Text("第 \(i.paidCount) / \(i.count) 期").font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
+                        PlanRowMenu(target: .installment(i.id), name: i.name)
                     }
                     SegmentedProgress(done: i.paidCount, total: i.count)
                     Text("每期 \(i.perPayment.formatted)" + (i.nextDate.map { " · 下一期 \($0.short)" } ?? " · 已还完"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .contain)
             }
         }
         .kitCard()

@@ -1,24 +1,28 @@
 import FinanceCore
 import SwiftUI
 
-/// 极简记一笔：花掉 / 进账、金额、常用 8 个分类、账本、账户、日期、备注。3 秒记完。
-/// 拆单、分期、借款、导对账单、批量改，都交给 AI。记下的这笔标「你」，写进改动记录，能撤销。
+/// 记一笔：支出 / 收入、金额、名称（以前用过的会提示，分类跟着带出来）、分类（能原地加新的）、
+/// 账户、账本、日期（任意一天）、备注。拆单、分期、导对账单交给夏夏。记下的这笔标「你」，写进改动记录，能撤销。
 struct QuickAdd: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.dismiss) var dismiss
     @State var income = false
     @State var amountText = ""
+    @State var name = ""
     @State var category: String?
     @State var bookID = ""
     @State var accountID = ""
-    @State var date = LocalDate.today
+    @State var date = Date()
     @State var note = ""
     @State var error: String?
     @State var customCategory: String?
-    @State var askCategory = false
+    @State var addingCategory = false
+    @State var newCategory = ""
     @State var askAccount = false
     @State var newName = ""
-    @FocusState var amountFocused: Bool
+    @FocusState var focus: Field?
+
+    enum Field: Hashable { case amount, name, category, note }
 
     private var amount: Money? {
         guard let m = Money(parsing: amountText.replacingOccurrences(of: " ", with: "")), m.cents != 0 else { return nil }
@@ -26,59 +30,89 @@ struct QuickAdd: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        ScrollView { content }
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
+        #else
+        content
+        #endif
+    }
+
+    private var content: some View {
         VStack(spacing: 14) {
-            Picker("方向", selection: $income) {
-                Text("花掉").tag(false)
-                Text("进账").tag(true)
+            Picker("支出还是收入", selection: $income) {
+                Text("支出").tag(false)
+                Text("收入").tag(true)
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 160)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 180)
+            .accessibilityIdentifier("direction")
 
             amountDisplay
 
+            nameField
+
             categoryGrid
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    if model.ledger.books.count > 1 {
-                        ForEach(model.ledger.books) { b in
-                            pill(b.name, on: bookID == b.id) { bookID = b.id }
-                        }
-                    }
+            VStack(spacing: 0) {
+                detailRow("账户") {
                     Menu {
                         ForEach(model.visibleAccounts) { a in Button(a.name) { accountID = a.id } }
                         if !model.visibleAccounts.isEmpty { Divider() }
                         Button { newName = ""; askAccount = true } label: { Label("新账户…", systemImage: "plus") }
-                    } label: { pillLabel((accountID.isEmpty ? "选账户" : model.accountName(accountID)) + " ▾", on: accountID.isEmpty) }
-                        .menuStyle(.button).buttonStyle(.plain).fixedSize()
-                    Menu {
-                        Button("今天") { date = .today }
-                        Button("昨天") { date = LocalDate(Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()) }
-                        Button("前天") { date = LocalDate(Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date()) }
-                    } label: { pillLabel(date.friendly + " ▾", on: false) }
-                        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+                    } label: {
+                        Text(accountID.isEmpty ? "选账户" : model.accountName(accountID))
+                            .foregroundStyle(accountID.isEmpty ? Color.alert : .primary)
+                    }
+                    .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+                    .accessibilityLabel("账户：\(accountID.isEmpty ? "还没选" : model.accountName(accountID))")
                 }
-                .padding(.horizontal, 1)
+                if model.ledger.books.count > 1 {
+                    Divider()
+                    detailRow("账本") {
+                        Picker("账本", selection: $bookID) {
+                            ForEach(model.ledger.books) { Text($0.name).tag($0.id) }
+                        }
+                        .labelsHidden().fixedSize()
+                    }
+                }
+                Divider()
+                detailRow("日期") {
+                    DatePicker("日期", selection: $date, in: ...Date(), displayedComponents: .date)
+                        .labelsHidden().fixedSize()
+                }
+                Divider()
+                detailRow("备注") {
+                    TextField("可不填", text: $note)
+                        .textFieldStyle(.plain).multilineTextAlignment(.trailing)
+                        .focused($focus, equals: .note)
+                }
             }
-            TextField("备注（可不填）", text: $note)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(.horizontal, 12)
+            .background(Color.sunken.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             #if os(iOS)
-            Keypad(text: $amountText)
-            #endif
-
+            if focus == nil { Keypad(text: $amountText) }
             Button(action: save) {
                 Text("记下").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.brand)
-            .controlSize(.large)
-            .disabled(amount == nil || category == nil || accountID.isEmpty)
-            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+            .disabled(!canSave)
+            #else
+            HStack(spacing: 10) {
+                Button("取消") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .controlSize(.large)
+                Spacer()
+                Button(action: save) { Text("记下").frame(minWidth: 120) }
+                    .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave)
+            }
+            #endif
 
             AskAIReader { ask in
-                (Text("记下的这笔会标「你」，写进改动记录，能撤销。\n要拆单、记分期、导对账单？") + Text("跟 AI 说更快").foregroundColor(.ai))
+                (Text("要拆单、记分期、导对账单？") + Text("跟夏夏说更快").foregroundColor(.ai))
                     .font(.caption).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .onTapGesture { ask("", page: "记一笔") }
             }
@@ -86,19 +120,8 @@ struct QuickAdd: View {
         .padding(20)
         .navigationTitle("记一笔")
         .inlineTitle()
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-        }
         .onAppear(perform: setup)
         .onChange(of: income) { _, _ in category = nil; customCategory = nil }
-        .alert("新分类", isPresented: $askCategory) {
-            TextField("分类名字", text: $newName)
-            Button("取消", role: .cancel) {}
-            Button("用这个") {
-                let n = newName.trimmingCharacters(in: .whitespaces)
-                if !n.isEmpty { customCategory = n; category = n }
-            }
-        }
         .alert("新账户", isPresented: $askAccount) {
             TextField("名字，比如「现金」「银行卡」", text: $newName)
             Button("取消", role: .cancel) {}
@@ -108,9 +131,21 @@ struct QuickAdd: View {
         .errorAlert($error)
     }
 
+    private var canSave: Bool { amount != nil && category != nil && !accountID.isEmpty }
+
     private var categories: [String] {
         let list = model.categories(bookID: bookID, income: income, limit: customCategory == nil ? 7 : 6)
         return list + [customCategory].compactMap { $0 }.filter { !list.contains($0) }
+    }
+
+    private func detailRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            Text(title).foregroundStyle(Color.fg2)
+            Spacer(minLength: 12)
+            content()
+        }
+        .font(.callout)
+        .frame(minHeight: 36)
     }
 
     private var amountDisplay: some View {
@@ -119,13 +154,15 @@ struct QuickAdd: View {
             Text(amountText.isEmpty ? "0" : amountText)
                 .font(.system(size: 46, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(amountText.isEmpty ? Color.fg3 : (income ? Color.income : .primary))
+                .onTapGesture { focus = nil }
             #else
             TextField("0", text: $amountText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 46, weight: .bold, design: .rounded)).monospacedDigit()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(income ? Color.income : .primary)
-                .focused($amountFocused)
+                .focused($focus, equals: .amount)
+                .onSubmit { focus = .name }
                 .fixedSize()
                 .frame(minWidth: 90)
             #endif
@@ -134,6 +171,44 @@ struct QuickAdd: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
+    }
+
+    /// 名称：买了什么 / 在哪花的。下面一排是以前用过的名字，点一下填好，分类也带出来。
+    private var nameField: some View {
+        let suggestions = model.nameSuggestions(name, income: income)
+        return VStack(alignment: .leading, spacing: 6) {
+            TextField(income ? "名称：比如「工资」「退款」" : "名称：买了什么、在哪花的，比如「超市」", text: $name)
+                .textFieldStyle(.plain)
+                .focused($focus, equals: .name)
+                .padding(.horizontal, 12).padding(.vertical, 9)
+                .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityLabel("名称")
+            if !suggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(suggestions, id: \.name) { s in
+                            Button { pick(s) } label: {
+                                Text(s.name).font(.caption).lineLimit(1)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(Color.sunken, in: Capsule())
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("用「\(s.name)」" + (s.category.map { "，分类\($0)" } ?? ""))
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+            }
+        }
+    }
+
+    private func pick(_ s: (name: String, category: String?)) {
+        name = s.name
+        if let c = s.category {
+            if !categories.contains(c) { customCategory = c }
+            category = c
+        }
     }
 
     private var categoryGrid: some View {
@@ -153,30 +228,45 @@ struct QuickAdd: View {
                 .buttonStyle(.pressable)
                 .accessibilityAddTraits(category == c ? .isSelected : [])
             }
-            Button { newName = ""; askCategory = true } label: {
+            if addingCategory {
                 VStack(spacing: 4) {
-                    Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.fg2)
-                        .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
-                    Text("新分类").font(.caption).foregroundStyle(Color.fg2)
+                    TextField("新分类", text: $newCategory)
+                        .textFieldStyle(.plain).font(.caption).multilineTextAlignment(.center)
+                        .focused($focus, equals: .category)
+                        .onSubmit(useNewCategory)
+                        .frame(height: 30)
+                        .accessibilityLabel("新分类的名字")
+                    HStack(spacing: 10) {
+                        Button("取消") { addingCategory = false }.font(.caption2).buttonStyle(.borderless)
+                        Button("用") { useNewCategory() }.font(.caption2.weight(.semibold)).buttonStyle(.borderless)
+                            .disabled(newCategory.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 7)
-                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                Button { newCategory = ""; addingCategory = true; focus = .category } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.brand)
+                            .frame(width: 30, height: 30).background(Color.brandSoft, in: Circle())
+                        Text("新分类").font(.caption).foregroundStyle(Color.brand)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 7)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("加一个新分类")
             }
-            .buttonStyle(.pressable)
         }
     }
 
-    private func pill(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { pillLabel(title, on: on) }.buttonStyle(.plain)
-            .accessibilityAddTraits(on ? .isSelected : [])
-    }
-
-    private func pillLabel(_ title: String, on: Bool) -> some View {
-        Text(title).font(.subheadline)
-            .padding(.horizontal, 11).padding(.vertical, 5)
-            .foregroundStyle(on ? Color.white : Color.primary)
-            .background(on ? AnyShapeStyle(Color.primary.opacity(0.85)) : AnyShapeStyle(Color.sunken), in: Capsule())
-            .contentShape(Capsule())
+    private func useNewCategory() {
+        let n = newCategory.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty else { return }
+        customCategory = n
+        category = n
+        addingCategory = false
+        focus = nil
     }
 
     private func setup() {
@@ -184,7 +274,7 @@ struct QuickAdd: View {
         if accountID.isEmpty { accountID = model.defaultAccountID }
         #if os(macOS)
         // 稍等一下再把光标放进金额框：面板刚弹出来时系统还在给它找焦点。
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { amountFocused = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = .amount }
         #endif
     }
 
@@ -199,9 +289,11 @@ struct QuickAdd: View {
     }
 
     private func save() {
-        guard let amount, let category else { return }
+        guard let amount, let category, !accountID.isEmpty else { return }
+        let n = name.trimmingCharacters(in: .whitespaces)
         let text = note.trimmingCharacters(in: .whitespaces)
-        let tx = Transaction(date: date, amount: income ? amount : -amount, description: text.isEmpty ? category : text,
+        let description = n.isEmpty ? (text.isEmpty ? category : text) : (text.isEmpty ? n : "\(n)（\(text)）")
+        let tx = Transaction(date: LocalDate(date), amount: income ? amount : -amount, description: description,
                              accountID: accountID, bookID: bookID, category: category, source: "手记")
         do {
             try model.edit { try $0.addTransaction(tx, author: model.author) }

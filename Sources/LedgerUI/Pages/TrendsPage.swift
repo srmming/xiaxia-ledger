@@ -42,6 +42,9 @@ struct TrendsPage: View {
             }
             .kitCard(padding: 20)
 
+            XiaxiaSays(page: "trends", pageName: "趋势", sentence: xiaxia(list),
+                       question: "最近 \(list.count) 个月我花钱的趋势怎么样？是在变好还是变差？")
+
             CardRow(items: [
                 Stat(title: "剩得最多", value: best.map { "\($0.month.month) 月 · \($0.net.display.replacingOccurrences(of: ",00", with: ""))" } ?? "—"),
                 Stat(title: "花得最多", value: worst.map { "\($0.month.month) 月 · \($0.expense.magnitude.rounded)" } ?? "—"),
@@ -58,6 +61,24 @@ struct TrendsPage: View {
                 .accessibilityElement(children: .combine)
             }
         }
+    }
+}
+
+extension TrendsPage {
+    /// 夏夏先说的一句：最近三个月和之前比，在变好还是变差。
+    func xiaxia(_ list: [MonthlySummary]) -> String {
+        let recent = list.suffix(3)
+        let earlier = list.dropLast(3)
+        let avg = { (xs: ArraySlice<MonthlySummary>) in Money(cents: xs.reduce(Int64(0)) { $0 + $1.net.cents } / Int64(max(xs.count, 1))) }
+        let r = avg(recent)
+        guard !earlier.isEmpty else {
+            return r.isExpense ? model.voiced("最近平均每月超支 \(r.magnitude.rounded)。", .bad)
+                : model.voiced("最近平均每月剩 \(r.rounded)。", .good)
+        }
+        let diff = r - avg(earlier)
+        if diff.magnitude.cents < 5000 { return model.voiced("最近 3 个月和之前差不多，平均每月\(r.isExpense ? "超支" : "剩") \(r.magnitude.rounded)。", .neutral) }
+        return diff.isExpense ? model.voiced("最近 3 个月平均每月比之前少剩 \(diff.magnitude.rounded)，在变差。", .bad)
+            : model.voiced("最近 3 个月平均每月比之前多剩 \(diff.rounded)，在变好。", .good)
     }
 }
 

@@ -23,6 +23,8 @@ struct SpendingPage: View {
                     // 商户放在圆环下面，和右边的分类排行差不多高，不留一大块空。
                     Columns(sideWidth: 440, breakpoint: 760) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
+                        XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
+                                   question: "\(month.month) 月钱主要花在哪了？哪些可以省？")
                         merchantsCard(month: month)
                     } side: {
                         rankingCard(totals: totals, previous: previous, total: now.expense.magnitude)
@@ -55,6 +57,19 @@ struct SpendingPage: View {
         }
         .frame(maxWidth: .infinity)
         .kitCard(padding: 24)
+    }
+
+    /// 夏夏先说的一句：比上个月多花最多的那一类（没有就说最大的一块）。
+    private func xiaxia(month: YearMonth, totals: [(name: String, amount: Money)], previous: [String: Money]) -> String {
+        let rises = totals.map { (name: $0.name, diff: $0.amount - (previous[$0.name] ?? .zero)) }
+            .filter { !$0.diff.isExpense && $0.diff.cents >= 1000 && previous[$0.name] != nil }
+            .sorted { $0.diff > $1.diff }
+        if let up = rises.first {
+            return model.voiced("\(up.name)比 \(month.previous.month) 月多花了 \(up.diff.rounded)，是涨得最多的一类。", .bad)
+        }
+        let top = totals[0]
+        return previous.isEmpty ? model.voiced("\(month.month) 月花得最多的是\(top.name)，\(top.amount.rounded)。", .neutral)
+            : model.voiced("各类都没比 \(month.previous.month) 月多花，最大的一块还是\(top.name)。", .good)
     }
 
     private func rankingCard(totals: [(name: String, amount: Money)], previous: [String: Money], total: Money) -> some View {
