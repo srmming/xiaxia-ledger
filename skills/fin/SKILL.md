@@ -25,7 +25,7 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 - **写明是谁**：命令行写入加 `--author Claude`（或 Codex、DeepSeek，写你自己）；MCP 自动用工具名。
 - **写完报结果和改动编号**：比如「已记：超市 −12,50 €（现金，个人）。写错了说一声，我用改动 3fa2c1d0 撤销」。
 - **只通过 fin / MCP 写**，不要直接改 ledger.sqlite，也不要自己算余额再写回去。
-- **私房钱**（context 里 `isPrivate: true` 的账户）：只在 ming 本人问时提；给店里、合伙人、gestoría 的报表不算进去。`fin report` 和 MCP 默认不算它；`fin tx`、`fin summary` 会算进去，做报表时自己排除。
+- **私房钱**（context 里 `isPrivate: true` 的账户）：只在 ming 本人问时提；给店里、合伙人、gestoría 的报表不算进去。`fin tx`、`fin summary`、`fin report` 和 MCP 默认都不算它，ming 本人问时才加 `--include-private`（MCP：`include_private`）。
 - **隐私**：真实金额和流水不贴到公开地方、不提交进 git、不发给外部服务。
 - 不动钱、不碰银行密码；银行数据只读。
 
@@ -48,7 +48,7 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 ## 常见任务怎么做
 
 **回答财务问题**（「这个月花了多少」「店里 10 月赚了吗」「餐饮比上月多吗」）
-`context` → `fin summary --month 2026-10 --book miora` → 需要明细再 `fin tx --month … --category …`。回答先给数字，再说一两句为什么，金额用 `1.234,56 €`。没说账本时分别给个人、店里和合计。
+`context` → `fin summary --month 2026-10 --book miora`（一段时间用 `--year 2026` 或 `--from 2026-01 --to 2026-06`，会先给合计再按月、按分类列）→ 需要明细再 `fin tx --month … --category …`。回答先给数字，再说一两句为什么，金额用 `1.234,56 €`。没说账本时分别给个人、店里和合计。
 
 **记一笔**（「刚才超市花了 23,40，用的现金」）
 从话里取金额、说明、日期（默认今天）；账户和账本说不清就问。分类可以按以前同一个商户的分类猜，但要在回复里说出来。
@@ -58,7 +58,7 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 先 `fin debts` 看有没有这个人的账。借出：`fin debt add 阿华 500 --they-owe-me --account cash`；借入用 `--i-owe`；以前的旧账没有对应流水就不填 `--account`。还款：`fin debt repay 阿华 100 --account cash`。
 
 **自己账户之间转钱 / 取现**（「从 Caixa 取了 50 现金」）
-新记：`fin transfer move 50 --from-account caixa --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from miora --to personal --account caixa`。
+新记：`fin transfer move 50 --from-account caixa --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from miora --to personal --account caixa`（MCP：`book_transfer`）。
 
 **导入对账单**（「把这个 Revolut 的 CSV 导进去」）
 1. 认格式：Revolut 导出会自动认出来；其他银行看表头，用通用 CSV 指定列（`--date-col --amount-col --desc-col`，收支分两列用 `--debit-col --credit-col`）。只支持 CSV，PDF 先说明需要转成 CSV。
@@ -80,7 +80,7 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 
 **分期**：`fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora`；扣了一期 `fin installment pay 美甲灯`，对账单里已有的扣款用 `--tx <编号>` 认领。`fin installments` 看还剩几期。
 
-**存钱目标**：`fin goal add 应急金 6000 [--savings-account pot] [--locked]`；`fin goal deposit 应急金 300 --from caixa`；`fin goal withdraw …`（锁定的不能取，也不要建议取）。`fin goals` 看进度。
+**存钱目标**：`fin goal add 应急金 6000 [--savings-account pot] [--locked]`；`fin goal deposit 应急金 300 --from caixa`；`fin goal withdraw 应急金 100 --to caixa`（MCP：`goal_withdraw`；锁定的不能取，也不要建议取）。`fin goals` 看进度。
 
 **出月报**（「出一份 11 月月报」）
 先跑 `fin report --month 2026-11 [--book miora]`（MCP：`monthly_report`），它已经写好了收支、花在哪、和上月比、要留意什么，默认不含私房钱。在它的基础上用大白话整理给 ming；需要更细时再按账本分别跑 `fin summary --month 2026-11 --book personal` / `--book miora` 和不加 `--book` 的合计，再跑上个月做对比；加上 `fin debts`、`fin installments`、`fin goals`。写成：一句话结论 → 收入/支出/结余（和上月比）→ 支出前 5 类 → 店里单独一段 → 借款、分期、目标 → 需要 ming 处理的事（没分类的笔数、过期的借款）。给店里或 gestoría 的版本不含私房钱。
