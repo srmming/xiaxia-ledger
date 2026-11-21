@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 · 流水</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#0A64D6}a:hover{color:#084FA8}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #ECECEC; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif; color: #1D1D1F; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid #C9C9C9">
+  <div style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #F6F6F6; border-bottom: 1px solid #D8D8D8">
+    <div style="display: flex; gap: 8px; width: 204px" aria-hidden="true"><span style="width: 12px; height: 12px; border-radius: 6px; background: #FF5F57"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #FEBC2E"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840"></span></div>
+    <div style="font-size: 15px; font-weight: 600">流水</div>
+    <div style="flex-grow: 1"></div>
+    <div role="group" aria-label="账本" style="display: flex; background: #E3E3E3; border-radius: 7px; padding: 2px; gap: 2px; font-size: 13px">
+      <button style="border: 0; border-radius: 5px; padding: 4px 14px; font: inherit; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.18); font-weight: 600">全部</button>
+      <button style="border: 0; border-radius: 5px; padding: 4px 14px; font: inherit; background: transparent; color: #3A3A3C">个人</button>
+      <button style="border: 0; border-radius: 5px; padding: 4px 14px; font: inherit; background: transparent; color: #3A3A3C">Miora 美甲店</button>
+    </div>
+    <div style="flex-grow: 1"></div>
+    <label style="width: 220px; height: 28px; border-radius: 6px; background: #FFFFFF; border: 1px solid #0A64D6; box-shadow: 0 0 0 3px rgba(10,100,214,0.2); display: flex; align-items: center; padding: 0 10px; gap: 6px; font-size: 13px; box-sizing: border-box"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">搜索流水</span><input value="mercadona" style="border: 0; outline: 0; font: inherit; width: 100%; background: transparent"></label>
+  </div>
+  <div style="flex-grow: 1; display: flex; min-height: 0">
+    <nav aria-label="侧边栏" style="width: 220px; flex-shrink: 0; background: #E8E6EA; border-right: 1px solid #D4D4D4; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 13px">
+      <div style="font-size: 11px; font-weight: 600; color: #6E6E73; padding: 6px 8px">夏夏账本</div>
+      <a href="Main.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">▦ 总览</a>
+      <a href="Trends.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">↗ 趋势与分类</a>
+      <a href="Transactions.dc.html" style="padding: 6px 8px; border-radius: 6px; background: #D5D3DA; color: #1D1D1F; text-decoration: none; font-weight: 600">☰ 流水</a>
+      <a href="Pending.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">◎ 待确认</a>
+      <a href="Import.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">⇩ 导入</a>
+    </nav>
+    <main style="flex-grow: 1; background: #FFFFFF; display: flex; min-width: 0">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0">
+        <div style="display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #E5E5EA; font-size: 12px; align-items: center">
+          <span style="color: #6E6E73">筛选</span>
+          <button style="border: 1px solid #CFCFCF; background: #FFFFFF; border-radius: 6px; padding: 3px 10px; font: inherit">月份：11 月 ▾</button>
+          <button style="border: 1px solid #CFCFCF; background: #FFFFFF; border-radius: 6px; padding: 3px 10px; font: inherit">账户：全部 ▾</button>
+          <button style="border: 1px solid #CFCFCF; background: #FFFFFF; border-radius: 6px; padding: 3px 10px; font: inherit">分类：全部 ▾</button>
+          <div style="flex-grow: 1"></div>
+          <span style="color: #6E6E73">找到 3 笔 · 合计 <b style="color: #B4410C; font-variant-numeric: tabular-nums">-96,42 €</b></span>
+        </div>
+        <div role="table" style="display: flex; flex-direction: column; font-size: 13px">
+          <div role="row" style="display: grid; grid-template-columns: 90px 1fr 120px 110px 100px 110px; gap: 12px; padding: 8px 16px; font-size: 11px; font-weight: 600; color: #6E6E73; border-bottom: 1px solid #E5E5EA">
+            <span role="columnheader">日期</span><span role="columnheader">描述</span><span role="columnheader">账户</span><span role="columnheader">分类</span><span role="columnheader">账本</span><span role="columnheader" style="text-align: right">金额</span>
+          </div>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+            <div role="row" style="{{r.rowStyle}}">
+              <span role="cell" style="color: #6E6E73; font-variant-numeric: tabular-nums">{{r.date}}</span><span role="cell">{{r.desc}}</span><span role="cell" style="color: #3A3A3C">{{r.acct}}</span><span role="cell"><span style="background: #F0F0F2; border-radius: 4px; padding: 1px 6px; font-size: 12px">{{r.cat}}</span></span><span role="cell" style="color: #3A3A3C">{{r.book}}</span><span role="cell" style="{{r.amtStyle}}">{{r.amt}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <aside aria-label="详情" style="width: 280px; flex-shrink: 0; border-left: 1px solid #E5E5EA; background: #FAFAFA; padding: 18px; display: flex; flex-direction: column; gap: 14px; font-size: 13px">
+        <div style="font-size: 11px; font-weight: 600; color: #6E6E73">详情</div>
+        <div style="font-size: 26px; font-weight: 600; color: #B4410C; font-variant-numeric: tabular-nums">-48,17 €</div>
+        <div style="font-weight: 600">MERCADONA USERA</div>
+        <div style="display: grid; grid-template-columns: 60px 1fr; row-gap: 10px; column-gap: 8px">
+          <span style="color: #6E6E73">日期</span><span>2026-11-18</span>
+          <span style="color: #6E6E73">账户</span><span>CaixaBank</span>
+          <label for="cat" style="color: #6E6E73">分类</label><select id="cat" style="font: inherit"><option>超市</option><option>餐饮</option></select>
+          <label for="bk" style="color: #6E6E73">账本</label><select id="bk" style="font: inherit"><option>个人</option><option>Miora 美甲店</option></select>
+          <span style="color: #6E6E73">来源</span><span style="color: #3A3A3C">caixabank-2026-11.xlsx</span>
+        </div>
+        <div style="flex-grow: 1"></div>
+        <div style="font-size: 11px; color: #6E6E73">改动会记进历史，可以撤销（⌘Z）。</div>
+      </aside>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      ['11-18', 'MERCADONA USERA', 'CaixaBank', '超市', '个人', -48.17, true],
+      ['11-17', 'Servicios manicura · Bizum', 'imagin', '美甲服务', 'Miora', 85, false],
+      ['11-15', 'MERCADONA USERA', 'Revolut', '超市', '个人', -31.8, false],
+      ['11-14', 'Proveedor esmaltes', 'imagin', '店铺耗材', 'Miora', -126.4, false],
+      ['11-12', '老板提款', 'imagin', '老板提款', 'Miora', -600, false],
+      ['11-12', '老板提款', 'CaixaBank', '收入', '个人', 600, false],
+      ['11-10', 'Metro Madrid', 'Revolut', '交通', '个人', -21.8, false],
+      ['11-08', 'MERCADONA USERA', '现金', '超市', '个人', -16.45, false],
+      ['11-05', 'Alquiler local', 'imagin', '店租', 'Miora', -500, false],
+      ['11-01', 'Spotify', 'Revolut', '订阅', '个人', -10.99, false],
+    ];
+    const fmt = (n) => { const [i, f] = Math.abs(n).toFixed(2).split('.'); return (n < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + f + ' €'; };
+    return { rows: rows.map(r => ({ date: r[0], desc: r[1], acct: r[2], cat: r[3], book: r[4], amt: fmt(r[5]),
+      rowStyle: 'display: grid; grid-template-columns: 90px 1fr 120px 110px 100px 110px; gap: 12px; padding: 9px 16px; align-items: center; border-bottom: 1px solid #F0F0F2; ' + (r[6] ? 'background: #0A64D6; color: #FFFFFF' : ''),
+      amtStyle: 'text-align: right; font-variant-numeric: tabular-nums; ' + (r[6] ? 'color: #FFFFFF' : (r[5] < 0 ? 'color: #B4410C' : 'color: #136B5E')) })) };
+  }
+}
+</script>
+</body>
+</html>

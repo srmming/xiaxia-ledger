@@ -1,0 +1,47 @@
+import Foundation
+
+/// 「说明书」：给 AI 一次读懂财务背景。`fin context` 输出的就是它。
+public struct LedgerContext: Codable, Sendable {
+    public struct BookInfo: Codable, Sendable { public var id: String; public var name: String; public var transactions: Int }
+    public struct AccountInfo: Codable, Sendable {
+        public var id: String; public var name: String; public var kind: String
+        public var balance: String; public var lastStatementDate: String?
+    }
+
+    public var books: [BookInfo]
+    public var accounts: [AccountInfo]
+    public var transactionCount: Int
+    public var firstDate: String?
+    public var lastDate: String?
+    public var pendingCount: Int
+    public var unassignedCount: Int
+    public var rules: [String]
+
+    public static let rules: [String] = [
+        "金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。",
+        "每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。",
+        "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
+        "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
+        "AI 的写入（记一笔、改分类、分账本、导入）先进待确认，由 ming 确认或撤销。",
+        "不动钱、不碰银行密码；银行数据只读。",
+    ]
+
+    public init(ledger: Ledger) {
+        let balances = Summaries.balances(ledger.transactions)
+        books = ledger.books.map { b in
+            BookInfo(id: b.id, name: b.name, transactions: ledger.transactions.filter { $0.bookID == b.id }.count)
+        }
+        accounts = ledger.accounts.map { a in
+            AccountInfo(id: a.id, name: a.name, kind: a.kind.rawValue,
+                        balance: (balances[a.id] ?? .zero).formatted,
+                        lastStatementDate: ledger.lastStatementDate[a.id]?.description)
+        }
+        transactionCount = ledger.transactions.count
+        let dates = ledger.transactions.map(\.date).sorted()
+        firstDate = dates.first?.description
+        lastDate = dates.last?.description
+        pendingCount = ledger.pending.filter { $0.status == .pending }.count
+        unassignedCount = ledger.transactions.filter { $0.bookID == nil }.count
+        rules = Self.rules
+    }
+}

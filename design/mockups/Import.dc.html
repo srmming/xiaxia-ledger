@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 · 导入对账单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#0A64D6}a:hover{color:#084FA8}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #ECECEC; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif; color: #1D1D1F; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid #C9C9C9">
+  <div style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #F6F6F6; border-bottom: 1px solid #D8D8D8">
+    <div style="display: flex; gap: 8px; width: 204px" aria-hidden="true"><span style="width: 12px; height: 12px; border-radius: 6px; background: #FF5F57"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #FEBC2E"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840"></span></div>
+    <div style="font-size: 15px; font-weight: 600">导入对账单</div>
+  </div>
+  <div style="flex-grow: 1; display: flex; min-height: 0">
+    <nav aria-label="侧边栏" style="width: 220px; flex-shrink: 0; background: #E8E6EA; border-right: 1px solid #D4D4D4; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 13px">
+      <div style="font-size: 11px; font-weight: 600; color: #6E6E73; padding: 6px 8px">夏夏账本</div>
+      <a href="Main.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">▦ 总览</a>
+      <a href="Trends.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">↗ 趋势与分类</a>
+      <a href="Transactions.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">☰ 流水</a>
+      <a href="Pending.dc.html" style="padding: 6px 8px; border-radius: 6px; color: #1D1D1F; text-decoration: none">◎ 待确认</a>
+      <a href="Import.dc.html" style="padding: 6px 8px; border-radius: 6px; background: #D5D3DA; color: #1D1D1F; text-decoration: none; font-weight: 600">⇩ 导入</a>
+    </nav>
+    <main style="flex-grow: 1; background: #FFFFFF; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px">
+      <div style="border: 2px dashed #0A64D6; background: #F3F8FE; border-radius: 14px; height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M22 6v22M13 19l9 9 9-9" stroke="#0A64D6" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><path d="M8 32v4a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2v-4" stroke="#0A64D6" stroke-width="3" fill="none" stroke-linecap="round"></path></svg>
+        <div style="font-size: 17px; font-weight: 600">把对账单拖到这里</div>
+        <div style="font-size: 13px; color: #3A3A3C">支持 CaixaBank（.xlsx）、imagin（.xlsx / .csv）、Revolut（.csv）· 会自动认银行、去重</div>
+        <button style="margin-top: 4px; height: 28px; padding: 0 14px; border: 1px solid #CFCFCF; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px">选择文件…</button>
+      </div>
+      <section style="border: 1px solid #E5E5EA; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 10px"><h2 style="margin: 0; font-size: 14px; font-weight: 600; flex-grow: 1">预览：revolut-2026-11.csv</h2><span style="font-size: 12px; color: #6E6E73">识别为 Revolut · 11 月 1 日 – 11 月 20 日</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+          <div style="background: #F5F5F7; border-radius: 8px; padding: 10px 12px"><div style="font-size: 11px; color: #6E6E73">文件里共</div><div style="font-size: 20px; font-weight: 600">41 笔</div></div>
+          <div style="background: #EAF6F3; border-radius: 8px; padding: 10px 12px"><div style="font-size: 11px; color: #136B5E">新流水</div><div style="font-size: 20px; font-weight: 600; color: #136B5E">37 笔</div></div>
+          <div style="background: #F5F5F7; border-radius: 8px; padding: 10px 12px"><div style="font-size: 11px; color: #6E6E73">重复，跳过</div><div style="font-size: 20px; font-weight: 600">4 笔</div></div>
+          <div style="background: #FFF4EE; border-radius: 8px; padding: 10px 12px"><div style="font-size: 11px; color: #8A3416">拿不准账本</div><div style="font-size: 20px; font-weight: 600; color: #8A3416">2 笔</div></div>
+        </div>
+        <div style="font-size: 13px; color: #3A3A3C">导入后先进「待确认」，确认后才进报表。和上次截止日（10 月 31 日）之间没有缺口。</div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end">
+          <button style="height: 28px; padding: 0 12px; border: 1px solid #CFCFCF; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px">取消</button>
+          <button style="height: 28px; padding: 0 14px; border: 0; border-radius: 6px; background: #0A64D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600">导入 37 笔</button>
+        </div>
+      </section>
+      <section style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #3A3A3C">
+        <div style="font-weight: 600; color: #1D1D1F; font-size: 13px">各账户截止到</div>
+        <div style="display: flex; gap: 24px"><span>CaixaBank · 11 月 18 日</span><span>imagin · 11 月 20 日</span><span>Revolut · 10 月 31 日</span><span>现金 · 手记</span></div>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
