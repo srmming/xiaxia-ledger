@@ -29,6 +29,15 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 - **隐私**：真实金额和流水不贴到公开地方、不提交进 git、不发给外部服务。
 - 不动钱、不碰银行密码；银行数据只读。
 
+## 命令行的坑
+
+- **负数金额**：`fin add --account cash --book personal -- -12,50 超市`。不写 `--` 会报错「Missing expected argument」。
+- 看帮助用 `fin debt add --help`（`fin help debt add` 只会打出顶层帮助）。
+- 导入 Revolut 要写 `--format revolut`，默认按通用 CSV。
+- 账户是不是私房钱只在 `--json` 里看得到（`isPrivate`），文字输出没有标记。
+- `fin debt repay` 按名字包含匹配，名字有重叠（「阿华」「阿华2」）时会对上多笔而失败，先 `fin debts` 看清楚。多还了不会拦，自己先核对还欠多少。
+- `fin transfer move` 记出来的两笔没有账本，记完按情况 `fin assign`。
+
 ## 口径速记
 
 - 正数收入、负数支出。
@@ -44,7 +53,9 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 
 **记一笔**（「刚才超市花了 23,40，用的现金」）
 从话里取金额、说明、日期（默认今天）；账户和账本说不清就问。分类可以按以前同一个商户的分类猜，但要在回复里说出来。
-`fin add -23,40 超市 --account cash --book personal --category 餐饮 --author Claude`
+`fin add --account cash --book personal --category 餐饮 --author Claude -- -23,40 超市`
+
+⚠️ 负数金额前面一定要有 `--`（选项写在前面，`--` 后面是金额和说明），不然会被当成选项，报「Missing expected argument」。
 
 **借钱和还钱**（「借给阿华 500」「阿华还了 100」）
 先 `fin debts` 看有没有这个人的账。借出：`fin debt add 阿华 500 --they-owe-me --account cash`；借入用 `--i-owe`；以前的旧账没有对应流水就不填 `--account`。还款：`fin debt repay 阿华 100 --account cash`。

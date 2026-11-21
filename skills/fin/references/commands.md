@@ -2,6 +2,8 @@
 
 账本位置可以用环境变量 `XIAXIA_LEDGER_PATH` 改（测试时指向临时文件，`.json` 结尾用 JSON）。写入作者也可以用 `XIAXIA_AUTHOR` 设。所有查询命令加 `--json` 输出 JSON；所有写入命令都能加 `--dry-run` 预演、`--author` 写明是谁。
 
+负数金额在命令行里要放在 `--` 后面（`fin add --account cash --book personal -- -12,50 超市`），否则会被当成选项。
+
 金额写 `-12,50`、`-12.50`、`1.234,56` 都行；负数支出、正数收入（借款、还款、目标的金额写正数）。日期写 `2026-11-21`，月份写 `2026-11`。流水编号、改动编号都用前 8 位。
 
 ## 查
@@ -24,7 +26,7 @@
 
 | 想做的事 | 命令行 | MCP |
 | --- | --- | --- |
-| 记一笔 | `fin add -12,50 超市 --account cash --book personal [--category 餐饮] [--date …]` | `add_transaction` |
+| 记一笔 | `fin add --account cash --book personal [--category 餐饮] [--date …] -- -12,50 超市`（负数前要有 `--`） | `add_transaction` |
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
 | 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |

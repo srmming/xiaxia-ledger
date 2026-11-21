@@ -45,16 +45,16 @@ run account add stash 私房钱 --kind cash --private
 run accounts --json
 
 echo; echo "===== 记一笔 ====="
-run add -12,50 超市 --account cash --book personal --category 餐饮 --date 2026-11-03 --dry-run
-run add -12,50 超市 --account cash --book personal --category 餐饮 --date 2026-11-03 --author Claude
-run add 300 客人付款 --account caixa --book miora --date 2026-11-04
-run add -45.90 指甲油 --account caixa --book miora --category 材料 --date 2026-11-05 --json
-run add 1.234,56 工资 --account caixa --book personal --category 工资 --date 2026-11-01
-run add -20 私房零花 --account stash --book personal --date 2026-11-06
-expect_fail add abc 坏金额 --account cash --book personal
-expect_fail add -5 坏日期 --account cash --book personal --date 21/11/2026
-expect_fail add -5 没这个账本 --account cash --book shop
-expect_fail add -5 没这个账户 --account nope --book personal
+run add --account cash --book personal --category 餐饮 --date 2026-11-03 --dry-run -- -12,50 超市
+run add --account cash --book personal --category 餐饮 --date 2026-11-03 --author Claude -- -12,50 超市
+run add --account caixa --book miora --date 2026-11-04 -- 300 客人付款
+run add --account caixa --book miora --category 材料 --date 2026-11-05 --json -- -45.90 指甲油
+run add --account caixa --book personal --category 工资 --date 2026-11-01 -- 1.234,56 工资
+run add --account stash --book personal --date 2026-11-06 -- -20 私房零花
+expect_fail add --account cash --book personal -- abc 坏金额
+expect_fail add --account cash --book personal --date 21/11/2026 -- -5 坏日期
+expect_fail add --account cash --book shop -- -5 没这个账本
+expect_fail add --account nope --book personal -- -5 没这个账户
 
 echo; echo "===== 查 ====="
 run tx
@@ -84,7 +84,7 @@ echo; echo "===== 转账 ====="
 run transfer new 200 --from miora --to personal --account caixa --date 2026-11-12 --dry-run
 run transfer new 200 --from miora --to personal --account caixa --date 2026-11-12
 run transfer move 50 --from-account caixa --to-account cash --date 2026-11-13 --note 取现
-run add -100 转到Revolut --account caixa --book personal --date 2026-11-14
+run add --account caixa --book personal --date 2026-11-14 -- -100 转到Revolut
 ID_TOPUP=$("$FIN" tx | grep 转到Revolut | cut -f1)
 run transfer mark "$ID_TOPUP" --counter-account revolut
 run summary --month 2026-11
