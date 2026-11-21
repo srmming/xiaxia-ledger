@@ -425,8 +425,39 @@ struct AssignCommand: ParsableCommand {
 }
 
 struct TransferCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "transfer", abstract: "账本间转账（比如店里取钱给个人）。",
-                                                    subcommands: [Link.self, New.self])
+    static let configuration = CommandConfiguration(commandName: "transfer", abstract: "转账：账本之间（店里取钱给个人），或自己账户之间（取现、转到另一张卡，不算收支）。",
+                                                    subcommands: [Link.self, New.self, Move.self, Mark.self])
+
+    struct Move: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "move", abstract: "自己账户之间挪钱（取现、转到 Revolut、还信用卡）：两笔，不算收入也不算支出。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "金额，正数。") var amount: String
+        @Option(name: .customLong("from-account"), help: "从哪个账户出。") var from: String
+        @Option(name: .customLong("to-account"), help: "进哪个账户。") var to: String
+        @Option(help: "日期，默认今天。") var date: String?
+        @Option(help: "说明。") var note: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let change = try ledger.addAccountTransfer(amount: try parseMoney(amount).magnitude, from: from, to: to,
+                                                       date: try parseDate(date), note: note, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
+
+    struct Mark: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "mark", abstract: "把已导入的流水标成自己账户间转账，不再算收支（如对账单里的取现、转到 Revolut）。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "流水编号（fin tx 里的 8 位），可以多个。") var ids: [String]
+        @Option(name: .customLong("counter-account"), help: "在这个账户补上另一半（如取现补到 cash）。另一半已经导入过就不填。") var counter: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let txs = try ledger.findTransactions(ids)
+            let change = try ledger.markAsAccountTransfer(txs.map(\.id), counterAccount: counter, author: w.who)
+            try finish(ledger, change, w)
+        }
+    }
 
     struct Link: ParsableCommand {
         static let configuration = CommandConfiguration(commandName: "link", abstract: "把已有的一笔转出、一笔转入标成转账。")

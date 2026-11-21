@@ -24,7 +24,7 @@ extension Ledger {
                 Transaction(date: d(m, 6), amount: c(-180 - wiggle), description: "Mercadona", accountID: "imagin", bookID: "personal", category: "超市"),
                 Transaction(date: d(m, 9), amount: c(-96.4 - wiggle / 2), description: "餐厅", accountID: "revolut", bookID: "personal", category: "餐饮"),
                 Transaction(date: d(m, 12), amount: c(-54.5), description: "交通卡", accountID: "imagin", bookID: "personal", category: "交通"),
-                Transaction(date: d(m, 3), amount: c(4600 + wiggle * 5), description: "美甲收入（刷卡）", accountID: "caixa", bookID: "miora", category: "营业收入"),
+                Transaction(date: d(m, 3), amount: c(4200 + wiggle * 11), description: "美甲收入（刷卡）", accountID: "caixa", bookID: "miora", category: "营业收入"),
                 Transaction(date: d(m, 4), amount: c(700 + wiggle), description: "美甲收入（现金）", accountID: "cash", bookID: "miora", category: "营业收入"),
                 Transaction(date: d(m, 5), amount: c(-500), description: "店租", accountID: "caixa", bookID: "miora", category: "店租"),
                 Transaction(date: d(m, 8), amount: c(-1200), description: "员工工资", accountID: "caixa", bookID: "miora", category: "员工工资"),
@@ -34,6 +34,18 @@ extension Ledger {
                 Transaction(date: d(m, 25), amount: c(300), description: "转进应急金", accountID: "pot", bookID: "personal", category: "储蓄", flow: .saving),
             ]
         }
+        // 几笔不是每个月都有的，让各个月不一样。
+        txs += [
+            Transaction(date: d(3, 14), amount: c(-890), description: "新美甲椅", accountID: "caixa", bookID: "miora", category: "设备"),
+            Transaction(date: d(4, 20), amount: c(-1480), description: "季度增值税", accountID: "caixa", bookID: "miora", category: "税费"),
+            Transaction(date: d(7, 20), amount: c(-1610), description: "季度增值税", accountID: "caixa", bookID: "miora", category: "税费"),
+            Transaction(date: d(10, 20), amount: c(-1390), description: "季度增值税", accountID: "caixa", bookID: "miora", category: "税费"),
+            Transaction(date: d(8, 2), amount: c(-1240), description: "回国机票", accountID: "revolut", bookID: "personal", category: "旅行"),
+            Transaction(date: d(8, 11), amount: c(-460), description: "给家里人买礼物", accountID: "revolut", bookID: "personal", category: "礼物"),
+            Transaction(date: d(6, 18), amount: c(-320), description: "牙医", accountID: "caixa", bookID: "personal", category: "医疗"),
+            Transaction(date: d(11, 11), amount: c(-139), description: "双十一买衣服", accountID: "revolut", bookID: "personal", category: "购物"),
+            Transaction(date: d(11, 7), amount: c(-39.9), description: "手机话费", accountID: "caixa", bookID: "personal", category: "通讯"),
+        ]
         txs.append(Transaction(date: d(11, 18), amount: c(-60), description: "偷偷买的香水", accountID: "stash", bookID: "personal", category: "其他"))
         txs.append(Transaction(date: d(10, 1), amount: c(400), description: "攒的私房钱", accountID: "stash", bookID: "personal", category: "收入"))
         let lend = Transaction(date: d(9, 3), amount: c(-500), description: "借给阿华", accountID: "revolut", bookID: "personal", category: "借款往来", flow: .debt)
@@ -49,6 +61,21 @@ extension Ledger {
         let lampLoan = Transaction(date: d(8, 20), amount: c(329.4), description: "美甲灯和打磨机（分期借款）", accountID: "caixa", bookID: "miora",
                                    category: "分期", flow: .debt)
         txs += [lend, back, borrow, payMom, lampBuy, lampLoan] + lamp
+        // 账户间转账：取现，不算收支。
+        let atm = UUID()
+        txs += [
+            Transaction(date: d(11, 10), amount: c(-200), description: "取现金", accountID: "caixa", category: "账户间转账", transferID: atm, flow: .internal),
+            Transaction(date: d(11, 10), amount: c(200), description: "取现金", accountID: "cash", category: "账户间转账", transferID: atm, flow: .internal),
+        ]
+        // 刚导入、还没整理的几笔：演示「整理」。Mercadona 以前分过类，会自动猜成「超市 · 个人」。
+        txs += [
+            Transaction(date: d(11, 17), amount: c(-42.35), description: "MERCADONA", accountID: "imagin", source: "imagin-11月.csv"),
+            Transaction(date: d(11, 19), amount: c(-27.9), description: "MERCADONA", accountID: "imagin", source: "imagin-11月.csv"),
+            Transaction(date: d(11, 18), amount: c(-18.6), description: "GLOVO BARCELONA", accountID: "revolut", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 16), amount: c(-64), description: "AMAZON MKTPLACE", accountID: "revolut", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 14), amount: c(-64.2), description: "AMAZON MKTPLACE", accountID: "revolut", source: "revolut-11月.csv"),
+            Transaction(date: d(11, 13), amount: c(85), description: "BIZUM DE LAURA G", accountID: "caixa", source: "caixa-11月.csv"),
+        ]
         let openings: [(String, Double)] = [("caixa", 3200), ("imagin", 3600), ("revolut", 2900), ("cash", 180)]
         txs += openings.map { Transaction(date: d(1, 1), amount: c($0.1), description: "期初余额", accountID: $0.0, category: "期初余额", flow: .opening) }
         // 只留到 11 月 20 日，不出现未来日期。
@@ -67,7 +94,17 @@ extension Ledger {
             Goal(name: "应急金", bookID: "personal", target: c(6000), savingsAccountID: "pot"),
             Goal(name: "店铺装修", bookID: "miora", target: c(4000), deadline: LocalDate(year: 2027, month: 6, day: 30)),
         ]
-        l.changes = [ChangeRecord(kind: .importBatch, summary: "导入示例数据", transactionIDs: [], author: "示例")]
+        // 改动记录：借款各带一条，详情页才能看到借出那一笔；再放两条 AI 记的，演示「谁改的」。
+        var lendChange = ChangeRecord(kind: .debt, summary: "记欠款：阿华 欠我 500,00 €", transactionIDs: [lend.id], author: "ming")
+        lendChange.debtID = l.debts[0].id
+        var borrowChange = ChangeRecord(kind: .debt, summary: "记欠款：我欠 妈妈 2.000,00 €", transactionIDs: [borrow.id], author: "ming")
+        borrowChange.debtID = l.debts[1].id
+        let imported = l.transactions.filter { $0.source?.hasSuffix(".csv") == true }
+        l.changes = [
+            ChangeRecord(kind: .importBatch, summary: "导入示例数据", transactionIDs: [], author: "示例"),
+            lendChange, borrowChange,
+            ChangeRecord(kind: .importBatch, summary: "导入 imagin、Revolut、CaixaBank 11 月对账单 \(imported.count) 笔", transactionIDs: imported.map(\.id), author: "Claude"),
+        ]
         return l
     }
 }
