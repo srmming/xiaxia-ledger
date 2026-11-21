@@ -597,11 +597,11 @@ table.plan .dim{color:var(--fg3)}
 
 <!-- 8 落地 -->
 <section class="doc" id="build"><div class="wrap">
-  <div class="sec-h"><h2>分三步做</h2><p>按我的推荐，先做第一步。手机上的 AI 对话和 Pro 付费放在第三步，因为它们要先上架 App Store。</p></div>
+  <div class="sec-h"><h2>分三步做</h2><p>按我的推荐，先做第一步。手机上的 AI 对话和同步收费放在第三步，因为它们要先上架 App Store。</p></div>
   <div class="phase">
     <div class="now"><div class="t4">第一步 · 换界面（马上做）</div><ul><li>按这份设计重做 Mac 9 页、iPhone 5 个标签</li><li>拿掉导入、整理、记欠款等面板，记一笔换成极简版</li><li>每页加「问 AI」：复制话术 + 打开 Claude</li><li>空状态、出错、深浅色、大字号都做</li></ul></div>
     <div><div class="t4">第二步 · AI 意见进账本</div><ul><li>账本加一张「AI 意见」表</li><li>MCP 和 fin 加写意见、列意见、标记已读</li><li>全局 skill 里教 AI：月初写本月点评、发现异常写提醒</li><li>总览和 AI 页显示它们</li></ul></div>
-    <div><div class="t4">第三步 · 手机 AI + Pro</div><ul><li>iPhone 上和 AI 对话：用户填自己的 DeepSeek / Claude 等密钥，AI 调的是和 MCP 同一套记账功能</li><li>Pro 订阅 3,99 €/年（示例价）：同步 + 手机 AI + 多账本</li><li>前提：上架 App Store（苹果开发者账号 99 美元/年，要你本人注册）</li><li>之后：宝宝存钱、小组件</li></ul></div>
+    <div><div class="t4">第三步 · 手机 AI + 同步收费</div><ul><li>iPhone 上和 AI 对话：用户填自己的 DeepSeek / Claude 等密钥，免费，AI 调的是和 MCP 同一套记账功能</li><li>只收同步的钱：2,99 €/年（示例价）；AI 代付档以后再看</li><li>先自己和身边人用顺了再上架</li><li>前提：上架 App Store（苹果开发者账号 99 美元/年，要你本人注册）</li><li>之后：宝宝存钱、小组件</li></ul></div>
   </div>
   <h3 class="sub">给开发看的：要新增的东西</h3>
   <div class="dev">
@@ -821,11 +821,12 @@ function chatScreen(){return `<div style="display:flex;justify-content:space-bet
  <div class="composer">问问题，或者直接说记一笔…<span class="send">${sym('chev')}</span></div>`}
 function paywall(){return `<div class="pw">
  <svg class="logo-big" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#FFEFE4"/><circle cx="32" cy="30" r="13" fill="#FFB36B"/><circle cx="32" cy="30" r="8.5" fill="#FF7A59"/><path d="M10 40c7-4 15-4 22 0 7-4 15-4 22 0v12c-7-4-15-4-22 0-7-4-15-4-22 0z" fill="#E8505B"/></svg>
- <h3>夏夏账本 Pro</h3><p style="color:var(--fg2);font-size:13px">一台设备免费用。想在 Mac 和 iPhone 之间同步、在手机上和 AI 对话，就开通 Pro。</p>
- <ul><li><i>☁</i><span>iCloud 同步<small>Mac、iPhone、iPad 用同一本账</small></span></li><li><i>✦</i><span>手机上的 AI 对话<small>接 DeepSeek、Claude、ChatGPT 等，用你自己的密钥</small></span></li><li><i>▦</i><span>多个账本<small>个人、店里分开看</small></span></li></ul>
- <div class="plan-opt"><span><b>3,99 €</b> / 年<br><span style="font-size:12px;color:var(--fg2)">前 1 个月免费</span></span><span class="tag good">每月不到 0,34 €</span></div>
- <button class="btn primary lg" style="justify-content:center">免费试用 1 个月</button>
- <div class="fine">到期自动续费，可随时在 App Store 取消 · 恢复购买 · 隐私政策</div></div>`}
+ <h3>多台设备同步</h3><p style="color:var(--fg2);font-size:13px">看板、记一笔、接 AI 全部免费。只有想让 Mac 和 iPhone 用同一本账时，才需要开同步。</p>
+ <div class="plan-opt" style="border-color:var(--sep);border-width:1px"><span><b style="font-size:16px">免费</b><br><span style="font-size:12px;color:var(--fg2)">一台设备 · 全部看板 · 多个账本 · 自己接 AI（Claude、Codex 或填 API 密钥）</span></span></div>
+ <div class="plan-opt"><span><b>2,99 €</b> / 年<br><span style="font-size:12px;color:var(--fg2)">iCloud 同步：Mac、iPhone、iPad 用同一本账</span></span><span class="tag good">每月约 0,25 €</span></div>
+ <button class="btn primary lg" style="justify-content:center">开通同步 · 前 1 个月免费</button>
+ <p class="fine" style="text-align:center">以后可能加「AI 代付」档：不用自己申请密钥，按月收费。现在不做。</p>
+ <div class="fine">到期自动续费，可随时在 App Store 取消 · 恢复购买 · 隐私政策</div></div></div>`}
 
 function feedback(){return `<div style="display:grid;gap:10px">
  <span class="seg" style="justify-self:center"><span class="on">报 bug</span><span>提想法</span></span>
@@ -899,7 +900,13 @@ P.settings = m => {const ai=`<div class="glabel">AI 连接（MCP）</div><div cl
   <div class="gi"><span class="ic" style="background:#2F6BFF">CS</span>Cherry Studio（DeepSeek / 通义千问 / Kimi）<span class="v"><span class="dot off"></span>没连</span></div>
   <div class="gi"><span class="ic" style="background:var(--fg3)">+</span>连别的 AI（Cursor、Trae、Gemini CLI…）<span class="v"><button class="btn tinted">${sym('copy')}复制 MCP 配置</button></span></div>
 </div>`;
- const api=`<div class="glabel">${m=="mac"?"app 自带的 AI（接 API，Mac 和 iPhone 共用）":"app 自带的 AI（接 API）"}</div><div class="group">
+ const apple=m=="mac"
+  ?`<div class="gi"><span class="ic" style="background:#1C1C1E">A</span>Apple 智能<span class="v"><span class="dot"></span>可用 · 在这台 Mac 上算，不联网</span></div>`
+  :`<div class="gi" style="opacity:.55"><span class="ic" style="background:#1C1C1E">A</span>Apple 智能<span class="v">这台 iPhone 用不了</span></div><div class="gi"><span class="ic" style="background:#8E8E93">i</span><span style="font-size:12px;color:var(--fg2)">要 iPhone 15 Pro、iPhone 16 或更新，并在系统设置里打开 Apple 智能。先用下面的 API。</span></div>`;
+ const api=`<div class="glabel">app 自带的 AI（免费，Mac 和 iPhone 共用）</div><div class="group">
+  <div class="gi"><span class="ic" style="background:var(--ai-solid)">AI</span>用哪个<span class="v">${m=="mac"?"Apple 智能（本机） ▾":"接 API ▾"}</span></div>${apple}</div>
+  <p style="font-size:12px;color:var(--fg2);margin:6px 4px 0">Apple 智能：不用密钥、不花钱、账目不出这台设备，适合记一笔、猜分类、写一句点评；长对话和月度分析用 API 更好。要 iPhone 15 Pro / 16 及更新或 M1 及更新的 Mac，系统 iOS / macOS 26 以上，并打开 Apple 智能；中国大陆买的设备或大陆 Apple 账号暂时用不了。</p>
+  <div class="glabel">接 API</div><div class="group">
   <div class="gi"><span class="ic" style="background:#4D6BFE">DS</span>用哪家<span class="v">DeepSeek ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">◎</span>模型<span class="v">deepseek-chat ▾</span></div><div class="gi"><span class="ic" style="background:#8E8E93">↗</span>接口地址<span class="v" style="font-size:11px">api.deepseek.com（自定义可改）</span></div>
   <div class="gi"><span class="ic" style="background:#8E8E93">${sym('lock').replace('<svg','<svg style="width:15px;height:15px"')}</span>API 密钥<span class="v">sk-••••3f2a · 存在钥匙串</span></div>
   <div class="gi"><span class="ic" style="background:#8E8E93">✓</span>AI 记账前先给我看一眼<span class="v"><span class="toggle"></span></span></div>
@@ -947,10 +954,10 @@ const PH=[
   ['worth','家底',P.worth('phone'),'家底','我一共有多少钱'],
   ['plan','计划',P.plan('phone'),'计划','离目标还差多少'],
   ['ai','AI',P.ai('phone'),'AI','AI 怎么看我的钱'],
-  ['ai','和 AI 说',chatScreen(),'AI · 对话（Pro）','直接在手机上和 AI 记账、问问题'],
+  ['ai','和 AI 说',chatScreen(),'AI · 对话（自己的密钥，免费）','直接在手机上和 AI 记账、问问题'],
   ['overview','流水',P.tx('phone'),'流水（从总览进）','这一笔是怎么回事'],
   ['overview','设置',P.settings('phone'),'设置（点头像进）','AI 连上了吗，同步正常吗'],
-  ['overview','',paywall(),'开通 Pro（价格是示例）','同步和手机 AI 要不要付费'],
+  ['overview','',paywall(),'开通同步（价格是示例）','什么免费、什么收费'],
   ['overview','反馈问题',feedback(),'反馈问题（设置里进，或摇一摇）','哪里坏了，怎么告诉开发']
 ];
 document.getElementById('phones').innerHTML=PH.map(([t,ti,b,cap,q],i)=>`<div class="phone-col">${phone(t,ti,b,{fab:t!='ai'&&ti!='设置'&&ti!=''&&ti!='反馈问题',me:ti!='设置'&&ti!='流水'&&ti!=''&&ti!='和 AI 说'&&ti!='反馈问题'})}<div class="cap"><b>${cap}</b>${q}？</div></div>`+(i==0?`<div class="phone-col">${phone('overview','总览',P.overview('phone'),{fab:false,sheet:quickAdd('phone')})}<div class="cap"><b>记一笔（右上角 +）</b>自己顺手记一笔现金？3 秒记完</div></div>`:'')).join('');
