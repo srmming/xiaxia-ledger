@@ -84,7 +84,9 @@ final class ManageFlowTests: XCTestCase {
         name.tap()
         name.typeText("银行卡")
         app.buttons["保存"].tap()
-        let row = find(app, "银行卡")
+        // 等编辑页完全收起再点列表，不然这一下会点在正在关的弹层上（2026-11-21 CI 上出现过）。
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后编辑页没关")
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "银行卡")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "加的账户没出现")
         row.tap()
         XCTAssertTrue(name.waitForExistence(timeout: 5))
