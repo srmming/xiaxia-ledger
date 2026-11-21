@@ -38,7 +38,7 @@ struct AddDebtView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 AmountField(prompt: "0,00", text: $amountText)
-                TextField(direction == .theyOweMe ? "借给谁，如「阿华」" : "向谁借，如「妈妈」", text: $who)
+                PromptField(direction == .theyOweMe ? "借给谁，如「阿华」" : "向谁借，如「妈妈」", text: $who)
                     .focused($whoFocused)
                 if !people.isEmpty, who.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -56,7 +56,7 @@ struct AddDebtView: View {
                 DatePicker("哪天借的", selection: $date, displayedComponents: .date)
                 Toggle("约好了哪天前还", isOn: $hasDue.animation())
                 if hasDue { DatePicker("哪天前还", selection: $due, displayedComponents: .date) }
-                TextField("备注（可以不写）", text: $note)
+                PromptField("备注（可以不写）", text: $note)
             } footer: {
                 Text(direction == .theyOweMe
                      ? "保存后，「\(accountID.isEmpty ? "账户" : model.accountName(accountID))」会少这么多钱，但不算支出。对方还钱时到「计划」里点这笔，记一笔还款。"
@@ -174,13 +174,19 @@ struct AddInstallmentView: View {
     var body: some View {
         Form {
             Section {
-                TextField("买了什么，如「美甲灯」「iPhone」", text: $name)
+                PromptField("买了什么，如「美甲灯」「iPhone」", text: $name)
                 AmountField(prompt: "总价", text: $totalText)
                 Stepper("分 \(count) 期", value: $count, in: 2...60)
+                // 常见的期数一点就到，不用一下一下加。
+                Picker("常见期数", selection: $count) {
+                    ForEach([3, 6, 10, 12, 24], id: \.self) { n in Text("\(n) 期").tag(n) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
                 if let t = total {
                     LabeledContent("每期大约", value: Money(cents: t.cents / Int64(count)).formatted)
                 }
-                TextField("手续费或利息一共多少（没有就空着）", text: $feeText).decimalKeyboard().monospacedDigit()
+                PromptField("手续费或利息一共多少（没有就空着）", text: $feeText).decimalKeyboard().monospacedDigit()
             }
             Section {
                 Picker("从哪个账户扣", selection: $accountID) {
@@ -193,7 +199,7 @@ struct AddInstallmentView: View {
             Section {
                 CategoryChips(categories: model.categories(bookID: bookID.isEmpty ? nil : bookID, income: false, limit: 10), selection: $category)
                     .padding(.vertical, 4)
-                TextField("别的分类，自己写", text: $category)
+                PromptField("别的分类，自己写", text: $category)
             } header: { Text("分类") } footer: {
                 Text("买的那天记一笔全额支出；之后每期还款算还债，不再算支出。手续费单独算一笔支出。")
             }
@@ -277,7 +283,7 @@ struct PayInstallmentView: View {
             }
             if pickedTx == nil {
                 Section("新记一笔") {
-                    TextField("金额，不填就是 \(status.perPayment.formatted)", text: $amountText).decimalKeyboard().monospacedDigit()
+                    PromptField("金额，不填就是 \(status.perPayment.formatted)", text: $amountText).decimalKeyboard().monospacedDigit()
                     DatePicker("哪天扣的", selection: $date, displayedComponents: .date)
                 }
             }
@@ -329,7 +335,7 @@ struct AddGoalView: View {
     var body: some View {
         Form {
             Section {
-                TextField("存钱做什么，如「应急金」「回国机票」", text: $name)
+                PromptField("存钱做什么，如「应急金」「回国机票」", text: $name)
                 AmountField(prompt: "目标金额", text: $targetText)
                 Picker("账本", selection: $bookID) { ForEach(model.ledger.books) { b in Text(b.name).tag(b.id) } }
                 Toggle("想在某天前存够", isOn: $hasDeadline.animation())

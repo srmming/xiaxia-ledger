@@ -77,7 +77,7 @@ struct OnboardingView: View {
                 Divider()
             }
             HStack {
-                TextField("还有别的？写名字，比如「Wise」「店里收银盒」", text: $newName)
+                PromptField("还有别的？写名字，比如「Wise」「店里收银盒」", text: $newName)
                     .onSubmit(addCustom)
                 Button("加上", action: addCustom).disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -93,7 +93,7 @@ struct OnboardingView: View {
                         Image(systemName: d.isPrivate ? "lock.fill" : d.kind.symbol).frame(width: 26)
                         Text(d.name)
                         Spacer()
-                        TextField("0,00", text: $d.balance)
+                        PromptField("0,00", text: $d.balance)
                             .decimalKeyboard()
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()

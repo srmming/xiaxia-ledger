@@ -106,6 +106,10 @@ public enum MonthlyReport {
             lines.append("\(word)（上个月花掉 \(before.expense.magnitude.formatted)）。")
         }
         if let rate = Plans.savingsRate(now) { lines.append("存下 \(rate)%。") }
+        if let bookID, now.betweenBooks.cents != 0 {
+            let label = Reports.betweenBooksLabel(now.betweenBooks, bookID: bookID, books: ledger.books)
+            lines.append("\(label) \(now.betweenBooks.magnitude.formatted)（自己账户之间挪的钱，不算收入也不算支出）。算上它实际剩下 \(now.netWithBetweenBooks.formatted)。")
+        }
 
         let spending = Reports.categoryTotals([now], expense: true)
         if !spending.isEmpty {

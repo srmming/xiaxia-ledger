@@ -61,7 +61,9 @@ struct TriageView: View {
         .onAppear { startCount = model.untidy.count; prepare(list.first) }
         .onChange(of: list.first?.id) { prepare(list.first) }
         .errorAlert($error)
-        .animation(.snappy, value: list.first?.id)
+        .animation(list.isEmpty ? nil : .snappy, value: list.first?.id)
+        // 最后一笔处理完直接换成结束画面，不做淡出，免得旧卡片和结束画面叠在一起。
+        .transaction { if list.isEmpty { $0.animation = nil } }
     }
 
     private func progress(left: Int) -> some View {
@@ -110,7 +112,7 @@ struct TriageView: View {
             Text(g.first.amount.isIncome ? "这笔钱是什么？" : "花在什么上？").font(.headline)
             CategoryChips(categories: chips(g), selection: $category)
             HStack {
-                TextField("别的分类，自己写", text: $custom)
+                PromptField("别的分类，自己写", text: $custom)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { useCustom() }
                 Button("用这个", action: useCustom).disabled(custom.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -127,7 +129,7 @@ struct TriageView: View {
 
     private func footer(_ g: Batch) -> some View {
         HStack {
-            Button("先跳过") { withAnimation { _ = skipped.insert(g.id) } }
+            Button("先跳过") { _ = skipped.insert(g.id) }
             Spacer()
             Button { apply(g) } label: {
                 Text(category.isEmpty ? "先选一个分类" : "就这样，下一个").frame(minWidth: 140)

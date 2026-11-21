@@ -228,6 +228,11 @@ struct SummaryCommand: ParsableCommand {
         let t = total(list)
         var lines = ["\(label(months))  \(book ?? "全部")",
                      "收入 \(t.income.formatted)  支出 \(t.expense.formatted)  结余 \((t.income + t.expense).formatted)"]
+        let moved = list.reduce(Money.zero) { $0 + $1.betweenBooks }
+        if moved.cents != 0 {
+            let word = moved.cents > 0 ? "从别的账本拿进来" : "拿去别的账本"
+            lines.append("\(word) \(moved.magnitude.formatted)（自己账户间转账，不算收支）  算上它结余 \((t.income + t.expense + moved).formatted)")
+        }
         if list.count > 1 {
             lines.append("按月：")
             for s in list where s.income.cents != 0 || s.expense.cents != 0 {

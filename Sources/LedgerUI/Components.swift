@@ -138,12 +138,12 @@ struct MonthStepper: View {
     var latest: YearMonth = LocalDate.today.yearMonth
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left") }
+        HStack(spacing: 0) {
+            Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle()) }
                 .accessibilityLabel("上个月")
             Text(month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
                 .frame(minWidth: 110)
-            Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right") }
+            Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle()) }
                 .accessibilityLabel("下个月")
                 .disabled(month >= latest)
         }
@@ -340,6 +340,24 @@ extension View {
 }
 
 /// 金额输入框：大号圆体，前面带正负号提示。
+/// 单行输入框。Mac 的表单会把输入框的标题当成左边的标签、把填的字挤到右边，
+/// 这里统一成：提示文字灰灰地待在框里，填的字靠左、正常大小。iPhone 上本来就是这样。
+struct PromptField: View {
+    let prompt: String
+    @Binding var text: String
+    init(_ prompt: String, text: Binding<String>) { self.prompt = prompt; self._text = text }
+
+    var body: some View {
+        #if os(macOS)
+        TextField(prompt, text: $text, prompt: Text(prompt))
+            .labelsHidden()
+            .multilineTextAlignment(.leading)
+        #else
+        TextField(prompt, text: $text)
+        #endif
+    }
+}
+
 struct AmountField: View {
     let prompt: String
     @Binding var text: String
@@ -347,7 +365,7 @@ struct AmountField: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            TextField(prompt, text: $text)
+            PromptField(prompt, text: $text)
                 .decimalKeyboard()
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .monospacedDigit()

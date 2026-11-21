@@ -90,10 +90,10 @@ struct EditDebtView: View {
 
     var body: some View {
         Form {
-            TextField("对方", text: $who)
+            PromptField("对方", text: $who)
             Toggle("约好了哪天前还", isOn: $hasDue.animation())
             if hasDue { DatePicker("哪天前还", selection: $due, displayedComponents: .date) }
-            TextField("备注", text: $note)
+            PromptField("备注", text: $note)
         }
         .formStyle(.grouped)
         .navigationTitle("改借款")
@@ -224,7 +224,7 @@ struct GoalDetailView: View {
                     }
                     Section("设定") {
                         LabeledContent("钱放在哪", value: goal.savingsAccountID.map { model.accountName($0) } ?? "平时的账户里，记个数")
-                        LabeledContent("哪天前存够", value: goal.deadline?.friendly ?? "没定")
+                        LabeledContent("哪天前存够", value: goal.deadline?.friendly ?? "没设截止日")
                         LabeledContent("账本", value: model.bookName(goal.bookID))
                         Button("改名字、金额、日期") { editing = true }
                     }

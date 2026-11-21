@@ -93,7 +93,7 @@ public struct SettingsView: View {
                 }
                 ForEach(accounts) { a in
                     NavigationLink { AccountDetailView(accountID: a.id) } label: {
-                        macRow(a.name + (a.isPrivate ? "（私房钱）" : ""), symbol: a.isPrivate ? "lock.fill" : a.kind.symbol,
+                        macRow(a.name + (a.isPrivate && !a.name.contains("私房钱") ? "（私房钱）" : ""), symbol: a.isPrivate ? "lock.fill" : a.kind.symbol,
                                value: (balances[a.id] ?? .zero).formatted, chevron: true)
                     }
                     .buttonStyle(.plain)
@@ -168,7 +168,7 @@ public struct SettingsView: View {
                         LabeledContent {
                             Text((balances[a.id] ?? .zero).formatted).monospacedDigit()
                         } label: {
-                            Label(a.name + (a.isPrivate ? "（私房钱）" : ""), systemImage: a.isPrivate ? "lock.fill" : a.kind.symbol)
+                            Label(a.name + (a.isPrivate && !a.name.contains("私房钱") ? "（私房钱）" : ""), systemImage: a.isPrivate ? "lock.fill" : a.kind.symbol)
                         }
                     }
                 }
@@ -230,11 +230,11 @@ struct AddAccountView: View {
     var body: some View {
         Form {
             Section {
-                TextField("名字，如「Revolut」「店里收银盒」", text: $name)
+                PromptField("名字，如「Revolut」「店里收银盒」", text: $name)
                 Picker("类型", selection: $kind) {
                     ForEach(AccountKind.allCases, id: \.self) { k in Label(k.label, systemImage: k.symbol).tag(k) }
                 }
-                TextField("现在里面有多少钱（可以空着）", text: $balanceText).decimalKeyboard().monospacedDigit()
+                PromptField("现在里面有多少钱（可以空着）", text: $balanceText).decimalKeyboard().monospacedDigit()
             }
             Section {
                 Toggle("这是私房钱", isOn: $isPrivate)
@@ -291,21 +291,28 @@ struct AccountDetailView: View {
                         }
                     }
                     Section {
-                        TextField("银行 app 里现在显示多少", text: $realText).decimalKeyboard().monospacedDigit()
+                        PromptField("银行 app 里现在显示多少", text: $realText).decimalKeyboard().monospacedDigit()
                         if let real = Money(parsing: realText) {
                             let diff = real - balance
                             if diff.cents == 0 {
                                 Label("对上了，一分不差。", systemImage: "checkmark.circle.fill").foregroundStyle(Color.income)
                             } else {
                                 Text("差 \(diff.formatted)。可能是有几笔还没记，或者开账那天的余额没填对。").font(.footnote)
-                                Button("把差的这 \(diff.formatted) 算进开账余额") { adjust(diff) }
+                                // 先把可能的原因列出来（重复记的、记反的、正好等于差额的那笔），免得直接算进开账余额把漏记盖住。
+                                if let check = try? Reconcile.check(model.ledger, accountID: accountID, statementBalance: real, asOf: .today) {
+                                    ForEach(check.hints, id: \.self) { hint in
+                                        Label(hint, systemImage: "lightbulb").font(.footnote).foregroundStyle(.secondary)
+                                    }
+                                    ForEach(check.suspects.prefix(5)) { t in TransactionRow(tx: t, showDate: true) }
+                                }
+                                Button("都不是，把差的这 \(diff.formatted) 算进开账余额") { adjust(diff) }
                             }
                         }
                     } header: { Text("对一下余额") } footer: {
                         Text("打开银行 app 看一眼余额填在这里，就知道账本和银行差多少。如果是刚开始用、以前的流水没导进来，点上面的按钮把差额算进开账余额就对上了。它不算收入也不算支出。")
                     }
                     Section("这个账户") {
-                        TextField("名字", text: $name)
+                        PromptField("名字", text: $name)
                         Picker("类型", selection: $kind) {
                             ForEach(AccountKind.allCases, id: \.self) { k in Label(k.label, systemImage: k.symbol).tag(k) }
                         }
