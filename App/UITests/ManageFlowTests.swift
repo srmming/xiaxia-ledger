@@ -12,9 +12,9 @@ final class ManageFlowTests: XCTestCase {
         return app
     }
 
-    /// 名字出现在哪儿都算（列表行里的文字常被系统并进按钮的标签）。
+    /// 标签以这段文字开头的元素（列表行里的文字常被系统并进按钮的标签；底部提示「加账户「…」」不算）。
     private func find(_ app: XCUIApplication, _ text: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", text)).firstMatch
     }
 
     private func typeInAlert(_ app: XCUIApplication, _ text: String, clear: Int = 0) {
