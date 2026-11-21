@@ -37,6 +37,7 @@ public struct ReportsView: View {
                     .frame(maxWidth: .infinity, minHeight: 300)
             } else {
                 tiles(income: income, expense: expense, net: net, months: active.count)
+                betweenBooksNote(list, months: months, net: net)
                 chartCard(list)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                     monthsCard(list)
@@ -62,6 +63,29 @@ public struct ReportsView: View {
 
     private var exportText: String {
         Reports.csv(model.visibleTransactions.filter { $0.date.year == year }, ledger: model.ledger)
+    }
+
+    /// 看单个账本时：这一年和别的账本之间净挪了多少钱（从店里拿回家的 / 老板拿走的）。
+    /// 互转没对上时在下面标出来，不悄悄算进去。
+    @ViewBuilder private func betweenBooksNote(_ list: [MonthlySummary], months: [YearMonth], net: Money) -> some View {
+        let moved = list.reduce(Money.zero) { $0 + $1.betweenBooks }
+        if let bookID = model.selectedBookID, moved.cents != 0 {
+            let unmatched = Summaries.unmatchedInternal(model.ledger.transactions, months: months)
+            Card(spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Label(Reports.betweenBooksLabel(moved, bookID: bookID, books: model.ledger.books), systemImage: "arrow.left.arrow.right")
+                        .font(.headline)
+                    Spacer()
+                    Text(moved.magnitude.formatted).font(.system(.title3, design: .rounded).weight(.bold)).monospacedDigit()
+                }
+                Text("自己账户之间挪的钱，不算收入也不算支出。算上它，这一年实际剩 \((net + moved).formatted)。")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if unmatched.cents != 0 {
+                    Label("有 \(unmatched.magnitude.formatted) 的互转只记了一边，这个数可能差这么多。", systemImage: "exclamationmark.triangle")
+                        .font(.footnote).foregroundStyle(.orange)
+                }
+            }
+        }
     }
 
     private func tiles(income: Money, expense: Money, net: Money, months: Int) -> some View {

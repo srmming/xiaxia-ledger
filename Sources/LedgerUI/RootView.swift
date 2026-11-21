@@ -100,7 +100,7 @@ public struct RootView: View {
                 .padding(.bottom, toastInset)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task(id: toast.id) {
-                    try? await Task.sleep(for: .seconds(toast.changeID == nil ? 3 : 6))
+                    try? await Task.sleep(for: .seconds(toast.changeID == nil ? 3 : 10))
                     if model.toast?.id == toast.id { withAnimation { model.toast = nil } }
                 }
                 .id(toast.id)

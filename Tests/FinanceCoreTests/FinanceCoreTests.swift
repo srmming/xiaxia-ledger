@@ -797,3 +797,42 @@ final class DebtRulesTests: XCTestCase {
         XCTAssertNoThrow(try l.repay(debtID: hits[0].id, amount: Money(cents: 10_000), date: day, accountID: "bank", author: "test"))
     }
 }
+
+final class BetweenBooksTests: XCTestCase {
+    let m = YearMonth(year: 2026, month: 5)
+    func tx(_ day: Int, _ cents: Int64, _ account: String, _ book: String, flow: Transaction.Flow? = .internal, month: Int = 5) -> Transaction {
+        Transaction(date: LocalDate(year: 2026, month: month, day: day), amount: Money(cents: cents), description: "t",
+                    accountID: account, bookID: book, category: flow == nil ? "超市" : nil, flow: flow)
+    }
+
+    func testMoneyTakenHomeFromTheShop() {
+        let txs = [
+            tx(2, -40_000, "shopbank", "shop"), tx(3, 40_000, "mybank", "personal"),    // 店里拿 400 回家
+            tx(9, 10_000, "shopbank", "shop"), tx(8, -10_000, "mybank", "personal"),    // 垫 100 回店里
+            tx(10, -5_000, "mybank", "personal"), tx(10, 5_000, "card", "personal"),    // 个人账户之间挪，不算
+            tx(12, -3_000, "mybank", "personal", flow: nil),                             // 普通开销
+        ]
+        let personal = Summaries.monthly(txs, month: m, bookID: "personal")
+        XCTAssertEqual(personal.betweenBooks, Money(cents: 30_000))
+        XCTAssertEqual(personal.expense, Money(cents: -3_000))
+        XCTAssertEqual(personal.income, .zero)
+        XCTAssertEqual(personal.netWithBetweenBooks, Money(cents: 27_000))
+        XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: "shop").betweenBooks, Money(cents: -30_000))
+        XCTAssertEqual(Summaries.monthly(txs, month: m, bookID: nil).betweenBooks, .zero)
+        XCTAssertEqual(Reports.summaries(txs, months: [m], bookID: "shop")[0].betweenBooks, Money(cents: -30_000))
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]), .zero)
+    }
+
+    func testOneSidedTransferIsFlagged() {
+        let txs = [tx(2, -40_000, "shopbank", "shop"), tx(3, 40_000, "mybank", "personal"), tx(20, -7_000, "shopbank", "shop")]
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [m]), Money(cents: -7_000))
+        XCTAssertEqual(Summaries.unmatchedInternal(txs, months: [YearMonth(year: 2026, month: 6)]), .zero)
+    }
+
+    func testLabelNamesTheOtherBook() {
+        let books = [Book(id: "personal", name: "个人"), Book(id: "shop", name: "美甲店")]
+        XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: 100), bookID: "personal", books: books), "从美甲店拿的")
+        XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: -100), bookID: "shop", books: books), "拿去个人的")
+        XCTAssertEqual(Reports.betweenBooksLabel(Money(cents: 100), bookID: "a", books: books + [Book(id: "a", name: "A")]), "从别的账本拿的")
+    }
+}
