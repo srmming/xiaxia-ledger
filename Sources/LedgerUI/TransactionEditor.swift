@@ -75,13 +75,28 @@ public struct TransactionEditor: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                AmountField(prompt: "0,00", text: $amountText,
-                            color: kind == .income ? .income : kind == .expense ? .primary : .secondary)
-                    .focused($focus, equals: .amount)
-                    .onSubmit { focus = .text }
-                PromptField(placeholder, text: $text)
-                    .focused($focus, equals: .text)
-                    .onChange(of: text) { suggest() }
+                // 系统自带的输入框，只是金额字大一点、靠右，像「钱包」里输金额那样。
+                LabeledContent {
+                    HStack(spacing: 4) {
+                        TextField("0,00", text: $amountText)
+                            .labelsHidden()
+                            .decimalKeyboard()
+                            .multilineTextAlignment(.trailing)
+                            .font(.title2.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(kind == .income ? Color.income : Color.primary)
+                            .focused($focus, equals: .amount)
+                            .onSubmit { focus = .text }
+                        Text("€").font(.title3).foregroundStyle(.secondary)
+                    }
+                } label: { Text("金额") }
+                LabeledContent {
+                    TextField(placeholder, text: $text)
+                        .labelsHidden()
+                        .multilineTextAlignment(.trailing)
+                        .focused($focus, equals: .text)
+                        .onChange(of: text) { suggest() }
+                } label: { Text("说明") }
                 if let problem { Text(problem).font(.footnote).foregroundStyle(Color.coral) }
             } footer: {
                 if editing != nil, kind == .transfer {
@@ -92,12 +107,24 @@ public struct TransactionEditor: View {
             if kind == .transfer {
                 transferSection
             } else {
-                Section("分类") {
-                    CategoryChips(categories: chipCategories, selection: $category) { _ in categoryTouched = true }
-                        .padding(.vertical, 4)
-                    PromptField("别的分类，自己写", text: $category)
-                        .focused($focus, equals: .category)
-                        .onChange(of: category) { if focus == .category { categoryTouched = true } }
+                Section {
+                    Picker(selection: categoryBinding) {
+                        Text("选一个").tag("")
+                        ForEach(chipCategories, id: \.self) { c in
+                            Label(c, systemImage: CategoryStyle.symbol(c) ?? "tag").tag(c)
+                        }
+                        Text("自己写一个…").tag(Self.customTag)
+                    } label: { Text("分类") }
+                    #if os(iOS)
+                    .pickerStyle(.navigationLink)
+                    #endif
+                    if writingCategory {
+                        TextField("分类名字", text: $category)
+                            .focused($focus, equals: .category)
+                            .onChange(of: category) { if focus == .category { categoryTouched = true } }
+                    }
+                } footer: {
+                    if !categoryTouched, !category.isEmpty, kind != .transfer { Text("按以前「\(text)」的记法先选好了，不对就改。") }
                 }
                 Section {
                     Picker("账本", selection: $bookID.animation(.snappy)) {
@@ -143,10 +170,22 @@ public struct TransactionEditor: View {
         }
     }
 
+    private static let customTag = "\u{0}自己写"
+    @State private var writingCategory = false
+
+    /// 分类选择：选「自己写一个…」时下面出一个输入框。
+    private var categoryBinding: Binding<String> {
+        Binding(get: { writingCategory ? Self.customTag : category }, set: { v in
+            categoryTouched = true
+            if v == Self.customTag { writingCategory = true; category = ""; focus = .category }
+            else { writingCategory = false; category = v }
+        })
+    }
+
     private var placeholder: String {
         switch kind {
-        case .expense: "说明，如「Mercadona」「午饭」"
-        case .income: "说明，如「工资」「客人刷卡」"
+        case .expense: "如「Mercadona」「午饭」"
+        case .income: "如「工资」「客人刷卡」"
         case .transfer: transferKind == .accounts ? "说明（可以不写），如「取现金」" : "说明（可以不写），如「店里的钱拿回家」"
         }
     }
