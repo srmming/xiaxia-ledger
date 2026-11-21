@@ -14,5 +14,5 @@ SVG 可以直接拖进 Asset Catalog（勾选 Preserve Vector Data），tab 图�
 以后如果要做成自定义 SF Symbol（能用符号动画 `.symbolEffect`），再按 Apple 的符号模板重画一版。
 
 ## 待定
-- App 图标三选一，见 `../logo/v2/`。
+- App 图标已选 A（晨光账本），正式版本在 `../logo/`。
 - 分类表以开发线程最终定的默认分类为准，缺的再补。
