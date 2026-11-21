@@ -227,6 +227,8 @@ public final class LedgerModel {
 
     /// 跳到流水页并带上筛选。
     public var pendingFilter: TransactionFilter?
+    /// 按 ⌘F 去流水页时，把光标放进搜索框。
+    public var focusSearch = false
     public func showTransactions(_ filter: TransactionFilter) {
         pendingFilter = filter
         section = .transactions

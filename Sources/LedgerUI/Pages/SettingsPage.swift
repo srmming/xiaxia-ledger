@@ -6,6 +6,7 @@ struct SettingsPage: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.openURL) var openURL
     @State var name = ""
+    @FocusState var nameFocused: Bool
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
@@ -33,7 +34,8 @@ struct SettingsPage: View {
                         .multilineTextAlignment(.trailing)
                         .textFieldStyle(.plain)
                         .frame(maxWidth: 160)
-                        .onSubmit { saveName() }
+                        .focused($nameFocused)
+                        .onSubmit { saveName(); nameFocused = false }
                 }
                 Text("你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。").font(.caption).foregroundStyle(Color.fg2)
                     .padding(.horizontal, 4).padding(.top, 4)
@@ -74,7 +76,11 @@ struct SettingsPage: View {
             }
         }
         .kitPage()
-        .onAppear { name = model.author }
+        .onAppear {
+            name = model.author
+            // 别让名字框一打开就抢走光标（Mac 会把第一个输入框自动选中）。
+            DispatchQueue.main.async { nameFocused = false }
+        }
         .onDisappear { saveName() }
     }
 
@@ -95,7 +101,7 @@ struct SettingsPage: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2).padding(.leading, 4)
                 .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) { content() }
+            VStack(alignment: .leading, spacing: 0) { content() }
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
             if let note { Text(note).font(.caption).foregroundStyle(Color.fg2).padding(.horizontal, 4) }

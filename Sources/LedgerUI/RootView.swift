@@ -214,7 +214,8 @@ struct MacToolbar: ToolbarContent {
     let section: AppSection
 
     var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        // 月份和账本放左边，「记一笔」「问 AI」单独一组放最右：窗口窄的时候先收起的是左边，记一笔一直看得见。
+        ToolbarItemGroup(placement: .navigation) {
             if section.usesMonth {
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
                              latest: LocalDate.today.yearMonth)
@@ -222,6 +223,8 @@ struct MacToolbar: ToolbarContent {
             if section.usesBook, model.ledger.books.count > 1 {
                 BookSwitch().environment(model)
             }
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
             Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
             AskAIButton(page: section.rawValue).environment(model)
@@ -238,7 +241,12 @@ struct BookSwitch: View {
             Text("全部").tag(String?.none)
             ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
         }
+        #if os(macOS)
+        // 工具栏里用下拉菜单：比分段控件窄一半，窗口窄时不会把「记一笔」挤进 >> 菜单。
+        .pickerStyle(.menu)
+        #else
         .pickerStyle(.segmented)
+        #endif
         .labelsHidden()
         .fixedSize()
         .accessibilityLabel("看哪个账本")
@@ -358,7 +366,28 @@ public struct XiaxiaScene: Scene {
         }
         Self.applyLaunchOptions(args, to: model)
         _model = State(initialValue: model)
+        #if os(macOS)
+        Self.ensureMainWindow()
+        #endif
     }
+
+    #if os(macOS)
+    /// 偶尔启动后没有主窗口（上次关窗口退出，系统按「恢复窗口」什么也没恢复）。
+    /// 不恢复旧窗口；启动一秒后还没有可见窗口，就点一下「窗口」菜单里的「夏夏账本」把它叫出来。
+    private static func ensureMainWindow() {
+        UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
+        for delay in [1.0, 2.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard NSApp != nil, !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+                guard let menu = NSApp.windowsMenu ?? NSApp.mainMenu?.items.first(where: { $0.submenu?.title == "Window" || $0.submenu?.title == "窗口" })?.submenu,
+                      let item = menu.items.first(where: { $0.title == "夏夏账本" }),
+                      let i = menu.items.firstIndex(of: item) else { return }
+                menu.performActionForItem(at: i)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+    }
+    #endif
 
     /// 截图和自动检查用：-XiaxiaSection spending 直接打开某一页，-XiaxiaSheet add 直接弹出记一笔，
     /// -XiaxiaPrivate 显示私房钱，-XiaxiaBook personal 直接看某个账本（all = 全部）。
@@ -400,7 +429,7 @@ public struct XiaxiaScene: Scene {
                     model.toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
                 }
                 .keyboardShortcut("k", modifiers: .command)
-                Button("搜流水") { model.section = .transactions }.keyboardShortcut("f", modifiers: .command)
+                Button("搜流水") { model.section = .transactions; model.focusSearch = true }.keyboardShortcut("f", modifiers: .command)
             }
             CommandMenu("账本") {
                 Button("撤销上一步改动") { model.undoLast() }

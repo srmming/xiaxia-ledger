@@ -21,6 +21,7 @@ struct TransactionsPage: View {
     init(filter: TransactionFilter = TransactionFilter()) { _filter = State(initialValue: filter) }
     @State var selected: UUID?
     @State var width: CGFloat = 1000
+    @FocusState var searchFocused: Bool
 
     var body: some View {
         let list = filtered
@@ -61,6 +62,13 @@ struct TransactionsPage: View {
         }
         .onAppear {
             if let f = model.pendingFilter { filter = f; model.pendingFilter = nil }
+            // Mac 打开页面时系统会把光标自动放进搜索框，敲键盘就打进去了；除非是按 ⌘F 来的，先让出来。
+            let wantSearch = model.focusSearch
+            model.focusSearch = false
+            DispatchQueue.main.async { searchFocused = wantSearch }
+        }
+        .onChange(of: model.focusSearch) { _, on in
+            if on { searchFocused = true; model.focusSearch = false }
         }
         .onChange(of: model.pendingFilter) { _, f in
             if let f { filter = f; model.pendingFilter = nil }
@@ -154,6 +162,7 @@ struct TransactionsPage: View {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Color.fg3)
                 TextField("搜商户、分类、金额…", text: $query).textFieldStyle(.plain)
+                    .focused($searchFocused)
                 if !query.isEmpty {
                     Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.fg3) }.buttonStyle(.plain)
                 }
