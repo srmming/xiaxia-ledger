@@ -71,7 +71,6 @@ struct BookManager: View {
                 .menuStyle(.button).buttonStyle(.borderless).fixedSize()
                 .accessibilityLabel("\(b.name) 的操作")
         }
-        .accessibilityElement(children: .combine)
     }
 
     private func deleteSheet(_ b: Book) -> some View {

@@ -72,10 +72,26 @@ targets:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.mac.debug
           PRODUCT_NAME: 夏夏账本 Debug
+  # iPhone 界面自动检查：从零新建账本、账户、记一笔，都在内存里的空账本 / 示例账本上做，不碰真账本。
+  XiaxiaLedger-iOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: XiaxiaLedger-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: XiaxiaLedger-iOS
+        CODE_SIGN_STYLE: Automatic
 schemes:
   XiaxiaLedger-iOS:
     build: { targets: { XiaxiaLedger-iOS: all } }
     run: { config: Debug }
+    test:
+      config: Debug
+      targets: [XiaxiaLedger-iOSUITests]
   XiaxiaLedger-macOS:
     build: { targets: { XiaxiaLedger-macOS: all } }
     run: { config: Debug }
