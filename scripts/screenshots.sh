@@ -43,8 +43,13 @@ if [ -n "$MAC_APP" ]; then
     local pid=$!
     sleep 7
     if kill -0 $pid 2>/dev/null; then echo "mac-$name：在运行"; else echo "mac-$name：已经退出了（可能崩溃）"; fi
-    screencapture -x "$OUT/mac-$name.png" 2>/dev/null || true
-    kill $pid 2>/dev/null; wait $pid 2>/dev/null
+    # 截图和关 app 都限时，卡住了也不拖住后面几页
+    screencapture -x "$OUT/mac-$name.png" 2>/dev/null &
+    local sp=$!
+    for _ in 1 2 3 4 5 6 7 8; do kill -0 $sp 2>/dev/null || break; sleep 1; done
+    kill -9 $sp 2>/dev/null
+    kill -9 $pid 2>/dev/null
+    sleep 1
   }
   mac 1-overview -XiaxiaDemo
   mac 2-transactions -XiaxiaDemo -XiaxiaSection transactions
