@@ -34,13 +34,17 @@ struct QuickAdd: View {
         ScrollView { content }
             .scrollDismissesKeyboard(.interactively)
             // 「记下」钉在底部，键盘和数字键盘再长也不用往下翻才找得到。
+            // 数字键盘和「记下」钉在底部，上面的名称、分类、账户可以滑动；不用往下翻才找得到按钮。
             .safeAreaInset(edge: .bottom) {
-                Button(action: save) {
-                    Text("记下").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+                VStack(spacing: 8) {
+                    if focus == nil { Keypad(text: $amountText) }
+                    Button(action: save) {
+                        Text("记下").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+                    .disabled(!canSave)
                 }
-                .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
-                .disabled(!canSave)
-                .padding(.horizontal, 20).padding(.vertical, 10)
+                .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
                 .background(.bar)
             }
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
@@ -101,9 +105,7 @@ struct QuickAdd: View {
             .padding(.horizontal, 12)
             .background(Color.sunken.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            #if os(iOS)
-            if focus == nil { Keypad(text: $amountText) }
-            #else
+            #if os(macOS)
             HStack(spacing: 10) {
                 Button("取消") { dismiss() }
                     .keyboardShortcut(.cancelAction)
