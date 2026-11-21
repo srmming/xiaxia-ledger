@@ -289,10 +289,22 @@ struct CategoriesView: View {
     @State private var renaming: String?
     @State private var newName = ""
 
+    private struct Count { var name: String; var count: Int }
+
+    private var categoryCounts: [Count] {
+        var tally: [String: Int] = [:]
+        for t in model.ledger.transactions where t.flow == nil {
+            if let c = t.category { tally[c, default: 0] += 1 }
+        }
+        let list: [Count] = tally.map { Count(name: $0.key, count: $0.value) }
+        return list.sorted { (a: Count, b: Count) -> Bool in
+            if a.count == b.count { return a.name < b.name }
+            return a.count > b.count
+        }
+    }
+
     var body: some View {
-        let counts = Dictionary(grouping: model.ledger.transactions.filter { $0.flow == nil && $0.category != nil }, by: { $0.category ?? "" })
-            .map { (name: $0.key, count: $0.value.count) }
-            .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+        let counts = categoryCounts
         List {
             if counts.isEmpty {
                 ContentUnavailableView("还没有分类", systemImage: "tag", description: Text("记一笔时选的分类会出现在这里。"))

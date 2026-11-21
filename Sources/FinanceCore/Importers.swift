@@ -104,7 +104,9 @@ public enum Importers {
             let fee = Money(parsing: at(cFee)) ?? .zero
             let type = at(cType).uppercased()
             txs.append(Transaction(date: date, amount: amount - fee.magnitude, description: at(cDesc), accountID: accountID,
-                                   category: type == "TOPUP" ? "充值" : nil, source: source))
+                                   category: type == "TOPUP" ? "充值" : nil, source: source,
+                                   // 充值是自己别的卡转进 Revolut 的钱，不是收入。
+                                   flow: type == "TOPUP" ? .move : nil))
         }
         return ImportResult(transactions: txs, skipped: skipped)
     }
