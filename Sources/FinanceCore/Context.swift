@@ -14,6 +14,12 @@ public struct LedgerContext: Codable, Sendable {
     public var firstDate: String?
     public var lastDate: String?
     public var recentChanges: [String]
+    /// 别人欠我（未还清）合计、我欠别人合计、进行中的分期数、目标数。
+    public var owedToMe: String
+    public var iOwe: String
+    public var openDebts: Int
+    public var activeInstallments: Int
+    public var goals: Int
     public var unassignedCount: Int
     public var rules: [String]
 
@@ -22,6 +28,9 @@ public struct LedgerContext: Codable, Sendable {
         "每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。",
         "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
         "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
+        "借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。",
+        "分期：每期扣款算支出，剩余未还的不算；用 fin installments 看还剩几期。",
+        "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
         "拿不准的事（属于哪个账本、怎么分类）先在对话里问 ming，确认后再写；不要猜着写。",
         "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
         "不动钱、不碰银行密码；银行数据只读。",
@@ -41,6 +50,12 @@ public struct LedgerContext: Codable, Sendable {
         let dates = ledger.transactions.map(\.date).sorted()
         firstDate = dates.first?.description
         lastDate = dates.last?.description
+        let debtList = Plans.debts(ledger, today: .today)
+        owedToMe = debtList.filter { $0.direction == .theyOweMe }.reduce(Money.zero) { $0 + $1.outstanding }.formatted
+        iOwe = debtList.filter { $0.direction == .iOweThem }.reduce(Money.zero) { $0 + $1.outstanding }.formatted
+        openDebts = debtList.count
+        activeInstallments = Plans.installments(ledger).filter { $0.paidCount < $0.count }.count
+        goals = ledger.goals.count
         recentChanges = ledger.changes.filter { !$0.undone }.suffix(5).reversed().map { "\($0.author)：\($0.summary)" }
         unassignedCount = ledger.transactions.filter { $0.bookID == nil }.count
         rules = Self.rules

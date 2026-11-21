@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>夏夏账本 iPhone · 计划</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#D9472B}a:hover{color:#B23A22}
+.xx-press:active{transform:scale(.97)}
+.xx-row{transition:background .15s}
+.xx-row:active{background:#F2F2F7}
+@keyframes xx-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.xx-in{animation:xx-in .45s cubic-bezier(.2,.8,.2,1) both}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; border-radius: 48px; background: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif; color: #1D1D1F; box-shadow: 0 0 0 10px #1D1D1F, 0 30px 60px rgba(0,0,0,.25)">
+  <div style="padding: 58px 18px 0; display: flex; flex-direction: column; gap: 14px; height: 760px; overflow-y: auto; box-sizing: border-box; padding-bottom: 100px">
+    <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #86868B; font-weight: 500">往来、分期、目标</span><h1 style="margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.5px">计划</h1></div>
+    <div role="tablist" aria-label="计划类型" style="display: flex; background: rgba(118,118,128,.12); border-radius: 9px; padding: 2px; position: relative; flex-shrink: 0">
+      <div style="{{thumb}}"></div>
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button role="tab" onClick="{{t.pick}}" style="{{t.style}}">{{t.name}}</button></sc-for>
+    </div>
+
+    <sc-if value="{{isDebts}}" hint-placeholder-val="{{ true }}">
+      <section class="xx-in" style="background: #FFFFFF; border-radius: 22px; padding: 16px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px">
+        <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #86868B">别人欠我</span><span style="font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif; font-size: 28px; font-weight: 700; color: #1F8A5B; font-variant-numeric: tabular-nums">{{owedToMe}}</span></div>
+        <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #86868B">我欠别人</span><span style="font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif; font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums">{{iOwe}}</span></div>
+        <span style="grid-column: 1 / 3; font-size: 12px; color: #86868B">借出、借入、还款都不算收入或支出。</span>
+      </section>
+      <sc-for list="{{debtGroups}}" as="g" hint-placeholder-count="2">
+        <div class="xx-in" style="display: flex; flex-direction: column; gap: 6px">
+          <h2 style="margin: 4px 6px 0; font-size: 13px; font-weight: 600; color: #86868B">{{g.title}}</h2>
+          <section style="background: #FFFFFF; border-radius: 16px; overflow: hidden">
+            <sc-for list="{{g.items}}" as="d" hint-placeholder-count="2">
+              <div class="xx-row" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #EFEFF4">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span style="{{d.avatar}}">{{d.initial}}</span>
+                  <span style="display: flex; flex-direction: column; flex-grow: 1; min-width: 0"><span style="font-size: 15px; font-weight: 600">{{d.who}}</span><span style="font-size: 12px; color: #86868B">{{d.sub}}</span></span>
+                  <span style="display: flex; flex-direction: column; align-items: flex-end"><span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums">{{d.left}}</span><span style="{{d.tagStyle}}">{{d.tag}}</span></span>
+                </div>
+                <div style="height: 5px; border-radius: 3px; background: #F0F0F2; overflow: hidden"><div style="{{d.bar}}"></div></div>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{isInst}}" hint-placeholder-val="{{ false }}">
+      <section class="xx-in" style="background: #FFFFFF; border-radius: 22px; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 13px; color: #86868B">分期还剩</span>
+        <span style="font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif; font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums">{{instLeft}}</span>
+        <span style="font-size: 12px; color: #86868B">每月固定扣 {{instMonthly}} · 每期扣款才算支出</span>
+      </section>
+      <sc-for list="{{insts}}" as="i" hint-placeholder-count="2">
+        <section class="xx-in" style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 15px; font-weight: 600; flex-grow: 1">{{i.name}}</span><span style="font-size: 12px; color: #86868B">{{i.book}}</span></div>
+          <div style="display: flex; gap: 3px"><sc-for list="{{i.ticks}}" as="k" hint-placeholder-count="6"><div style="{{k}}"></div></sc-for></div>
+          <div style="display: flex; font-size: 12px; color: #86868B; font-variant-numeric: tabular-nums"><span style="flex-grow: 1">{{i.progress}} · 每期 {{i.per}}</span><span>下次 {{i.next}}</span></div>
+        </section>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{isGoals}}" hint-placeholder-val="{{ false }}">
+      <section class="xx-in" style="background: #FFFFFF; border-radius: 22px; padding: 16px 18px; display: flex; align-items: center; gap: 16px">
+        <svg width="86" height="86" viewBox="0 0 86 86" role="img" aria-label="本月储蓄率 {{rate}}">
+          <circle cx="43" cy="43" r="36" fill="none" stroke="#F0F0F2" stroke-width="10"></circle>
+          <circle cx="43" cy="43" r="36" fill="none" stroke="#FF6B4A" stroke-width="10" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="{{rateOffset}}" transform="rotate(-90 43 43)"></circle>
+          <text x="43" y="49" text-anchor="middle" font-size="18" font-weight="700" fill="#1D1D1F" style="font-family: ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif">{{rate}}</text>
+        </svg>
+        <div style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 13px; color: #86868B">本月储蓄率 · 个人</span><span style="font-size: 15px; font-weight: 600">结余 589,25 € / 收入 2.900,00 €</span><span style="font-size: 12px; color: #86868B">已存进目标 {{savedTotal}}</span></div>
+      </section>
+      <sc-for list="{{goals}}" as="g" hint-placeholder-count="3">
+        <section class="xx-in" style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; align-items: center; gap: 10px"><span style="{{g.icon}}">{{g.emoji}}</span><span style="display: flex; flex-direction: column; flex-grow: 1"><span style="font-size: 15px; font-weight: 600">{{g.name}}</span><span style="font-size: 12px; color: #86868B">{{g.sub}}</span></span><span style="font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums">{{g.pct}}</span></div>
+          <div style="height: 8px; border-radius: 4px; background: #F0F0F2; overflow: hidden"><div style="{{g.bar}}"></div></div>
+          <div style="display: flex; font-size: 12px; color: #86868B; font-variant-numeric: tabular-nums"><span style="flex-grow: 1">{{g.saved}} / {{g.target}}</span><span>{{g.hint}}</span></div>
+        </section>
+      </sc-for>
+    </sc-if>
+
+    <div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(255,107,74,.08); font-size: 13px; line-height: 1.45; color: #3A3A3C">
+      <span aria-hidden="true" style="font-size: 15px">💬</span><span>{{aiHint}}</span>
+    </div>
+  </div>
+  <nav aria-label="标签栏" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: rgba(249,249,249,.88); backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,.08); display: flex; justify-content: space-around; padding-top: 8px; box-sizing: border-box; font-size: 10px; font-weight: 500">
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2.5" fill="#8E8E93"></rect><rect x="13" y="3" width="8" height="8" rx="2.5" fill="#8E8E93"></rect><rect x="3" y="13" width="8" height="8" rx="2.5" fill="#8E8E93"></rect><rect x="13" y="13" width="8" height="8" rx="2.5" fill="#8E8E93"></rect></svg>总览</a>
+    <a href="PhoneTransactions.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9" stroke="#8E8E93" stroke-width="2.2" stroke-linecap="round"></path></svg>流水</a>
+    <a href="PhonePlans.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #FF6B4A; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#FF6B4A" stroke-width="2"></circle><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B4A" stroke-width="2"></circle><circle cx="12" cy="12" r="1.5" fill="#FF6B4A"></circle></svg>计划</a>
+    <a href="PhoneHome.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #8E8E93; text-decoration: none; width: 70px"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="#8E8E93" stroke-width="2"></circle><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="#8E8E93" stroke-width="2" stroke-linecap="round"></path></svg>设置</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'debts', p: 0 };
+    // 全部是编造的示例数据。
+    this.DEBTS = [
+      { who: '阿华', dir: 'in', principal: 500, repaid: 200, sub: '9 月 3 日借出 · 个人', due: '10 月 31 日', overdue: true, color: '#5E5CE6' },
+      { who: 'Lucía', dir: 'in', principal: 150, repaid: 30, sub: '11 月 2 日借出 · Miora 美甲店', due: '12 月 15 日', overdue: false, color: '#30B0C7' },
+      { who: '妈妈', dir: 'out', principal: 2000, repaid: 1000, sub: '6 月 1 日借入 · 个人', due: '2027 年 3 月 1 日', overdue: false, color: '#FFB340' },
+    ];
+    this.INSTS = [
+      { name: '美甲灯和打磨机', book: 'Miora 美甲店', count: 6, paid: 3, per: 54.9, next: '12 月 5 日' },
+      { name: 'iPhone 16', book: '个人', count: 24, paid: 8, per: 41.62, next: '12 月 1 日' },
+    ];
+    this.GOALS = [
+      { name: '应急金', emoji: '🛟', sub: 'Revolut 储蓄罐 · 个人', saved: 3250, target: 6000, hint: '还差 2.750 €', color: '#1F8A5B' },
+      { name: '店铺装修', emoji: '🪴', sub: 'Miora 美甲店 · 2027 年 6 月前', saved: 1180, target: 4000, hint: '每月存 403 € 能按时', color: '#FF6B4A' },
+      { name: '回国机票', emoji: '✈️', sub: '个人 · 2027 年 1 月前', saved: 620, target: 1200, hint: '每月存 290 € 能按时', color: '#5E5CE6' },
+    ];
+    this.HINTS = {
+      debts: '跟 Claude 说「阿华还了我 100」，它会找到那笔入账，问你确认后记成还款。',
+      insts: '导入对账单时，每期扣款会自动对上分期；对不上的会在对话里问你。',
+      goals: '说「这个月往应急金存 300」，会记成转进储蓄，不算支出。',
+    };
+  }
+  componentDidMount() { this.animate(); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  ease(x) { return 1 - Math.pow(1 - x, 3); }
+  animate() {
+    cancelAnimationFrame(this.raf);
+    const t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / 800); this.setState({ p: k }); if (k < 1) this.raf = requestAnimationFrame(step); };
+    this.setState({ p: 0 });
+    this.raf = requestAnimationFrame(step);
+  }
+  pick(id) { if (id === this.state.tab) return; this.setState({ tab: id }); this.animate(); }
+  fmt(n) { const [i, f] = Math.abs(n).toFixed(2).split('.'); return (n < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + f + ' €'; }
+  renderVals() {
+    const e = this.ease(this.state.p), tab = this.state.tab;
+    const ids = ['debts', 'insts', 'goals'], idx = ids.indexOf(tab);
+    const debtItem = d => ({
+      who: d.who, initial: d.who.slice(0, 1), sub: d.sub,
+      left: this.fmt((d.principal - d.repaid) * e),
+      tag: d.overdue ? '已过 ' + d.due : d.due + ' 前',
+      tagStyle: 'font-size: 11px; font-weight: 600; color: ' + (d.overdue ? '#D9472B' : '#86868B'),
+      avatar: 'width: 34px; height: 34px; border-radius: 17px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #FFFFFF; background: ' + d.color,
+      bar: 'height: 5px; border-radius: 3px; background: ' + (d.dir === 'in' ? '#1F8A5B' : '#8E8E93') + '; width: ' + (d.repaid / d.principal * 100 * e).toFixed(1) + '%',
+    });
+    const owed = this.DEBTS.filter(d => d.dir === 'in'), owe = this.DEBTS.filter(d => d.dir === 'out');
+    const sum = a => a.reduce((s, d) => s + d.principal - d.repaid, 0);
+    const instLeft = this.INSTS.reduce((s, i) => s + (i.count - i.paid) * i.per, 0);
+    return {
+      isDebts: tab === 'debts', isInst: tab === 'insts', isGoals: tab === 'goals',
+      thumb: 'position: absolute; top: 2px; bottom: 2px; left: calc(2px + ' + idx + ' * (100% - 4px) / 3); width: calc((100% - 4px) / 3); background: #FFFFFF; border-radius: 7px; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 1px 1px rgba(0,0,0,.04); transition: left .35s cubic-bezier(.3,1.3,.5,1)',
+      tabs: [['debts', '借款往来'], ['insts', '分期'], ['goals', '目标和储蓄']].map(([id, name]) => ({ name, pick: () => this.pick(id),
+        style: 'flex: 1; position: relative; z-index: 1; border: 0; background: transparent; font: inherit; font-size: 13px; height: 30px; cursor: pointer; color: #1D1D1F; ' + (tab === id ? 'font-weight: 600' : 'font-weight: 400') })),
+      owedToMe: this.fmt(sum(owed) * e), iOwe: this.fmt(sum(owe) * e),
+      debtGroups: [{ title: '谁欠我钱', items: owed.map(debtItem) }, { title: '我欠谁', items: owe.map(debtItem) }],
+      instLeft: this.fmt(instLeft * e), instMonthly: this.fmt(this.INSTS.reduce((s, i) => s + i.per, 0)),
+      insts: this.INSTS.map(i => ({ name: i.name, book: i.book, per: this.fmt(i.per), next: i.next,
+        progress: '第 ' + i.paid + ' / ' + i.count + ' 期 · 还剩 ' + this.fmt((i.count - i.paid) * i.per),
+        ticks: Array.from({ length: i.count }, (_, k) => 'flex: 1; height: 8px; border-radius: 2px; transition: background .2s; background: ' + (k < Math.round(i.paid * e) ? '#FF6B4A' : '#F0F0F2')) })),
+      rate: Math.round(20 * e) + '%', rateOffset: (226.2 * (1 - 0.2 * e)).toFixed(1),
+      savedTotal: this.fmt(this.GOALS.reduce((s, g) => s + g.saved, 0) * e),
+      goals: this.GOALS.map(g => ({ name: g.name, emoji: g.emoji, sub: g.sub, hint: g.hint,
+        saved: this.fmt(g.saved * e), target: this.fmt(g.target), pct: Math.round(g.saved / g.target * 100 * e) + '%',
+        icon: 'width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 17px; background: #F2F2F7',
+        bar: 'height: 8px; border-radius: 4px; background: ' + g.color + '; width: ' + (g.saved / g.target * 100 * e).toFixed(1) + '%' })),
+      aiHint: this.HINTS[tab],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ public enum Summaries {
     /// - 全部：账本间转账两边抵消，不重复算。
     public static func monthly(_ txs: [Transaction], month: YearMonth, bookID: String?) -> MonthlySummary {
         let inScope = txs.filter { tx in
-            guard tx.date.yearMonth == month else { return false }
+            guard tx.date.yearMonth == month, tx.countsAsIncomeOrExpense else { return false }
             if let bookID { return tx.bookID == bookID }
             return !tx.isTransfer
         }

@@ -12,7 +12,7 @@ public struct Book: Identifiable, Hashable, Codable, Sendable {
 }
 
 public enum AccountKind: String, Codable, Sendable, CaseIterable {
-    case bank, credit, cash, wallet
+    case bank, credit, cash, wallet, savings
 }
 
 /// 账户：银行卡、信用卡、现金、Revolut……不固定属于某个账本（可能混用）。
@@ -40,16 +40,22 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var transferID: UUID?
     /// 来源：导入文件名或「手记」，方便追溯。
     public var source: String?
+    /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）。nil = 普通收支。
+    public var flow: Flow?
+
+    public enum Flow: String, Codable, Sendable { case debt, saving }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,
-                transferID: UUID? = nil, source: String? = nil) {
+                transferID: UUID? = nil, source: String? = nil, flow: Flow? = nil) {
         self.id = id; self.date = date; self.amount = amount; self.description = description
         self.accountID = accountID; self.bookID = bookID; self.category = category
-        self.transferID = transferID; self.source = source
+        self.transferID = transferID; self.source = source; self.flow = flow
     }
 
     public var isTransfer: Bool { transferID != nil }
+    /// 是否计入收支统计。借款往来和存进目标的钱不算。
+    public var countsAsIncomeOrExpense: Bool { flow == nil }
 }
 
 /// 不带时区的日期（对账单只有日期）。格式 yyyy-MM-dd。
@@ -71,6 +77,12 @@ public struct LocalDate: Hashable, Comparable, Codable, Sendable, CustomStringCo
     }
 
     public var yearMonth: YearMonth { YearMonth(year: year, month: month) }
+
+    /// 本机时区的今天。
+    public static var today: LocalDate {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        return LocalDate(year: c.year ?? 2026, month: c.month ?? 1, day: c.day ?? 1)
+    }
 
     public static func < (a: LocalDate, b: LocalDate) -> Bool {
         (a.year, a.month, a.day) < (b.year, b.month, b.day)
@@ -130,12 +142,33 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var accounts: [Account] = []
     public var transactions: [Transaction] = []
     public var changes: [ChangeRecord] = []
+    public var debts: [Debt] = []
+    public var installments: [Installment] = []
+    public var goals: [Goal] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
     public init(books: [Book] = [], accounts: [Account] = [], transactions: [Transaction] = [],
                 changes: [ChangeRecord] = []) {
         self.books = books; self.accounts = accounts; self.transactions = transactions; self.changes = changes
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals
+    }
+
+    /// 字段缺了就用默认值，旧版本的账本文件也能读。
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        books = try c.decodeIfPresent([Book].self, forKey: .books) ?? []
+        accounts = try c.decodeIfPresent([Account].self, forKey: .accounts) ?? []
+        transactions = try c.decodeIfPresent([Transaction].self, forKey: .transactions) ?? []
+        changes = try c.decodeIfPresent([ChangeRecord].self, forKey: .changes) ?? []
+        lastStatementDate = try c.decodeIfPresent([String: LocalDate].self, forKey: .lastStatementDate) ?? [:]
+        debts = try c.decodeIfPresent([Debt].self, forKey: .debts) ?? []
+        installments = try c.decodeIfPresent([Installment].self, forKey: .installments) ?? []
+        goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。

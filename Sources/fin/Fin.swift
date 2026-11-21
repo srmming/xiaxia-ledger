@@ -8,7 +8,7 @@ struct Fin: ParsableCommand {
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
         discussion: "数据位置默认 ~/Library/Application Support/XiaxiaLedger/ledger.json，可用 XIAXIA_LEDGER_PATH 覆盖。",
-        subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self]
+        subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self]
     )
 }
 
@@ -45,6 +45,8 @@ struct ContextCommand: ParsableCommand {
         if ctx.accounts.isEmpty { print("  （还没有账户）") }
         for a in ctx.accounts { print("  \(a.id)\t\(a.name)\t余额 \(a.balance)\t截止 \(a.lastStatementDate ?? "—")") }
         print("流水：\(ctx.transactionCount) 笔（\(ctx.firstDate ?? "—") 到 \(ctx.lastDate ?? "—")），未分账本 \(ctx.unassignedCount) 笔")
+        print("往来：别人欠我 \(ctx.owedToMe)，我欠别人 \(ctx.iOwe)（\(ctx.openDebts) 笔未结清）")
+        print("分期：\(ctx.activeInstallments) 个进行中；目标：\(ctx.goals) 个")
         print("最近改动：")
         if ctx.recentChanges.isEmpty { print("  （还没有）") }
         for c in ctx.recentChanges { print("  · \(c)") }
@@ -123,5 +125,49 @@ struct SummaryCommand: ParsableCommand {
         print("\(s.month)  \(options.book ?? "全部")")
         print("收入 \(s.income.formatted)  支出 \(s.expense.formatted)  结余 \(s.net.formatted)")
         for (cat, amount) in s.byCategory.sorted(by: { $0.value < $1.value }) { print("  \(cat)\t\(amount.formatted)") }
+    }
+}
+
+struct DebtsCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "debts", abstract: "借款往来：谁欠我钱、我欠谁（默认只列没还清的）。")
+    @OptionGroup var options: GlobalOptions
+    @Flag(help: "连已结清的也列出来。") var all = false
+
+    func run() throws {
+        let list = Plans.debts(try loadLedger(), today: .today, includeClosed: all)
+        if options.json { return try Output.json(list) }
+        let owed = list.filter { $0.direction == .theyOweMe }, owe = list.filter { $0.direction == .iOweThem }
+        print("别人欠我：")
+        if owed.isEmpty { print("  （没有）") }
+        for d in owed { print("  \(d.counterparty)\t还欠 \(d.outstanding.formatted)（借出 \(d.principal.formatted)）\(d.overdue ? "\t已过期" : "")") }
+        print("我欠别人：")
+        if owe.isEmpty { print("  （没有）") }
+        for d in owe { print("  \(d.counterparty)\t还欠 \(d.outstanding.formatted)\(d.dueDate.map { "\t\($0) 前还" } ?? "")") }
+    }
+}
+
+struct InstallmentsCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "installments", abstract: "分期：还了几期、还剩多少、下次扣款日。")
+    @OptionGroup var options: GlobalOptions
+    func run() throws {
+        let list = Plans.installments(try loadLedger())
+        if options.json { return try Output.json(list) }
+        if list.isEmpty { print("没有分期。") }
+        for i in list {
+            print("\(i.name)\t\(i.paidCount)/\(i.count) 期\t每期 \(i.perPayment.formatted)\t还剩 \(i.remaining.formatted)\t下次 \(i.nextDate?.description ?? "已还清")")
+        }
+    }
+}
+
+struct GoalsCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "goals", abstract: "目标和储蓄进度。")
+    @OptionGroup var options: GlobalOptions
+    func run() throws {
+        let list = Plans.goals(try loadLedger())
+        if options.json { return try Output.json(list) }
+        if list.isEmpty { print("还没有目标。") }
+        for g in list {
+            print("\(g.name)\t\(g.saved.formatted) / \(g.target.formatted)（\(g.percent)%）\(g.deadline.map { "\t目标日 \($0)" } ?? "")")
+        }
     }
 }

@@ -46,6 +46,8 @@ swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Pack
 | 命令 | 状态 |
 | --- | --- |
 | `fin context` / `books` / `accounts` / `tx` / `summary` | ✅ 可用 |
+| `fin debts` / `installments` / `goals`（谁欠我钱、分期、目标和储蓄，只读） | ✅ 可用 |
+| `fin debt add` / `repay`、`installment add`、`goal add` / `deposit` | 🚧 下一步 |
 | `fin import` / `add` / `categorize` / `transfer` | 🚧 下一步 |
 | `fin history` / `undo`（改动记录、撤销） | 🚧 下一步 |
 
