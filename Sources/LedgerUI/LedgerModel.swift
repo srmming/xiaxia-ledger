@@ -79,6 +79,15 @@ public final class LedgerModel {
 
     public func accountName(_ id: String) -> String { ledger.accounts.first { $0.id == id }?.name ?? id }
 
+    /// 流水里出现过的分类（含「未分类」），筛选用。
+    public var usedCategories: [String] {
+        Array(Set(ledger.transactions.filter { $0.flow == nil }.map { $0.category ?? "未分类" })).sorted()
+    }
+
+    /// 总览看哪个月；nil = 最新有流水的月份。
+    public var selectedMonth: YearMonth? = nil
+    public var shownMonth: YearMonth { selectedMonth ?? currentMonth }
+
     /// 用过的分类，按次数排，记一笔时给建议。
     public var knownCategories: [String] {
         var count: [String: Int] = [:]

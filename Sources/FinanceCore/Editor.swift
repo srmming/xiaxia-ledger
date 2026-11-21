@@ -260,6 +260,52 @@ extension Ledger {
         return goals.filter { $0.name.lowercased().contains(key) }
     }
 
+    // MARK: 改一笔、删一笔、期初余额
+
+    /// 改一笔流水（金额、说明、日期、账户、账本、分类）。改前的样子存进改动记录，能撤销。
+    @discardableResult
+    public mutating func editTransaction(_ updated: Transaction, author: String) throws -> ChangeRecord {
+        guard transactions.contains(where: { $0.id == updated.id }) else { throw EditError.unknownTransaction(updated.id.uuidString, 0) }
+        try requireAccount(updated.accountID)
+        if let b = updated.bookID { try requireBook(b) }
+        return modify([updated.id], kind: .edit, summary: "改了一笔：\(updated.description) \(updated.amount.formatted)", author: author) {
+            $0 = updated
+        }
+    }
+
+    /// 删一笔流水。删掉的内容存进改动记录，撤销时放回来。借款、分期、目标里引用它的地方一起去掉。
+    @discardableResult
+    public mutating func removeTransactions(_ ids: [UUID], author: String) throws -> ChangeRecord {
+        let set = Set(ids)
+        let removed = transactions.filter { set.contains($0.id) }
+        guard !removed.isEmpty else { throw EditError.unknownTransaction(ids.first?.uuidString ?? "", 0) }
+        transactions.removeAll { set.contains($0.id) }
+        for k in debts.indices { debts[k].repaymentIDs.removeAll { set.contains($0) } }
+        for k in installments.indices { installments[k].paidIDs.removeAll { set.contains($0) } }
+        for k in goals.indices { goals[k].contributionIDs.removeAll { set.contains($0) } }
+        let text = removed.count == 1 ? "删了一笔：\(removed[0].description) \(removed[0].amount.formatted)" : "删了 \(removed.count) 笔"
+        var change = ChangeRecord(kind: .remove, summary: text, transactionIDs: removed.map(\.id), author: author)
+        change.previous = removed
+        changes.append(change)
+        return change
+    }
+
+    /// 开账时的余额：记一笔「期初余额」，不算收入。已经有的话就改成新的金额。
+    @discardableResult
+    public mutating func setOpeningBalance(accountID: String, amount: Money, date: LocalDate, author: String) throws -> ChangeRecord {
+        try requireAccount(accountID)
+        let name = accounts.first { $0.id == accountID }?.name ?? accountID
+        if let old = transactions.first(where: { $0.accountID == accountID && $0.flow == .opening }) {
+            var t = old
+            t.amount = amount; t.date = date
+            return modify([old.id], kind: .opening, summary: "「\(name)」期初余额改成 \(amount.formatted)", author: author) { $0 = t }
+        }
+        let tx = Transaction(date: date, amount: amount, description: "期初余额", accountID: accountID, category: "期初余额",
+                             source: "手记", flow: .opening)
+        transactions.append(tx)
+        return record(.opening, "「\(name)」期初余额 \(amount.formatted)", ids: [tx.id], author: author)
+    }
+
     // MARK: 改已有流水
 
     /// 找流水：完整 id 或前几位（fin tx 里显示的 8 位）。
@@ -382,7 +428,11 @@ extension Ledger {
                 installments[k].paidIDs.removeAll { ids.contains($0) }
             }
         }
-        if let previous = change.previous {
+        if change.kind == .remove, let previous = change.previous {
+            // 删掉的流水：放回来（借款、分期、目标里的引用不自动恢复，改动记录里写明了）。
+            let existing = Set(transactions.map(\.id))
+            transactions += previous.filter { !existing.contains($0.id) }
+        } else if let previous = change.previous {
             // 改过的流水：换回原样。
             let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
             for k in transactions.indices { if let o = old[transactions[k].id] { transactions[k] = o } }

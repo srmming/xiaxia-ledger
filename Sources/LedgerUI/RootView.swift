@@ -2,13 +2,14 @@ import FinanceCore
 import SwiftUI
 
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case overview = "总览", transactions = "流水", plans = "计划", history = "改动记录", settings = "设置"
+    case overview = "总览", transactions = "流水", plans = "计划", importer = "导入", history = "改动记录", settings = "设置"
     public var id: String { rawValue }
     var symbol: String {
         switch self {
         case .overview: "square.grid.2x2"
         case .transactions: "list.bullet.rectangle"
         case .plans: "target"
+        case .importer: "tray.and.arrow.down"
         case .history: "clock.arrow.circlepath"
         case .settings: "gearshape"
         }
@@ -18,6 +19,7 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .overview: OverviewView()
         case .transactions: TransactionsView()
         case .plans: PlansView()
+        case .importer: ImportView()
         case .history: HistoryView()
         case .settings: SettingsView()
         }
