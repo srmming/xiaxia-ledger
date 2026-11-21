@@ -23,7 +23,10 @@ public struct SQLiteLedgerStore: LedgerStore {
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         func rows<T: Decodable>(_ table: String, _ type: T.Type) throws -> [T] {
-            try db.query("SELECT json FROM \(table) ORDER BY seq").map { try dec.decode(T.self, from: Data($0.utf8)) }
+            try db.query("SELECT json FROM \(table) ORDER BY seq").enumerated().map { i, json in
+                do { return try dec.decode(T.self, from: Data(json.utf8)) }
+                catch { throw LedgerReadError(table: table, row: i + 1, underlying: error) }
+            }
         }
         var ledger = Ledger(books: try rows("books", Book.self), accounts: try rows("accounts", Account.self),
                             transactions: try rows("transactions", Transaction.self), changes: try rows("changes", ChangeRecord.self))
@@ -73,6 +76,31 @@ public struct SQLiteLedgerStore: LedgerStore {
             throw error
         }
     }
+}
+
+/// 账本里某一条读不出来：说清楚是哪张表的第几条、哪个字段，方便修，而不是只说「格式不正确」。
+public struct LedgerReadError: Error, LocalizedError {
+    public let table: String
+    public let row: Int
+    public let underlying: Error
+
+    public var errorDescription: String? {
+        let names = ["books": "账本", "accounts": "账户", "transactions": "流水", "changes": "改动记录",
+                     "debts": "借款", "installments": "分期", "goals": "存钱目标"]
+        var detail = underlying.localizedDescription
+        if let e = underlying as? DecodingError {
+            switch e {
+            case .dataCorrupted(let c): detail = "字段 \(Self.path(c.codingPath)) 的值不认识：\(c.debugDescription)"
+            case .keyNotFound(let k, _): detail = "缺少字段 \(k.stringValue)"
+            case .typeMismatch(_, let c): detail = "字段 \(Self.path(c.codingPath)) 的类型不对"
+            case .valueNotFound(_, let c): detail = "字段 \(Self.path(c.codingPath)) 是空的"
+            @unknown default: break
+            }
+        }
+        return "「\(names[table] ?? table)」里第 \(row) 条读不出来（\(detail)）。账本文件没有被改动。"
+    }
+
+    private static func path(_ p: [CodingKey]) -> String { p.isEmpty ? "（整条）" : p.map(\.stringValue).joined(separator: ".") }
 }
 
 public struct SQLiteError: Error, LocalizedError {
