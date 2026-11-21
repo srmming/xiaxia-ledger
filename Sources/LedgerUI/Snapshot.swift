@@ -8,8 +8,9 @@ enum WindowSnapshot {
     static func schedule(to path: String, after seconds: Double = 6) {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
             let url = URL(fileURLWithPath: path)
-            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) else {
-                FileHandle.standardError.write(Data("没有可见窗口，截不了图\n".utf8))
+            let windows = NSApp.windows
+            guard let window = windows.first(where: { $0.isVisible && $0.canBecomeMain }) ?? windows.first(where: { $0.isVisible }) else {
+                FileHandle.standardError.write(Data("没有可见窗口，截不了图（共 \(windows.count) 个窗口）\n".utf8))
                 exit(3)
             }
             save(window, to: url)
@@ -24,7 +25,8 @@ enum WindowSnapshot {
         guard let view = window.contentView?.superview ?? window.contentView,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        do { try rep.representation(using: .png, properties: [:])?.write(to: url) }
+        catch { FileHandle.standardError.write(Data("截图存不下：\(error)\n".utf8)) }
     }
 }
 #endif

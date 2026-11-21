@@ -148,6 +148,7 @@ struct ConnectAIView: View {
                 }
                 .font(.callout)
             }
+            if !installed.isEmpty || !repair.isEmpty {
             HStack {
                 Spacer()
                 Button(action: connectPicked) {
@@ -157,10 +158,11 @@ struct ConnectAIView: View {
                 .disabled(picked.isEmpty)
                 .keyboardShortcut(.defaultAction)
             }
+            }
         } header: {
             Text("① 选要连的 AI")
         } footer: {
-            Text("点「连上」会在这些工具的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。")
+            footnote("点「连上」会在这些工具的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。")
         }
     }
 
@@ -266,7 +268,7 @@ struct ConnectAIView: View {
         } header: {
             Text("③ 试一句")
         } footer: {
-            Text("用别的 AI 就把这句复制过去。AI 第一次用账本时可能会问你「允许使用夏夏账本吗」，选允许。记错了在「改动记录」里一键撤销。")
+            footnote("用别的 AI 就把这句复制过去。AI 第一次用账本时可能会问你「允许使用夏夏账本吗」，选允许。记错了在「改动记录」里一键撤销。")
         }
     }
 
@@ -283,6 +285,10 @@ struct ConnectAIView: View {
                 Text("等 AI 连上账本…（连上了这里会变绿）").font(.callout).foregroundStyle(Color.fg2)
             }
         }
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text).multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: 状态

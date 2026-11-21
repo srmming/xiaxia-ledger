@@ -47,11 +47,13 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   snap() {
     local name="$1"; shift
-    "$BIN" "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >/dev/null 2>&1 &
+    "$BIN" "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >"$OUT/mac-$name.log" 2>&1 &
     local pid=$!
     for _ in $(seq 1 30); do kill -0 $pid 2>/dev/null || break; sleep 1; done
     kill -9 $pid 2>/dev/null
-    [ -f "$OUT/mac-$name.png" ] && echo "mac-$name 截好了" || echo "mac-$name 没截到"
+    wait $pid 2>/dev/null; local code=$?
+    if [ -f "$OUT/mac-$name.png" ]; then echo "mac-$name 截好了"; rm -f "$OUT/mac-$name.log"
+    else echo "mac-$name 没截到（退出码 $code）"; tail -5 "$OUT/mac-$name.log"; fi
   }
   snap 1-overview -XiaxiaDemo
   snap 6-ai -XiaxiaDemo -XiaxiaSection insights
