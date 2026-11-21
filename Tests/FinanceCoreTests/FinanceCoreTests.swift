@@ -711,3 +711,50 @@ final class ImportGuessTests: XCTestCase {
         XCTAssertNil(ImportGuess.account(fileName: "movimientos.csv", text: "", accounts: accounts))
     }
 }
+
+final class ReconcileTests: XCTestCase {
+    let day = LocalDate(year: 2026, month: 11, day: 20)
+
+    func ledger() -> Ledger {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行", kind: .bank)]
+        l.transactions = [
+            Transaction(date: LocalDate(year: 2026, month: 11, day: 1), amount: Money(cents: 100_000), description: "期初余额", accountID: "bank", flow: .opening),
+            Transaction(date: LocalDate(year: 2026, month: 11, day: 5), amount: Money(cents: -2_500), description: "MERCADONA", accountID: "bank", bookID: "personal", category: "超市"),
+            Transaction(date: LocalDate(year: 2026, month: 11, day: 5), amount: Money(cents: -2_500), description: "Mercadona", accountID: "bank", bookID: "personal", category: "超市"),
+            Transaction(date: LocalDate(year: 2026, month: 11, day: 25), amount: Money(cents: -9_900), description: "之后的一笔", accountID: "bank", bookID: "personal", category: "购物"),
+        ]
+        return l
+    }
+
+    func testMatches() throws {
+        let r = try Reconcile.check(ledger(), accountID: "bank", statementBalance: Money(cents: 95_000), asOf: day)
+        XCTAssertTrue(r.matches)
+        XCTAssertEqual(r.count, 3)          // 25 号那笔在对账日之后，不算
+        XCTAssertTrue(r.suspects.isEmpty)
+    }
+
+    func testFindsDuplicate() throws {
+        // 银行其实只扣了一次 25 €
+        let r = try Reconcile.check(ledger(), accountID: "bank", statementBalance: Money(cents: 97_500), asOf: day)
+        XCTAssertEqual(r.difference, Money(cents: 2_500))
+        XCTAssertFalse(r.suspects.isEmpty)
+        XCTAssertTrue(r.suspects.allSatisfy { $0.amount == Money(cents: -2_500) })
+        XCTAssertTrue(Reconcile.text(r).contains("重复"))
+    }
+
+    func testUnknownAccount() {
+        XCTAssertThrowsError(try Reconcile.check(ledger(), accountID: "nope", statementBalance: .zero, asOf: day))
+    }
+
+    func testMonthlyReportReads() {
+        var l = ledger()
+        l.transactions.append(Transaction(date: LocalDate(year: 2026, month: 11, day: 2), amount: Money(cents: 200_000), description: "工资", accountID: "bank", bookID: "personal", category: "工资"))
+        l.transactions.append(Transaction(date: LocalDate(year: 2026, month: 11, day: 8), amount: Money(cents: -1_200), description: "没整理的", accountID: "bank"))
+        let text = MonthlyReport.text(l, month: YearMonth(year: 2026, month: 11), bookID: nil, today: day)
+        XCTAssertTrue(text.contains("进账 2.000,00 €"))
+        XCTAssertTrue(text.contains("超市"))
+        XCTAssertTrue(text.contains("1 笔流水还没分类"))
+        XCTAssertFalse(text.contains("期初余额"))
+    }
+}

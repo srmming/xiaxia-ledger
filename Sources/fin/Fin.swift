@@ -10,7 +10,7 @@ struct Fin: ParsableCommand {
         discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, MCPCommand.self]
     )
 }
 
