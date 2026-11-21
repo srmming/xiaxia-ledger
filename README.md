@@ -35,6 +35,8 @@ docs/               路线图和决定记录
 swift build
 swift test
 swift run fin context          # 说明书：账本、账户、口径
+swift run XiaxiaLedgerApp -XiaxiaDemo   # Mac 开发版，用编造的示例账本
+cd App && xcodegen generate && open XiaxiaLedger.xcodeproj   # iOS / Mac 正式工程
 swift run fin summary --month 2026-11 --book miora
 swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Package.swift 再运行）
 ```
@@ -47,9 +49,10 @@ swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Pack
 | --- | --- |
 | `fin context` / `books` / `accounts` / `tx` / `summary` | ✅ 可用 |
 | `fin debts` / `installments` / `goals`（谁欠我钱、分期、目标和储蓄，只读） | ✅ 可用 |
-| `fin debt add` / `repay`、`installment add`、`goal add` / `deposit` | 🚧 下一步 |
-| `fin import` / `add` / `categorize` / `transfer` | 🚧 下一步 |
-| `fin history` / `undo`（改动记录、撤销） | 🚧 下一步 |
+| `fin add`、`fin debt add` / `repay`（记一笔、记欠款、记还款）、`fin account add [--private]`（私房钱） | ✅ 可用 |
+| `fin history` / `undo`（改动记录、撤销） | ✅ 可用 |
+| iPhone + Mac app（App/，XcodeGen 生成工程） | 🚧 第一版界面 |
+| `fin import` / `categorize` / `transfer` | 🚧 下一步 |
 
 路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
