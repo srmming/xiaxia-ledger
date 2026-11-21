@@ -33,7 +33,7 @@ enum Output {
 func loadLedger() throws -> Ledger { try JSONFileLedgerStore.defaultStore().load() }
 
 struct ContextCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(commandName: "context", abstract: "说明书：账本、账户、口径、截止日、待确认。")
+    static let configuration = CommandConfiguration(commandName: "context", abstract: "说明书：账本、账户、口径、截止日、最近改动。")
     @OptionGroup var options: GlobalOptions
 
     func run() throws {
@@ -45,7 +45,9 @@ struct ContextCommand: ParsableCommand {
         if ctx.accounts.isEmpty { print("  （还没有账户）") }
         for a in ctx.accounts { print("  \(a.id)\t\(a.name)\t余额 \(a.balance)\t截止 \(a.lastStatementDate ?? "—")") }
         print("流水：\(ctx.transactionCount) 笔（\(ctx.firstDate ?? "—") 到 \(ctx.lastDate ?? "—")），未分账本 \(ctx.unassignedCount) 笔")
-        print("待确认：\(ctx.pendingCount) 项")
+        print("最近改动：")
+        if ctx.recentChanges.isEmpty { print("  （还没有）") }
+        for c in ctx.recentChanges { print("  · \(c)") }
         print("口径：")
         for r in ctx.rules { print("  · \(r)") }
     }

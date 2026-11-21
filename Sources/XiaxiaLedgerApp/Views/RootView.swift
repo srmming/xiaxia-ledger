@@ -2,7 +2,7 @@ import FinanceCore
 import SwiftUI
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case overview = "总览", trends = "趋势", categories = "分类", transactions = "流水", pending = "待确认", importer = "导入"
+    case overview = "总览", trends = "趋势", categories = "分类", transactions = "流水", history = "改动记录", importer = "导入"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -10,7 +10,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .trends: "chart.line.uptrend.xyaxis"
         case .categories: "chart.pie"
         case .transactions: "list.bullet.rectangle"
-        case .pending: "checkmark.circle.badge.questionmark"
+        case .history: "clock.arrow.circlepath"
         case .importer: "square.and.arrow.down"
         }
     }

@@ -7,7 +7,7 @@
 - **给人用**：原生 SwiftUI 的 Mac（之后 iPhone）app，看图表、随手记账、确认 AI 的改动。
 - **给 AI 用**：`fin` 命令行（之后加 MCP），一连上就懂你的财务，能导入对账单、去重、分类、对账、出月报。
 
-两边读写同一份数据，AI 导入后 app 里马上能看到。支持多账本（比如「个人」和「店铺」），账本间转账汇总时自动抵消。
+两边读写同一份数据，AI 导入后 app 里马上能看到。拿不准的事 AI 在对话里先问你，app 里不设「待确认」；每次改动都有记录，可以撤销。支持多账本（比如「个人」和「店铺」），账本间转账汇总时自动抵消。
 
 > A local-first personal & small-business ledger for macOS. Native SwiftUI app for humans, `fin` CLI for AI agents, one shared core.
 
@@ -47,7 +47,7 @@ swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Pack
 | --- | --- |
 | `fin context` / `books` / `accounts` / `tx` / `summary` | ✅ 可用 |
 | `fin import` / `add` / `categorize` / `transfer` | 🚧 下一步 |
-| `fin pending` / `confirm` / `undo` | 🚧 下一步 |
+| `fin history` / `undo`（改动记录、撤销） | 🚧 下一步 |
 
 路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 

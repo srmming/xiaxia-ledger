@@ -34,7 +34,7 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var amount: Money
     public var description: String
     public var accountID: String
-    public var bookID: String?     // nil = 还没分账本（待确认）
+    public var bookID: String?     // nil = 还没分账本
     public var category: String?
     /// 账本间转账（如店里取钱给个人）：两边各一笔，用同一个 transferID 关联，汇总「全部」时互相抵消。
     public var transferID: UUID?
@@ -103,23 +103,23 @@ public struct YearMonth: Hashable, Comparable, Codable, Sendable, CustomStringCo
     public static func < (a: YearMonth, b: YearMonth) -> Bool { (a.year, a.month) < (b.year, b.month) }
 }
 
-/// AI 写进来的改动先放这里，ming 确认或撤销。
-public struct PendingChange: Identifiable, Hashable, Codable, Sendable {
-    public enum Kind: String, Codable, Sendable { case add, categorize, assignBook, transfer, importBatch }
-    public enum Status: String, Codable, Sendable { case pending, confirmed, undone }
+/// 改动记录：每次写入（导入、记一笔、改分类、分账本、转账）记一条，写明是谁改的，能撤销。
+/// 不设「待确认」队列：要确认的事，AI 在对话里先和 ming 说清楚，确认后再写。
+public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
+    public enum Kind: String, Codable, Sendable { case add, edit, categorize, assignBook, transfer, importBatch }
 
     public var id: UUID
     public var kind: Kind
-    public var summary: String          // 一句话说明，界面和 CLI 都显示
+    public var summary: String          // 一句话说明，如「导入 Revolut 11 月对账单 37 笔」
     public var transactionIDs: [UUID]
-    public var author: String           // 谁改的：「ming」「Claude」……
+    public var author: String           // 谁改的：「ming」「Claude」「Codex」「DeepSeek」……
     public var createdAt: Date
-    public var status: Status
+    public var undone: Bool
 
     public init(id: UUID = UUID(), kind: Kind, summary: String, transactionIDs: [UUID],
-                author: String, createdAt: Date = Date(), status: Status = .pending) {
+                author: String, createdAt: Date = Date(), undone: Bool = false) {
         self.id = id; self.kind = kind; self.summary = summary; self.transactionIDs = transactionIDs
-        self.author = author; self.createdAt = createdAt; self.status = status
+        self.author = author; self.createdAt = createdAt; self.undone = undone
     }
 }
 
@@ -129,13 +129,13 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var books: [Book] = []
     public var accounts: [Account] = []
     public var transactions: [Transaction] = []
-    public var pending: [PendingChange] = []
+    public var changes: [ChangeRecord] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
     public init(books: [Book] = [], accounts: [Account] = [], transactions: [Transaction] = [],
-                pending: [PendingChange] = []) {
-        self.books = books; self.accounts = accounts; self.transactions = transactions; self.pending = pending
+                changes: [ChangeRecord] = []) {
+        self.books = books; self.accounts = accounts; self.transactions = transactions; self.changes = changes
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。
