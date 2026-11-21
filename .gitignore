@@ -22,3 +22,6 @@ private/
 *.sqlite-*
 ledger.json
 !Tests/**/Fixtures/*.csv
+# XcodeGen 生成的工程和 Info.plist
+App/*.xcodeproj/
+App/Generated/

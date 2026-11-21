@@ -63,11 +63,27 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
     /// 专门存这笔钱的账户（如 Revolut 储蓄罐）。有它时进度 = 这个账户余额；没有就按 contributionIDs 累加。
     public var savingsAccountID: String?
     public var contributionIDs: [UUID]
+    /// 锁定：存进去就不能动，到期（或达成）前不许取。给以后的「宝宝存钱」小游戏和强制储蓄用。
+    public var locked: Bool
 
     public init(id: UUID = UUID(), name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
-                savingsAccountID: String? = nil, contributionIDs: [UUID] = []) {
+                savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false) {
         self.id = id; self.name = name; self.bookID = bookID; self.target = target; self.deadline = deadline
-        self.savingsAccountID = savingsAccountID; self.contributionIDs = contributionIDs
+        self.savingsAccountID = savingsAccountID; self.contributionIDs = contributionIDs; self.locked = locked
+    }
+
+    enum CodingKeys: String, CodingKey { case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        bookID = try c.decode(String.self, forKey: .bookID)
+        target = try c.decode(Money.self, forKey: .target)
+        deadline = try c.decodeIfPresent(LocalDate.self, forKey: .deadline)
+        savingsAccountID = try c.decodeIfPresent(String.self, forKey: .savingsAccountID)
+        contributionIDs = try c.decodeIfPresent([UUID].self, forKey: .contributionIDs) ?? []
+        locked = try c.decodeIfPresent(Bool.self, forKey: .locked) ?? false
     }
 }
 
@@ -99,6 +115,7 @@ public struct GoalStatus: Codable, Sendable, Equatable {
     public var saved: Money
     public var percent: Int
     public var deadline: LocalDate?
+    public var locked: Bool
 }
 
 public enum Plans {
@@ -141,7 +158,7 @@ public enum Plans {
             if let acct = g.savingsAccountID { saved = Money(cents: max(0, (balances[acct] ?? .zero).cents)) }
             else { saved = amounts(g.contributionIDs, in: ledger.transactions) }
             let pct = g.target.cents > 0 ? Int(min(100, saved.cents * 100 / g.target.cents)) : 0
-            return GoalStatus(id: g.id, name: g.name, target: g.target, saved: saved, percent: pct, deadline: g.deadline)
+            return GoalStatus(id: g.id, name: g.name, target: g.target, saved: saved, percent: pct, deadline: g.deadline, locked: g.locked)
         }
     }
 

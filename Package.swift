@@ -4,9 +4,10 @@ import PackageDescription
 let package = Package(
     name: "XiaxiaLedger",
     defaultLocalization: "zh-Hans",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(name: "FinanceCore", targets: ["FinanceCore"]),
+        .library(name: "LedgerUI", targets: ["LedgerUI"]),
         .executable(name: "fin", targets: ["fin"]),
         .executable(name: "XiaxiaLedgerApp", targets: ["XiaxiaLedgerApp"]),
     ],
@@ -24,8 +25,10 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
-        // 给人用的 Mac app（SwiftUI 外壳，页面等设计稿定稿后再做）
-        .executableTarget(name: "XiaxiaLedgerApp", dependencies: ["FinanceCore"]),
+        // iPhone 和 Mac 共用的 SwiftUI 界面。正式 app 工程在 App/（XcodeGen），只是套个壳。
+        .target(name: "LedgerUI", dependencies: ["FinanceCore"]),
+        // Mac 开发版：swift run XiaxiaLedgerApp 直接看界面
+        .executableTarget(name: "XiaxiaLedgerApp", dependencies: ["LedgerUI"]),
         .testTarget(name: "FinanceCoreTests", dependencies: ["FinanceCore"]),
     ]
 )

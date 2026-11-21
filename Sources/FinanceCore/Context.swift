@@ -6,6 +6,8 @@ public struct LedgerContext: Codable, Sendable {
     public struct AccountInfo: Codable, Sendable {
         public var id: String; public var name: String; public var kind: String
         public var balance: String; public var lastStatementDate: String?
+        /// 私房钱：只回答 ming 本人，不写进给别人看的报表。
+        public var isPrivate: Bool
     }
 
     public var books: [BookInfo]
@@ -31,6 +33,9 @@ public struct LedgerContext: Codable, Sendable {
         "借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。",
         "分期：每期扣款算支出，剩余未还的不算；用 fin installments 看还剩几期。",
         "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
+        "私房钱（isPrivate 的账户）：ming 问才说；做给店里、合伙人、gestoría 的报表时不要算进去。",
+        "记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。",
+        "锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。",
         "拿不准的事（属于哪个账本、怎么分类）先在对话里问 ming，确认后再写；不要猜着写。",
         "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
         "不动钱、不碰银行密码；银行数据只读。",
@@ -44,7 +49,7 @@ public struct LedgerContext: Codable, Sendable {
         accounts = ledger.accounts.map { a in
             AccountInfo(id: a.id, name: a.name, kind: a.kind.rawValue,
                         balance: (balances[a.id] ?? .zero).formatted,
-                        lastStatementDate: ledger.lastStatementDate[a.id]?.description)
+                        lastStatementDate: ledger.lastStatementDate[a.id]?.description, isPrivate: a.isPrivate)
         }
         transactionCount = ledger.transactions.count
         let dates = ledger.transactions.map(\.date).sorted()

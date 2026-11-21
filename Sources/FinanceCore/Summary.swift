@@ -15,9 +15,11 @@ public enum Summaries {
     /// 统计口径：
     /// - 单个账本：账本间转账照常算（店记「老板提款」支出，个人记收入）。
     /// - 全部：账本间转账两边抵消，不重复算。
-    public static func monthly(_ txs: [Transaction], month: YearMonth, bookID: String?) -> MonthlySummary {
+    /// hiddenAccounts：不算进来的账户（app 默认把私房钱藏起来）。
+    public static func monthly(_ txs: [Transaction], month: YearMonth, bookID: String?,
+                               hiddenAccounts: Set<String> = []) -> MonthlySummary {
         let inScope = txs.filter { tx in
-            guard tx.date.yearMonth == month, tx.countsAsIncomeOrExpense else { return false }
+            guard tx.date.yearMonth == month, tx.countsAsIncomeOrExpense, !hiddenAccounts.contains(tx.accountID) else { return false }
             if let bookID { return tx.bookID == bookID }
             return !tx.isTransfer
         }

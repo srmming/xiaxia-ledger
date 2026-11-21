@@ -8,7 +8,8 @@ struct Fin: ParsableCommand {
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
         discussion: "数据位置默认 ~/Library/Application Support/XiaxiaLedger/ledger.json，可用 XIAXIA_LEDGER_PATH 覆盖。",
-        subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self]
+        subcommands: [ContextCommand.self, BooksCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
+                      AddCommand.self, DebtCommand.self, AccountCommand.self, HistoryCommand.self, UndoCommand.self]
     )
 }
 
@@ -31,6 +32,32 @@ enum Output {
 }
 
 func loadLedger() throws -> Ledger { try JSONFileLedgerStore.defaultStore().load() }
+func saveLedger(_ ledger: Ledger) throws { try JSONFileLedgerStore.defaultStore().save(ledger) }
+
+/// 写入类命令共用：谁在改、日期、金额。
+struct WriteOptions: ParsableArguments {
+    @Option(help: "谁在改：ming、Claude、Codex、DeepSeek……不填就读环境变量 XIAXIA_AUTHOR，再没有就是「AI」。")
+    var author: String?
+    @Flag(name: .long, help: "输出 JSON。") var json = false
+
+    var who: String { author ?? ProcessInfo.processInfo.environment["XIAXIA_AUTHOR"] ?? "AI" }
+}
+
+func parseMoney(_ s: String) throws -> Money {
+    guard let m = Money(parsing: s) else { throw ValidationError("金额看不懂：\(s)，写成 12,50 或 12.50") }
+    return m
+}
+
+func parseDate(_ s: String?) throws -> LocalDate {
+    guard let s else { return .today }
+    guard let d = LocalDate(s) else { throw ValidationError("日期格式要像 2026-11-21") }
+    return d
+}
+
+func report(_ change: ChangeRecord, json: Bool) throws {
+    if json { return try Output.json(change) }
+    print("已记：\(change.summary)（改动 \(change.id.uuidString.prefix(8))，写错了用 fin undo \(change.id.uuidString.prefix(8)) 撤销）")
+}
 
 struct ContextCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "context", abstract: "说明书：账本、账户、口径、截止日、最近改动。")
@@ -169,5 +196,136 @@ struct GoalsCommand: ParsableCommand {
         for g in list {
             print("\(g.name)\t\(g.saved.formatted) / \(g.target.formatted)（\(g.percent)%）\(g.deadline.map { "\t目标日 \($0)" } ?? "")")
         }
+    }
+}
+
+struct AddCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "add", abstract: "记一笔收支。负数是支出，正数是收入。")
+    @OptionGroup var w: WriteOptions
+    @Argument(help: "金额，如 -12,50（支出）或 300（收入）。") var amount: String
+    @Argument(help: "说明，如「超市」。") var text: String
+    @Option(help: "账户 id。") var account: String
+    @Option(help: "账本 id。") var book: String
+    @Option(help: "分类。") var category: String?
+    @Option(help: "日期，默认今天。") var date: String?
+
+    func run() throws {
+        var ledger = try loadLedger()
+        let tx = Transaction(date: try parseDate(date), amount: try parseMoney(amount), description: text,
+                             accountID: account, bookID: book, category: category, source: "手记")
+        let change = try ledger.addTransaction(tx, author: w.who)
+        try saveLedger(ledger)
+        try report(change, json: w.json)
+    }
+}
+
+struct DebtCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "debt", abstract: "记欠款、记还款。",
+                                                    subcommands: [DebtAdd.self, DebtRepay.self])
+
+    struct DebtAdd: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "add", abstract: "记一笔欠款：别人欠我（--they-owe-me）或我欠别人（--i-owe）。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "对方，如「阿华」。") var who: String
+        @Argument(help: "金额，正数。") var amount: String
+        @Flag(help: "我借出去的，对方欠我。") var theyOweMe = false
+        @Flag(help: "我借来的，我欠对方。") var iOwe = false
+        @Option(help: "账本 id。") var book: String = "personal"
+        @Option(help: "钱从哪个账户出/进。很早的旧账没有对应流水就不填。") var account: String?
+        @Option(help: "借的日期，默认今天。") var date: String?
+        @Option(help: "约定哪天还。") var due: String?
+        @Option(help: "备注。") var note: String?
+
+        func validate() throws {
+            guard theyOweMe != iOwe else { throw ValidationError("要写清方向：--they-owe-me 或 --i-owe，二选一") }
+        }
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let (_, change) = try ledger.addDebt(counterparty: who, direction: theyOweMe ? .theyOweMe : .iOweThem,
+                                                 amount: try parseMoney(amount).magnitude, bookID: book,
+                                                 date: try parseDate(date), accountID: account,
+                                                 dueDate: try due.map { try parseDate($0) }, note: note, author: w.who)
+            try saveLedger(ledger)
+            try report(change, json: w.json)
+        }
+    }
+
+    struct DebtRepay: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "repay", abstract: "记一笔还款。对方名字只要能唯一对上一笔没结清的借款就行。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "对方，如「阿华」。") var who: String
+        @Argument(help: "还了多少，正数。") var amount: String
+        @Option(help: "钱进/出的账户 id。") var account: String
+        @Option(help: "日期，默认今天。") var date: String?
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let matches = ledger.openDebts(named: who)
+            guard matches.count == 1, let debt = matches.first else {
+                throw ValidationError(matches.isEmpty ? "没找到和「\(who)」有关的没结清借款，先用 fin debts 看看"
+                                                      : "「\(who)」对上了 \(matches.count) 笔借款，名字写完整一点")
+            }
+            let change = try ledger.repay(debtID: debt.id, amount: try parseMoney(amount).magnitude,
+                                          date: try parseDate(date), accountID: account, author: w.who)
+            try saveLedger(ledger)
+            try report(change, json: w.json)
+        }
+    }
+}
+
+struct AccountCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "account", abstract: "管理账户。", subcommands: [AccountAdd.self])
+
+    struct AccountAdd: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "add", abstract: "加一个账户。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "账户 id，如 revolut。") var id: String
+        @Argument(help: "显示名，如「Revolut」。") var name: String
+        @Option(help: "类型：bank、credit、cash、wallet、savings。") var kind: String = "bank"
+        @Flag(help: "私房钱：app 默认不显示、不算进总览。") var `private` = false
+
+        func run() throws {
+            guard let k = AccountKind(rawValue: kind) else { throw ValidationError("类型只能是 bank、credit、cash、wallet、savings") }
+            var ledger = try loadLedger()
+            guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ValidationError("已经有 \(id) 这个账户了") }
+            let change = ledger.addAccount(Account(id: id, name: name, kind: k, isPrivate: `private`), author: w.who)
+            try saveLedger(ledger)
+            try report(change, json: w.json)
+        }
+    }
+}
+
+struct HistoryCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "history", abstract: "改动记录：谁、什么时候、改了什么。")
+    @Flag(name: .long, help: "输出 JSON。") var json = false
+    @Option(help: "最多几条。") var limit: Int = 20
+
+    func run() throws {
+        let list = Array(try loadLedger().changes.suffix(limit).reversed())
+        if json { return try Output.json(list) }
+        if list.isEmpty { print("还没有改动。") }
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
+        for c in list {
+            print("\(c.id.uuidString.prefix(8))\t\(f.string(from: c.createdAt))\t\(c.author)\t\(c.summary)\(c.undone ? "\t（已撤销）" : "")")
+        }
+    }
+}
+
+struct UndoCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "undo", abstract: "撤销一条改动。填 fin history 里的编号（前 8 位就行）。")
+    @OptionGroup var w: WriteOptions
+    @Argument(help: "改动编号。") var id: String
+
+    func run() throws {
+        var ledger = try loadLedger()
+        let key = id.lowercased()
+        let hits = ledger.changes.filter { $0.id.uuidString.lowercased().hasPrefix(key) }
+        guard hits.count == 1, let target = hits.first else {
+            throw ValidationError(hits.isEmpty ? "没有编号是 \(id) 的改动" : "编号 \(id) 对上了好几条，多写几位")
+        }
+        let change = try ledger.undo(changeID: target.id, author: w.who)
+        try saveLedger(ledger)
+        try report(change, json: w.json)
     }
 }

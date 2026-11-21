@@ -117,3 +117,54 @@ final class PlansTests: XCTestCase {
         XCTAssertTrue(ledger.debts.isEmpty)
     }
 }
+
+final class EditorTests: XCTestCase {
+    func sample() -> Ledger {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行", kind: .bank), Account(id: "stash", name: "私房钱", kind: .cash, isPrivate: true)]
+        return l
+    }
+
+    func testDebtAddRepayUndo() throws {
+        var l = sample()
+        let d0 = LocalDate(year: 2026, month: 11, day: 1)
+        let (debt, add) = try l.addDebt(counterparty: "阿华", direction: .theyOweMe, amount: Money(cents: 50000),
+                                        bookID: "personal", date: d0, accountID: "bank", author: "测试")
+        XCTAssertEqual(l.transactions.first?.amount.cents, -50000)
+        XCTAssertEqual(l.transactions.first?.flow, .debt)
+        let repay = try l.repay(debtID: debt.id, amount: Money(cents: 20000), date: LocalDate(year: 2026, month: 11, day: 10),
+                                accountID: "bank", author: "测试")
+        XCTAssertEqual(Plans.debts(l, today: d0).first?.outstanding.cents, 30000)
+        XCTAssertEqual(l.openDebts(named: "阿华").count, 1)
+        // 借款和还款都不算收支
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: d0.yearMonth, bookID: "personal").expense.cents, 0)
+        // 还有还款时不能先撤销借款
+        XCTAssertThrowsError(try l.undo(changeID: add.id, author: "测试"))
+        try l.undo(changeID: repay.id, author: "测试")
+        XCTAssertEqual(Plans.debts(l, today: d0).first?.outstanding.cents, 50000)
+        try l.undo(changeID: add.id, author: "测试")
+        XCTAssertTrue(l.debts.isEmpty)
+        XCTAssertTrue(l.transactions.isEmpty)
+        XCTAssertThrowsError(try l.undo(changeID: add.id, author: "测试"))
+    }
+
+    func testPrivateAccountHiddenFromSummary() throws {
+        var l = sample()
+        let d = LocalDate(year: 2026, month: 11, day: 3)
+        try l.addTransaction(Transaction(date: d, amount: Money(cents: -1000), description: "咖啡", accountID: "bank", bookID: "personal"), author: "ming")
+        try l.addTransaction(Transaction(date: d, amount: Money(cents: -5000), description: "偷偷买的", accountID: "stash", bookID: "personal"), author: "ming")
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: d.yearMonth, bookID: nil, hiddenAccounts: l.privateAccountIDs).expense.cents, -1000)
+        XCTAssertEqual(Summaries.monthly(l.transactions, month: d.yearMonth, bookID: nil).expense.cents, -6000)
+        XCTAssertEqual(l.changes.count, 2)
+    }
+
+    func testUnknownAccountRejected() {
+        var l = sample()
+        XCTAssertThrowsError(try l.addTransaction(Transaction(date: .today, amount: Money(cents: 1), description: "x", accountID: "nope"), author: "ming"))
+    }
+
+    func testOldAccountJSONDecodes() throws {
+        let a = try JSONDecoder().decode(Account.self, from: Data(#"{"id":"cash","name":"现金","kind":"cash"}"#.utf8))
+        XCTAssertFalse(a.isPrivate)
+    }
+}

@@ -21,9 +21,22 @@ public struct Account: Identifiable, Hashable, Codable, Sendable {
     public var name: String
     public var kind: AccountKind
     public var institution: String?
+    /// 私房钱：只有自己看。app 默认不显示、不算进总览；AI 给别人看的报表里也不提。
+    public var isPrivate: Bool
 
-    public init(id: String, name: String, kind: AccountKind, institution: String? = nil) {
-        self.id = id; self.name = name; self.kind = kind; self.institution = institution
+    public init(id: String, name: String, kind: AccountKind, institution: String? = nil, isPrivate: Bool = false) {
+        self.id = id; self.name = name; self.kind = kind; self.institution = institution; self.isPrivate = isPrivate
+    }
+
+    enum CodingKeys: String, CodingKey { case id, name, kind, institution, isPrivate }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        kind = try c.decode(AccountKind.self, forKey: .kind)
+        institution = try c.decodeIfPresent(String.self, forKey: .institution)
+        isPrivate = try c.decodeIfPresent(Bool.self, forKey: .isPrivate) ?? false
     }
 }
 
@@ -118,7 +131,7 @@ public struct YearMonth: Hashable, Comparable, Codable, Sendable, CustomStringCo
 /// 改动记录：每次写入（导入、记一笔、改分类、分账本、转账）记一条，写明是谁改的，能撤销。
 /// 不设「待确认」队列：要确认的事，AI 在对话里先和 ming 说清楚，确认后再写。
 public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
-    public enum Kind: String, Codable, Sendable { case add, edit, categorize, assignBook, transfer, importBatch }
+    public enum Kind: String, Codable, Sendable { case add, edit, categorize, assignBook, transfer, importBatch, debt, repay, account, delete }
 
     public var id: UUID
     public var kind: Kind
@@ -127,6 +140,8 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     public var author: String           // 谁改的：「ming」「Claude」「Codex」「DeepSeek」……
     public var createdAt: Date
     public var undone: Bool
+    /// 记欠款的改动指向那笔借款，撤销时一起删。
+    public var debtID: UUID?
 
     public init(id: UUID = UUID(), kind: Kind, summary: String, transactionIDs: [UUID],
                 author: String, createdAt: Date = Date(), undone: Bool = false) {
