@@ -50,7 +50,7 @@ run add --account cash --book personal --category 餐饮 --date 2026-11-03 --aut
 run add --account caixa --book miora --date 2026-11-04 -- 300 客人付款
 run add --account caixa --book miora --category 材料 --date 2026-11-05 --json -- -45.90 指甲油
 run add --account caixa --book personal --category 工资 --date 2026-11-01 -- 1.234,56 工资
-run add --account stash --book personal --date 2026-11-06 -- -20 私房零花
+run add -20 私房零花 --account stash --book personal --date 2026-11-06
 expect_fail add --account cash --book personal -- abc 坏金额
 expect_fail add --account cash --book personal --date 21/11/2026 -- -5 坏日期
 expect_fail add --account cash --book shop -- -5 没这个账本
@@ -113,7 +113,7 @@ CARD_PAYMENT,Current,2026-11-17 10:00:00,2026-11-17 10:01:00,Mercadona,-23.40,0.
 CARD_PAYMENT,Current,2026-11-18 12:00:00,2026-11-18 12:01:00,Zara,-39.95,0.00,EUR,COMPLETED,60.05
 TOPUP,Current,2026-11-19 09:00:00,2026-11-19 09:00:00,Top-Up by *1234,50.00,0.00,EUR,COMPLETED,110.05
 CSV
-run import "$WORK/revolut.csv" --account revolut --format revolut --dry-run
+run import "$WORK/revolut.csv" --account revolut --dry-run
 run import "$WORK/revolut.csv" --account revolut --format revolut
 run import "$WORK/revolut.csv" --account revolut --format revolut
 cat > "$WORK/caixa.csv" <<'CSV'
@@ -123,6 +123,19 @@ Fecha;Concepto;Importe
 CSV
 run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book miora --dry-run
 run import "$WORK/caixa.csv" --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book miora
+
+echo; echo "===== 改、删、对账、月报、开账余额 ====="
+ID_SALARY=$("$FIN" tx | grep 工资 | cut -f1)
+run edit "$ID_SALARY" --amount=1.300,00 --dry-run
+run edit "$ID_SALARY" --amount=1.300,00 --category 工资
+ID_BAZAR=$("$FIN" tx | grep -i bazar | cut -f1)
+run rm "$ID_BAZAR" --dry-run
+run rm "$ID_BAZAR"
+run account opening revolut 100 --date 2026-11-01
+run reconcile --account revolut --balance 110,05 --date 2026-11-19
+run reconcile --account cash --balance=-1
+run report --month 2026-11
+run report --month 2026-11 --book miora
 
 echo; echo "===== 改动记录、撤销 ====="
 run history
@@ -163,6 +176,11 @@ for spec in \
   'list_transactions|{"include_private":true,"account":"stash"}' \
   'summary|{"month":"2026-11"}' \
   'summary|{"month":"2026-11","book":"miora"}' \
+  'accounts|{}' \
+  'monthly_report|{"month":"2026-11"}' \
+  'reconcile|{"account":"revolut","balance":"110,05"}' \
+  'account_transfer|{"amount":"10","from_account":"caixa","to_account":"cash","dry_run":true}' \
+  'add_account|{"id":"n26","name":"N26","opening_balance":"200","dry_run":true}' \
   'debts|{}' 'installments|{}' 'goals|{}' 'history|{"limit":3}' \
   'add_transaction|{"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","dry_run":true}' \
   'add_transaction|{"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","category":"餐饮"}' \

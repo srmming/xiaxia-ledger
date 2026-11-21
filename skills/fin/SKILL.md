@@ -25,18 +25,17 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 - **写明是谁**：命令行写入加 `--author Claude`（或 Codex、DeepSeek，写你自己）；MCP 自动用工具名。
 - **写完报结果和改动编号**：比如「已记：超市 −12,50 €（现金，个人）。写错了说一声，我用改动 3fa2c1d0 撤销」。
 - **只通过 fin / MCP 写**，不要直接改 ledger.sqlite，也不要自己算余额再写回去。
-- **私房钱**（context 里 `isPrivate: true` 的账户）：只在 ming 本人问时提；给店里、合伙人、gestoría 的报表不算进去。命令行 `fin tx`、`fin summary` 目前**不会**自动隐藏它，做报表时自己排除；MCP 默认隐藏。
+- **私房钱**（context 里 `isPrivate: true` 的账户）：只在 ming 本人问时提；给店里、合伙人、gestoría 的报表不算进去。`fin report` 和 MCP 默认不算它；`fin tx`、`fin summary` 会算进去，做报表时自己排除。
 - **隐私**：真实金额和流水不贴到公开地方、不提交进 git、不发给外部服务。
 - 不动钱、不碰银行密码；银行数据只读。
 
 ## 命令行的坑
 
-- **负数金额**：`fin add --account cash --book personal -- -12,50 超市`。不写 `--` 会报错「Missing expected argument」。
+- 负数金额可以直接写（`fin add -12,50 超市 …`）。但**作为选项值**的负数要用等号：`fin edit <编号> --amount=-12,50`、`fin reconcile --account mycard --balance=-100`。
 - 看帮助用 `fin debt add --help`（`fin help debt add` 只会打出顶层帮助）。
-- 导入 Revolut 要写 `--format revolut`，默认按通用 CSV。
-- 账户是不是私房钱只在 `--json` 里看得到（`isPrivate`），文字输出没有标记。
-- `fin debt repay` 按名字包含匹配，名字有重叠（「阿华」「阿华2」）时会对上多笔而失败，先 `fin debts` 看清楚。多还了不会拦，自己先核对还欠多少。
+- 账户是不是私房钱：`fin accounts` 里标「（私房钱）」，JSON 里是 `isPrivate`。
 - `fin transfer move` 记出来的两笔没有账本，记完按情况 `fin assign`。
+- 转账、借款、分期、目标里的流水不能用 `fin edit` 直接改，要先 `fin undo` 那条改动再重记。
 
 ## 口径速记
 
@@ -53,18 +52,16 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 
 **记一笔**（「刚才超市花了 23,40，用的现金」）
 从话里取金额、说明、日期（默认今天）；账户和账本说不清就问。分类可以按以前同一个商户的分类猜，但要在回复里说出来。
-`fin add --account cash --book personal --category 餐饮 --author Claude -- -23,40 超市`
-
-⚠️ 负数金额前面一定要有 `--`（选项写在前面，`--` 后面是金额和说明），不然会被当成选项，报「Missing expected argument」。
+`fin add -23,40 超市 --account cash --book personal --category 餐饮 --author Claude`
 
 **借钱和还钱**（「借给阿华 500」「阿华还了 100」）
 先 `fin debts` 看有没有这个人的账。借出：`fin debt add 阿华 500 --they-owe-me --account cash`；借入用 `--i-owe`；以前的旧账没有对应流水就不填 `--account`。还款：`fin debt repay 阿华 100 --account cash`。
 
 **自己账户之间转钱 / 取现**（「从 Caixa 取了 50 现金」）
-新记：`fin transfer move 50 --from-account caixa --to-account cash`。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from miora --to personal --account caixa`。
+新记：`fin transfer move 50 --from-account caixa --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from miora --to personal --account caixa`。
 
 **导入对账单**（「把这个 Revolut 的 CSV 导进去」）
-1. 认格式：Revolut 导出用 `--format revolut`；其他银行看表头，用通用 CSV 指定列（`--date-col --amount-col --desc-col`，收支分两列用 `--debit-col --credit-col`）。只支持 CSV，PDF 先说明需要转成 CSV。
+1. 认格式：Revolut 导出会自动认出来；其他银行看表头，用通用 CSV 指定列（`--date-col --amount-col --desc-col`，收支分两列用 `--debit-col --credit-col`）。只支持 CSV，PDF 先说明需要转成 CSV。
 2. 预演：`fin import 文件.csv --account revolut --format revolut --dry-run`，告诉 ming「读到 N 笔，新的 M 笔，重复的 K 笔已跳过」，列前几笔。
 3. ming 同意后去掉 `--dry-run` 正式导入（整批是一条改动，能一次撤销）。
 4. 导完接着整理：没分类、没分账本的按商户分组，一组一句话问 ming（例：「Mercadona 3 笔共 −67,20 €，都算个人·餐饮？」），确认后用 `fin categorize` / `fin assign` 一次写。
@@ -73,13 +70,19 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 `fin tx --json` 里 `category` 为空、`bookID` 为空的就是没整理的（`fin context` 里有「未分账本」数量）。按商户分组提建议，一次问完，确认后批量写：`fin categorize --category 材料 <编号…>`、`fin assign --book miora <编号…>`。编号是 `fin tx` 第一列的 8 位。
 
 **对余额**（「Revolut 网银显示 105,84」）
-`fin accounts` 看账本里的余额，对不上就看那个账户最近的流水，找漏记或重复的，告诉 ming 差在哪几笔，确认后再补记或撤销。
+`fin reconcile --account revolut --balance 105,84 [--date 2026-11-20]`（MCP：`reconcile`）只看不改，会说差多少、可能差在哪几笔。把结论告诉 ming，确认后再补记、`fin edit` 或 `fin rm`。
+
+**改错、删掉一笔**（「昨天那笔超市其实是 32,40」「这笔重复了删掉」）
+先 `fin tx` 找到编号并和 ming 对一下是哪笔。改：`fin edit <编号> --amount=-32,40 [--text --date --account --book --category]`；删：`fin rm <编号…> --dry-run` 给他看，确认后去掉 `--dry-run`。都能 `fin undo`。
+
+**新账户、开账余额**（「我开了个 N26，里面有 200」）
+`fin account add n26 N26 --kind bank`，再 `fin account opening n26 200 [--date …]`（信用卡欠款写负数）。开账余额不算收入。MCP：`add_account` 可以同时带 `opening_balance`。
 
 **分期**：`fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora`；扣了一期 `fin installment pay 美甲灯`，对账单里已有的扣款用 `--tx <编号>` 认领。`fin installments` 看还剩几期。
 
 **存钱目标**：`fin goal add 应急金 6000 [--savings-account pot] [--locked]`；`fin goal deposit 应急金 300 --from caixa`；`fin goal withdraw …`（锁定的不能取，也不要建议取）。`fin goals` 看进度。
 
 **出月报**（「出一份 11 月月报」）
-按账本分别跑 `fin summary --month 2026-11 --book personal` / `--book miora` 和不加 `--book` 的合计，再跑上个月做对比；加上 `fin debts`、`fin installments`、`fin goals`。写成：一句话结论 → 收入/支出/结余（和上月比）→ 支出前 5 类 → 店里单独一段 → 借款、分期、目标 → 需要 ming 处理的事（没分类的笔数、过期的借款）。给店里或 gestoría 的版本不含私房钱。
+先跑 `fin report --month 2026-11 [--book miora]`（MCP：`monthly_report`），它已经写好了收支、花在哪、和上月比、要留意什么，默认不含私房钱。在它的基础上用大白话整理给 ming；需要更细时再按账本分别跑 `fin summary --month 2026-11 --book personal` / `--book miora` 和不加 `--book` 的合计，再跑上个月做对比；加上 `fin debts`、`fin installments`、`fin goals`。写成：一句话结论 → 收入/支出/结余（和上月比）→ 支出前 5 类 → 店里单独一段 → 借款、分期、目标 → 需要 ming 处理的事（没分类的笔数、过期的借款）。给店里或 gestoría 的版本不含私房钱。
 
 **写错了**：`fin history` 找到那条改动，`fin undo <编号>`。
