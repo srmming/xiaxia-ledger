@@ -16,11 +16,12 @@ public enum Reports {
         var income: [YearMonth: Money] = [:], expense: [YearMonth: Money] = [:]
         var cats: [YearMonth: [String: Money]] = [:]
         let wanted = Set(months)
+        let spending = Summaries.expenseCategories(txs)
         for tx in txs {
             let m = tx.date.yearMonth
             guard wanted.contains(m), tx.countsAsIncomeOrExpense, !hiddenAccounts.contains(tx.accountID) else { continue }
             if let bookID { guard tx.bookID == bookID else { continue } } else if tx.isTransfer { continue }
-            if tx.countsAsIncome { income[m, default: .zero] = income[m, default: .zero] + tx.amount }
+            if Summaries.countsAsIncome(tx, expenseCategories: spending) { income[m, default: .zero] = income[m, default: .zero] + tx.amount }
             else { expense[m, default: .zero] = expense[m, default: .zero] + tx.amount }
             let c = tx.category ?? "未分类"
             cats[m, default: [:]][c, default: .zero] = cats[m, default: [:]][c, default: .zero] + tx.amount

@@ -72,8 +72,9 @@ public struct TransactionsView: View {
         let list = filtered
         let groups = Dictionary(grouping: list, by: \.date).sorted { $0.key > $1.key }
         let real = list.filter { $0.flow == nil }
-        let income = real.filter { $0.countsAsIncome }.reduce(Money.zero) { $0 + $1.amount }
-        let expense = real.filter { !$0.countsAsIncome }.reduce(Money.zero) { $0 + $1.amount }
+        let spending = Summaries.expenseCategories(model.ledger.transactions)
+        let income = real.filter { Summaries.countsAsIncome($0, expenseCategories: spending) }.reduce(Money.zero) { $0 + $1.amount }
+        let expense = real.filter { !Summaries.countsAsIncome($0, expenseCategories: spending) }.reduce(Money.zero) { $0 + $1.amount }
         container {
             Section {
                 BookPicker()

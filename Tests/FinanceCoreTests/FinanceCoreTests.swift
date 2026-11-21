@@ -467,7 +467,7 @@ final class ManageTests: XCTestCase {
         let txs = [
             Transaction(date: day, amount: Money(cents: 200_000), description: "工资", accountID: "bank", bookID: "personal", category: "工资"),
             Transaction(date: day, amount: Money(cents: -10_000), description: "ZARA", accountID: "bank", bookID: "personal", category: "购物"),
-            Transaction(date: day, amount: Money(cents: 4_000), description: "ZARA 退货", accountID: "bank", bookID: "personal", category: "退款"),
+            Transaction(date: day, amount: Money(cents: 4_000), description: "ZARA 退货", accountID: "bank", bookID: "personal", category: "购物"),
         ]
         let m = YearMonth(year: 2026, month: 11)
         let s = Summaries.monthly(txs, month: m, bookID: "personal")
@@ -476,7 +476,12 @@ final class ManageTests: XCTestCase {
         let r = Reports.summaries(txs, months: [m], bookID: "personal")[0]
         XCTAssertEqual(r.income, s.income)
         XCTAssertEqual(r.expense, s.expense)
-        XCTAssertFalse(Reports.categoryTotals([r], expense: false).contains { $0.name == "退款" })
+        XCTAssertEqual(Reports.categoryTotals([r], expense: true).first { $0.name == "购物" }?.amount, Money(cents: 6_000))
+        // 某个月只有退款：照样冲减支出（按整本账判断分类性质）
+        let dec = Transaction(date: LocalDate(year: 2026, month: 12, day: 2), amount: Money(cents: 1_500), description: "退货", accountID: "bank", bookID: "personal", category: "购物")
+        let d = Summaries.monthly(txs + [dec], month: YearMonth(year: 2026, month: 12), bookID: "personal")
+        XCTAssertEqual(d.income, .zero)
+        XCTAssertEqual(d.expense, Money(cents: 1_500))
     }
 
     func testFlowDecodingIsLenient() throws {
