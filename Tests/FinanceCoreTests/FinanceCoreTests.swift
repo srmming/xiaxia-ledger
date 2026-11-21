@@ -758,3 +758,23 @@ final class ReconcileTests: XCTestCase {
         XCTAssertFalse(text.contains("期初余额"))
     }
 }
+
+final class MerchantTests: XCTestCase {
+    func testCleansBankText() {
+        XCTAssertEqual(Merchant.display("UBR* PENDING.UBER"), "Uber")
+        XCTAssertEqual(Merchant.display("Top-up Apple Pay top-up by *9362"), "Apple Pay 充值")
+        XCTAssertEqual(Merchant.display("Top-up by *1234"), "充值")
+        XCTAssertEqual(Merchant.display("COMPRA TARJ. PANADERIA LOPEZ MADRID 48213377"), "Panaderia Lopez Madrid")
+        XCTAssertEqual(Merchant.display("MERCADONA AVDA ESPAÑA"), "Mercadona")
+        XCTAssertEqual(Merchant.display("PAYPAL *STEAMGAMES 4029357733"), "Steamgames")
+    }
+
+    func testLeavesGoodTextAlone() {
+        XCTAssertEqual(Merchant.display("水电"), "水电")
+        XCTAssertEqual(Merchant.display("Wenzhou Supermercados"), "Wenzhou Supermercados")
+        XCTAssertEqual(Merchant.display("Consorcio Regional de Transportes de Madrid"), "Consorcio Regional de Transportes de Madrid")
+        XCTAssertEqual(Merchant.display("STAR OTO#O"), "Star Oto#o")
+        XCTAssertEqual(Merchant.display(""), "")
+        XCTAssertEqual(Merchant.display("FERRETERIA HUBER SL"), "Ferreteria Huber SL")
+    }
+}
