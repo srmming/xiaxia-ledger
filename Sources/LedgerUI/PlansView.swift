@@ -164,7 +164,8 @@ public struct PlansView: View {
 
     private func planCard<Rows: View>(_ title: String, add: String, symbol: String, empty: String?,
                                       action: @escaping () -> Void, @ViewBuilder rows: () -> Rows) -> some View {
-        Card(spacing: 8) {
+        let content = rows()
+        return Card(spacing: 8) {
             CardHeader(title: title) {
                 Button(action: action) { Label(add, systemImage: "plus") }.buttonStyle(.borderless)
             }
@@ -175,7 +176,7 @@ public struct PlansView: View {
                 }
                 .padding(.vertical, 8)
             } else {
-                VStack(spacing: 0, content: rows)
+                VStack(spacing: 0) { content }
             }
         }
     }

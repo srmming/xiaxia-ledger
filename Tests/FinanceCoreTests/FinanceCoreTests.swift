@@ -778,3 +778,21 @@ final class MerchantTests: XCTestCase {
         XCTAssertEqual(Merchant.display("FERRETERIA HUBER SL"), "Ferreteria Huber SL")
     }
 }
+
+final class DebtRulesTests: XCTestCase {
+    let day = LocalDate(year: 2026, month: 11, day: 3)
+
+    func testExactNameWinsAndOverRepayIsRefused() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "bank", name: "银行", kind: .bank)]
+        _ = try l.addDebt(counterparty: "阿华", direction: .theyOweMe, amount: Money(cents: 10_000), bookID: "personal",
+                          date: day, accountID: "bank", dueDate: nil, note: nil, author: "test")
+        _ = try l.addDebt(counterparty: "阿华2", direction: .theyOweMe, amount: Money(cents: 5_000), bookID: "personal",
+                          date: day, accountID: "bank", dueDate: nil, note: nil, author: "test")
+        let hits = l.openDebts(named: "阿华")
+        XCTAssertEqual(hits.map(\.counterparty), ["阿华"])
+        XCTAssertEqual(l.openDebts(named: "阿").count, 2)
+        XCTAssertThrowsError(try l.repay(debtID: hits[0].id, amount: Money(cents: 10_001), date: day, accountID: "bank", author: "test"))
+        XCTAssertNoThrow(try l.repay(debtID: hits[0].id, amount: Money(cents: 10_000), date: day, accountID: "bank", author: "test"))
+    }
+}

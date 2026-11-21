@@ -172,6 +172,17 @@ enum MCPTools {
             "counter_account": prop("string", "在这个账户补上另一半（如取现补到现金账户）；另一半已经导入过就不填"),
             "author": author, "dry_run": dryRun,
         ], required: ["ids"], readOnly: false),
+        tool("add_account", "加一个账户，可以同时记开账余额。", [
+            "id": prop("string", "账户 id，小写英文，如 revolut"), "name": prop("string", "显示名"),
+            "kind": ["type": "string", "enum": ["bank", "credit", "cash", "wallet", "savings"], "description": "类型，默认 bank"],
+            "private": prop("boolean", "私房钱：app 默认不显示、不算进总览"),
+            "opening_balance": prop("string", "开账余额（可选）"), "date": prop("string", "开账余额是哪天的，默认今天"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["id", "name"], readOnly: false),
+        tool("set_opening_balance", "记开账余额：开始记账那天账户里已经有多少钱（不算收入）。已经记过就改成新的。", [
+            "account": prop("string", "账户 id"), "amount": prop("string", "余额，信用卡欠款写负数"),
+            "date": prop("string", "哪天的余额，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["account", "amount"], readOnly: false),
         tool("categorize", "改分类。ids 用 list_transactions 返回的 id（前 8 位也行）。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "category": prop("string", "分类"),
@@ -285,7 +296,7 @@ enum MCPTools {
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let balances = Summaries.balances(ledger.transactions)
             return ledger.accounts.filter { !hidden.contains($0.id) }
-                .map { "\($0.id)\t\($0.name)\t\((balances[$0.id] ?? .zero).formatted)" }.joined(separator: "\n")
+                .map { "\($0.id)\t\($0.name)\($0.isPrivate ? "（私房钱）" : "")\t\((balances[$0.id] ?? .zero).formatted)" }.joined(separator: "\n")
         case "monthly_report":
             let ym: YearMonth
             if let m = s("month") {
@@ -318,6 +329,16 @@ enum MCPTools {
             let txs = try ledger.findTransactions(ids)
             let listing = txs.map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
             return try commit(try ledger.removeTransactions(txs.map(\.id), author: who)) + "\n" + listing
+        case "add_account":
+            let id = try req("id")
+            guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ToolError(message: "已经有 \(id) 这个账户了") }
+            guard let kind = AccountKind(rawValue: s("kind") ?? "bank") else { throw ToolError(message: "kind 只能是 bank、credit、cash、wallet、savings") }
+            let opening: Money? = s("opening_balance") == nil ? nil : try money("opening_balance")
+            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private")),
+                                                       openingBalance: opening, date: try date("date") ?? .today, author: who))
+        case "set_opening_balance":
+            return try commit(try ledger.setOpeningBalance(accountID: try req("account"), amount: try money("amount"),
+                                                           date: try date("date") ?? .today, author: who))
         case "account_transfer":
             return try commit(try ledger.addAccountTransfer(amount: try money("amount").magnitude, from: try req("from_account"),
                                                             to: try req("to_account"), date: try date("date") ?? .today,
