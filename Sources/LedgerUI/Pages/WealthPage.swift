@@ -19,6 +19,8 @@ struct WealthPage: View {
             } else {
                 Columns(sideWidth: 380, breakpoint: 760) {
                     heroCard
+                    XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
+                               question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
                     debtsCard
                 } side: {
                     accountsCard
@@ -32,8 +34,9 @@ struct WealthPage: View {
         let months = Reports.months(endingAt: model.shownMonth, count: 13)
         let series = model.netWorthSeries(months: months)
         let now = series.last?.value ?? model.totalBalance
-        let three = series.count > 3 ? now - series[series.count - 4].value : nil
-        let year = series.count > 12 ? now - series[0].value : nil
+        let three = series.count > 3 && series[series.count - 4].value.cents != 0 ? now - series[series.count - 4].value : nil
+        // 一年前还没开始记账（那时是 0）就不比，否则「一年多了」就等于全部家底。
+        let year = series.count > 12 && series[0].value.cents != 0 ? now - series[0].value : nil
         var sentence = Text("")
         if let three {
             sentence = Text("比 3 个月前\(three.isExpense ? "少" : "多")了 ") + em(three.magnitude.rounded, three.isExpense ? .bad : .good)
@@ -49,6 +52,21 @@ struct WealthPage: View {
             NetWorthChart(points: Array(series.suffix(12)))
         }
         .kitCard(padding: 20)
+    }
+
+    /// 夏夏先说的一句：比 3 个月前多了还是少了；信用卡欠着的提一句。
+    private var xiaxia: String {
+        let months = Reports.months(endingAt: model.shownMonth, count: 4)
+        let series = model.netWorthSeries(months: months)
+        let now = series.last?.value ?? model.totalBalance
+        let owed = model.visibleAccounts.filter { $0.kind == .credit }.reduce(Money.zero) { sum, a in sum + (model.balances[a.id] ?? .zero) }
+        let card = owed.isExpense ? "信用卡还欠着 \(owed.magnitude.rounded)。" : ""
+        guard series.count == 4, series[0].value.cents != 0 else {
+            return model.voiced("现在一共有 \(now.rounded)。" + card, .neutral)
+        }
+        let diff = now - series[0].value
+        return diff.isExpense ? model.voiced("家底比 3 个月前少了 \(diff.magnitude.rounded)。" + card, .bad)
+            : model.voiced("家底比 3 个月前多了 \(diff.rounded)。" + card, .good)
     }
 
     @ViewBuilder private var debtsCard: some View {
@@ -121,7 +139,8 @@ struct WealthPage: View {
     private func subtitle(_ a: Account) -> String {
         let books = Set(model.ledger.transactions.filter { $0.accountID == a.id && $0.flow == nil }.compactMap(\.bookID))
         var parts: [String] = []
-        if books.count == 1, let b = books.first { parts.append(model.bookName(b)) }
+        // 只在一个账本里用就写账本名，几个账本混用就都写上，每个账户都是同一种写法。
+        if !books.isEmpty { parts.append(books.sorted().map { model.bookName($0) }.joined(separator: " + ")) }
         if let i = a.institution, i != a.name { parts.append(i) }
         if let d = model.ledger.lastStatementDate[a.id] { parts.append("对账到 \(d.short)") }
         return parts.isEmpty ? a.kind.label : parts.joined(separator: " · ")

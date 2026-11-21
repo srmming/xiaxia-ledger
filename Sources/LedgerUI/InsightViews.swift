@@ -32,7 +32,7 @@ extension Insight.Kind {
     }
 }
 
-/// AI 意见卡：AI 经 MCP 写进账本的点评或提醒。「接着问」复制带上下文的话并打开 Claude，「知道了」收起来。
+/// 夏夏意见卡：AI 经 MCP 写进账本的点评或提醒。「接着问」复制带上下文的话并打开 Claude，「知道了」收起来。
 struct InsightCard: View {
     @Environment(LedgerModel.self) var model
     let insight: Insight
@@ -46,7 +46,7 @@ struct InsightCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label {
-                        Text(insight.kind == .monthlyReview ? "\(insight.month.month) 月点评" : "AI 意见 · \(insight.kind.label)")
+                        Text(insight.kind == .monthlyReview ? "夏夏 · \(insight.month.month) 月点评" : "夏夏说 · \(insight.kind.label)")
                     } icon: {
                         Image(systemName: "sparkles")
                     }
@@ -60,13 +60,13 @@ struct InsightCard: View {
                 }
                 HStack(spacing: 8) {
                     Button {
-                        ask("关于你写的「\(insight.title)」，我想接着问：", page: "AI 意见")
+                        ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
                     } label: { Label("接着问", systemImage: "sparkles") }
                         .buttonStyle(.softAI)
                     Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
                         .buttonStyle(.soft)
                     Spacer()
-                    if showAllLink { MoreLink(title: "全部意见", section: .insights) }
+                    if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
                 }
                 .padding(.top, 2)
             }

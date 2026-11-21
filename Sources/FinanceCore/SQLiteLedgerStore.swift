@@ -38,6 +38,10 @@ public struct SQLiteLedgerStore: LedgerStore {
         if let v = try db.query("SELECT value FROM meta WHERE key = 'lastStatementDate'").first {
             ledger.lastStatementDate = try dec.decode([String: LocalDate].self, from: Data(v.utf8))
         }
+        // 夏夏性格、目标、自己加的分类：放在 meta 里（旧版本不认识这个键，会原样留着）。
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'profile'").first {
+            ledger.profile = (try? dec.decode(Profile.self, from: Data(v.utf8))) ?? Profile()
+        }
         return ledger
     }
 
@@ -72,6 +76,7 @@ public struct SQLiteLedgerStore: LedgerStore {
             for (i, x) in ledger.insights.enumerated() { try db.run("INSERT INTO insights (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])
+            try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('profile', ?)", [js(ledger.profile)])
             try db.exec("COMMIT")
         } catch {
             try? db.exec("ROLLBACK")

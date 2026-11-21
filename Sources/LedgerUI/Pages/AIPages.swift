@@ -1,7 +1,7 @@
 import FinanceCore
 import SwiftUI
 
-/// AI 意见：AI 怎么看我的钱？以后 AI 经 MCP 把点评和提醒写进账本，这里显示；现在先引你去问 AI，并列出 AI 最近做了什么。
+/// 夏夏建议：夏夏怎么看我的钱？最上面写下你想让夏夏帮你做到什么；下面是 AI 经 MCP 写进账本的点评、提醒，和 AI 最近做了什么。
 struct InsightsPage: View {
     @Environment(LedgerModel.self) var model
     @State var allMonths = false
@@ -10,6 +10,7 @@ struct InsightsPage: View {
         let tools = model.aiTools
         VStack(alignment: .leading, spacing: Kit.gap) {
             statusLine(tools)
+            AimCard()
             if tools.isEmpty {
                 NotConnectedCard()
             }
@@ -22,7 +23,7 @@ struct InsightsPage: View {
                 remindersCard
                 recentAIWork
             } side: {
-                AskAICard(title: "常用的话，点一下就复制", note: nil, page: "AI 意见", prompts: model.prompts(for: .overview))
+                AskAICard(title: "常用的话，点一下就复制", note: nil, page: "夏夏建议", prompts: model.prompts(for: .overview))
             }
         }
         .kitPage()
@@ -51,7 +52,7 @@ struct InsightsPage: View {
                 Text("AI 会读这个月的流水，告诉你花得怎么样、哪里要留意、月底大概剩多少。以后它写的点评会直接显示在这里。")
                     .font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Button { ask("看看我 \(m) 月的账：花得怎么样、哪里要留意、月底大概剩多少？", page: "AI 意见") } label: {
+                    Button { ask("看看我 \(m) 月的账：花得怎么样、哪里要留意、月底大概剩多少？", page: "夏夏建议") } label: {
                         Label("让 AI 点评 \(m) 月", systemImage: "sparkles")
                     }
                     .buttonStyle(.softAI)

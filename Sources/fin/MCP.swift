@@ -47,7 +47,7 @@ final class MCPServer {
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
                     "serverInfo": ["name": "xiaxia-ledger", "version": "0.1.0"],
-                    "instructions": "夏夏账本：用户的记账本，可以有好几个账本（个人、家庭、店……）。先调用 context 了解账本、账户和统计口径。拿不准的事先在对话里问用户，确认后再写；写入前可以先用 dry_run 预演。每次写入都会记进改动记录，可以 undo。",
+                    "instructions": "夏夏账本：用户的记账本，可以有好几个账本（个人、家庭、店……）。app 里的 AI 叫「夏夏」。先调用 context 了解账本、账户、统计口径、夏夏的说话方式（voice）和用户的目标（aim）。拿不准的事先在对话里问用户，确认后再写；写入前可以先用 dry_run 预演。每次写入都会记进改动记录，可以 undo。",
                 ] as [String: Any]
             case "ping":
                 result = [:] as [String: Any]
@@ -206,6 +206,14 @@ enum MCPTools {
         tool("rename_category", "把一个分类整体改名，或并进另一个已有分类。", [
             "from": prop("string", "原分类"), "to": prop("string", "新分类"), "author": author, "dry_run": dryRun,
         ], required: ["from", "to"], readOnly: false),
+        tool("add_category", "加一个新分类（还没有流水用它也行），app 记一笔时就能选。重名会提示。", [
+            "name": prop("string", "分类名，如「宠物」"), "income": prop("boolean", "是收入分类就填 true，默认支出"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["name"], readOnly: false),
+        tool("set_profile", "改夏夏的说话方式或用户的目标。persona：gentle 温和直说 / sharp 毒舌 / calm 文静 / cheer 打气。aim：用户想让夏夏帮他做到什么（空字符串 = 清掉）。只在用户要求时改。", [
+            "persona": prop("string", "gentle / sharp / calm / cheer"), "aim": prop("string", "用户的目标，如「每个月存下 500 €」"),
+            "author": author, "dry_run": dryRun,
+        ], readOnly: false),
         tool("set_opening_balance", "记开账余额：开始记账那天账户里已经有多少钱（不算收入）。已经记过就改成新的。", [
             "account": prop("string", "账户 id"), "amount": prop("string", "余额，信用卡欠款写负数"),
             "date": prop("string", "哪天的余额，默认今天"), "author": author, "dry_run": dryRun,
@@ -263,13 +271,14 @@ enum MCPTools {
             "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "from_account": prop("string", "钱从哪个账户来"),
             "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
         ], required: ["name", "amount", "from_account"], readOnly: false),
-        tool("add_insight", "把你对用户财务的看法写进账本，app 的总览和「AI 意见」页会显示。kind：review = 本月点评（每月每账本一条，新的替换旧的，月初或被问到时写），alert = 留意，tip = 建议，good = 好消息，action = 要处理（超支、信用卡快到期）。title 一句话结论，body 两三句解释，数字用 1.234,56 € 写法。", [
+        tool("add_insight", "以「夏夏」的身份把你对用户财务的看法写进账本，显示在 app 对应页面的「夏夏说」和「夏夏建议」页。口吻照 context 里的 voice，围着 aim（用户的目标）说。kind：review = 本月点评（每月每账本一条，新的替换旧的，月初或被问到时写），alert = 留意，tip = 建议，good = 好消息，action = 要处理（超支、信用卡快到期）。title 一句话结论，body 两三句解释，数字用 1.234,56 € 写法。", [
             "kind": prop("string", "review / alert / tip / good / action"),
             "title": prop("string", "一句话结论，如「这个月花钱比上月慢 8%，月底大概能剩 1.150 €」"),
             "body": prop("string", "两三句解释：原因、要留意什么"),
             "month": prop("string", "哪个月，如 2026-11；默认这个月"),
             "book": prop("string", "账本 id；不填 = 全部"),
-            "metric": prop("string", "关联的东西，如 category:超市、account:caixa（可不填）"),
+            "metric": prop("string", "关联的东西，如 category:超市、account:银行卡（可不填）"),
+            "page": prop("string", "写给哪一页：overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划；默认 overview"),
             "author": author, "dry_run": dryRun,
         ], required: ["kind", "title"], readOnly: false),
         tool("list_insights", "列出写进账本的 AI 意见（默认这个月、没点「知道了」的）。写新意见前先看看，别重复。", [
@@ -411,6 +420,19 @@ enum MCPTools {
             return try commit(try ledger.removeAccount(try req("account"), author: who))
         case "rename_category":
             return try commit(try ledger.renameCategory(try req("from"), to: try req("to"), author: who))
+        case "add_category":
+            return try commit(try ledger.addCategory(try req("name"), income: flag("income"), author: who))
+        case "set_profile":
+            var last: ChangeRecord?
+            if let p = s("persona") {
+                guard let persona = Persona(rawValue: p.lowercased()) else { throw ToolError(message: "persona 只能是 gentle / sharp / calm / cheer") }
+                if persona != ledger.profile.persona { last = try ledger.setPersona(persona, author: who) }
+            }
+            if let aim = a["aim"] as? String, (aim.isEmpty ? nil : aim) != ledger.profile.aim {
+                last = try ledger.setAim(aim, author: who)
+            }
+            guard let last else { throw ToolError(message: "没有要改的：persona 和 aim 都和现在一样") }
+            return try commit(last)
         case "set_opening_balance":
             return try commit(try ledger.setOpeningBalance(accountID: try req("account"), amount: try money("amount"),
                                                            date: try date("date") ?? .today, author: who))
@@ -536,8 +558,9 @@ enum MCPTools {
                 return v
             } ?? LocalDate.today.yearMonth
             if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
+            if let p = s("page"), !Insight.pages.contains(p) { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans") }
             let insight = Insight(month: month, bookID: s("book"), kind: kind, title: try req("title"), body: s("body") ?? "",
-                                  metric: s("metric"), author: who)
+                                  metric: s("metric"), page: s("page"), author: who)
             return try commit(try ledger.addInsight(insight, author: who))
         case "list_insights":
             let month = try s("month").map { m -> YearMonth in

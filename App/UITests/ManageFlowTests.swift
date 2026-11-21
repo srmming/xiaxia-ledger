@@ -17,6 +17,10 @@ final class ManageFlowTests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", text)).firstMatch
     }
 
+    private func button(_ app: XCUIApplication, _ text: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", text)).firstMatch
+    }
+
     private func typeInAlert(_ app: XCUIApplication, _ text: String, clear: Int = 0) {
         let field = app.alerts.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5), "弹框里没有输入框")
@@ -84,7 +88,9 @@ final class ManageFlowTests: XCTestCase {
         name.tap()
         name.typeText("银行卡")
         app.buttons["保存"].tap()
-        let row = find(app, "银行卡")
+        // 等编辑页完全收起再点列表，不然这一下会点在正在关的弹层上（2026-11-21 CI 上出现过）。
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后编辑页没关")
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "银行卡")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "加的账户没出现")
         row.tap()
         XCTAssertTrue(name.waitForExistence(timeout: 5))
@@ -94,21 +100,24 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(find(app, "银行卡2").waitForExistence(timeout: 5), "账户改名没生效")
     }
 
-    /// 全新的空账本：记一笔时当场加账户和新分类，能记下。
+    /// 全新的空账本：记一笔时当场加账户和新分类（原地输入），能记下。
     func testQuickAddOnEmptyLedger() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "add")
         let one = app.buttons["1"]
         XCTAssertTrue(one.waitForExistence(timeout: 15), "记一笔没打开")
+        XCTAssertTrue(app.buttons["支出"].exists && app.buttons["收入"].exists, "方向不是「支出 / 收入」")
         one.tap()
         app.buttons["2"].tap()
         let save = app.buttons["记下"]
         XCTAssertFalse(save.isEnabled, "没选分类和账户就能记")
 
-        app.buttons["新分类"].tap()
-        typeInAlert(app, "咖啡")
-        app.alerts.buttons["用这个"].tap()
+        app.buttons["加一个新分类"].tap()
+        let field = app.textFields["新分类的名字"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "新分类没有原地出输入框")
+        field.typeText("咖啡\n")
+        XCTAssertTrue(button(app, "咖啡").waitForExistence(timeout: 5), "新分类没出现在格子里")
 
-        app.buttons["选账户 ▾"].tap()
+        app.buttons["账户：还没选"].tap()
         app.buttons["新账户…"].tap()
         typeInAlert(app, "现金")
         app.alerts.buttons["加上"].tap()
@@ -119,10 +128,54 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(save.waitForNonExistence(timeout: 5), "记下之后面板没关")
     }
 
+    /// 名称输入几个字，下面提示以前用过的名字，点一下分类跟着选好。
+    func testQuickAddNameSuggestionPicksCategory() {
+        let app = launch("-XiaxiaDemo", "-XiaxiaSheet", "add")
+        let one = app.buttons["1"]
+        XCTAssertTrue(one.waitForExistence(timeout: 15), "记一笔没打开")
+        one.tap()
+        let name = app.textFields["名称"]
+        name.tap()
+        name.typeText("Merc")
+        let hint = find(app, "用「Mercadona」")
+        XCTAssertTrue(hint.waitForExistence(timeout: 5), "没有提示以前用过的名字")
+        hint.tap()
+        XCTAssertTrue(button(app, "超市").isSelected, "点了提示，分类没跟着选上")
+    }
+
+    /// 计划页自己登记一个存钱目标。
+    func testNewGoalFromPlans() {
+        let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "plan")
+        let name = app.textFields["名字，比如「旅行」"]
+        XCTAssertTrue(name.waitForExistence(timeout: 15), "新计划没打开")
+        name.tap()
+        name.typeText("旅行")
+        let amount = app.textFields["要存多少，比如 2.000"]
+        amount.tap()
+        amount.typeText("2000")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
+        app.tabBars.buttons["计划"].tap()
+        XCTAssertTrue(find(app, "旅行").waitForExistence(timeout: 5), "目标没出现在计划页")
+    }
+
+    /// 夏夏建议页：点一个例子写下目标。
+    func testAimOnXiaxiaPage() {
+        let app = launch("-XiaxiaEmpty")
+        let tab = app.tabBars.buttons["夏夏"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 15))
+        tab.tap()
+        let example = app.buttons["每个月存下 500 €"]
+        XCTAssertTrue(example.waitForExistence(timeout: 5), "没有目标示例")
+        example.tap()
+        app.buttons["就这个"].tap()
+        XCTAssertTrue(app.staticTexts["你的目标"].waitForExistence(timeout: 5), "目标没存下")
+    }
+
     /// 示例账本：5 个标签都能点开，设置里三个管理入口都在。
     func testTabsAndSettingsEntries() {
         let app = launch("-XiaxiaDemo")
-        for tab in ["总览", "收支", "家底", "计划", "AI"] {
+        for tab in ["总览", "收支", "家底", "计划", "夏夏"] {
             let b = app.tabBars.buttons[tab]
             XCTAssertTrue(b.waitForExistence(timeout: 15), "没有「\(tab)」标签")
             b.tap()
@@ -135,5 +188,10 @@ final class ManageFlowTests: XCTestCase {
             for _ in 0..<4 where !e.isHittable { app.swipeUp() }
             XCTAssertTrue(e.waitForExistence(timeout: 5), "设置里没有「\(entry)」")
         }
+        let sharp = find(app, "毒舌")
+        for _ in 0..<6 where !sharp.isHittable { app.swipeUp() }
+        XCTAssertTrue(sharp.waitForExistence(timeout: 5), "设置里没有夏夏的性格")
+        sharp.tap()
+        XCTAssertTrue(sharp.isSelected, "选了毒舌没生效")
     }
 }

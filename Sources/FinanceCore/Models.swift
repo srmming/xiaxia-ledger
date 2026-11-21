@@ -208,6 +208,8 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 这次改动新加的账户、账本：撤销时删掉。
     public var addedAccountIDs: [String]?
     public var addedBookIDs: [String]?
+    /// 夏夏性格、目标、自己加的分类改之前的样子。
+    public var profile: Profile?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,
@@ -230,6 +232,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var goals: [Goal] = []
     /// AI 写进来的意见（本月点评、提醒）。
     public var insights: [Insight] = []
+    /// 夏夏的性格、你的目标、自己加的分类。
+    public var profile = Profile()
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -239,7 +243,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights
+        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -255,6 +259,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         installments = try c.decodeIfPresent([Installment].self, forKey: .installments) ?? []
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
         insights = try c.decodeIfPresent([Insight].self, forKey: .insights) ?? []
+        profile = try c.decodeIfPresent(Profile.self, forKey: .profile) ?? Profile()
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。

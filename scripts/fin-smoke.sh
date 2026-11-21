@@ -203,6 +203,12 @@ for spec in \
   'remove_account|{"account":"caixa","dry_run":true}' \
   'rename_category|{"from":"餐饮","to":"吃饭","dry_run":true}' \
   'add_insight|{"kind":"tip","title":"测试提醒","body":"编的"}' \
+  'add_insight|{"kind":"alert","title":"花销页提醒","page":"spending"}' \
+  'add_insight|{"kind":"alert","title":"坏页面","page":"nopage"}' \
+  'add_category|{"name":"宠物"}' \
+  'add_category|{"name":"宠物"}' \
+  'set_profile|{"persona":"sharp","aim":"每个月存下 500 €"}' \
+  'set_profile|{"persona":"pirate"}' \
   'list_insights|{}' 'ai_status|{}' \
   'nope|{}' ; do
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
