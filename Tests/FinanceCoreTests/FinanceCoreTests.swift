@@ -1016,8 +1016,8 @@ final class ProfileTests: XCTestCase {
     func testInsightForPage() throws {
         var l = Ledger.fresh
         let m = LocalDate.today.yearMonth
-        _ = try l.addInsight(Insight(month: m, kind: .tip, title: "总览这条", author: "Claude"), author: "Claude")
-        _ = try l.addInsight(Insight(month: m, kind: .alert, title: "花销这条", page: "spending", author: "Claude"), author: "Claude")
+        _ = try l.addInsight(Insight(month: m, kind: .tip, title: "总览这条", body: "", author: "Claude"), author: "Claude")
+        _ = try l.addInsight(Insight(month: m, kind: .alert, title: "花销这条", body: "", page: "spending", author: "Claude"), author: "Claude")
         XCTAssertEqual(l.insight(forPage: "overview", month: m, bookID: nil)?.title, "总览这条", "没写页面的算总览")
         XCTAssertEqual(l.insight(forPage: "spending", month: m, bookID: nil)?.title, "花销这条")
         XCTAssertNil(l.insight(forPage: "trends", month: m, bookID: nil))
