@@ -126,6 +126,8 @@ public struct MigratingStore: LedgerStore {
     }
 
     public func save(_ ledger: Ledger) throws { try primary.save(ledger) }
+
+    public func changeStamp() -> String? { primary.changeStamp() ?? legacy.changeStamp() }
 }
 #endif
 

@@ -94,10 +94,12 @@ public final class LedgerModel {
     /// 每隔两秒看一眼账本文件，变了（AI 刚写过）就重新读。弹着窗口时先不换，免得正在填的东西被打断。
     public func watch() async {
         lastStamp = store.changeStamp()
-        guard lastStamp != nil else { return }
+        // 账本文件还没建（新用户第一次打开）也一直看着：AI 先写，文件才出现。内存账本的指纹一直是 nil，不会触发。
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(2))
-            guard sheet == nil, let stamp = store.changeStamp(), stamp != lastStamp else { continue }
+            guard sheet == nil else { continue }
+            let stamp = store.changeStamp()
+            guard stamp != nil, stamp != lastStamp else { continue }
             refreshIfChanged()
         }
     }

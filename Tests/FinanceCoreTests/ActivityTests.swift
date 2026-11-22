@@ -52,6 +52,7 @@ final class ActivityTests: XCTestCase {
         XCTAssertEqual(both.headline, "Codex、Claude 刚记了 1 笔")
     }
 
+    #if canImport(SQLite3)
     func testFileStampChangesOnSave() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -64,5 +65,9 @@ final class ActivityTests: XCTestCase {
         try store.save(l)
         XCTAssertNotEqual(store.changeStamp(), s1)
         XCTAssertNil(InMemoryLedgerStore(l).changeStamp())
+        // app 实际用的是外面包了一层的 MigratingStore，指纹要透过去。
+        let wrapped = MigratingStore(primary: store, legacy: JSONFileLedgerStore(url: dir.appendingPathComponent("old.json")))
+        XCTAssertEqual(wrapped.changeStamp(), store.changeStamp())
     }
+    #endif
 }
