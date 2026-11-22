@@ -157,7 +157,7 @@ public enum Plans {
     }
 
     public static func goals(_ ledger: Ledger) -> [GoalStatus] {
-        let balances = Summaries.balances(ledger.transactions)
+        let balances = ledger.accountBalances().mapValues(\.base)
         return ledger.goals.map { g in
             let saved: Money
             if let acct = g.savingsAccountID { saved = Money(cents: max(0, (balances[acct] ?? .zero).cents)) }

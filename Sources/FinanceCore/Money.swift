@@ -61,7 +61,7 @@ public struct Money: Hashable, Comparable, Codable, Sendable {
         }
         let intText = String(grouped.reversed())
         let fracText = frac < 10 ? "0\(frac)" : "\(frac)"
-        return "\(negative ? "-" : "")\(intText),\(fracText) €"
+        return Money.defaultCurrency == "EUR" ? "\(negative ? "-" : "")\(intText),\(fracText) €" : formatted(in: Money.defaultCurrency)
     }
 
     /// 给 --json 用的十进制字符串，如 "-1234.56"。

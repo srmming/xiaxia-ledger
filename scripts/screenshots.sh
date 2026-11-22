@@ -42,6 +42,11 @@ if [ -n "$IOS_APP" ]; then
   ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
   ios 15-new-plan -XiaxiaDemo -XiaxiaSheet plan
   ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
+  ios 17-new-category -XiaxiaDemo -XiaxiaSheet newCategory
+  xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
+  ios 18-categories-dark -XiaxiaDemo -XiaxiaSheet categories
+  ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
+  xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
 fi
 
 # GitHub 的机器上 screencapture 只有黑屏，改让 app 自己把窗口画成图（-XiaxiaSnapshot），不用屏幕录制权限。
@@ -66,6 +71,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights
   snap 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
   snap 21-connect-ai-no-tools -XiaxiaEmpty 1 -XiaxiaNoTools 1 -XiaxiaSheet connectAI
+  snap 23-new-category -XiaxiaDemo 1 -XiaxiaSheet newCategory
+  snap 24-spending -XiaxiaDemo 1 -XiaxiaSection spending
   snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
 fi
 

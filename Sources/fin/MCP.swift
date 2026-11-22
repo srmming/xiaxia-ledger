@@ -149,6 +149,7 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "category": prop("string", "分类"),
             "date": prop("string", "日期 2026-11-21，默认今天"),
+            "original": prop("string", "用别的币种付的原价，如「50 USD」（欧元卡在国外刷卡时）。amount 填银行扣的数"),
             "author": author, "dry_run": dryRun,
         ], required: ["amount", "description", "account", "book"], readOnly: false),
         tool("add_debt", "记一笔欠款。direction：they_owe_me（我借出去）或 i_owe（我借来的）。", [
@@ -195,6 +196,7 @@ enum MCPTools {
             "kind": ["type": "string", "enum": ["bank", "credit", "cash", "wallet", "savings"], "description": "类型，默认 bank"],
             "private": prop("boolean", "私房钱：app 默认不显示、不算进总览"),
             "opening_balance": prop("string", "开账余额（可选）"), "date": prop("string", "开账余额是哪天的，默认今天"),
+            "currency": prop("string", "账户币种，三个字母如 USD、CNY；不填 = 主币种"),
             "author": author, "dry_run": dryRun,
         ], required: ["id", "name"], readOnly: false),
         tool("add_book", "新建一个账本（比如家庭、第二家店）。kind：personal = 生活，business = 生意。", [
@@ -221,10 +223,16 @@ enum MCPTools {
         tool("rename_category", "把一个分类整体改名，或并进另一个已有分类。", [
             "from": prop("string", "原分类"), "to": prop("string", "新分类"), "author": author, "dry_run": dryRun,
         ], required: ["from", "to"], readOnly: false),
-        tool("add_category", "加一个新分类（还没有流水用它也行），app 记一笔时就能选。重名会提示。", [
+        tool("add_category", "加一个新分类（还没有流水用它也行），app 记一笔时就能选。重名会提示。icon 可以挑一个图标（名字见 list_category_icons），不填按名字自动配。", [
             "name": prop("string", "分类名，如「宠物」"), "income": prop("boolean", "是收入分类就填 true，默认支出"),
+            "icon": prop("string", "图标名，如 pets、coffee（见 list_category_icons）"),
             "author": author, "dry_run": dryRun,
         ], required: ["name"], readOnly: false),
+        tool("set_category_icon", "给一个分类换图标（已有流水的分类也行）。icon 留空 = 改回按名字自动配。", [
+            "name": prop("string", "分类名"), "icon": prop("string", "图标名（见 list_category_icons），留空改回自动"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["name"], readOnly: false),
+        tool("list_category_icons", "分类能用的图标：按分组列出图标名和中文名，以及哪些分类已经挑过图标。", [:], readOnly: true),
         tool("set_profile", "改夏夏的说话方式或用户的目标。persona：gentle 温和直说 / sharp 毒舌 / calm 文静 / cheer 打气。aim：用户想让夏夏帮他做到什么（空字符串 = 清掉）。只在用户要求时改。", [
             "persona": prop("string", "gentle / sharp / calm / cheer"), "aim": prop("string", "用户的目标，如「每个月存下 500 €」"),
             "author": author, "dry_run": dryRun,
@@ -318,7 +326,7 @@ enum MCPTools {
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
-    ]
+    ] + currencySubsTools
 
     static func json<T: Encodable>(_ v: T) throws -> String {
         let e = JSONEncoder()
@@ -398,13 +406,17 @@ enum MCPTools {
             do { months = try SummaryCommand.months(month: s("month"), year: year, from: s("from"), to: s("to")) }
             catch { throw ToolError(message: "要看哪段时间？填 month（2026-11）、year（2026），或 from + to（2026-01、2026-06）") }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
-            let list = Reports.summaries(ledger.transactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
+            let list = Reports.summaries(ledger.baseTransactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
             return SummaryCommand.text(list, months: months, book: s("book"), ledger: ledger, hidden: hidden)
         case "accounts":
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
-            let balances = Summaries.balances(ledger.transactions)
-            return ledger.accounts.filter { !hidden.contains($0.id) }
-                .map { "\($0.id)\t\($0.name)\($0.isPrivate ? "（私房钱）" : "")\t\((balances[$0.id] ?? .zero).formatted)" }.joined(separator: "\n")
+            let balances = ledger.accountBalances()
+            return ledger.accounts.filter { !hidden.contains($0.id) }.map { acct -> String in
+                let code = ledger.currency(ofAccount: acct.id)
+                let b = balances[acct.id] ?? (.zero, .zero)
+                let approx = code == ledger.baseCurrency ? "" : "（约 \(b.base.formatted(in: ledger.baseCurrency))）"
+                return "\(acct.id)\t\(acct.name)\(acct.isPrivate ? "（私房钱）" : "")\t\(b.native.formatted(in: code))\(approx)"
+            }.joined(separator: "\n")
         case "monthly_report":
             let ym: YearMonth
             if let m = s("month") {
@@ -435,14 +447,17 @@ enum MCPTools {
         case "delete_transactions":
             guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
             let txs = try ledger.findTransactions(ids)
-            let listing = txs.map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
+            let listing = txs.map { "  \($0.date) \(ledger.formatted($0)) \($0.description)" }.joined(separator: "\n")
             return try commit(try ledger.removeTransactions(txs.map(\.id), author: who)) + "\n" + listing
         case "add_account":
             let id = try req("id")
             guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ToolError(message: "已经有 \(id) 这个账户了") }
             guard let kind = AccountKind(rawValue: s("kind") ?? "bank") else { throw ToolError(message: "kind 只能是 bank、credit、cash、wallet、savings") }
             let opening: Money? = s("opening_balance") == nil ? nil : try money("opening_balance")
-            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private")),
+            if let c = s("currency"), !Currencies.isKnown(c) { throw CurrencyError.unknownCurrency(c) }
+            let code = s("currency")?.uppercased()
+            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private"),
+                                                               currency: code == ledger.baseCurrency ? nil : code),
                                                        openingBalance: opening, date: try date("date") ?? .today, author: who))
         case "add_book":
             guard let kind = BookKind(rawValue: s("kind") ?? "personal") else { throw ToolError(message: "kind 只能是 personal 或 business") }
@@ -467,7 +482,17 @@ enum MCPTools {
         case "rename_category":
             return try commit(try ledger.renameCategory(try req("from"), to: try req("to"), author: who))
         case "add_category":
-            return try commit(try ledger.addCategory(try req("name"), income: flag("income"), author: who))
+            return try commit(try ledger.addCategory(try req("name"), income: flag("income"), icon: s("icon").flatMap { $0.isEmpty ? nil : $0 }, author: who))
+        case "set_category_icon":
+            let icon = s("icon").flatMap { $0.isEmpty ? nil : $0 }
+            return try commit(try ledger.setCategoryIcon(try req("name"), icon: icon, author: who))
+        case "list_category_icons":
+            var out = CategoryIcons.sections.map { sec in
+                "\(sec.label)：" + sec.icons.map { n in "\(n)（\(CategoryIcons.label(n) ?? n)）" }.joined(separator: " ")
+            }
+            let picked = ledger.categoryIcons.sorted { $0.key < $1.key }.map { "\($0.key) → \($0.value)" }
+            out.append(picked.isEmpty ? "还没有分类挑过图标（都按名字自动配）。" : "已挑过图标的分类：" + picked.joined(separator: "，"))
+            return out.joined(separator: "\n")
         case "set_profile":
             var last: ChangeRecord?
             if let p = s("persona") {
@@ -499,8 +524,12 @@ enum MCPTools {
         case "history":
             return try json(Array(ledger.changes.suffix(int("limit", 20)).reversed()))
         case "add_transaction":
-            let tx = Transaction(date: try date("date") ?? .today, amount: try money("amount"), description: try req("description"),
+            var tx = Transaction(date: try date("date") ?? .today, amount: try money("amount"), description: try req("description"),
                                  accountID: try req("account"), bookID: try req("book"), category: s("category"), source: "手记（\(who)）")
+            if let o = s("original") {
+                do { tx.original = try parseForeign(o, sign: tx.amount.cents < 0 ? -1 : 1) }
+                catch { throw ToolError(message: "original 写成「50 USD」这样") }
+            }
             return try commit(try ledger.addTransaction(tx, author: who))
         case "add_debt":
             let dir: Debt.Direction
@@ -628,6 +657,7 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这条改动" : "对上了好几条，多写几位") }
             return try commit(try ledger.undo(changeID: hits[0].id, author: who))
         default:
+            if let text = try MCPTools.callCurrencySubs(name, a, who: who) { return text }
             throw ToolError(message: "没有这个工具：\(name)")
         }
     }
