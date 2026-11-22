@@ -15,6 +15,10 @@ packages:
     from: 1.5.0
 settings:
   base:
+    # iCloud 同步要用的权限只在正式签名时带上：xcodebuild … XIAXIA_ICLOUD=YES。
+    # 不签名 / 临时签名（CI、本机 Debug）带着 iCloud 权限，Mac 会直接拒绝打开 app，所以平时留空。
+    XIAXIA_ENTITLEMENTS_YES_iOS: Entitlements/iOS.entitlements
+    XIAXIA_ENTITLEMENTS_YES_macOS: Entitlements/macOS.entitlements
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
@@ -33,6 +37,11 @@ targets:
         CFBundleDisplayName: 夏夏账本
         CFBundleDevelopmentRegion: zh-Hans
         UILaunchScreen: {}
+        NSUbiquitousContainers:
+          iCloud.com.srmming.xiaxia-ledger:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: 夏夏账本
+            NSUbiquitousContainerSupportedFolderLevels: Any
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         ITSAppUsesNonExemptEncryption: false
@@ -40,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger
         PRODUCT_NAME: 夏夏账本
+        CODE_SIGN_ENTITLEMENTS: $(XIAXIA_ENTITLEMENTS_$(XIAXIA_ICLOUD)_iOS)
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -83,11 +93,17 @@ targets:
         CFBundleDisplayName: $(PRODUCT_NAME)
         CFBundleDevelopmentRegion: zh-Hans
         LSApplicationCategoryType: public.app-category.finance
+        NSUbiquitousContainers:
+          iCloud.com.srmming.xiaxia-ledger:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: 夏夏账本
+            NSUbiquitousContainerSupportedFolderLevels: Any
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.mac
         PRODUCT_NAME: 夏夏账本
+        CODE_SIGN_ENTITLEMENTS: $(XIAXIA_ENTITLEMENTS_$(XIAXIA_ICLOUD)_macOS)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # 自用分发，不开沙盒，和 fin 读同一份账本（见 docs/ROADMAP.md 决定记录）。
