@@ -92,9 +92,11 @@ struct QuickAdd: View {
             }
         }
         #else
+        // 表单能滚，按钮那排固定在底下：窗口矮了按钮也不会跑到窗口外面。
         VStack(spacing: 0) {
-            content
-            actionButtons.padding(.horizontal, 20).padding(.bottom, 16)
+            ScrollView { content }
+            Divider()
+            actionButtons.padding(.horizontal, 20).padding(.vertical, 12)
         }
         #endif
     }
