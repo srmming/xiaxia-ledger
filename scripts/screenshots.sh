@@ -32,6 +32,9 @@ if [ -n "$IOS_APP" ]; then
   ios 6-ai -XiaxiaDemo -XiaxiaSection insights
   ios 7-add -XiaxiaDemo -XiaxiaSheet add
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
+  ios 20-add-dark -XiaxiaDemo -XiaxiaSheet add
+  xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
+  xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
   ios 8-dark -XiaxiaDemo
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
   ios 9-empty -XiaxiaEmpty
@@ -73,6 +76,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 21-connect-ai-no-tools -XiaxiaEmpty 1 -XiaxiaNoTools 1 -XiaxiaSheet connectAI
   snap 23-new-category -XiaxiaDemo 1 -XiaxiaSheet newCategory
   snap 24-spending -XiaxiaDemo 1 -XiaxiaSection spending
+  snap 25-add -XiaxiaDemo 1 -XiaxiaSheet add
+  snap 26-add-empty -XiaxiaEmpty 1 -XiaxiaSheet add
   snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
 fi
 

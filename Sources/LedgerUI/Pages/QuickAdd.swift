@@ -5,7 +5,7 @@ import SwiftUI
 /// - 支出 / 收入 / 转账（自己账户之间挪钱，不算收支）。
 /// - 金额能写算式（12,50 + 3,20），iPhone 上是带 + − 的计算器键盘。
 /// - 「常记的」一排：点一下金额、名称、分类、账户全填好。
-/// - 名称（以前用过的会提示，分类跟着带出来）、分类（能原地加新的）、账户、账本、日期、备注、标签、重复。
+/// - 从上到下：金额 → 账户 · 账本 · 日期（一行小标签）→ 分类（全部铺开，一页两行左右翻）→ 名称 → 备注、标签、重复。
 /// - 「记下」后关掉；「再记一笔」记下后清空金额和名称，接着记。
 /// 改一笔（model.editingID 有值）用同一张表，按钮变成「保存」。写入都标「你」、进改动记录，能撤销。
 struct QuickAdd: View {
@@ -36,10 +36,12 @@ struct QuickAdd: View {
     @State var savedInARow = 0
     @State var didSetup = false
     /// 分类、名称提示、常记的、用过的标签：打开时和换方向 / 账本时算一次。
-    /// 别每按一个键都把整本账翻一遍：账本大了 Mac 上打字会吞字（「Super」只剩「Sup」）。
+    /// 别每按一个键都把整本账翻一遍，账本大了打字会卡。
     @State var lists = Lists()
     /// iPhone：计算器键盘露着没。选好分类就收起来，露出账户、日期、备注；点金额再弹出来。
     @State var keypadUp = true
+    /// 分类翻到第几页（一页两行，左右滑或点下面的小圆点翻）。
+    @State var categoryPage: Int? = 0
     @FocusState var focus: Field?
 
     enum Field: Hashable { case amount, name, category, note, tag }
@@ -127,13 +129,14 @@ struct QuickAdd: View {
 
             amountDisplay
 
-            if editing == nil && !isTransfer { frequentRow }
-
             if isTransfer {
                 transferRows
             } else {
-                nameField
+                // 账户、账本、日期紧挨着金额，一眼看到、不用往下翻。
+                contextBar
                 categoryGrid
+                nameField
+                if editing == nil && name.isEmpty { frequentRow }
                 detailRows
             }
 
@@ -157,10 +160,19 @@ struct QuickAdd: View {
         }
         .onChange(of: model.ledger.changes.count) { _, _ in if didSetup { refreshLists() } }
         .onChange(of: model.ledger.profile.categories.count) { _, _ in if didSetup { refreshLists() } }
-        #if os(iOS)
-        // 选好分类、金额也有了：收起键盘，露出下面的账户、日期、备注。
-        .onChange(of: category) { _, c in if c != nil, amount != nil { withAnimation(.snappy) { keypadUp = false } } }
-        #endif
+        // 分类是点名字、常记的带出来的：翻到它那一页，让人看见选中了哪个。
+        // 同一个值只挂一个 onChange（挂两个时 iPhone 上只有一个会跑）。
+        .onChange(of: category) { _, c in
+            guard let c else { return }
+            #if os(iOS)
+            // 选好分类、金额也有了：收起键盘，露出下面的名称、备注。
+            if amount != nil { withAnimation(.snappy) { keypadUp = false } }
+            #endif
+            // 分类是点名字、常记的带出来的：翻到它那一页，让人看见选中了哪个。
+            if let i = categoryPages.firstIndex(where: { $0.contains(c) }), i != categoryPage {
+                withAnimation(.snappy) { categoryPage = i }
+            }
+        }
         .onChange(of: bookID) { _, _ in if didSetup { refreshLists() }; if let c = category, !allCategories.contains(c), c != customCategory { category = nil } }
         .alert("新账户", isPresented: $askAccount) {
             TextField("名字，比如「现金」「银行卡」", text: $newName)
@@ -253,7 +265,7 @@ struct QuickAdd: View {
                     .focused($focus, equals: .amount)
                     .onSubmit { if let a = amount, Money.isExpression(amountText) { amountText = a.inputText } else { focus = .name } }
                     .fixedSize()
-                    .frame(minWidth: 90)
+                    .frame(minWidth: 44)
                     .accessibilityLabel("金额，可以写算式，比如 12,50+3,20")
                 #endif
                 Text(Currencies.info(accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)).symbol).font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
@@ -287,15 +299,18 @@ struct QuickAdd: View {
     @ViewBuilder private var frequentRow: some View {
         let list = lists.frequent
         if !list.isEmpty {
+            // 同一个名字只留一个（不同金额的公交卡别排两个一模一样的）。
             VStack(alignment: .leading, spacing: 6) {
                 Text("常记的，点一下就填好").font(.caption).foregroundStyle(Color.fg3)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(list) { t in
+                        ForEach(list.reduce(into: [FinanceCore.Transaction]()) { out, t in
+                            if !out.contains(where: { $0.description == t.description }) { out.append(t) }
+                        }) { t in
                             Button { apply(t) } label: {
                                 HStack(spacing: 5) {
                                     CategoryIcon(category: t.category, size: 18)
-                                    Text(t.description).lineLimit(1)
+                                    Text(t.description).lineLimit(1).truncationMode(.tail).frame(maxWidth: 150, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                                     Text(t.amount.magnitude.formatted(in: model.ledger.currency(ofAccount: t.accountID))).foregroundStyle(Color.fg2).monospacedDigit()
                                 }
                                 .font(.caption)
@@ -318,7 +333,7 @@ struct QuickAdd: View {
         amountText = t.amount.inputText
         name = t.description
         if let c = t.category {
-            if !categories.contains(c) { customCategory = c }
+            if !allCategories.contains(c) { customCategory = c }
             category = c
         }
         if model.visibleAccounts.contains(where: { $0.id == t.accountID }) { accountID = t.accountID }
@@ -332,7 +347,9 @@ struct QuickAdd: View {
     /// 名称：买了什么 / 在哪花的。下面一排是以前用过的名字，点一下填好，分类也带出来。
     private var nameField: some View {
         let q = name.trimmingCharacters(in: .whitespaces).lowercased()
-        let suggestions = Array(lists.names.lazy.filter { q.isEmpty || ($0.name.lowercased().contains(q) && $0.name.lowercased() != q) }.prefix(5))
+        // 没打字时下面有「常记的」，这里就不再排一行名字。
+        let suggestions = q.isEmpty && editing == nil && !lists.frequent.isEmpty ? []
+            : Array(lists.names.lazy.filter { q.isEmpty || ($0.name.lowercased().contains(q) && $0.name.lowercased() != q) }.prefix(5))
         return VStack(alignment: .leading, spacing: 6) {
             TextField(income ? "名称，比如「工资」" : "名称，比如「超市」", text: $name)
                 .textFieldStyle(.plain)
@@ -372,90 +389,141 @@ struct QuickAdd: View {
     private func pick(_ s: (name: String, category: String?)) {
         name = s.name
         if let c = s.category {
-            if !categories.contains(c) { customCategory = c }
+            if !allCategories.contains(c) { customCategory = c }
             category = c
         }
     }
 
     // MARK: 分类
 
-    /// 格子里直接显示的分类：常用的 6 个（选过「更多」里的或新建的，就把它也放进来）。
-    private var categories: [String] {
-        let list = Array(allCategories.prefix(customCategory == nil ? 6 : 5))
-        return list + [customCategory].compactMap { $0 }.filter { !list.contains($0) }
+    /// 这个账本、这个方向能选的所有分类，常用的在前。
+    private var allCategories: [String] { lists.categories }
+
+    /// 一页 10 个（5 列 × 2 行），常用的在第一页。不再藏进「更多」：左右滑或点小圆点翻页。
+    private static let perPage = 10
+    private var categoryPages: [[String]] {
+        var all = allCategories
+        if let c = customCategory, !all.contains(c) { all.insert(c, at: 0) }
+        return stride(from: 0, to: all.count, by: Self.perPage).map { Array(all[$0..<min($0 + Self.perPage, all.count)]) }
     }
 
-    /// 这个账本、这个方向能选的所有分类；格子里放不下的进「更多」。
-    private var allCategories: [String] { lists.categories }
-    private var moreCategories: [String] { allCategories.filter { !categories.contains($0) } }
-
     private var categoryGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
-            ForEach(categories, id: \.self) { c in
-                Button { category = c } label: {
-                    VStack(spacing: 4) {
-                        CategoryIcon(category: c, size: 30)
-                        Text(c).font(.caption).lineLimit(1).minimumScaleFactor(0.8)
-                            .foregroundStyle(category == c ? .primary : Color.fg2)
+        let pages = categoryPages
+        return VStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach(pages.indices, id: \.self) { i in
+                        // 不用 LazyVGrid：放在横向翻页里时 iPhone 上最后一格有时画不出来。
+                        VStack(spacing: 4) {
+                            ForEach(Array(stride(from: 0, to: pages[i].count, by: 5)), id: \.self) { start in
+                                HStack(spacing: 4) {
+                                    ForEach(pages[i][start..<min(start + 5, pages[i].count)], id: \.self) { c in categoryCell(c) }
+                                    ForEach(0..<(5 - min(5, pages[i].count - start)), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 1) }
+                                }
+                            }
+                        }
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .containerRelativeFrame(.horizontal)
+                        .id(i)
                     }
-                    .frame(maxWidth: .infinity).padding(.vertical, 7)
-                    .background(category == c ? Color.brandSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(category == c ? Color.brand.opacity(0.5) : .clear))
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.pressable)
-                .accessibilityAddTraits(category == c ? .isSelected : [])
+                .scrollTargetLayout()
             }
-            if !moreCategories.isEmpty {
-                Menu {
-                    ForEach(moreCategories, id: \.self) { c in
-                        Button(c) { customCategory = c; category = c }
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.fg2)
-                            .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
-                        Text("更多").font(.caption).foregroundStyle(Color.fg2)
-                    }
-                    .frame(maxWidth: .infinity).padding(.vertical, 7)
-                    .contentShape(Rectangle())
-                }
-                .menuStyle(.button).buttonStyle(.pressable).menuIndicator(.hidden)
-                .accessibilityLabel("更多分类")
-            }
-            Group {
-                Button { addingCategory = true } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.brand)
-                            .frame(width: 30, height: 30).background(Color.brandSoft, in: Circle())
-                        Text("新分类").font(.caption).foregroundStyle(Color.brand)
-                    }
-                    .frame(maxWidth: .infinity).padding(.vertical, 7)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.pressable)
-                .accessibilityLabel("加一个新分类")
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $categoryPage)
+            // 翻页圆点在中间，「新分类」一直在右边，翻到哪页都点得到。
+            ZStack {
+                if pages.count > 1 { pageDots(pages.count) }
+                HStack { Spacer(); newCategoryButton }
             }
         }
+    }
+
+    private func categoryCell(_ c: String) -> some View {
+        Button { category = c } label: {
+            VStack(spacing: 3) {
+                CategoryIcon(category: c, size: 28)
+                Text(c).font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
+                    .foregroundStyle(category == c ? .primary : Color.fg2)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 6)
+            .background(category == c ? Color.brandSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(category == c ? Color.brand.opacity(0.5) : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(c)
+        .accessibilityAddTraits(category == c ? .isSelected : [])
+    }
+
+    private var newCategoryButton: some View {
+        Button { addingCategory = true } label: {
+            Label("新分类", systemImage: "plus").font(.caption.weight(.medium)).foregroundStyle(Color.brand)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("加一个新分类")
+    }
+
+    /// 翻页的小圆点；Mac 上两边再加箭头（鼠标没法左右滑）。
+    private func pageDots(_ count: Int) -> some View {
+        let current = categoryPage ?? 0
+        return HStack(spacing: 6) {
+            #if os(macOS)
+            Button { withAnimation(.snappy) { categoryPage = max(0, current - 1) } } label: { Image(systemName: "chevron.left") }
+                .buttonStyle(.borderless).disabled(current == 0).accessibilityLabel("上一页分类")
+            #endif
+            ForEach(0..<count, id: \.self) { i in
+                Button { withAnimation(.snappy) { categoryPage = i } } label: {
+                    Circle().fill(i == current ? Color.brand : Color.fg3.opacity(0.4)).frame(width: 6, height: 6)
+                        .padding(4).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("分类第 \(i + 1) 页，共 \(count) 页")
+            }
+            #if os(macOS)
+            Button { withAnimation(.snappy) { categoryPage = min(count - 1, current + 1) } } label: { Image(systemName: "chevron.right") }
+                .buttonStyle(.borderless).disabled(current >= count - 1).accessibilityLabel("下一页分类")
+            #endif
+        }
+        .font(.caption.weight(.semibold)).foregroundStyle(Color.fg2)
+    }
+
+    // MARK: 金额下面那一行：账户、账本、日期
+
+    private var contextBar: some View {
+        HStack(spacing: 6) {
+            chip { accountMenu(.from) }
+            if model.ledger.books.count > 1 {
+                chip {
+                    Menu {
+                        ForEach(model.ledger.books) { b in Button(b.name) { bookID = b.id } }
+                    } label: {
+                        Label(model.ledger.books.first { $0.id == bookID }?.name ?? "选账本", systemImage: "books.vertical")
+                    }
+                    .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+                    .accessibilityLabel("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? "还没选")")
+                }
+            }
+            #if os(iOS)
+            datePicker   // iPhone 的日期按钮自己就是胶囊，不再套一层
+            #else
+            chip { datePicker }
+            #endif
+        }
+        .font(.callout)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func chip<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Color.sunken, in: Capsule())
     }
 
     // MARK: 账户、账本、日期、备注、标签、重复
 
     private var detailRows: some View {
         VStack(spacing: 0) {
-            detailRow("账户") { accountMenu(.from) }
-            if model.ledger.books.count > 1 {
-                Divider()
-                detailRow("账本") {
-                    Picker("账本", selection: $bookID) {
-                        ForEach(model.ledger.books) { Text($0.name).tag($0.id) }
-                    }
-                    .labelsHidden().fixedSize()
-                }
-            }
-            Divider()
-            detailRow("日期") { datePicker }
-            Divider()
             detailRow("备注") {
                 TextField("可不填", text: $note)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
@@ -490,6 +558,7 @@ struct QuickAdd: View {
 
     private var datePicker: some View {
         DatePicker("日期", selection: $date, displayedComponents: .date)
+            .datePickerStyle(.compact)
             .labelsHidden().fixedSize()
     }
 
@@ -503,7 +572,7 @@ struct QuickAdd: View {
             if !model.visibleAccounts.isEmpty { Divider() }
             Button { newName = ""; askingFor = slot; askAccount = true } label: { Label("新账户…", systemImage: "plus") }
         } label: {
-            Text(id.isEmpty ? "选账户" : model.accountName(id))
+            Label(id.isEmpty ? "选账户" : model.accountName(id), systemImage: "creditcard")
                 .foregroundStyle(id.isEmpty ? Color.alert : .primary)
         }
         .menuStyle(.button).buttonStyle(.borderless).fixedSize()
@@ -614,7 +683,7 @@ struct QuickAdd: View {
             note = t.note ?? ""
             tags = t.tagList
             refreshLists()
-            if let c = t.category, !categories.contains(c) { customCategory = c }
+            if let c = t.category, !allCategories.contains(c) { customCategory = c }
         } else {
             if bookID.isEmpty { bookID = model.defaultBookID }
             if accountID.isEmpty { accountID = model.defaultAccountID }
