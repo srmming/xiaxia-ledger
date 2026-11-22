@@ -81,7 +81,7 @@ struct TransactionActions: View {
                 model.perform { try $0.addRefund(of: tx.id, amount: m, author: model.author) }
             }
         } message: {
-            Text("钱回到「\(model.accountName(tx.accountID))」，分类「退款」，会从支出里减掉。原来这笔 \(tx.amount.magnitude.formatted)。")
+            Text("钱回到「\(model.accountName(tx.accountID))」，分类「退款」，会从支出里减掉。原来这笔 \(tx.amount.magnitude.formatted(in: model.ledger.currency(ofAccount: tx.accountID)))。")
         }
         .confirmationDialog("删除这一笔？", isPresented: $confirmDelete) {
             Button("删除", role: .destructive) {

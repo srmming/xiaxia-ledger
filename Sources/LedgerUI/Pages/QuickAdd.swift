@@ -220,7 +220,7 @@ struct QuickAdd: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
             if Money.isExpression(amountText) {
-                Text(amount.map { "= \($0.formatted)" } ?? "算式还没写完")
+                Text(amount.map { "= \($0.formatted(in: accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)))" } ?? "算式还没写完")
                     .font(.callout.weight(.medium)).monospacedDigit()
                     .foregroundStyle(amount == nil ? Color.fg3 : Color.fg2)
                     .accessibilityIdentifier("amountResult")
@@ -247,7 +247,7 @@ struct QuickAdd: View {
                                 HStack(spacing: 5) {
                                     CategoryIcon(category: t.category, size: 18)
                                     Text(t.description).lineLimit(1)
-                                    Text(t.amount.magnitude.formatted).foregroundStyle(Color.fg2).monospacedDigit()
+                                    Text(t.amount.magnitude.formatted(in: model.ledger.currency(ofAccount: t.accountID))).foregroundStyle(Color.fg2).monospacedDigit()
                                 }
                                 .font(.caption)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
