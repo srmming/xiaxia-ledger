@@ -8,6 +8,13 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     case claude, codex, hermes
     public var id: String { rawValue }
 
+    /// 给 claude --mcp-config 的一段 JSON：只有夏夏账本这一个 MCP，命令是 app 自带的 fin。
+    public static func mcpConfig(fin: String) -> String {
+        let obj: [String: Any] = ["mcpServers": [AIConnector.serverName: ["command": fin, "args": ["mcp"]]]]
+        let data = (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
     public var name: String {
         switch self {
         case .claude: "Claude Code"
@@ -35,11 +42,14 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 后台问一句的参数。claude 能接着上一轮聊（resume），另外两个每次把最近几句一起带上。
-    public func arguments(prompt: String, resume: String?) -> [String] {
+    public func arguments(prompt: String, resume: String?, fin: String? = nil) -> [String] {
         switch self {
         case .claude:
             // -p 无窗口；json 输出带 session_id，下一句接着聊；只放行夏夏账本这一组工具，别的工具要确认的就不做。
             var a = ["-p", prompt, "--output-format", "json", "--allowedTools", "mcp__xiaxia-ledger"]
+            // 直接把 app 自带的 fin 交给它当 MCP，只用这一个：不靠用户自己有没有配过、配的是不是旧版 fin。
+            // （实测只靠用户配置时，有一次 claude 没起 MCP，干等到超时。）
+            if let fin { a += ["--mcp-config", Self.mcpConfig(fin: fin), "--strict-mcp-config"] }
             if let resume { a += ["--resume", resume] }
             return a
         case .codex:
@@ -71,13 +81,13 @@ public struct ChatReply: Sendable {
 public enum ChatRunner {
     /// 在后台跑一次，最多等 `timeout` 秒。
     public static func ask(_ engine: ChatEngine, prompt: String, resume: String? = nil, executable: String? = nil,
-                           timeout: TimeInterval = 180) async -> ChatReply {
+                           fin: String? = nil, timeout: TimeInterval = 180) async -> ChatReply {
         guard let exe = executable ?? engine.executable() else {
             return ChatReply(text: "这台 Mac 上没找到 \(engine.name)。", sessionID: nil, isError: true)
         }
         let dir = LedgerStores.appSupportFolder.appendingPathComponent("chat")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let args = engine.arguments(prompt: prompt, resume: resume)
+        let args = engine.arguments(prompt: prompt, resume: resume, fin: fin)
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 let p = Process()
