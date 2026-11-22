@@ -19,7 +19,8 @@ struct SplitCommand: ParsableCommand {
             guard let part = SplitPart(parsing: p) else { throw ValidationError("看不懂「\(p)」，要写成 30:超市") }
             return part
         }
-        try finish(ledger, try ledger.splitTransaction(t.id, parts: list, author: w.who), w)
+        let change = try ledger.splitTransaction(t.id, parts: list, author: w.who)
+        try finish(ledger, change, w)
     }
 }
 
@@ -32,7 +33,8 @@ struct CopyCommand: ParsableCommand {
     func run() throws {
         var ledger = try loadLedger()
         let t = try ledger.findTransactions([id])[0]
-        try finish(ledger, try ledger.duplicateTransaction(t.id, date: try parseDate(date), author: w.who), w)
+        let change = try ledger.duplicateTransaction(t.id, date: try parseDate(date), author: w.who)
+        try finish(ledger, change, w)
     }
 }
 
@@ -62,7 +64,8 @@ struct TagCommand: ParsableCommand {
     func run() throws {
         var ledger = try loadLedger()
         let txs = try ledger.findTransactions(ids)
-        try finish(ledger, try ledger.tagTransactions(txs.map(\.id), add: add, remove: remove, author: w.who), w)
+        let change = try ledger.tagTransactions(txs.map(\.id), add: add, remove: remove, author: w.who)
+        try finish(ledger, change, w)
     }
 }
 
@@ -94,7 +97,8 @@ struct RepeatCommand: ParsableCommand {
             var ledger = try loadLedger()
             guard let f = Recurring.Frequency(rawValue: frequency) else { throw ValidationError("要写 weekly、monthly 或 yearly") }
             let t = try ledger.findTransactions([id])[0]
-            try finish(ledger, try ledger.makeRecurring(t.id, frequency: f, until: try until.map { try parseDate($0) }, author: w.who), w)
+            let change = try ledger.makeRecurring(t.id, frequency: f, until: try until.map { try parseDate($0) }, author: w.who)
+            try finish(ledger, change, w)
         }
     }
 
@@ -127,7 +131,8 @@ struct RepeatCommand: ParsableCommand {
             var ledger = try loadLedger()
             var r = try RepeatCommand.find(ledger, key)
             r.paused = true
-            try finish(ledger, try ledger.updateRecurring(r, author: w.who), w)
+            let change = try ledger.updateRecurring(r, author: w.who)
+            try finish(ledger, change, w)
         }
     }
 
@@ -139,7 +144,8 @@ struct RepeatCommand: ParsableCommand {
             var ledger = try loadLedger()
             var r = try RepeatCommand.find(ledger, key)
             r.paused = false
-            try finish(ledger, try ledger.updateRecurring(r, author: w.who), w)
+            let change = try ledger.updateRecurring(r, author: w.who)
+            try finish(ledger, change, w)
         }
     }
 
@@ -150,7 +156,8 @@ struct RepeatCommand: ParsableCommand {
         func run() throws {
             var ledger = try loadLedger()
             let r = try RepeatCommand.find(ledger, key)
-            try finish(ledger, try ledger.removeRecurring(r.id, author: w.who), w)
+            let change = try ledger.removeRecurring(r.id, author: w.who)
+            try finish(ledger, change, w)
         }
     }
 }

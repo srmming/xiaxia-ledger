@@ -157,6 +157,7 @@ run add --account caixa --book personal --category 超市 --date 2026-11-21 -- -
 ID_BIG=$("$FIN" tx --query 大超市 | cut -f1)
 expect_fail split "$ID_BIG" 30:超市 10:日用品
 run split "$ID_BIG" 30:超市 18,30:日用品:洗衣液
+"$FIN" tx --query 洗衣液 | grep -q 日用品 && echo "拆开存进账本了" || { echo "↳ 拆开没存进账本"; FAILS=$((FAILS + 1)); }
 run add --account caixa --book personal --category 购物 --date 2026-11-15 -- -60 鞋子
 ID_SHOES=$("$FIN" tx --query 鞋子 | cut -f1)
 expect_fail refund "$ID_SHOES" --amount 70
@@ -167,10 +168,11 @@ run repeat run --date 2026-11-22
 run repeat run --date 2026-11-22
 "$FIN" tx --query 房租 | wc -l | grep -q 3 && echo "房租 9、10、11 月各一笔" || { echo "↳ 房租笔数不对"; "$FIN" tx --query 房租; FAILS=$((FAILS + 1)); }
 run repeat pause 房租
+"$FIN" repeat list | grep -q 暂停中 && echo "暂停存进账本了" || { echo "↳ 暂停没存进账本"; FAILS=$((FAILS + 1)); }
 run repeat resume 房租
 run repeat set "$ID_SHOES" yearly --dry-run
 run repeat rm 房租
-run repeat list --json
+"$FIN" repeat list | grep -q 房租 && { echo "↳ 停掉没存进账本"; FAILS=$((FAILS + 1)); } || echo "停掉存进账本了"
 
 echo; echo "===== 改动记录、撤销 ====="
 run history
