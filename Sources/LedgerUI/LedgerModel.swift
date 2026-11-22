@@ -202,9 +202,11 @@ public final class LedgerModel {
         let change = try body(&copy)
         try store.save(copy)
         lastStamp = store.changeStamp()
+        let oldIDs = Set(ledger.transactions.map(\.id))
         ledger = copy
         cache = nil; authorCache = nil
         dropMissingSelection()
+        revealAdded(copy.transactions.filter { !oldIDs.contains($0.id) })
         if change.canUndo { undoStack.append(change.id) }
         if !quiet { toast = Toast(text: change.summary, changeID: change.canUndo ? change.id : nil) }
         return change
@@ -230,6 +232,13 @@ public final class LedgerModel {
         } catch {
             toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
         }
+    }
+
+    /// 刚记的流水不在正在看的月份 / 账本里：跳过去，免得记了却「没出来」。
+    func revealAdded(_ added: [FinanceCore.Transaction]) {
+        guard let latest = added.map(\.date).max() else { return }
+        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = nil }
+        if !added.contains(where: { $0.date.yearMonth == shownMonth }) { selectedMonth = latest.yearMonth }
     }
 
     /// 正在看的账本被删了：回到「全部」。
