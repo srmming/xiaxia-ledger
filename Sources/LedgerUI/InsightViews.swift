@@ -55,7 +55,6 @@ struct InsightCard: View {
 
     var body: some View {
         AskAIReader { ask in
-          HStack(alignment: .bottom, spacing: 4) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label {
@@ -68,28 +67,31 @@ struct InsightCard: View {
                     Spacer()
                     Text("\(insight.author) · \(insight.createdAt.friendly)").font(.caption).foregroundStyle(Color.fg2)
                 }
-                Text(insight.title).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
-                if !insight.body.isEmpty {
-                    Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .bottom, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(insight.title).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
+                        if !insight.body.isEmpty {
+                            Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                        }
+                        HStack(spacing: 8) {
+                            Button {
+                                ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
+                            } label: { Label("接着问", systemImage: "sparkles") }
+                                .buttonStyle(.softAI)
+                            Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
+                                .buttonStyle(.soft)
+                            Spacer()
+                            if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
+                        }
+                        .padding(.top, 2)
+                    }
+                    // 夏夏本人站在卡片右边念这条意见；大字号时让出位置给文字。
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        MascotView(.xiaxia, pose: pose, size: large ? 120 : 80)
+                            .padding(.bottom, -6)
+                    }
                 }
-                HStack(spacing: 8) {
-                    Button {
-                        ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
-                    } label: { Label("接着问", systemImage: "sparkles") }
-                        .buttonStyle(.softAI)
-                    Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
-                        .buttonStyle(.soft)
-                    Spacer()
-                    if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
-                }
-                .padding(.top, 2)
             }
-            // 夏夏本人站在卡片右边念这条意见；大字号时让出位置给文字。
-            if !dynamicTypeSize.isAccessibilitySize {
-                MascotView(.xiaxia, pose: pose, size: large ? 120 : 80)
-                    .padding(.bottom, -6)
-            }
-          }
             .aiCard()
         }
         .onAppear { if !reduceMotion { appeared = true } }
