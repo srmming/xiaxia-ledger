@@ -41,6 +41,13 @@ public final class XiaxiaChatState {
         focusRequest?()
     }
 
+    /// 把一句话放进输入框（来自页面上的例句、「问 AI」按钮），打开对话栏等用户改完再发。
+    func prefill(_ text: String) {
+        open = true
+        if !text.isEmpty { draft = text }
+        focusRequest?()
+    }
+
     public func newConversation() {
         messages = []
         session = nil
@@ -168,7 +175,7 @@ struct XiaxiaChatPanel: View {
             Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
                 .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
-                Button { chat.send(p.text, model: model) } label: { PromptRow(prompt: p) }
+                Button { chat.prefill(p.text) } label: { PromptRow(prompt: p) }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("问夏夏：\(p.text)")
             }

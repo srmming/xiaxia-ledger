@@ -335,6 +335,7 @@ struct SegmentedProgress: View {
 
 /// 空的时候一律把人引去找 AI：一句说明 + 一个「复制这句话」按钮。
 struct KitEmptyState: View {
+    @Environment(LedgerModel.self) var model
     var symbol = "sparkles"
     let title: String
     let message: String
@@ -352,7 +353,7 @@ struct KitEmptyState: View {
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
                 if let prompt {
-                    Button { ask(prompt, page: page) } label: { Label(buttonTitle, systemImage: "doc.on.doc") }
+                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? "跟夏夏说" : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)
                 }
