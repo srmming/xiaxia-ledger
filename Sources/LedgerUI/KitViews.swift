@@ -207,6 +207,8 @@ struct TxRow: View {
             if let b = tx.bookID { parts.append(model.bookName(b)) }
         }
         parts.append(model.accountName(tx.accountID))
+        if let note = tx.note { parts.append(note) }
+        if !tx.tagList.isEmpty { parts.append(tx.tagList.map { "#\($0)" }.joined(separator: " ")) }
         return parts.joined(separator: " · ")
     }
 }

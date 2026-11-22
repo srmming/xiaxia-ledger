@@ -64,6 +64,16 @@ struct TransactionsPage: View {
                             ForEach(g.items) { t in
                                 NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle("这一笔") } label: { TxRow(tx: t) }
                                     .tag(t.id)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            let ids = model.ledger.pairedIDs(of: t.id)
+                                            model.perform { try $0.removeTransactions(ids, author: model.author) }
+                                        } label: { Label("删除", systemImage: "trash") }
+                                        if t.isPlainEntry {
+                                            Button { model.startEditing(t.id) } label: { Label("改", systemImage: "pencil") }.tint(.brand)
+                                        }
+                                    }
+                                    .contextMenu { rowMenu(t) }
                             }
                         } header: { dayHeader(g) }
                     }
@@ -169,6 +179,20 @@ struct TransactionsPage: View {
         .font(.caption).foregroundStyle(Color.fg2)
     }
 
+    /// 右键（Mac）/ 长按（iPhone）一笔：改、复制、删除。删了底部能撤销。
+    @ViewBuilder private func rowMenu(_ t: Transaction) -> some View {
+        if t.isPlainEntry {
+            Button { model.startEditing(t.id) } label: { Label("改…", systemImage: "pencil") }
+            Button { model.perform { try $0.duplicateTransaction(t.id, author: model.author) } } label: {
+                Label("复制一笔", systemImage: "plus.square.on.square")
+            }
+        }
+        Button(role: .destructive) {
+            let ids = model.ledger.pairedIDs(of: t.id)
+            model.perform { try $0.removeTransactions(ids, author: model.author) }
+        } label: { Label("删除", systemImage: "trash") }
+    }
+
     // MARK: 筛选
 
     private var filters: some View {
@@ -258,6 +282,7 @@ struct TransactionsPage: View {
                             ForEach(g.items) { t in
                                 TxRow(tx: t).tag(t.id)
                                     .listRowSeparator(.visible)
+                                    .contextMenu { rowMenu(t) }
                             }
                         } header: { dayHeader(g) }
                     }

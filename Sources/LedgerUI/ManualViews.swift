@@ -28,47 +28,42 @@ extension LedgerModel {
 struct TransactionActions: View {
     @Environment(LedgerModel.self) var model
     let tx: FinanceCore.Transaction
+    private var isRecurring: Bool {
+        model.ledger.recurring.contains { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }
+    }
     @State var confirmDelete = false
     @State var splitting = false
     @State var askRefund = false
     @State var refundText = ""
 
     var body: some View {
-        VStack(spacing: 8) {
+        // 最常用的两个（改、删）直接摆出来；复制、拆开、退款、设成重复放进「更多」，不让详情页一排按钮。
+        HStack(spacing: 8) {
             if tx.isPlainEntry {
-                HStack(spacing: 8) {
-                    Button { model.startEditing(tx.id) } label: { Label("改", systemImage: "pencil").frame(maxWidth: .infinity) }
-                        .buttonStyle(.soft)
-                        .accessibilityIdentifier("tx-edit")
-                    Button {
-                        model.perform { try $0.duplicateTransaction(tx.id, author: model.author) }
-                    } label: { Label("复制一笔", systemImage: "plus.square.on.square").frame(maxWidth: .infinity) }
-                        .buttonStyle(.soft)
-                        .help("照这一笔再记一笔，日期是今天")
-                }
-                HStack(spacing: 8) {
-                    Button { splitting = true } label: { Label("拆开", systemImage: "square.split.2x1").frame(maxWidth: .infinity) }
-                        .buttonStyle(.soft)
-                        .help("一笔拆成几笔不同分类，比如超市小票里有吃的也有日用品")
-                    if tx.amount.isExpense {
-                        Button { refundText = tx.amount.inputText; askRefund = true } label: {
-                            Label("记退款", systemImage: "arrow.uturn.left.circle").frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.soft)
+                Button { model.startEditing(tx.id) } label: { Label("改", systemImage: "pencil").frame(maxWidth: .infinity) }
+                    .buttonStyle(.soft)
+                    .accessibilityIdentifier("tx-edit")
+                Menu {
+                    Button { model.perform { try $0.duplicateTransaction(tx.id, author: model.author) } } label: {
+                        Label("复制一笔（日期是今天）", systemImage: "plus.square.on.square")
                     }
-                    Menu {
-                        ForEach(Recurring.Frequency.allCases, id: \.self) { f in
-                            Button(f.label) { model.perform { try $0.makeRecurring(tx.id, frequency: f, author: model.author) } }
-                        }
-                    } label: { Label("设成重复", systemImage: "repeat").frame(maxWidth: .infinity) }
-                        .menuStyle(.button).buttonStyle(.soft).menuIndicator(.hidden)
-                        .disabled(model.ledger.recurring.contains { $0.template.description == tx.description && $0.template.amount == tx.amount })
-                }
+                    Button { splitting = true } label: { Label("拆开成几笔…", systemImage: "square.split.2x1") }
+                    if tx.amount.isExpense {
+                        Button { refundText = tx.amount.inputText; askRefund = true } label: { Label("记退款…", systemImage: "arrow.uturn.left.circle") }
+                    }
+                    if !isRecurring {
+                        Menu {
+                            ForEach(Recurring.Frequency.allCases, id: \.self) { f in
+                                Button(f.label) { model.perform { try $0.makeRecurring(tx.id, frequency: f, author: model.author) } }
+                            }
+                        } label: { Label("设成重复", systemImage: "repeat") }
+                    }
+                } label: { Label("更多", systemImage: "ellipsis.circle").frame(maxWidth: .infinity) }
+                    .menuStyle(.button).buttonStyle(.soft).menuIndicator(.hidden)
+                    .accessibilityIdentifier("tx-more")
             }
-            HStack {
-                Spacer()
-                Button("删除这笔") { confirmDelete = true }.buttonStyle(.softAlert)
-            }
+            Button { confirmDelete = true } label: { Label("删除", systemImage: "trash").frame(maxWidth: tx.isPlainEntry ? .infinity : nil) }
+                .buttonStyle(.softAlert)
         }
         .font(.callout)
         .sheet(isPresented: $splitting) {

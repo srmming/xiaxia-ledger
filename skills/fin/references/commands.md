@@ -34,6 +34,9 @@
 | 记退款 | `fin refund <编号> [--amount 20]` | `add_refund` |
 | 标签 | `fin tag <编号…> --add 旅行 [--remove …]`；查：`fin tx --tag 旅行` 或 `--query "#旅行"` | `tag_transactions`；`list_transactions` 的 `tag` |
 | 重复记账 | `fin repeat list｜set <编号> monthly｜run｜pause｜resume｜rm <编号或说明>` | `list_recurring`、`set_recurring`、`update_recurring`、`run_recurring` |
+
+注意：重复记账是 app 打开时自动记上的。导入银行对账单前先看一眼 `fin repeat list` / `list_recurring`：对账单里的房租、话费如果已经被重复记账记过，导完要把重复的那一笔删掉（或者跟用户商量把那条重复记账停掉，以后以对账单为准），别让一笔钱算两次。
+
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
 | 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |

@@ -77,6 +77,8 @@ public final class LedgerModel {
     /// 回到 app 时看一眼账本有没有被别处改过（比如 AI 刚用 fin 记了几笔），有就换成新的。
     /// 别人做的新改动记进 `activity`，界面弹「Claude 刚记了 12 笔」。
     public func refreshIfChanged() {
+        // app 一直开着跨了天（Mac 常这样）：回来时把到日子的重复记账补上。
+        defer { postDueRecurring() }
         lastStamp = store.changeStamp()
         guard loadError == nil, let fresh = try? store.load(), fresh != ledger else { return }
         let old = ledger
