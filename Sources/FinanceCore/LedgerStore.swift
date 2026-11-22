@@ -96,15 +96,26 @@ public enum LedgerStores {
         let fm = FileManager.default
         let target = container.appendingPathComponent("ledger.sqlite")
         let source = old.appendingPathComponent("ledger.sqlite")
-        guard !fm.fileExists(atPath: target.path), fm.fileExists(atPath: source.path) else { return false }
+        let marker = old.appendingPathComponent(movedMarker)
+        guard fm.fileExists(atPath: source.path), !fm.fileExists(atPath: marker.path) else { return false }
+        if fm.fileExists(atPath: target.path) {
+            // 容器里已经有账本：一般是 iPhone 先开过、建了个空账本。空的就挪开当备份、换成 Mac 上的老账本；
+            // 里面已经有流水就不动（可能是另一台 Mac 搬过来的），免得覆盖。
+            guard (try? sqlite(target).load().transactions.isEmpty) == true else { return false }
+            let aside = container.appendingPathComponent("ledger.sqlite.空账本-\(Int(Date().timeIntervalSince1970))")
+            do { try fm.moveItem(at: target, to: aside) } catch { return false }
+        }
         do {
             try fm.createDirectory(at: container, withIntermediateDirectories: true)
             try fm.copyItem(at: source, to: target)
             try? Data("账本已经搬到 app 的 iCloud 容器（iCloud 云盘里的「夏夏账本」app 文件夹），这里的 ledger.sqlite 是搬家前的备份，不再更新。\n".utf8)
-                .write(to: old.appendingPathComponent("已搬家-请看这里.txt"))
+                .write(to: marker)
             return true
         } catch { return false }
     }
+
+    /// 老位置搬完后放的说明文件；有它才说明容器里的账本是从这里搬过去的。
+    static let movedMarker = "已搬家-请看这里.txt"
 
     /// iCloud 云盘里的「夏夏账本」文件夹（Mac，旧位置）。
     public static var iCloudFolder: URL {
@@ -128,8 +139,15 @@ public enum LedgerStores {
             let url = URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
             return url.pathExtension.lowercased() == "json" ? JSONFileLedgerStore(url: url) : sqlite(url)
         }
+        // 容器里有账本，而且老位置没有账本或已经搬过家，才用容器里的；
+        // 否则（比如 iPhone 先建了个空账本、Mac 还没搬）继续用老位置，fin 不会突然读到空账本。
         let container = containerDocumentsOnDisk.appendingPathComponent("ledger.sqlite")
-        if FileManager.default.fileExists(atPath: container.path) { return sqlite(container) }
+        let fm = FileManager.default
+        if fm.fileExists(atPath: container.path),
+           !fm.fileExists(atPath: iCloudFolder.appendingPathComponent("ledger.sqlite").path)
+            || fm.fileExists(atPath: iCloudFolder.appendingPathComponent(movedMarker).path) {
+            return sqlite(container)
+        }
         #if os(macOS)
         let iCloudDrive = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
         if FileManager.default.fileExists(atPath: iCloudDrive.path) {
