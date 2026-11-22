@@ -61,8 +61,11 @@ final class ManualEntryTests: XCTestCase {
         XCTAssertTrue(key(app, "4").waitForExistence(timeout: 15))
         key(app, "4").tap()
         button(app, "超市").tap()
+        // 选好分类：键盘收起来，露出账户、日期、备注。
+        XCTAssertTrue(key(app, "5").waitForNonExistence(timeout: 3), "选好分类计算器键盘没收起，挡着下面的账户、日期")
         app.buttons["再记一笔"].tap()
         XCTAssertTrue(find(app, "已记下 1 笔").waitForExistence(timeout: 5), "没提示已记下")
+        XCTAssertTrue(key(app, "5").waitForExistence(timeout: 3), "再记一笔后键盘没回来")
         XCTAssertFalse(app.buttons["记下"].isEnabled, "记下后金额和分类没清空")
     }
 

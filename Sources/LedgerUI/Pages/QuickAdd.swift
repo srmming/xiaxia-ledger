@@ -35,10 +35,31 @@ struct QuickAdd: View {
     @State var editing: FinanceCore.Transaction?
     @State var savedInARow = 0
     @State var didSetup = false
+    /// 分类、名称提示、常记的、用过的标签：打开时和换方向 / 账本时算一次。
+    /// 别每按一个键都把整本账翻一遍：账本大了 Mac 上打字会吞字（「Super」只剩「Sup」）。
+    @State var lists = Lists()
+    /// iPhone：计算器键盘露着没。选好分类就收起来，露出账户、日期、备注；点金额再弹出来。
+    @State var keypadUp = true
     @FocusState var focus: Field?
 
     enum Field: Hashable { case amount, name, category, note, tag }
     enum AccountSlot { case from, to }
+
+    struct Lists {
+        var categories: [String] = []
+        var names: [(name: String, category: String?)] = []
+        var frequent: [FinanceCore.Transaction] = []
+        var tags: [String] = []
+    }
+
+    private func refreshLists() {
+        let visible = Set(model.visibleAccounts.map(\.id))
+        lists = Lists(
+            categories: model.categories(bookID: bookID, income: income, limit: 60),
+            names: model.nameSuggestions("", income: income, limit: 500),
+            frequent: model.ledger.frequentEntries(income: income, limit: 6).filter { visible.contains($0.accountID) },
+            tags: model.ledger.allTags)
+    }
 
     private var income: Bool { kind == .income }
     private var isTransfer: Bool { kind == .transfer }
@@ -57,7 +78,7 @@ struct QuickAdd: View {
                 .scrollDismissesKeyboard(.interactively)
             // 打字（名称、备注、标签）时收起计算器键盘，按钮一直在。
             VStack(spacing: 8) {
-                if focus == nil { Keypad(text: $amountText) }
+                if focus == nil && keypadUp { Keypad(text: $amountText) }
                 actionButtons
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 8)
@@ -130,9 +151,16 @@ struct QuickAdd: View {
         .onDisappear { model.editingID = nil }
         .onChange(of: kind) { old, new in
             guard didSetup, old != new else { return }
+            refreshLists()
             if old != .transfer && new != .transfer { category = nil; customCategory = nil }
         }
-        .onChange(of: bookID) { _, _ in if let c = category, !allCategories.contains(c), c != customCategory { category = nil } }
+        .onChange(of: model.ledger.changes.count) { _, _ in if didSetup { refreshLists() } }
+        .onChange(of: model.ledger.profile.categories.count) { _, _ in if didSetup { refreshLists() } }
+        #if os(iOS)
+        // 选好分类、金额也有了：收起键盘，露出下面的账户、日期、备注。
+        .onChange(of: category) { _, c in if c != nil, amount != nil { withAnimation(.snappy) { keypadUp = false } } }
+        #endif
+        .onChange(of: bookID) { _, _ in if didSetup { refreshLists() }; if let c = category, !allCategories.contains(c), c != customCategory { category = nil } }
         .alert("新账户", isPresented: $askAccount) {
             TextField("名字，比如「现金」「银行卡」", text: $newName)
             Button("取消", role: .cancel) {}
@@ -202,7 +230,7 @@ struct QuickAdd: View {
                     .font(.system(size: 46, weight: .bold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.4)
                     .foregroundStyle(amountText.isEmpty ? Color.fg3 : amountColor)
-                    .onTapGesture { focus = nil }
+                    .onTapGesture { focus = nil; withAnimation(.snappy) { keypadUp = true } }
                 #else
                 TextField("0", text: $amountText)
                     .textFieldStyle(.plain)
@@ -219,6 +247,13 @@ struct QuickAdd: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
+            #if os(iOS)
+            .accessibilityAction { focus = nil; keypadUp = true }
+            .accessibilityHint(keypadUp ? "" : "点一下弹出计算器键盘")
+            if !keypadUp && focus == nil && !Money.isExpression(amountText) {
+                Text("点金额可以改").font(.caption2).foregroundStyle(Color.fg3)
+            }
+            #endif
             if Money.isExpression(amountText) {
                 Text(amount.map { "= \($0.formatted(in: accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)))" } ?? "算式还没写完")
                     .font(.callout.weight(.medium)).monospacedDigit()
@@ -235,8 +270,7 @@ struct QuickAdd: View {
 
     /// 最近常记的几笔：点一下全填好（金额、名称、分类、账户、账本），日期是今天。
     @ViewBuilder private var frequentRow: some View {
-        let visible = Set(model.visibleAccounts.map(\.id))
-        let list = model.ledger.frequentEntries(income: income, limit: 6).filter { visible.contains($0.accountID) }
+        let list = lists.frequent
         if !list.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("常记的，点一下就填好").font(.caption).foregroundStyle(Color.fg3)
@@ -282,12 +316,18 @@ struct QuickAdd: View {
 
     /// 名称：买了什么 / 在哪花的。下面一排是以前用过的名字，点一下填好，分类也带出来。
     private var nameField: some View {
-        let suggestions = model.nameSuggestions(name, income: income)
+        let q = name.trimmingCharacters(in: .whitespaces).lowercased()
+        let suggestions = Array(lists.names.lazy.filter { q.isEmpty || ($0.name.lowercased().contains(q) && $0.name.lowercased() != q) }.prefix(5))
         return VStack(alignment: .leading, spacing: 6) {
             TextField(income ? "名称，比如「工资」" : "名称，比如「超市」", text: $name)
                 .textFieldStyle(.plain)
                 .focused($focus, equals: .name)
                 .submitLabel(.done)
+                // 打的名字以前用过：回车就把上次的分类也带上（Mac 上不用摸鼠标就能记下）。
+                .onSubmit {
+                    let n = name.trimmingCharacters(in: .whitespaces).lowercased()
+                    if category == nil, let hit = lists.names.first(where: { $0.name.lowercased() == n }) { pick(hit) }
+                }
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .accessibilityLabel("名称")
@@ -328,7 +368,7 @@ struct QuickAdd: View {
     }
 
     /// 这个账本、这个方向能选的所有分类；格子里放不下的进「更多」。
-    private var allCategories: [String] { model.categories(bookID: bookID, income: income, limit: 60) }
+    private var allCategories: [String] { lists.categories }
     private var moreCategories: [String] { allCategories.filter { !categories.contains($0) } }
 
     private var categoryGrid: some View {
@@ -454,7 +494,7 @@ struct QuickAdd: View {
 
     /// 标签：已经加上的显示成小胶囊（点 × 去掉），后面能打新的；下面提示以前用过的。
     private var tagRow: some View {
-        let used = model.ledger.allTags.filter { t in !tags.contains(where: { $0.lowercased() == t.lowercased() }) }
+        let used = lists.tags.filter { t in !tags.contains(where: { $0.lowercased() == t.lowercased() }) }
         let q = tagDraft.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "#")).lowercased()
         let hints = Array(used.filter { q.isEmpty || $0.lowercased().contains(q) }.prefix(6))
         return VStack(alignment: .leading, spacing: 6) {
@@ -550,15 +590,17 @@ struct QuickAdd: View {
             amountText = t.amount.inputText
             name = t.description
             category = t.category
-            if let c = t.category, !categories.contains(c) { customCategory = c }
             bookID = t.bookID ?? model.defaultBookID
             accountID = t.accountID
             date = t.date.asDate
             note = t.note ?? ""
             tags = t.tagList
+            refreshLists()
+            if let c = t.category, !categories.contains(c) { customCategory = c }
         } else {
             if bookID.isEmpty { bookID = model.defaultBookID }
             if accountID.isEmpty { accountID = model.defaultAccountID }
+            refreshLists()
         }
         DispatchQueue.main.async { didSetup = true }
         #if os(macOS)
@@ -609,6 +651,7 @@ struct QuickAdd: View {
             if !bookID.isEmpty { model.lastBookID = bookID }
             if keepOpen {
                 savedInARow += 1
+                keypadUp = true
                 amountText = ""; name = ""; note = ""; tags = []; tagDraft = ""; frequency = nil
                 category = nil; customCategory = nil
             } else {
