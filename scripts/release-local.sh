@@ -66,11 +66,16 @@ mkdir -p "$REPO/dist"; DMG="$REPO/dist/夏夏账本-$VERSION.dmg"
 STAGE="$(mktemp -d)"; cp -R "$APP" "$STAGE/"; ln -s /Applications "$STAGE/应用程序"
 hdiutil create -volname "夏夏账本" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 codesign --force --timestamp --sign "$ID" "$DMG"
-echo "• 交给苹果公证（几分钟）"
-xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
-xcrun stapler staple "$DMG"
-spctl -a -vv -t install "$DMG"
-echo "做好了：$DMG"
+if xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
+  echo "• 交给苹果公证（几分钟）"
+  xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+  xcrun stapler staple "$DMG"
+  spctl -a -vv -t install "$DMG"
+  echo "做好了：$DMG"
+else
+  # 自己这台 Mac 用不需要公证；发给别人前要先 store-credentials（见 docs/DISTRIBUTE.md）。
+  echo "⚠︎ 钥匙串里还没有公证密码（$PROFILE），dmg 没公证，只适合自己用：$DMG"
+fi
 if [ "${1:-}" = "--install" ]; then
   osascript -e 'tell application "夏夏账本" to quit' 2>/dev/null || true; sleep 2
   DEST="$HOME/Applications/夏夏账本.app"
