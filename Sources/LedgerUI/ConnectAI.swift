@@ -53,9 +53,6 @@ extension LedgerModel {
     /// 「一键复制配置提示词」：粘给任何 AI，它自己配好。
     var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
 
-    /// 开始引导里交给 AI 的那段话：连上、问今天花了什么、记第一笔、问存钱心愿。
-    var aiWelcomePrompt: String { AIConnector.welcomePrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
-
     /// 有没有任何 AI 连过账本：写过账、握过手、或者配置里已经有了。
     var anyAIConnected: Bool {
         if !aiTools.isEmpty { return true }

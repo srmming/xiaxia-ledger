@@ -120,6 +120,10 @@ struct WelcomeView: View {
     @State private var tryStartedAt = Date()
     /// AI 真的来读过账本了（fin 握手）。
     @State private var handshakeSeen = false
+    /// 刚刚由夏夏写好设置的那个工具（要先重开它才看得到账本）。
+    @State private var justConnected: AIApp?
+    /// 连着了但一直没等到 AI 来：等了几轮（提醒一次「网页版连不到」）。
+    @State private var waitTicks = 0
     @State private var knownTransactions: Set<UUID> = []
     @State private var knownGoals: Set<UUID> = []
     /// AI 连上了：结尾是庆祝，不是「记第一笔试试」。
@@ -354,32 +358,43 @@ struct WelcomeView: View {
                 }
             } else {
                 pageBody(tryTitle, trySubtitle) {
-                    // 交给 AI 的那段话：卡片上是一句话的意思，复制的是完整指令。
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("「帮我连上夏夏账本，再问我今天花了什么」")
+                    if !linked.isEmpty {
+                        // 连着了：去 AI 里说这一句人话就行，怎么带着记第一笔由账本自己告诉 AI。
+                        Text("「\(AIConnector.welcomeSentence)」")
                             .font(.title2.weight(.semibold))
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("复制的是一段完整的指令：它会自己连上账本，带你记下第一笔；连不上也会告诉你为什么。")
-                            .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.horizontal, 18).padding(.vertical, 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.aiLine, lineWidth: 1))
-
-                    HStack(spacing: 8) {
-                        if handshakeSeen {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
-                            Text("已经读到账本，等它帮你记第一笔").font(.subheadline).foregroundStyle(Color.fg2)
-                        } else {
+                            .padding(.horizontal, 22).padding(.vertical, 20)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.aiLine, lineWidth: 1))
+                            .textSelection(.enabled)
+                        HStack(spacing: 8) {
+                            if handshakeSeen {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
+                                Text("已经读到账本，等它帮你记第一笔").font(.subheadline).foregroundStyle(Color.fg2)
+                            } else {
+                                ProgressView().controlSize(.small)
+                                Text("等待你的 AI 读取账本").font(.subheadline).foregroundStyle(Color.fg2)
+                            }
+                        }
+                    } else if toConnect.isEmpty {
+                        HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text("等待你的 AI 读取账本").font(.subheadline).foregroundStyle(Color.fg2)
+                            Text("装好以后我会自己认出来").font(.subheadline).foregroundStyle(Color.fg2)
                         }
                     }
                 } buttons: {
-                    primary("复制指令", symbol: "doc.on.doc", id: "welcome.ai.copyPrompt") {
-                        Clipboard.copy(model.aiWelcomePrompt)
-                        model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
+                    if !linked.isEmpty {
+                        primary("复制指令", symbol: "doc.on.doc", id: "welcome.ai.copyPrompt") {
+                            Clipboard.copy(AIConnector.welcomeSentence)
+                            model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
+                        }
+                    } else if !toConnect.isEmpty {
+                        primary("帮我连上", symbol: "link", id: "welcome.ai.connect") { Task { await connectFound() } }
+                    } else if let f = family {
+                        primary("去下载 \(f.install.name)", symbol: "arrow.down.circle", id: "welcome.ai.download") {
+                            if let u = URL(string: f.install.url) { openURL(u) }
+                        }
                     }
                     if handshakeSeen {
                         secondary("好了，进账本") { Task { await celebrate(who: nil, note: nil, goal: nil) } }
@@ -387,15 +402,13 @@ struct WelcomeView: View {
                         secondary("先跳过") { Task { await skipAI() } }
                     }
                 } extras: {
-                    if !toConnect.isEmpty {
-                        link("夏夏直接帮我连上", symbol: "link") { Task { await connectFound() } }
-                            .accessibilityIdentifier("welcome.ai.connect")
-                    } else if linked.isEmpty, let f = family {
-                        link("去下载 \(f.install.name)", symbol: "arrow.down.circle") {
-                            if let u = URL(string: f.install.url) { openURL(u) }
+                    if linked.isEmpty {
+                        // 用的是别的 AI 工具：让它照着配置指令自己连。
+                        link("用的是别的 AI？复制配置指令粘给它", symbol: "doc.on.doc") {
+                            Clipboard.copy(model.aiSetupPrompt)
+                            model.toast = .init(text: "已复制配置指令，粘给你的 AI，它会自己连上", changeID: nil)
                         }
-                    }
-                    if isPretend {
+                    } else if isPretend {
                         link("演示：假装 AI 记了一笔", symbol: "wand.and.stars") {
                             Task { await celebrate(who: family?.title ?? "AI", note: "咖啡 -3,50 €", goal: nil) }
                         }
@@ -429,15 +442,18 @@ struct WelcomeView: View {
     private var trySubtitle: String {
         guard let f = family else { return "" }
         if let first = linked.first {
-            return "复制下面的指令，粘给 \(first.name)。它会问你今天花了什么，帮你记下第一笔。"
+            if let justConnected { return "先\(justConnected.afterConnect)，再跟它说下面这句话，它会带你记下第一笔。" }
+            return "去 \(first.name) 里说下面这句话，它会带你记下第一笔。"
         }
         if !toConnect.isEmpty {
-            return "这台 Mac 上有 \(toConnect.map(\.name).joined(separator: "、"))。复制指令粘给它，它会自己连上账本，再问你今天花了什么。"
+            return "这台 Mac 上有 \(toConnect.map(\.name).joined(separator: "、"))，点一下我就帮你连上。我只在它的设置里加上「夏夏账本」这一项，别的都不动。"
         }
-        if f == .newbie {
-            return "推荐从 Claude 桌面版开始，最省事。装好、登录，再把下面的指令粘给它。"
+        switch f {
+        case .newbie: return "推荐从 Claude 桌面版开始，最省事。装好、登录，我会自己认出来，再帮你连上。"
+        case .chatgpt: return "ChatGPT 要通过它家的 Codex 才能读到这台电脑上的账本，用的还是你的 ChatGPT 账号。装好以后我再帮你连上。"
+        case .other: return "DeepSeek 这些要通过 Hermes Agent 这样的助手才能读到这台电脑上的账本。装好以后我再帮你连上。"
+        case .claude, .gemini: return "这台 Mac 上没找到 \(f.install.name)。装好以后我再帮你连上。"
         }
-        return "这台 Mac 上没找到 \(f.install.name)。已经在用的话，复制指令粘给它，它会告诉你怎么连；如果它是网页版、连不到这台电脑，也会直接告诉你。"
     }
 
     private var celebrationText: String {
@@ -666,6 +682,8 @@ struct WelcomeView: View {
         linked = f.apps.filter { c.isConnected($0) }
         toConnect = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
         handshakeSeen = false
+        justConnected = nil
+        waitTicks = 0
         tryStartedAt = Date()
         knownTransactions = Set(model.ledger.transactions.map(\.id))
         knownGoals = Set(model.ledger.goals.map(\.id))
@@ -695,11 +713,13 @@ struct WelcomeView: View {
         withAnimation(.smooth) {
             toConnect.removeAll { done.contains($0) }
             linked += done
+            justConnected = done.first
         }
-        if let first = done.first {
-            await say("连接上了！先\(first.afterConnect)，再把指令粘给它。", pose: .cheer)
+        waitTicks = 0
+        if done.first != nil {
+            await say("连接上了！", pose: .cheer)
         } else if !failed.isEmpty {
-            await say("\(failed.joined(separator: "、")) 没连上。把指令粘给它，让它自己连。", pose: .worried)
+            await say("\(failed.joined(separator: "、")) 没连上，等下去「设置」里再试试。", pose: .worried)
         }
     }
 
@@ -718,7 +738,7 @@ struct WelcomeView: View {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
                     withAnimation(.bouncy) { toConnect = found; partner = f.partner }
-                    await say("认出来了！你装好了 \(found[0].name)。", pose: .cheer)
+                    await say("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。", pose: .cheer)
                     continue
                 }
             }
@@ -740,6 +760,14 @@ struct WelcomeView: View {
                 withAnimation(.snappy) { handshakeSeen = true }
                 await say("我看到 \(who) 来读账本了！跟它说说今天花了什么吧。", pose: .cheer)
                 continue
+            }
+            if !handshakeSeen, !linked.isEmpty {
+                waitTicks += 1
+                if waitTicks == 30 {
+                    // 等了一分钟：多半是粘到了网页版 / 手机版，或者还没重开 AI。
+                    await say("还没等到。网页版和手机版的 AI 连不到这台电脑，要用装在电脑上的那个哦。", pose: .worried)
+                    continue
+                }
             }
             model.refreshIfChanged()
             let newTx = model.ledger.transactions.filter { !knownTransactions.contains($0.id) }

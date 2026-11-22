@@ -38,6 +38,7 @@ final class MCPServer {
     5. 不算收支的：借款和还款、存取目标、自己账户之间转钱、分期每期还款；分期买的那天按全额算支出；退款冲减原分类的支出。
     6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
     7. 用户说「这笔」「这个月」「我在看的这个」时，先用 current_view 看用户在 app 里停在哪、选中了哪一笔。答完想让用户在 app 里看到，用 open_in_app 让 app 跳过去、圈出那几笔。
+    8. 用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时：先调用 welcome，照它返回的步骤带用户走。
     """
     let protocolVersion = "2025-06-18"
 
@@ -110,6 +111,7 @@ enum MCPTools {
 
     static let list: [[String: Any]] = [
         tool("context", "说明书：账本、账户和余额、数据覆盖日期、借款合计、最近改动、统计口径。先调这个。", [:], readOnly: true),
+        tool("welcome", "新用户第一次记账的带路步骤。用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时先调这个，照返回的步骤做。", [:], readOnly: true),
         tool("list_transactions", "查流水。", [
             "book": prop("string", "账本 id，如 personal（fin books 能看到全部）；不填 = 全部"),
             "account": prop("string", "账户 id"),
@@ -424,6 +426,8 @@ enum MCPTools {
             return "已让 app 打开「\(request.page)」" + (ids.isEmpty ? "" : "，圈出 \(ids.count) 笔") + "。如果 app 没开，打开后 10 分钟内还会跳过去。"
         case "context":
             return try json(LedgerContext(ledger: ledger))
+        case "welcome":
+            return AIConnector.welcomeGuide
         case "list_transactions":
             let ym = try s("month").map { m -> YearMonth in
                 guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }

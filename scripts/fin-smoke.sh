@@ -239,6 +239,7 @@ call() { mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInf
          | tail -1 | python3 -c 'import json,sys; r=json.load(sys.stdin); res=r.get("result") or r; print(("出错 " if res.get("isError") else "") + "\n".join(c["text"] for c in res.get("content",[])) if "content" in res else json.dumps(r, ensure_ascii=False))'; }
 for spec in \
   'context|{}' \
+  'welcome|{}' \
   'list_transactions|{"month":"2026-11","limit":3}' \
   'list_transactions|{"query":"mercadona"}' \
   'list_transactions|{"include_private":true,"account":"stash"}' \
