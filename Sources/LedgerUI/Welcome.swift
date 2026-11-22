@@ -2,7 +2,8 @@ import FinanceCore
 import SwiftUI
 
 // 第一次打开（账本里还没有账户、没有流水）的开始引导。样子照 ming 给的稿（design/mockups/welcome-ming-2026-11-22.png）：
-// 左边一大块是夏夏（会动、会说话的气泡、飘着的泡泡），右边是三步：① 账本 ② 账户 ③ 连接 AI（只在 Mac）。
+// 左边一大块是夏夏（会动、会说话的气泡、飘着的泡泡），右边是四步：① 目标 ② 账本 ③ 账户 ④ 连接 AI（只在 Mac）。
+// 「目标」是用户记账最想做到的事（存进 profile.aim）：夏夏给意见、AI 帮忙记账都围着它说，最后撒花也祝的是它。
 // 每一步点选就行，也能自己加。选的账本和账户在进第三步前写进账本（进改动记录，能撤销）。「以后再说」随时能跳过。
 // 第三步问「你平时用哪个 AI」，夏夏自己看连没连上；给一段指令粘给 AI，由 AI 连上、问「今天花了什么」记第一笔；
 // app 等到 AI 真的来读账本、记下第一笔，就撒花说恭喜。
@@ -32,7 +33,34 @@ struct WelcomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
 
-    enum Step: Int { case hello, books, accounts, ai, done }
+    enum Step: Int { case hello, aim, books, accounts, ai, done }
+
+    /// 第一步「你记账最想做到什么」的几个现成答案。
+    struct AimOption: Identifiable, Hashable {
+        var id: String
+        var title: String
+        var symbol: String
+        /// 存进 profile.aim 的那句话。
+        var aim: String
+        /// 夏夏听到后回的话。
+        var reply: String
+    }
+
+    static let aimOptions: [AimOption] = [
+        AimOption(id: "save", title: "每个月存下一笔钱", symbol: "banknote", aim: "", reply: "好目标！我每个月帮你盯着。"),
+        AimOption(id: "clarity", title: "搞清楚钱都花哪了", symbol: "chart.pie", aim: "搞清楚钱都花哪了", reply: "交给我，每一笔都给你分好类。"),
+        AimOption(id: "less", title: "少花冤枉钱", symbol: "cart.badge.minus", aim: "少花冤枉钱，比如外卖和冲动网购", reply: "好，花多了我会提醒你。"),
+        AimOption(id: "debt", title: "先把欠的钱还清", symbol: "creditcard", aim: "先把信用卡和欠的钱还清", reply: "一笔一笔来，我陪你还完。"),
+        AimOption(id: "wish", title: "攒钱实现一个心愿", symbol: "gift", aim: "攒够钱，实现一个心愿", reply: "真好！心愿是什么，待会儿可以告诉 AI。"),
+        AimOption(id: "shop", title: "把生意的账管清楚", symbol: "storefront", aim: "把生意的收入和支出管清楚", reply: "好，生意的账和生活的分开算。"),
+    ]
+    static let saveAmounts = [100, 200, 300, 500, 1000]
+
+    /// 整数欧元，写成「300 €」「1.000 €」（目标里不要 ,00）。
+    static func euros(_ n: Int) -> String {
+        let full = Money(cents: Int64(n) * 100).formatted
+        return full.hasSuffix(",00 €") ? String(full.dropLast(5)) + " €" : full
+    }
 
     struct Choice: Identifiable, Hashable {
         var name: String
@@ -98,6 +126,10 @@ struct WelcomeView: View {
         Choice(name: "旅行", symbol: "airplane"),
     ]
     @State private var pickedBooks: Set<String> = []
+    /// 第一步选的目标（现成的 id，或 "custom"）。
+    @State private var pickedAim: String?
+    @State private var saveAmount = 300
+    @State private var customAim: String?
     @State private var accountChoices: [Choice] = [
         Choice(name: "现金", glyph: AccountKind.cash.glyph, accountKind: .cash),
         Choice(name: "银行卡", glyph: AccountKind.bank.glyph, accountKind: .bank),
@@ -278,7 +310,7 @@ struct WelcomeView: View {
 
     private var pageKey: String { "\(step.rawValue)-\(aiMode == .choose ? "a" : "b")-\(celebrated)" }
 
-    private var stepNames: [String] { aiStepAvailable ? ["账本", "账户", "连接 AI"] : ["账本", "账户"] }
+    private var stepNames: [String] { aiStepAvailable ? ["目标", "账本", "账户", "连接 AI"] : ["目标", "账本", "账户"] }
 
     private func stepper(big: Bool) -> some View {
         let dot: CGFloat = big ? 34 : 26
@@ -317,10 +349,53 @@ struct WelcomeView: View {
     private var page: some View {
         switch step {
         case .hello:
-            pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(aiStepAvailable ? "三" : "两")个小问题，一分钟就好。") {
+            pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(aiStepAvailable ? "四" : "三")个小问题，一分钟就好。") {
                 EmptyView()
             } buttons: {
-                primary("开始", id: "welcome.start") { Task { await toBooks() } }
+                primary("开始", id: "welcome.start") { Task { await toAim() } }
+            }
+        case .aim:
+            pageBody("你记账最想做到什么？", "选一个最重要的。以后夏夏给你意见、AI 帮你记账，都会围着它说。") {
+                FlowLayout(spacing: 8) {
+                    ForEach(Self.aimOptions) { o in
+                        chip(o.title, symbol: o.symbol, on: pickedAim == o.id) { pickAim(o.id) }
+                    }
+                    if let customAim {
+                        chip(customAim, symbol: "pencil", on: pickedAim == "custom") { pickAim("custom") }
+                    }
+                }
+                if pickedAim == "save" {
+                    // 存钱要有个数才好盯：点一个，夏夏按这个数每月看你存没存到。
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("每个月想存多少？").font(.headline).foregroundStyle(Color.fg2)
+                        FlowLayout(spacing: 8) {
+                            ForEach(Self.saveAmounts, id: \.self) { n in
+                                chip(Self.euros(n), symbol: "eurosign", on: saveAmount == n) { saveAmount = n }
+                            }
+                        }
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                customField("自己写一个，比如「明年攒够房子首付」") { text in
+                    customAim = text
+                    if pickedAim == "custom" { Task { await say("好，我记住了！", pose: .cheer) } } else { pickAim("custom") }
+                }
+                if let aimText {
+                    HStack(spacing: 10) {
+                        Image(systemName: "flag.checkered").foregroundStyle(Color.ai)
+                        Text("我的目标：").foregroundStyle(Color.fg2)
+                        Text(aimText).fontWeight(.semibold)
+                    }
+                    .font(.title3)
+                    .padding(.horizontal, 20).padding(.vertical, 14)
+                    .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.aiLine, lineWidth: 1))
+                    .transition(.opacity)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("welcome.aim.summary")
+                }
+            } buttons: {
+                primary(aimText == nil ? "先不定，下一步" : "就定这个", id: "welcome.aim.next") { Task { await toBooks() } }
             }
         case .books:
             pageBody("你需要几个账本？", "一个账本就是一摊分开算的钱。生活和开店的钱不想混在一起，就开两个。") {
@@ -484,11 +559,21 @@ struct WelcomeView: View {
         }
     }
 
+    /// 第一步选好的目标，存进账本的那句话（没选就是 nil）。
+    private var aimText: String? {
+        guard let pickedAim else { return nil }
+        if pickedAim == "custom" { return customAim }
+        if pickedAim == "save" { return "每个月存下 \(Self.euros(saveAmount))" }
+        return Self.aimOptions.first { $0.id == pickedAim }?.aim
+    }
+
     private var celebrationText: String {
         var parts: [String] = []
         if let celebrationNote { parts.append("第一笔记下了：\(celebrationNote)。") }
         if let celebrationGoal {
             parts.append("祝你早日达成「\(celebrationGoal)」！")
+        } else if let aim = model.ledger.profile.aim {
+            parts.append("祝你早日做到「\(aim)」！")
         } else {
             parts.append("祝你想存的钱都存到，心愿一个个达成。")
         }
@@ -642,11 +727,12 @@ struct WelcomeView: View {
         withAnimation(.smooth(duration: 0.35)) { step = next }
     }
 
-    private var canGoBack: Bool { step == .accounts || step == .ai }
+    private var canGoBack: Bool { step == .books || step == .accounts || step == .ai }
 
     private func goBack() {
         switch step {
-        case .books: go(.hello)
+        case .aim: go(.hello)
+        case .books: go(.aim)
         case .accounts: go(.books)
         case .ai:
             if aiMode == .trying {
@@ -674,9 +760,35 @@ struct WelcomeView: View {
         await say("嗨，我是夏夏！", pose: .hello)
     }
 
+    private func toAim() async {
+        // 以前定过（比如在「夏夏建议」页）：直接选上，用户点「就定这个」就行。
+        if pickedAim == nil, let old = model.ledger.profile.aim {
+            if let o = Self.aimOptions.first(where: { $0.aim == old && !$0.aim.isEmpty }) {
+                pickedAim = o.id
+            } else if let n = Self.saveAmounts.first(where: { "每个月存下 \(Self.euros($0))" == old }) {
+                pickedAim = "save"; saveAmount = n
+            } else {
+                customAim = old; pickedAim = "custom"
+            }
+        }
+        go(.aim)
+        await say("先说说，你记账最想做到什么？", pose: .think)
+    }
+
+    private func pickAim(_ id: String) {
+        withAnimation(.snappy) { pickedAim = pickedAim == id ? nil : id }
+        guard pickedAim == id else { return }
+        let reply = id == "custom" ? "好，我记住了！" : Self.aimOptions.first { $0.id == id }?.reply ?? "好！"
+        Task { await say(reply, pose: .cheer) }
+    }
+
     private func toBooks() async {
+        // 目标马上存进账本（进改动记录，能撤销）：中途点「以后再说」也不会丢。
+        if let aimText, aimText != model.ledger.profile.aim {
+            _ = try? model.edit(quiet: true) { try $0.setAim(aimText, author: model.author) }
+        }
         go(.books)
-        await say("「个人」我已经帮你建好了。", pose: .idle)
+        await say(aimText == nil ? "目标以后想好再定也行。「个人」账本我已经帮你建好了。" : "记住了！「个人」账本我已经帮你建好了。", pose: .idle)
     }
 
     private func toAccounts() async {
