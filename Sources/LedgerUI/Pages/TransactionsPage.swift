@@ -236,6 +236,17 @@ struct TransactionDetail: View {
     let tx: Transaction
     @State var confirmDelete = false
 
+    /// 外币流水换成主币种：「≈ 18,40 € · 按 11 月 2 日欧洲央行汇率」。
+    private func fxLine(_ code: String) -> String {
+        let l = model.ledger
+        let base = l.baseAmount(tx).magnitude.formatted(in: l.baseCurrency)
+        if let fx = tx.fx, fx.base == l.baseCurrency {
+            return "≈ \(base) · \(fx.source == "ecb" ? "\(fx.date.month) 月 \(fx.date.day) 日\(fx.sourceLabel)汇率" : fx.sourceLabel)"
+        }
+        if let r = l.rateToBase(code, on: tx.date) { return "≈ \(base) · \(r.date.month) 月 \(r.date.day) 日欧洲央行汇率" }
+        return "还没有汇率，先按 1:1 算"
+    }
+
     private var editable: Bool {
         #if os(macOS)
         true
@@ -251,7 +262,8 @@ struct TransactionDetail: View {
                 Text(Merchant.display(tx.description)).font(.headline)
                 Text(tx.date.friendly == "今天" ? "今天 · \(tx.date.short)" : tx.date.friendly).font(.caption).foregroundStyle(Color.fg2)
             }
-            Text(tx.flow == nil ? tx.amount.display : tx.amount.magnitude.formatted)
+            let code = model.ledger.currency(ofAccount: tx.accountID)
+            Text(tx.flow == nil ? tx.amount.display(in: code) : tx.amount.magnitude.formatted(in: code))
                 .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tx.flow != nil ? Color.fg3 : tx.amount.isIncome ? Color.income : .primary)
             VStack(spacing: 0) {
@@ -285,6 +297,16 @@ struct TransactionDetail: View {
                 }
                 Divider()
                 row("账户") { Text(model.accountName(tx.accountID)) }
+                if let o = tx.original {
+                    Divider()
+                    row("原价") { Text(o.formatted).monospacedDigit() }
+                }
+                if code != model.ledger.baseCurrency {
+                    Divider()
+                    row("约合") {
+                        Text(fxLine(code)).monospacedDigit().multilineTextAlignment(.trailing)
+                    }
+                }
                 if Merchant.display(tx.description) != tx.description {
                     Divider()
                     row("银行原文") { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }

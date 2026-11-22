@@ -4,8 +4,33 @@ import SwiftUI
 /// 计划：离目标还差多少？视觉重心是最快到期（或最接近完成）的目标，一个大进度环。右上角「新计划」自己登记。
 struct PlansPage: View {
     @Environment(LedgerModel.self) var model
+    /// iPhone 上分两格：目标（含分期、借款）/ 订阅。
+    @State private var showSubscriptions = false
 
     var body: some View {
+        #if os(iOS)
+        VStack(spacing: Kit.gap) {
+            Picker("看哪个", selection: $showSubscriptions) {
+                Text("目标").tag(false)
+                Text("订阅").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("plansTab")
+            if showSubscriptions {
+                SubscriptionsCard()
+                AskAICard(title: "让夏夏帮你找订阅", note: nil, page: "计划",
+                          prompts: [AIPrompt(kind: "订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本")])
+            } else {
+                plans
+            }
+        }
+        .kitPage()
+        #else
+        plans.kitPage()
+        #endif
+    }
+
+    @ViewBuilder private var plans: some View {
         let goals = filteredGoals
         let installments = Plans.installments(model.ledger).filter { i in
             model.selectedBookID == nil || model.ledger.installments.first { $0.id == i.id }?.bookID == model.selectedBookID
@@ -23,6 +48,9 @@ struct PlansPage: View {
                         newPlanButton
                     }
                     .kitCard()
+                    #if os(macOS)
+                    SubscriptionsCard()
+                    #endif
                     AskAICard(title: "想加目标、记欠款、记分期？", note: nil, page: "计划", prompts: model.prompts(for: .plans))
                 }
             } else {
@@ -37,6 +65,9 @@ struct PlansPage: View {
                                question: "看看我的存钱目标、分期和借款：照现在的速度来得及吗？要怎么调整？")
                     if goals.count > 1 { otherGoals(Array(goals.dropFirst())) }
                 } side: {
+                    #if os(macOS)
+                    SubscriptionsCard()
+                    #endif
                     if !installments.isEmpty { installmentsCard(installments) }
                     if !debts.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
@@ -55,7 +86,6 @@ struct PlansPage: View {
                 }
             }
         }
-        .kitPage()
     }
 
     /// 有截止日期的排前面（越早越前），再按完成度。

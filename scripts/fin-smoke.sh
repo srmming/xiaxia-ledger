@@ -157,6 +157,32 @@ echo; echo "===== 私房钱是否隐藏 ====="
 echo "（stash 账户里有一笔 -20 私房零花）"
 "$FIN" tx | grep -q 私房零花 && echo "fin tx：显示了私房钱" || echo "fin tx：没显示私房钱"
 
+echo; echo "===== 多币种（不联网：没取过汇率时外币先按 1:1 算） ====="
+run account add usdcard 美元卡 --currency USD
+expect_fail account add bad 坏币种 --currency XYZ
+run add --account usdcard --book personal --category 软件 --date 2026-11-02 -- -20 OpenAI
+run add --account caixa --book personal --category 旅行 --date 2026-11-05 --original "50 USD" -- -46,12 Hotel
+run fx
+run accounts
+run tx --limit 3
+ID_USD=$("$FIN" tx --account usdcard | head -1 | cut -f1)
+run fx set-rate "$ID_USD" --bank 18,40
+run fx set-rate "$ID_USD" --rate 0,9 --dry-run
+run summary --month 2026-11
+run fx base USD --dry-run
+
+echo; echo "===== 订阅 ====="
+for m in 07 08 09 10 11; do "$FIN" add --account caixa --book personal --category 娱乐 --date 2026-$m-03 -- -12,99 "NETFLIX.COM 866" >/dev/null; done
+run subscription find
+run subscription add 视频会员 12,99 --next 2026-12-03 --account caixa --match netflix --category 娱乐
+run subscription add 云盘 29,99 --cycle yearly --next 2027-02-01
+expect_fail subscription add 坏周期 5 --cycle biweekly --next 2027-01-01
+run subscriptions
+run subscription edit 视频 --amount 13,99
+run subscription cancel 云盘
+run subscriptions --all --json
+run subscription find
+
 echo; echo "===== MCP ====="
 mcp() { printf '%s\n' "$@" | "$FIN" mcp 2>&1; }
 mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"smoke-client","version":"1"}}}' \
@@ -212,6 +238,15 @@ for spec in \
   'set_profile|{"persona":"sharp","aim":"每个月存下 500 €"}' \
   'set_profile|{"persona":"pirate"}' \
   'list_insights|{}' 'ai_status|{}' \
+  'currency|{}' \
+  'set_account_currency|{"account":"pot","currency":"CNY","dry_run":true}' \
+  'set_base_currency|{"currency":"XYZ"}' \
+  'add_transaction|{"amount":"-30","description":"国外刷卡","account":"cash","book":"personal","original":"35 USD","dry_run":true}' \
+  'subscriptions|{}' 'find_subscriptions|{}' \
+  'add_subscription|{"name":"音乐会员","amount":"10,99","cycle":"monthly","next_date":"2026-12-10","account":"caixa"}' \
+  'edit_subscription|{"subscription":"音乐会员","amount":"11,99"}' \
+  'edit_subscription|{"subscription":"音乐会员","cancel":true,"dry_run":true}' \
+  'remove_subscription|{"subscription":"没有这个"}' \
   'nope|{}' ; do
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
   call "${spec%%|*}" "${spec#*|}"

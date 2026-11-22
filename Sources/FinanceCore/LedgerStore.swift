@@ -27,7 +27,9 @@ public struct JSONFileLedgerStore: LedgerStore {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(Ledger.self, from: data)
+        let ledger = try decoder.decode(Ledger.self, from: data)
+        Money.defaultCurrency = ledger.currency.base
+        return ledger
     }
 
     public func save(_ ledger: Ledger) throws {

@@ -178,7 +178,7 @@ struct QuickAdd: View {
                 .fixedSize()
                 .frame(minWidth: 90)
             #endif
-            Text("€").font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
+            Text(Currencies.info(accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)).symbol).font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

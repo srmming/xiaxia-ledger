@@ -14,7 +14,7 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public init(url: URL) { self.url = url }
 
-    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights"]
+    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions"]
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
@@ -34,6 +34,7 @@ public struct SQLiteLedgerStore: LedgerStore {
         ledger.installments = try rows("installments", Installment.self)
         ledger.goals = try rows("goals", Goal.self)
         ledger.insights = try rows("insights", Insight.self)
+        ledger.subscriptions = try rows("subscriptions", Subscription.self)
         if let v = try db.query("SELECT value FROM meta WHERE key = 'schemaVersion'").first, let n = Int(v) { ledger.schemaVersion = n }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'lastStatementDate'").first {
             ledger.lastStatementDate = try dec.decode([String: LocalDate].self, from: Data(v.utf8))
@@ -42,6 +43,11 @@ public struct SQLiteLedgerStore: LedgerStore {
         if let v = try db.query("SELECT value FROM meta WHERE key = 'profile'").first {
             ledger.profile = (try? dec.decode(Profile.self, from: Data(v.utf8))) ?? Profile()
         }
+        // 主币种和汇率表（2026-11-22 加）。没有就是欧元。
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'currency'").first {
+            ledger.currency = (try? dec.decode(CurrencySettings.self, from: Data(v.utf8))) ?? CurrencySettings()
+        }
+        Money.defaultCurrency = ledger.currency.base
         return ledger
     }
 
@@ -74,9 +80,11 @@ public struct SQLiteLedgerStore: LedgerStore {
             for (i, x) in ledger.installments.enumerated() { try db.run("INSERT INTO installments (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
             for (i, g) in ledger.goals.enumerated() { try db.run("INSERT INTO goals (id, seq, json) VALUES (?, ?, ?)", [g.id.uuidString, i, js(g)]) }
             for (i, x) in ledger.insights.enumerated() { try db.run("INSERT INTO insights (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
+            for (i, x) in ledger.subscriptions.enumerated() { try db.run("INSERT INTO subscriptions (id, seq, json) VALUES (?, ?, ?)", [x.id.uuidString, i, js(x)]) }
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('profile', ?)", [js(ledger.profile)])
+            try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('currency', ?)", [js(ledger.currency)])
             try db.exec("COMMIT")
         } catch {
             try? db.exec("ROLLBACK")
@@ -93,7 +101,7 @@ public struct LedgerReadError: Error, LocalizedError {
 
     public var errorDescription: String? {
         let names = ["books": "账本", "accounts": "账户", "transactions": "流水", "changes": "改动记录",
-                     "debts": "借款", "installments": "分期", "goals": "存钱目标", "insights": "AI 意见"]
+                     "debts": "借款", "installments": "分期", "goals": "存钱目标", "insights": "AI 意见", "subscriptions": "订阅"]
         var detail = underlying.localizedDescription
         if let e = underlying as? DecodingError {
             switch e {
@@ -147,6 +155,7 @@ final class SQLiteDB {
             CREATE TABLE IF NOT EXISTS installments (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS insights (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS subscriptions (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             """)
     }
 

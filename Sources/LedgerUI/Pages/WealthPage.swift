@@ -109,12 +109,23 @@ struct WealthPage: View {
                                 Text(subtitle(a)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
                             }
                             Spacer()
-                            Text(b.balance).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
+                            if let approx = model.approxBaseText(a.id) {
+                                VStack(alignment: .trailing, spacing: 1) {
+                                    Text(model.balanceText(a.id)).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
+                                    Text(approx).font(.caption2).foregroundStyle(Color.fg2).monospacedDigit()
+                                }
+                            } else {
+                                Text(b.balance).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
+                            }
                         }
                         .padding(.vertical, 6)
                         .accessibilityElement(children: .combine)
                     }
                 }
+            }
+            if model.visibleAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
+                Text("外币账户按今天的汇率换成\(Currencies.info(model.ledger.baseCurrency).name)，算进净资产。")
+                    .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
             }
             if hiddenCount > 0 {
                 Divider().padding(.vertical, 6)

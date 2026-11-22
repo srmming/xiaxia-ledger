@@ -181,7 +181,7 @@ struct TxRow: View {
                 }
             }
             Spacer(minLength: 8)
-            AmountText(money: tx.amount, neutral: internalMove)
+            AmountText(money: tx.amount, neutral: internalMove, currency: model.ledger.currency(ofAccount: tx.accountID))
         }
         .padding(.vertical, 7)
         .contentShape(Rectangle())
@@ -213,8 +213,8 @@ struct BookCard: View {
 
     var body: some View {
         let months = Reports.months(endingAt: model.shownMonth, count: 6)
-        let list = Reports.summaries(model.ledger.transactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
-        let now = list.last ?? Summaries.monthly(model.ledger.transactions, month: model.shownMonth, bookID: book.id)
+        let list = Reports.summaries(model.baseTransactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
+        let now = list.last ?? Summaries.monthly(model.baseTransactions, month: model.shownMonth, bookID: book.id)
         Button {
             withAnimation(.snappy) { model.selectedBookID = book.id }
         } label: {
