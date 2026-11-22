@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import Security
+#endif
 
 /// 存储接口。app 和 CLI 都通过它读写同一份账本。
 /// 第一版先用一个 JSON 文件（简单、好查、AI 也读得懂）；正式存储方案（SQLite / iCloud 同步）另定，换实现不改调用方。
@@ -89,6 +92,20 @@ public enum LedgerStores {
         FileManager.default.url(forUbiquityContainerIdentifier: containerID)?.appendingPathComponent("Documents")
     }
 
+    /// 这个 app 签名时带没带 iCloud 容器权限。Mac 上没签名的开发版也能从系统拿到容器文件夹，
+    /// 但苹果不会同步它（2026-11-22 在 ming 的 Mac 上遇到过：账本被搬进了一个不同步的文件夹），所以要先看权限。
+    /// iPhone 上没权限时系统本来就不给容器，这里直接算有。
+    public static var hasICloudEntitlement: Bool {
+        #if os(macOS)
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, "com.apple.developer.ubiquity-container-identifiers" as CFString, nil)
+        else { return false }
+        return (value as? [String])?.contains(containerID) == true
+        #else
+        return true
+        #endif
+    }
+
     /// 从旧位置（iCloud 云盘根目录下「夏夏账本」文件夹）搬到 app 的 iCloud 容器：只复制，旧文件留着当备份。
     /// 容器里已经有账本就什么都不做。返回搬了没有。
     @discardableResult
@@ -161,7 +178,7 @@ public enum LedgerStores {
     /// iPhone 上没有容器（没开 iCloud）时用本机的账本。
     public static func appStore() -> any LedgerStore {
         if ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"]?.isEmpty == false { return defaultStore() }
-        if let docs = ubiquityDocuments() {
+        if hasICloudEntitlement, let docs = ubiquityDocuments() {
             try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
             #if os(macOS)
             migrateToContainer(docs)
