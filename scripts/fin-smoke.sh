@@ -303,6 +303,11 @@ for spec in \
   call "${spec%%|*}" "${spec#*|}"
 done
 
+echo; echo "import_rows 预演（AI 读懂 Excel / PDF / 支付宝账单后批量导入）："
+if call import_rows '{"account":"cash","rows":[{"date":"2026-11-03","amount":"-12,50","description":"烟测超市"},{"date":"bad","amount":"1","description":"x"}],"dry_run":true}' | grep -q "读到 1 笔"; then
+  echo "读到 1 笔，坏的那行跳过了"
+else echo "↳ import_rows 预演不对"; FAILS=$((FAILS + 1)); fi
+
 echo; echo "open_in_app 留给 app 的纸条："
 if grep -q '"花销"' "$WORK/open.json" 2>/dev/null; then cat "$WORK/open.json"; else echo "↳ 没写出 open.json"; FAILS=$((FAILS + 1)); fi
 

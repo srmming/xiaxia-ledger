@@ -113,8 +113,9 @@ public final class XiaxiaChatState {
         let prompt = ChatRunner.prompt(question: question, voice: model.ledger.profile.persona.instruction, aim: model.ledger.profile.aim,
                                        where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
         let resume = engine == .claude ? session : nil
+        let aiModel = self.model   // 这里的参数 model 是账本（LedgerModel），选的 AI 模型是 self.model
         Task {
-            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path, model: model)
+            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path, model: aiModel)
             if engine == .claude, let s = reply.sessionID { session = s }
             messages.append(Message(fromUser: false, text: reply.text, isError: reply.isError, engine: engine.name))
             busy = false
