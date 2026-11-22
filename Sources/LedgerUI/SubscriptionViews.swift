@@ -88,7 +88,7 @@ struct SubscriptionsCard: View {
     }
 
     @ViewBuilder private func totalsText(_ t: SubscriptionTotals, base: String) -> some View {
-        Text(t.monthly.formatted(in: base))
+        Text(t.monthly.ui(in: base))
             .font(.system(.title, design: .rounded).weight(.bold)).monospacedDigit()
             .contentTransition(.numericText(value: Double(t.monthly.cents)))
         Text("每月固定在扣 · 一年约 \(roundedText(t.yearly, base))")
@@ -96,7 +96,7 @@ struct SubscriptionsCard: View {
     }
 
     private func roundedText(_ m: Money, _ code: String) -> String {
-        Money(cents: (m.cents + 50) / 100 * 100).formatted(in: code).replacingOccurrences(of: ",00 ", with: " ")
+        Money(cents: (m.cents + 50) / 100 * 100).ui(in: code).replacingOccurrences(of: ",00\u{00A0}", with: "\u{00A0}")
     }
 
     private func row(_ s: SubscriptionStatus) -> some View {
@@ -109,10 +109,10 @@ struct SubscriptionsCard: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(s.amount.formatted(in: s.currency)).font(.kitAmount).lineLimit(1)
+                Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
                     .foregroundStyle(s.cancelledOn == nil ? Color.primary : Color.fg3)
                 if s.currency != model.ledger.baseCurrency, s.cancelledOn == nil {
-                    Text("≈ " + model.ledger.toBase(s.amount, currency: s.currency, on: .today).formatted(in: model.ledger.baseCurrency))
+                    Text("≈ " + model.ledger.toBase(s.amount, currency: s.currency, on: .today).ui(in: model.ledger.baseCurrency))
                         .font(.caption2).foregroundStyle(Color.fg2)
                 }
             }
@@ -129,7 +129,7 @@ struct SubscriptionsCard: View {
         else if let n = s.nextDate, let d = s.daysLeft {
             parts.append("下次 \(n.short)" + (d == 0 ? "（今天）" : d <= 14 ? "（\(d) 天后）" : ""))
         }
-        if s.priceChanged, let last = s.lastChargeAmount { parts.append("最近一次扣了 \(last.formatted(in: s.currency))，可能涨价了") }
+        if s.priceChanged, let last = s.lastChargeAmount { parts.append("最近一次扣了 \(last.ui(in: s.currency))，可能涨价了") }
         if let a = s.accountID, model.ledger.accounts.count > 1 { parts.append(model.accountName(a)) }
         return parts.joined(separator: " · ")
     }
@@ -142,7 +142,7 @@ struct SubscriptionsCard: View {
                     Button {
                         var u = sub; u.amount = last
                         model.perform { try $0.editSubscription(u, author: model.author) }
-                    } label: { Label("按最近一次改成 \(last.formatted(in: s.currency))", systemImage: "arrow.up.circle") }
+                    } label: { Label("按最近一次改成 \(last.ui(in: s.currency))", systemImage: "arrow.up.circle") }
                 }
                 if sub.isActive {
                     Button { model.perform { try $0.cancelSubscription(sub.id, author: model.author) } } label: {
@@ -168,7 +168,7 @@ struct SubscriptionsCard: View {
             CategoryIcon(category: c.category ?? "订阅", size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.name).font(.callout).lineLimit(1)
-                Text("\(c.cycle.label) \(c.amount.formatted(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)")
+                Text("\(c.cycle.label) \(c.amount.ui(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)")
                     .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
             }
             Spacer(minLength: 8)
@@ -308,10 +308,10 @@ struct SubscriptionEditor: View {
     private func footer(_ amount: Money) -> String {
         let base = model.ledger.baseCurrency
         let monthly = perMonth(amount)
-        var text = "\(draft.cycle.label) \(amount.formatted(in: draft.currency))"
-        if draft.cycle != .monthly { text += "，摊到每月约 \(monthly.formatted(in: draft.currency))" }
+        var text = "\(draft.cycle.label) \(amount.ui(in: draft.currency))"
+        if draft.cycle != .monthly { text += "，摊到每月约 \(monthly.ui(in: draft.currency))" }
         if draft.currency != base {
-            text += "，约合 \(model.ledger.toBase(amount, currency: draft.currency, on: .today).formatted(in: base))"
+            text += "，约合 \(model.ledger.toBase(amount, currency: draft.currency, on: .today).ui(in: base))"
         }
         return text + "。"
     }

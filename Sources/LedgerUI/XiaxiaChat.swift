@@ -250,7 +250,7 @@ struct XiaxiaChatPanel: View {
             if m.fromUser { Spacer(minLength: 40) } else {
                 MascotView(.xiaxia, pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
             }
-            Text(LocalizedStringKey(m.text))
+            Text(LocalizedStringKey(m.text.keepingAmountsTogether))
                 .font(.callout)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

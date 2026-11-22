@@ -214,7 +214,7 @@ struct PlansPage: View {
                         PlanRowMenu(target: .installment(i.id), name: i.name)
                     }
                     SegmentedProgress(done: i.paidCount, total: i.count)
-                    Text("每期 \(i.perPayment.formatted)" + (i.nextDate.map { " · 下一期 \($0.short)" } ?? " · 已还完"))
+                    Text("每期 \(i.perPayment.ui)" + (i.nextDate.map { " · 下一期 \($0.short)" } ?? " · 已还完"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
                 .accessibilityElement(children: .contain)

@@ -106,7 +106,7 @@ struct SpendingPage: View {
                             }
                             Bar(fraction: Double(c.amount.cents) / maxAmount, color: CategoryStyle.color(c.name), height: 5)
                         }
-                        Text(c.amount.formatted).font(.kitAmount).frame(minWidth: 86, alignment: .trailing)
+                        Text(c.amount.ui).font(.kitAmount).frame(minWidth: 86, alignment: .trailing)
                     }
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())
@@ -131,7 +131,7 @@ struct SpendingPage: View {
                         Text(m.category == nil ? "未分类 · \(m.count) 笔" : m.category == m.name ? "\(m.count) 笔" : "\(m.category!) · \(m.count) 笔").font(.caption).foregroundStyle(Color.fg2)
                     }
                     Spacer()
-                    Text(m.amount.formatted).font(.kitAmount)
+                    Text(m.amount.ui).font(.kitAmount)
                 }
                 .padding(.vertical, 6)
                 .accessibilityElement(children: .combine)

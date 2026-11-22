@@ -8,14 +8,14 @@ extension LedgerModel {
     func balanceText(_ accountID: String) -> String {
         let code = ledger.currency(ofAccount: accountID)
         let native = nativeBalances[accountID] ?? .zero
-        let text = native.magnitude.formatted(in: code)
+        let text = native.magnitude.ui(in: code)
         return native.cents < 0 ? "\u{2212}" + text : text
     }
 
     /// 外币账户约合多少主币种（主币种账户返回 nil）。
     func approxBaseText(_ accountID: String) -> String? {
         guard ledger.currency(ofAccount: accountID) != ledger.baseCurrency else { return nil }
-        return "≈ " + (balances[accountID] ?? .zero).formatted(in: ledger.baseCurrency)
+        return "≈ " + (balances[accountID] ?? .zero).ui(in: ledger.baseCurrency)
     }
 
     /// 汇率一行的说明：「欧洲央行 · 11 月 21 日的」「还没取过」。
@@ -80,7 +80,7 @@ struct CurrencySettingsRows: View {
                 .accessibilityIdentifier("baseCurrency")
             }
             row(symbol: "textformat.123", title: "金额写法") {
-                Text(Money(cents: 123456).formatted(in: base)).foregroundStyle(Color.fg2).monospacedDigit()
+                Text(Money(cents: 123456).ui(in: base)).foregroundStyle(Color.fg2).monospacedDigit()
             }
             row(symbol: "arrow.left.arrow.right", title: "汇率") {
                 HStack(spacing: 8) {
