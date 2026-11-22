@@ -35,6 +35,8 @@ struct WelcomeView: View {
         let id = UUID()
         var fromXia: Bool
         var text: String
+        /// 气泡里另起几行的小清单（比如连着的 AI），每个前面一个绿勾。
+        var items: [String] = []
     }
 
     struct Choice: Identifiable, Hashable {
@@ -155,14 +157,29 @@ struct WelcomeView: View {
     private func bubble(_ m: Message) -> some View {
         HStack {
             if !m.fromXia { Spacer(minLength: 40) }
-            Text(m.text)
-                .font(.body)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(m.text).font(.body)
+                if !m.items.isEmpty {
+                    FlowLayout(spacing: 6) {
+                        ForEach(m.items, id: \.self) { item in
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
+                                Text(item)
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(Color.incomeSoft, in: Capsule())
+                        }
+                    }
+                }
+            }
                 .foregroundStyle(m.fromXia ? Color.primary : Color.white)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(m.fromXia ? Color.cardBackground : Color.brand,
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel(m.fromXia ? "夏夏：\(m.text)" : "你：\(m.text)")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel((m.fromXia ? "夏夏：" : "你：") + m.text + (m.items.isEmpty ? "" : " " + m.items.joined(separator: "、")))
             if m.fromXia { Spacer(minLength: 40) }
         }
     }
@@ -333,12 +350,12 @@ struct WelcomeView: View {
     // MARK: 对话怎么走
 
     /// 夏夏说一句：先冒三个点，再出字。
-    private func say(_ text: String, pose newPose: MascotPose? = nil) async {
+    private func say(_ text: String, items: [String] = [], pose newPose: MascotPose? = nil) async {
         if let newPose { withAnimation(.bouncy) { pose = newPose } }
         withAnimation(.snappy) { typing = true }
         try? await Task.sleep(for: .seconds(reduceMotion ? 0.15 : min(1.1, 0.45 + Double(text.count) * 0.012)))
         withAnimation(.bouncy(duration: 0.4)) {
-            messages.append(Message(fromXia: true, text: text))
+            messages.append(Message(fromXia: true, text: text, items: items))
             typing = false
         }
     }
@@ -395,7 +412,7 @@ struct WelcomeView: View {
                 let linked = AIApp.allCases.filter { c.isConnected($0) }
                 if !linked.isEmpty {
                     // 以前已经连过了：不用再问。
-                    await say("第三件事是连上你的 AI，不过我看到 \(linked.map(\.name).joined(separator: "、")) 已经连着了，不用再弄。", pose: .cheer)
+                    await say("第三件事是连上你的 AI。我看了一下，这些已经连着了，不用再弄：", items: linked.map(\.name), pose: .cheer)
                     await wrapUp()
                     return
                 }
@@ -405,7 +422,7 @@ struct WelcomeView: View {
             if installed.isEmpty {
                 await say("连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。不过这台 Mac 上我还没找到能连的 AI 工具，比如 Claude、Codex。")
             } else {
-                await say("连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。我在这台 Mac 上找到了 \(installed.map(\.name).joined(separator: "、"))。")
+                await say("连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。这台 Mac 上能连的我列在下面了，不想连的点一下取消。")
             }
         } else {
             await wrapUp()
@@ -423,7 +440,7 @@ struct WelcomeView: View {
         }
         if !done.isEmpty {
             answer("帮我连上 " + done.map(\.name).joined(separator: "、"))
-            await say("连好了！\(done.map { "\($0.name)：\($0.afterConnect)" }.joined(separator: "；"))，就能用了。", pose: .cheer)
+            await say("连好了！把它们重开一次就能用：", items: done.map(\.name), pose: .cheer)
         } else if openConnectAfter {
             answer("看看怎么装")
         } else {
