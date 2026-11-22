@@ -5,27 +5,32 @@ import SwiftUI
 typealias Transaction = FinanceCore.Transaction
 
 extension Money {
+    /// 界面上用的金额：数字和 € 之间是不换行空格，「3.882,37 €」不会把 € 单独挤到下一行。
+    /// 只在界面这层换；fin、MCP、复制给 AI 的文字仍用 formatted（普通空格），那边的测试和 AI 都按普通空格读。
+    var ui: String { formatted.keepingAmountsTogether }
+    func ui(in currency: String) -> String { formatted(in: currency).keepingAmountsTogether }
+
     /// 界面上的写法：进账「+1.850,00 €」，花掉「−23,40 €」（真正的减号），不带符号就是「500,00 €」。
     var display: String {
-        if cents > 0 { return "+" + formatted }
-        if cents < 0 { return "\u{2212}" + magnitude.formatted }
-        return formatted
+        if cents > 0 { return "+" + ui }
+        if cents < 0 { return "\u{2212}" + magnitude.ui }
+        return ui
     }
     /// 按某个币种的界面写法（外币账户的流水：「−20,00 US$」）。nil = 主币种。
     func display(in currency: String?) -> String {
         guard let currency, currency != Money.defaultCurrency else { return display }
-        if cents > 0 { return "+" + formatted(in: currency) }
-        if cents < 0 { return "\u{2212}" + magnitude.formatted(in: currency) }
-        return formatted(in: currency)
+        if cents > 0 { return "+" + ui(in: currency) }
+        if cents < 0 { return "\u{2212}" + magnitude.ui(in: currency) }
+        return ui(in: currency)
     }
     /// 不带小数的写法：「1.150 €」，给一句话里用。
     var rounded: String {
         let euros = (magnitude.cents + 50) / 100
-        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 ", with: " ")
+        let text = Money(cents: euros * 100).ui.replacingOccurrences(of: ",00\u{00A0}", with: "\u{00A0}")
         return (cents < 0 ? "\u{2212}" : "") + text
     }
     /// 余额：负数（信用卡欠款）带减号，正数不带。
-    var balance: String { cents < 0 ? "\u{2212}" + magnitude.formatted : formatted }
+    var balance: String { cents < 0 ? "\u{2212}" + magnitude.ui : ui }
 }
 
 /// 列表里的金额：进账绿色带 +，花掉正常颜色带 −，自己账户间转账灰色不带符号。
@@ -37,7 +42,7 @@ struct AmountText: View {
     var currency: String? = nil
 
     var body: some View {
-        Text(neutral ? money.magnitude.formatted(in: currency ?? Money.defaultCurrency) : money.display(in: currency))
+        Text(neutral ? money.magnitude.ui(in: currency ?? Money.defaultCurrency) : money.display(in: currency))
             .font(font)
             .foregroundStyle(neutral ? Color.fg3 : (money.isIncome ? Color.income : Color.primary))
             .contentTransition(.numericText(value: Double(money.cents)))
@@ -447,4 +452,13 @@ struct ActivityBanner: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(activity.headline)
     }
+}
+
+extension String {
+    /// 一段话里「数字 + 空格 + 币种」的空格换成不换行空格（AI 写的点评、对话里也有金额）。
+    var keepingAmountsTogether: String {
+        guard contains(" ") else { return self }
+        return Self.amountSpace.stringByReplacingMatches(in: self, range: NSRange(startIndex..., in: self), withTemplate: "\u{00A0}")
+    }
+    private static let amountSpace = try! NSRegularExpression(pattern: "(?<=\\d) (?=(€|\\$|US\\$|£|¥|CHF|[A-Z]{3}\\b))")
 }

@@ -220,7 +220,8 @@ final class ManageFlowTests: XCTestCase {
         amount.typeText("10,99")
         app.buttons["保存"].tap()
         XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
-        XCTAssertTrue(find(app, "10,99 €").waitForExistence(timeout: 5), "每月合计没出来")
+        // 界面上金额和 € 之间是不换行空格（Money.ui），这样 € 不会单独换到下一行。
+        XCTAssertTrue(find(app, "10,99\u{00A0}€").waitForExistence(timeout: 5), "每月合计没出来")
         XCTAssertTrue(find(app, "音乐会员").exists, "订阅没出现在列表里")
         app.buttons["音乐会员 的操作"].tap()
         app.buttons["不续了"].tap()

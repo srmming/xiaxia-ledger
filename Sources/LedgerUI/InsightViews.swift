@@ -67,35 +67,45 @@ struct InsightCard: View {
                     Spacer()
                     Text("\(insight.author) · \(insight.createdAt.friendly)").font(.caption).foregroundStyle(Color.fg2)
                 }
-                HStack(alignment: .bottom, spacing: 4) {
+                // 夏夏本人站在文字右边念这条意见；大字号时让出位置给文字。
+                HStack(alignment: .top, spacing: 4) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(insight.title).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
+                        Text(insight.title.keepingAmountsTogether).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
                         if !insight.body.isEmpty {
-                            Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                            Text(insight.body.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                         }
-                        HStack(spacing: 8) {
-                            Button {
-                                ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
-                            } label: { Label("接着问", systemImage: "sparkles") }
-                                .buttonStyle(.softAI)
-                            Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
-                                .buttonStyle(.soft)
-                            Spacer()
-                            if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
-                        }
-                        .padding(.top, 2)
                     }
-                    // 夏夏本人站在卡片右边念这条意见；大字号时让出位置给文字。
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     if !dynamicTypeSize.isAccessibilitySize {
                         MascotView(.xiaxia, pose: pose, size: large ? 120 : 80)
-                            .padding(.bottom, -6)
                     }
                 }
+                // 按钮单独一行、占满整张卡的宽度：和夏夏挤在一行时，iPhone 上「接着问」会被压成竖排。
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { followUp(ask); dismissButton; Spacer(minLength: 8); if showAllLink { MoreLink(title: "夏夏建议", section: .insights) } }
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) { followUp(ask); dismissButton }
+                        if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
+                    }
+                }
+                .padding(.top, 2)
             }
             .aiCard()
         }
         .onAppear { if !reduceMotion { appeared = true } }
         .accessibilityElement(children: .contain)
+    }
+
+    private func followUp(_ ask: AskAIAction) -> some View {
+        Button {
+            ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
+        } label: { Label("接着问", systemImage: "sparkles").lineLimit(1).fixedSize() }
+            .buttonStyle(.softAI)
+    }
+
+    private var dismissButton: some View {
+        Button { withAnimation(.snappy) { model.dismiss(insight) } } label: { Text("知道了").lineLimit(1).fixedSize() }
+            .buttonStyle(.soft)
     }
 }
 

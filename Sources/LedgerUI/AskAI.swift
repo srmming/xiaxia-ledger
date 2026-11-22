@@ -59,10 +59,11 @@ extension LedgerModel {
         }
     }
 
-    /// Mac 上对话栏能用：有登录好的 AI，且不是示例数据。这时所有「问 AI」入口都进对话栏，不再复制去 Claude。
+    /// Mac 上所有「问 AI」入口都进右边的夏夏对话栏，不再复制去 Claude。
+    /// 没装 AI、看的是示例数据这些情况由对话栏自己说清楚（并给「复制并打开 Claude」），入口这边不分情况，文案也就只有一套。
     var chatReady: Bool {
         #if os(macOS)
-        chat.engine != nil && !(store is InMemoryLedgerStore)
+        true
         #else
         false
         #endif

@@ -172,7 +172,7 @@ struct DebtRow: View {
                 Text(detail).font(.caption).foregroundStyle(debt.overdue ? Color.alert : Color.fg2)
             }
             Spacer()
-            Text(debt.outstanding.formatted).font(.kitAmount)
+            Text(debt.outstanding.ui).font(.kitAmount)
                 .foregroundStyle(debt.direction == .theyOweMe ? Color.income : .primary)
         }
         .padding(.vertical, 6)

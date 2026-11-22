@@ -109,7 +109,7 @@ struct NewPlanSheet: View {
             DatePicker("第一期哪天扣", selection: $firstPayment, displayedComponents: .date)
             accountPicker("从哪个账户扣", allowNone: false)
         } footer: {
-            if let amount { Text(verbatim: "一共 \(Money(cents: amount.cents * Int64(count)).formatted)。") }
+            if let amount { Text(verbatim: "一共 \(Money(cents: amount.cents * Int64(count)).ui)。") }
         }
     }
 

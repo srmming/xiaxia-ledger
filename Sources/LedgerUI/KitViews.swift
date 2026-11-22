@@ -260,12 +260,12 @@ struct BookCard: View {
                         .contentTransition(.numericText(value: Double(now.net.cents)))
                 }
                 HStack(spacing: 14) {
-                    (Text("进账 ").foregroundColor(.fg2) + Text(now.income.formatted).fontWeight(.semibold))
-                    (Text("花掉 ").foregroundColor(.fg2) + Text(now.expense.magnitude.formatted).fontWeight(.semibold))
+                    (Text("进账 ").foregroundColor(.fg2) + Text(now.income.ui).fontWeight(.semibold))
+                    (Text("花掉 ").foregroundColor(.fg2) + Text(now.expense.magnitude.ui).fontWeight(.semibold))
                 }
                 .font(.caption).monospacedDigit()
                 if now.betweenBooks.cents != 0 {
-                    Text("另外\(Reports.betweenBooksLabel(now.betweenBooks, bookID: book.id, books: model.ledger.books)) \(now.betweenBooks.magnitude.formatted)，不算收支")
+                    Text("另外\(Reports.betweenBooksLabel(now.betweenBooks, bookID: book.id, books: model.ledger.books)) \(now.betweenBooks.magnitude.ui)，不算收支")
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
             }
