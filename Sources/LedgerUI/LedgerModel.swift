@@ -87,6 +87,11 @@ public final class LedgerModel {
 
     // MARK: 外面的 AI 刚做了什么
 
+    #if os(macOS)
+    /// 右边的「夏夏」对话栏。
+    public let chat = XiaxiaChatState()
+    #endif
+
     /// 外面的 AI（经 fin / MCP）刚改了账本：还没看过的那一批。
     public var activity: ExternalActivity?
     /// 「看看」之后在流水页高亮的那几笔。
@@ -114,15 +119,20 @@ public final class LedgerModel {
     /// 把「现在停在哪」写给外面的 AI（MCP current_view）。示例数据、空账本这类内存账本不写，免得 AI 以为是真账本。
     public func publishView() {
         guard !(store is InMemoryLedgerStore) else { return }
+        AppBridge.writeView(currentView)
+    }
+
+    /// 现在停在哪一页、哪个月、哪个账本、选中了哪一笔。
+    public var currentView: AppBridge.View {
         let page = section ?? .overview
         let sel = selectedTransactionID.flatMap { transaction($0) }.flatMap { t in
             page == .transactions ? AppBridge.SelectedTransaction(
                 id: t.id, date: t.date.description, amount: t.amount.formatted, description: Merchant.display(t.description),
                 category: t.category, account: accountName(t.accountID), book: ledger.books.first { $0.id == t.bookID }?.name) : nil
         }
-        AppBridge.writeView(AppBridge.View(page: page.rawValue, month: page.usesMonth ? shownMonth.description : nil,
-                                           bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? "全部账本",
-                                           selected: sel))
+        return AppBridge.View(page: page.rawValue, month: page.usesMonth ? shownMonth.description : nil,
+                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? "全部账本",
+                              selected: sel)
     }
 
     /// 外面的 AI 让 app 跳过去（MCP open_in_app）。
