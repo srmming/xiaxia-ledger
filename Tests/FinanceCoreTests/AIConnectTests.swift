@@ -189,9 +189,104 @@ final class AIConnectTests: XCTestCase {
 
     func testSetupPromptAndCLINames() {
         let p = AIConnector.setupPrompt(fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
-        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" connect --list"#))
+        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup --dry-run"#))
+        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup --check"#))
         XCTAssertTrue(p.contains("xiaxia-ledger"))
-        for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.cliName)) }
+        XCTAssertTrue(p.contains("summary"), "要让 AI 最后调一次只读的 summary 确认")
+        XCTAssertTrue(p.contains(#""command" : "/Applications/夏夏账本.app/Contents/MacOS/fin""#), "不能跑命令的 AI 要有能粘的配置")
+        for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.name)) }
+    }
+
+    // MARK: fin setup（MCP + skill + 提示词）
+
+    var setup: AISetup { AISetup(connector: connector) }
+
+    func testSkillBundleMatchesRepo() throws {
+        // 打包进 fin 的 skill 要和仓库里 skills/fin 一样；不一样就跑 python3 scripts/gen-skill-bundle.py
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        for f in SkillBundle.files {
+            let text = try String(contentsOf: repo.appendingPathComponent("skills/fin").appendingPathComponent(f.path), encoding: .utf8)
+            XCTAssertEqual(f.text + "\n", text, "\(f.path) 和打包的不一样，跑 python3 scripts/gen-skill-bundle.py")
+        }
+        XCTAssertTrue(AISetup.promptBlock.hasPrefix("## 夏夏账本"))
+        XCTAssertFalse(AISetup.promptBlock.contains("---"))
+    }
+
+    func testSetupInstallsEverythingAndIsRepeatable() throws {
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".codex"), withIntermediateDirectories: true)
+        try write(".claude.json", #"{"numStartups": 3}"#)
+        try write(".claude/CLAUDE.md", "# 我自己的规矩\n别删我\n")
+        let steps = setup.install([.claudeCode, .codex])
+        XCTAssertTrue(steps.allSatisfy { $0.note == nil }, "\(steps)")
+        // skill 正本 + 两个链接
+        XCTAssertTrue(try read(".agents/skills/fin/SKILL.md").contains("name: fin"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: home.appendingPathComponent(".agents/skills/fin/references/commands.md").path))
+        let fm = FileManager.default
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: home.appendingPathComponent(".claude/skills/fin").path), setup.skillFolder.path)
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: home.appendingPathComponent(".codex/skills/fin").path), setup.skillFolder.path)
+        XCTAssertTrue(try read(".claude/skills/fin/SKILL.md").contains("name: fin"), "链接能读到")
+        // 提示词：原来的内容留着，加了一段
+        let md = try read(".claude/CLAUDE.md")
+        XCTAssertTrue(md.hasPrefix("# 我自己的规矩\n别删我\n\n"))
+        XCTAssertTrue(md.contains(AISetup.promptStart) && md.contains(AISetup.promptEnd))
+        XCTAssertEqual(try read(".claude/CLAUDE.md.bak-xiaxia"), "# 我自己的规矩\n别删我\n")
+        XCTAssertTrue(try read(".codex/AGENTS.md").contains("## 夏夏账本"))
+        // MCP
+        XCTAssertTrue(connector.isConnected(.claudeCode))
+        XCTAssertTrue(connector.isConnected(.codex))
+        XCTAssertTrue(try read(".claude.json").contains("numStartups"))
+        // 命令行 fin
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: home.appendingPathComponent(".local/bin/fin").path), fin.path)
+        XCTAssertTrue(setup.isComplete(.claudeCode) && setup.isComplete(.codex))
+        // 再跑一次什么都不改
+        let again = setup.install([.claudeCode, .codex])
+        XCTAssertTrue(again.allSatisfy { !$0.changed }, "\(again.filter(\.changed))")
+        XCTAssertEqual(try read(".claude/CLAUDE.md"), md)
+        // 预演不改文件
+        let dry = AISetup(connector: connector).install([.gemini], dryRun: true)
+        XCTAssertFalse(fm.fileExists(atPath: home.appendingPathComponent(".gemini/settings.json").path))
+        XCTAssertTrue(dry.contains { $0.what.contains("Gemini") && $0.changed })
+    }
+
+    func testSetupReplacesOldBlockAndOldLink() throws {
+        // 以前 install-global.sh 装的：skill 是指向仓库的链接，提示词标记带旧说明
+        let repoSkill = home.appendingPathComponent("repo/skills/fin")
+        try FileManager.default.createDirectory(at: repoSkill, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".agents/skills"), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: setup.skillFolder, withDestinationURL: repoSkill)
+        try write(".codex/AGENTS.md", "前面\n\n<!-- xiaxia-ledger:start（由 xiaxia-ledger/scripts/install-global.sh 维护）-->\n旧的\n<!-- xiaxia-ledger:end -->\n\n后面\n")
+        _ = setup.install([.codex])
+        let agents = try read(".codex/AGENTS.md")
+        XCTAssertFalse(agents.contains("旧的"))
+        XCTAssertTrue(agents.hasPrefix("前面\n\n" + AISetup.promptStart))
+        XCTAssertTrue(agents.hasSuffix(AISetup.promptEnd + "\n\n后面\n"))
+        XCTAssertNil(try? FileManager.default.destinationOfSymbolicLink(atPath: setup.skillFolder.path), "换成了实目录")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: repoSkill.path), "仓库里的不动")
+    }
+
+    func testSetupLeavesForeignSkillFolderAside() throws {
+        try write(".agents/skills/fin/SKILL.md", "别人的 fin skill")
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".codex"), withIntermediateDirectories: true)
+        let steps = setup.install([.codex])
+        XCTAssertEqual(try read(".agents/skills/fin.bak-xiaxia/SKILL.md"), "别人的 fin skill")
+        XCTAssertTrue(steps.contains { $0.note?.contains("fin.bak-xiaxia") == true })
+        XCTAssertTrue(try read(".agents/skills/fin/SKILL.md").contains("name: fin"))
+    }
+
+    func testSetupRemoveTakesEverythingBack() throws {
+        try write(".claude.json", "{}")
+        try write(".claude/CLAUDE.md", "我的\n")
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".codex"), withIntermediateDirectories: true)
+        _ = setup.install([.claudeCode, .codex])
+        let steps = setup.remove([.claudeCode, .codex], all: true)
+        XCTAssertFalse(steps.isEmpty)
+        let fm = FileManager.default
+        XCTAssertFalse(connector.isConnected(.claudeCode) || connector.isConnected(.codex))
+        XCTAssertEqual(try read(".claude/CLAUDE.md"), "我的\n")
+        XCTAssertEqual(try read(".codex/AGENTS.md"), "")
+        XCTAssertFalse(fm.fileExists(atPath: setup.skillFolder.path))
+        XCTAssertNil(try? fm.destinationOfSymbolicLink(atPath: home.appendingPathComponent(".claude/skills/fin").path))
+        XCTAssertNil(try? fm.destinationOfSymbolicLink(atPath: home.appendingPathComponent(".local/bin/fin").path))
     }
 
     func testConnectionsLog() {

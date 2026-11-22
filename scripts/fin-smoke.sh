@@ -315,6 +315,26 @@ HOME="$FAKEHOME" run connect hermes
 grep -q "provider: \"deepseek\"" "$FAKEHOME/.hermes/config.yaml" && grep -q "xiaxia-ledger:" "$FAKEHOME/.hermes/config.yaml" && cat "$FAKEHOME/.hermes/config.yaml" || { echo "↳ Hermes 配置不对"; FAILS=$((FAILS + 1)); }
 grep -q "mcp_servers.xiaxia-ledger" "$FAKEHOME/.codex/config.toml" && cat "$FAKEHOME/.codex/config.toml" || { echo "↳ Codex 配置没写进去"; FAILS=$((FAILS + 1)); }
 
+echo; echo "===== fin setup：粘一段话给 AI，它跑这条把 MCP、skill、提示词都装好（假的主目录） ====="
+SETHOME="$WORK/sethome"; mkdir -p "$SETHOME/.codex" "$SETHOME/.claude"
+printf '# 我自己的规矩\n' > "$SETHOME/.claude/CLAUDE.md"
+HOME="$SETHOME" run setup --dry-run
+[ -e "$SETHOME/.agents/skills/fin" ] && { echo "↳ 预演却装了 skill"; FAILS=$((FAILS + 1)); }
+HOME="$SETHOME" run setup
+HOME="$SETHOME" "$FIN" setup | tee "$WORK/setup2.txt"
+grep -q "没有要改的" "$WORK/setup2.txt" || { echo "↳ 第二次跑还在改东西"; FAILS=$((FAILS + 1)); }
+grep -q "✓	账本自检" "$WORK/setup2.txt" || { echo "↳ 自检没过"; FAILS=$((FAILS + 1)); }
+for f in "$SETHOME/.agents/skills/fin/SKILL.md" "$SETHOME/.claude/skills/fin/SKILL.md" "$SETHOME/.codex/skills/fin/references/commands.md"; do
+  [ -f "$f" ] || { echo "↳ 没有 $f"; FAILS=$((FAILS + 1)); }
+done
+[ "$(grep -c xiaxia-ledger:start "$SETHOME/.claude/CLAUDE.md")" = 1 ] && grep -q "我自己的规矩" "$SETHOME/.claude/CLAUDE.md" || { echo "↳ CLAUDE.md 不对"; FAILS=$((FAILS + 1)); }
+grep -q "mcp_servers.xiaxia-ledger" "$SETHOME/.codex/config.toml" && grep -q xiaxia-ledger "$SETHOME/.claude.json" || { echo "↳ MCP 没写进去"; FAILS=$((FAILS + 1)); }
+HOME="$SETHOME" run setup --check --json
+HOME="$SETHOME" run setup --remove
+[ -e "$SETHOME/.agents/skills/fin" ] && { echo "↳ --remove 没拿掉 skill"; FAILS=$((FAILS + 1)); }
+grep -q xiaxia-ledger "$SETHOME/.claude/CLAUDE.md" && { echo "↳ --remove 没拿掉提示词"; FAILS=$((FAILS + 1)); }
+expect_fail setup nosuchtool
+
 echo; echo "===== 历史里的作者 ====="
 "$FIN" history --limit 4
 

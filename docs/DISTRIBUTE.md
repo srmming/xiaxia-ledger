@@ -10,6 +10,12 @@
 | 4. 重开 AI 工具 | — | 引导里写着每个工具要怎么重开（比如 Claude 要 ⌘Q 退出再开） |
 | 5. 试一句 | — | 引导里点「复制并打开 Claude」，粘贴发出去；AI 一连上账本，引导页就变绿，记下第一笔会显示出来 |
 
+另一条路：在引导页或「设置」里点「一键复制配置提示词」，粘给任何一个 AI（Claude Code、Codex、Hermes、Gemini CLI、Cursor、Claude 桌面版……）。能执行命令的 AI 会跑 `fin setup`，把这台 Mac 上所有 AI 工具的 MCP、使用说明（skill）和提示词一次装好（改前留 .bak-xiaxia 备份），最后调一次只读的 summary 确认读得到账本；不能执行命令的 AI 会一步步告诉你把配置粘到哪儿。
+
+装了 Claude Code、Codex 或 Hermes 的人，第 5 步直接点「在夏夏对话栏里试」，不用离开 app。只有 Claude 桌面版的人，app 里的例句一律「复制并打开 Claude」，不会塞进一个答不了话的对话栏。
+
+dmg 里附了「打不开看这里.txt」：没签名的版本第一次会被 Mac 拦下，按说明去「系统设置 → 隐私与安全性」点「仍要打开」。签名公证后不会出现。
+
 没装任何 AI 工具：引导里给「下载 Claude 桌面版」；用 DeepSeek 的，装 Hermes Agent（能自动连）；用通义千问、Kimi 的，装 Cherry Studio，再点「复制配置」粘进它的 MCP 设置。别的支持 MCP 的工具同样粘这段。
 
 iPhone 不需要引导：AI 工具只能在 Mac 上接本地账本，手机上只看。（手机和 Mac 靠 iCloud 看同一本账，见下面「iPhone 和 Mac 同步」。）

@@ -4,12 +4,18 @@
 
 ## 装
 
-一条命令装好 fin、skill、通用提示词和 MCP（各 AI 工具的全局配置，可以反复跑）：
+一条命令装好 MCP、skill 和通用提示词（各 AI 工具的全局配置，可以反复跑；skill 打包在 fin 里，不需要这个仓库）：
 
 ```bash
-bash scripts/install-global.sh --dry-run   # 先看会改哪些文件
-bash scripts/install-global.sh
+fin setup --dry-run   # 先看会改哪些文件
+fin setup             # 给这台 Mac 上装了的 AI 工具都装好，最后自己读一次账本确认
+fin setup --check     # 不改，只检查
+fin setup --remove    # 全部拿掉
 ```
+
+最省事的办法：在 app 的「设置」或「连上你的 AI」里点「一键复制配置提示词」，粘给任何一个 AI。能执行命令的 AI 会自己跑上面这几条；不能执行命令的会告诉你把配置粘到哪儿。
+
+开发时用 `bash scripts/install-global.sh`：先把 `~/.local/bin/fin` 链到 app 里的 fin（没装 app 就从源码编译），再跑 `fin setup`。改了 `skills/fin` 里的说明，要先跑 `python3 scripts/gen-skill-bundle.py` 再编译。
 
 下面是手动配置的写法。
 
