@@ -146,6 +146,13 @@ struct XiaxiaChatPanel: View {
             } else if chat.available.isEmpty {
                 notice(symbol: "sparkles", title: "这台 Mac 上还没有能用的 AI",
                        text: "装好并登录 Claude Code、Codex 或 Hermes 其中一个，夏夏就能在这里直接回答，用的是你自己的订阅。也可以先复制这一页的情况去 Claude 里问。")
+                Button {
+                    // 夏夏带着连：直接到引导的「连接你的 AI」那一步。
+                    model.welcomeAtAI = true
+                    model.showWelcome = true
+                } label: { Label("去连接 AI", systemImage: "link") }
+                    .buttonStyle(AISolidButtonStyle()).padding(.top, 4)
+                    .accessibilityIdentifier("chat.connectAI")
                 AskAIReader { ask in
                     Button { ask("", page: (model.section ?? .overview).rawValue) } label: { Label("复制并打开 Claude", systemImage: "doc.on.doc") }
                         .buttonStyle(.soft).padding(.top, 4)

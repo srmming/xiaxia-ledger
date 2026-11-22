@@ -639,6 +639,15 @@ struct WelcomeView: View {
 
     private func start() async {
         guard speech.isEmpty else { return }
+        if model.welcomeAtAI, aiStepAvailable {
+            // 从「问夏夏」点「去连接 AI」进来的：直接到第三步。
+            model.welcomeAtAI = false
+            aiMode = .choose
+            step = .ai
+            await say("你平时用哪个 AI？", pose: .think)
+            return
+        }
+        model.welcomeAtAI = false
         await say("嗨，我是夏夏！", pose: .hello)
     }
 
