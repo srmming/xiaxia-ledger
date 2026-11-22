@@ -61,8 +61,11 @@ struct SettingsPage: View {
                         .foregroundStyle(Color.fg2)
                 }
                 item(symbol: "doc.fill", color: .fg3, title: "账本文件") {
+                    // 路径很长：从中间省略，留住开头和「夏夏账本/ledger.sqlite」结尾；鼠标停上去看完整路径。
                     Text(ledgerLocation(model.store)).font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
+                        .truncationMode(.middle)
                         .multilineTextAlignment(.trailing).textSelection(.enabled)
+                        .help(ledgerLocation(model.store))
                 }
             }
             group("币种", note: "每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种；银行实际扣了多少，就以银行为准。取汇率只下载欧洲央行的公开汇率表，不会发出任何账目。") {

@@ -169,7 +169,7 @@ final class AIConnectTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin.path)
         XCTAssertEqual(connector.cliExecutable(.hermes), bin.path)
         XCTAssertNil(connector.cliExecutable(.claudeDesktop))
-        XCTAssertEqual(AIApp.hermes.headlessArguments("你好"), ["-z", "你好"])
+        XCTAssertEqual(AIApp.hermes.headlessArguments("你好"), ["-z", "你好", "-t", "xiaxia-ledger"])
         XCTAssertEqual(AIApp.from(clientName: "hermes-agent"), .hermes)
     }
 
