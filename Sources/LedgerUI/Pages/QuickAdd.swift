@@ -161,14 +161,18 @@ struct QuickAdd: View {
         .onChange(of: model.ledger.changes.count) { _, _ in if didSetup { refreshLists() } }
         .onChange(of: model.ledger.profile.categories.count) { _, _ in if didSetup { refreshLists() } }
         // 分类是点名字、常记的带出来的：翻到它那一页，让人看见选中了哪个。
+        // 同一个值只挂一个 onChange（挂两个时 iPhone 上只有一个会跑）。
         .onChange(of: category) { _, c in
-            guard let c, let i = categoryPages.firstIndex(where: { $0.contains(c) }), i != categoryPage else { return }
-            withAnimation(.snappy) { categoryPage = i }
+            guard let c else { return }
+            #if os(iOS)
+            // 选好分类、金额也有了：收起键盘，露出下面的名称、备注。
+            if amount != nil { withAnimation(.snappy) { keypadUp = false } }
+            #endif
+            // 分类是点名字、常记的带出来的：翻到它那一页，让人看见选中了哪个。
+            if let i = categoryPages.firstIndex(where: { $0.contains(c) }), i != categoryPage {
+                withAnimation(.snappy) { categoryPage = i }
+            }
         }
-        #if os(iOS)
-        // 选好分类、金额也有了：收起键盘，露出下面的账户、日期、备注。
-        .onChange(of: category) { _, c in if c != nil, amount != nil { withAnimation(.snappy) { keypadUp = false } } }
-        #endif
         .onChange(of: bookID) { _, _ in if didSetup { refreshLists() }; if let c = category, !allCategories.contains(c), c != customCategory { category = nil } }
         .alert("新账户", isPresented: $askAccount) {
             TextField("名字，比如「现金」「银行卡」", text: $newName)
