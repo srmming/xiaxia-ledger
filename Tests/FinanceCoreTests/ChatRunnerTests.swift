@@ -12,7 +12,7 @@ final class ChatRunnerTests: XCTestCase {
         XCTAssertEqual(Array(c.suffix(2)), ["--resume", "abc"])
         XCTAssertFalse(ChatEngine.claude.arguments(prompt: "x", resume: nil).contains("--resume"))
         XCTAssertEqual(ChatEngine.codex.arguments(prompt: "x", resume: nil), ["exec", "--skip-git-repo-check", "x"])
-        XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil), ["-z", "x"])
+        XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil), ["-t", "xiaxia-ledger", "-z", "x"])
     }
 
     func testClaudeGetsAppFinAsOnlyMCP() {

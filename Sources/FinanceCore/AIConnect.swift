@@ -44,12 +44,13 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 后台问一句、拿回答的参数（不开窗口）。app 内对话栏用：[可执行文件] + headlessArguments(问题)。
-    /// claude -p、codex exec、gemini -p 是各家文档里的写法；hermes -z 来自 Hermes 文档的命令参考，接入时再实测一次。
+    /// claude -p、codex exec、gemini -p 是各家文档里的写法。hermes -z 默认不加载新加的 MCP 工具集，要用 -t 点名
+    ///（2026-11-22 在 ming 的 Mac 上实测：不带 -t 回答「没有 xiaxia-ledger 工具」，带上就能读账本）。
     public func headlessArguments(_ prompt: String) -> [String]? {
         switch self {
         case .claudeCode: ["-p", prompt]
         case .codex: ["exec", prompt]
-        case .hermes: ["-z", prompt]
+        case .hermes: ["-t", "xiaxia-ledger", "-z", prompt]
         case .gemini: ["-p", prompt]
         case .claudeDesktop, .cursor: nil
         }
