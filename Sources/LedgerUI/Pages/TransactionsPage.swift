@@ -57,7 +57,7 @@ struct TransactionsPage: View {
                 .background(Color.pageBackground)
                 .background { WidthReader(width: $width) }
                 #else
-                List(selection: $selected) {
+                List {
                     Section { filters }
                     ForEach(groups(list), id: \.date) { g in
                         Section {
@@ -65,7 +65,20 @@ struct TransactionsPage: View {
                                 // 选择的时候整行就是勾选，不再点进详情。
                                 Group {
                                     if selecting {
-                                        TxRow(tx: t)
+                                        // 自己画勾选：点整行选上 / 取消。
+                                        Button {
+                                            if selected.contains(t.id) { selected.remove(t.id) } else { selected.insert(t.id) }
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                Image(systemName: selected.contains(t.id) ? "checkmark.circle.fill" : "circle")
+                                                    .font(.title3)
+                                                    .foregroundStyle(selected.contains(t.id) ? Color.brand : Color.fg3)
+                                                TxRow(tx: t)
+                                            }
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityAddTraits(selected.contains(t.id) ? .isSelected : [])
                                     } else {
                                         NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle("这一笔") } label: { TxRow(tx: t) }
                                     }
@@ -85,7 +98,6 @@ struct TransactionsPage: View {
                         } header: { dayHeader(g) }
                     }
                 }
-                .environment(\.editMode, .constant(selecting ? .active : .inactive))
                 .searchable(text: $query, prompt: "搜商户、备注、#标签、金额…")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
