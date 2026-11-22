@@ -310,7 +310,8 @@ struct DemoBuilder {
         spend(d(2), eur(34.9), "FitBox 健身房", "daily", P, "运动")
         spend(d(3), eur(2.99), "云存储 50GB", "credit", P, "订阅")
         spend(d(5), eur(35), "RECIBO TELEFONIA NUBEMOVIL", "daily", P, "通讯")
-        let season = [1: 38.0, 2: 32, 7: 24, 8: 28, 12: 34][ym.month] ?? 0
+        let heating: [Int: Double] = [1: 38, 2: 32, 7: 24, 8: 28, 12: 34]
+        let season = heating[ym.month] ?? 0
         spend(d(10), rng.euros(52 + season, 68 + season), "RECIBO LUZ Y GAS ENERLUZ", "daily", P, "水电")
         // 订阅：视频会员 4 个月前涨价；健身 app 3 个月前停了；语言课每月扣、但没登记成订阅。
         spend(d(7), eur(i >= 9 ? 12.99 : 11.99), "StreamBox 视频会员", "credit", P, "订阅")
@@ -383,7 +384,8 @@ struct DemoBuilder {
         let S = Self.S
         let d: (Int) -> LocalDate = { demoDay(ym, $0) }
         // 花店的淡旺季：情人节、母亲节、圣诞多，八月少。
-        let season = [1: 0.85, 2: 1.25, 3: 1.0, 4: 1.05, 5: 1.3, 6: 1.0, 7: 0.9, 8: 0.7, 9: 0.95, 10: 1.0, 11: 1.05, 12: 1.35][ym.month] ?? 1
+        let seasons: [Int: Double] = [1: 0.85, 2: 1.25, 3: 1.0, 4: 1.05, 5: 1.3, 6: 1.0, 7: 0.9, 8: 0.7, 9: 0.95, 10: 1.0, 11: 1.05, 12: 1.35]
+        let season = seasons[ym.month] ?? 1
 
         spend(d(1), eur(1100), "店租", "shop", S, "店租")
         // 每个月 1 号老板给自己发生活费：店里账户 → 日常卡。
