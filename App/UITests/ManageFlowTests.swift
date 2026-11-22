@@ -139,8 +139,8 @@ final class ManageFlowTests: XCTestCase {
         one.tap()
         let name = app.textFields["名称"]
         name.tap()
-        name.typeText("Merc")
-        let hint = find(app, "用「Mercadona」")
+        name.typeText("Lumi")
+        let hint = find(app, "用「Super Lumi」")
         XCTAssertTrue(hint.waitForExistence(timeout: 5), "没有提示以前用过的名字")
         hint.tap()
         XCTAssertTrue(button(app, "超市").isSelected, "点了提示，分类没跟着选上")

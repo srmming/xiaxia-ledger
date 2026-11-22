@@ -283,6 +283,33 @@ expect_fail book rm shop
 run book rm shop --move-to personal --dry-run
 expect_fail book rm personal --move-to personal
 
+echo; echo "===== fin demo：一键生成示例账本（全是编的），读出来看看 ====="
+DEMO="$WORK/demo/示例账本.sqlite"
+run demo --out "$DEMO" --end 2026-11-20
+expect_fail demo --out "$DEMO" --end 2026-11-20
+run demo --out "$DEMO" --end 2026-11-20 --force --json
+expect_fail demo --out "$WORK/demo/x.txt"
+echo '{"schemaVersion":1}' > "$WORK/demo/real.json"
+expect_fail demo --out "$WORK/demo/real.json" --force
+REAL_TMP="$XIAXIA_LEDGER_PATH"
+export XIAXIA_LEDGER_PATH="$DEMO"
+  run context
+  run accounts
+  run summary --month 2026-10
+  run summary --month 2026-10 --book shop
+  run report --month 2026-11
+  run debts
+  run installments
+  run goals
+  run insight list
+  run history --limit 8
+  run tx --limit 8
+  run reconcile --account daily --balance 1000
+export XIAXIA_LEDGER_PATH="$REAL_TMP"
+# 同一天、同一个种子，两次生成的账本一模一样。
+"$FIN" demo --out "$WORK/demo/a.json" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.json" --end 2026-11-20 >/dev/null
+cmp -s "$WORK/demo/a.json" "$WORK/demo/b.json" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
+
 rm -rf "$WORK"
 echo; echo "意外失败：$FAILS 处"
 [ "$FAILS" -eq 0 ]
