@@ -29,7 +29,6 @@ struct QuickAdd: View {
     @State var error: String?
     @State var customCategory: String?
     @State var addingCategory = false
-    @State var newCategory = ""
     @State var askAccount = false
     @State var askingFor: AccountSlot = .from
     @State var newName = ""
@@ -140,6 +139,12 @@ struct QuickAdd: View {
             Button("加上") { addAccount() }
         } message: { Text("类型、余额以后可以在「设置 → 管理账户」里改。") }
         .errorAlert($error)
+        .sheet(isPresented: $addingCategory) {
+            // 先挑图标再填名字；建好就直接选中。
+            NavigationStack {
+                CategoryCreator(income: income, showsDirection: false, allowExisting: true) { name in customCategory = name; category = name }
+            }
+        }
     }
 
     private var canSave: Bool {
@@ -343,7 +348,7 @@ struct QuickAdd: View {
                 .buttonStyle(.pressable)
                 .accessibilityAddTraits(category == c ? .isSelected : [])
             }
-            if !moreCategories.isEmpty && !addingCategory {
+            if !moreCategories.isEmpty {
                 Menu {
                     ForEach(moreCategories, id: \.self) { c in
                         Button(c) { customCategory = c; category = c }
@@ -360,24 +365,8 @@ struct QuickAdd: View {
                 .menuStyle(.button).buttonStyle(.pressable).menuIndicator(.hidden)
                 .accessibilityLabel("更多分类")
             }
-            if addingCategory {
-                VStack(spacing: 4) {
-                    TextField("新分类", text: $newCategory)
-                        .textFieldStyle(.plain).font(.caption).multilineTextAlignment(.center)
-                        .focused($focus, equals: .category)
-                        .onSubmit(useNewCategory)
-                        .frame(height: 30)
-                        .accessibilityLabel("新分类的名字")
-                    HStack(spacing: 10) {
-                        Button("取消") { addingCategory = false; focus = nil }.font(.caption).buttonStyle(.borderless)
-                        Button("用") { useNewCategory() }.font(.caption.weight(.semibold)).buttonStyle(.borderless)
-                            .disabled(newCategory.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-                .frame(maxWidth: .infinity).padding(.vertical, 5)
-                .background(Color.brandSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            } else {
-                Button { newCategory = ""; addingCategory = true; focus = .category } label: {
+            Group {
+                Button { addingCategory = true } label: {
                     VStack(spacing: 4) {
                         Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.brand)
                             .frame(width: 30, height: 30).background(Color.brandSoft, in: Circle())
@@ -390,15 +379,6 @@ struct QuickAdd: View {
                 .accessibilityLabel("加一个新分类")
             }
         }
-    }
-
-    private func useNewCategory() {
-        let n = newCategory.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty else { return }
-        customCategory = n
-        category = n
-        addingCategory = false
-        focus = nil
     }
 
     // MARK: 账户、账本、日期、备注、标签、重复

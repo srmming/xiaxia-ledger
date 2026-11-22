@@ -7,6 +7,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case add
     /// 管理账本、账户、分类。
     case books, accounts, categories
+    /// 新建分类：先挑图标再填名字。
+    case newCategory
     /// 连上你的 AI（Mac 第一次打开、设置里）。
     case connectAI
     /// 计划页「新计划」：存钱目标、分期、借款。
@@ -27,7 +29,9 @@ public final class LedgerModel {
     }
 
     public let store: any LedgerStore
-    public private(set) var ledger: Ledger = .fresh
+    public private(set) var ledger: Ledger = .fresh {
+        didSet { CategoryStyle.customIcons = ledger.categoryIcons }
+    }
     public var selectedBookID: String? { didSet { publishView() } }       // nil = 全部
     public var showPrivate = false            // 私房钱默认藏起来
     public var loadError: String?
