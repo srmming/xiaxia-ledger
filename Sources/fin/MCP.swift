@@ -391,15 +391,20 @@ enum MCPTools {
             }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let q = s("query").map(Dedup.normalize)
+            let rawQuery = s("query"), tagQuery = s("tag").map { "#" + Tags.clean([$0]).joined() }, kind = s("kind")
+            let extra: (Transaction) -> Bool = { (t: Transaction) -> Bool in
+                if let q, let rawQuery, !Dedup.normalize(t.description).contains(q), !t.matches(rawQuery) { return false }
+                if let tagQuery, !t.matches(tagQuery) { return false }
+                if let kind { return kind == "income" ? t.amount.isIncome : t.amount.isExpense }
+                return true
+            }
             let txs = ledger.transactions
                 .filter { !hidden.contains($0.accountID) }
                 .filter { s("book") == nil || $0.bookID == s("book") }
                 .filter { s("account") == nil || $0.accountID == s("account") }
                 .filter { ym == nil || $0.date.yearMonth == ym }
                 .filter { s("category") == nil || $0.category == s("category") }
-                .filter { q == nil || Dedup.normalize($0.description).contains(q!) || $0.matches(s("query")!) }
-                .filter { s("tag") == nil || $0.matches("#" + Tags.clean([s("tag")!]).joined()) }
-                .filter { s("kind") == nil || (s("kind") == "income" ? $0.amount.isIncome : $0.amount.isExpense) }
+                .filter(extra)
                 .sorted { $0.date > $1.date }
                 .prefix(int("limit", 50))
             return try json(Array(txs))

@@ -197,15 +197,20 @@ struct TxCommand: ParsableCommand {
         } else { ym = nil }
         let ledger = try loadLedger()
         let hidden = options.includePrivate ? [] : ledger.privateAccountIDs
+        let tagQuery: String? = tag.map { "#" + Tags.clean([$0]).joined() }
+        let extra: (Transaction) -> Bool = { (t: Transaction) -> Bool in
+            if let query, !t.matches(query) { return false }
+            if let tagQuery, !t.matches(tagQuery) { return false }
+            if let kind { return kind == "income" ? t.amount.isIncome : t.amount.isExpense }
+            return true
+        }
         let txs = ledger.transactions
             .filter { !hidden.contains($0.accountID) }
             .filter { options.book == nil || $0.bookID == options.book }
             .filter { account == nil || $0.accountID == account }
             .filter { ym == nil || $0.date.yearMonth == ym }
             .filter { category == nil || $0.category == category }
-            .filter { query == nil || $0.matches(query!) }
-            .filter { tag == nil || $0.matches("#" + Tags.clean([tag!]).joined()) }
-            .filter { kind == nil || (kind == "income" ? $0.amount.isIncome : $0.amount.isExpense) }
+            .filter(extra)
             .sorted { $0.date > $1.date }
             .prefix(limit)
         if options.json { return try Output.json(Array(txs)) }
