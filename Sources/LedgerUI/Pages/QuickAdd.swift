@@ -250,6 +250,8 @@ struct QuickAdd: View {
             #if os(iOS)
             .accessibilityAction { focus = nil; keypadUp = true }
             .accessibilityHint(keypadUp ? "" : "点一下弹出计算器键盘")
+            #endif
+            #if os(iOS)
             if !keypadUp && focus == nil && !Money.isExpression(amountText) {
                 Text("点金额可以改").font(.caption2).foregroundStyle(Color.fg3)
             }
