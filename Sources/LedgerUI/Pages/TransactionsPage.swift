@@ -199,6 +199,8 @@ struct TransactionsPage: View {
         .kitCard()
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { if selected == nil { selected = list.first?.id } }
+        .onChange(of: selected, initial: true) { _, id in model.selectedTransactionID = id }
+        .onDisappear { model.selectedTransactionID = nil }
     }
 
     @ViewBuilder private var detail: some View {
