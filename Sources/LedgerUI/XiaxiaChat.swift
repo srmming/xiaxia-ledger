@@ -28,9 +28,11 @@ public final class XiaxiaChatState {
     public init() { refreshEngines() }
 
     public func refreshEngines() {
-        available = ChatEngine.available()
+        let found = ChatEngine.available()
+        if found != available { available = found }
         let saved = UserDefaults.standard.string(forKey: "xiaxia.chatEngine").flatMap(ChatEngine.init(rawValue:))
-        if let saved, available.contains(saved) { engine = saved } else { engine = available.first }
+        let pick = saved.flatMap { found.contains($0) ? $0 : nil } ?? found.first
+        if pick != engine { engine = pick }  // 没变就不赋值，免得界面白白重画
     }
 
     /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
@@ -47,32 +49,17 @@ public final class XiaxiaChatState {
         show()
     }
 
-    /// 开着对话栏时窗口最少要多宽：左边侧栏 190 + 中间 520 + 对话栏 300，再留一点边。
-    /// 窗口比这窄时硬塞对话栏，AppKit 分栏会陷进约束死循环直接闪退（2026-11-22 在 Mac 上从菜单打开时崩过）。
-    static let minWindowWidth: CGFloat = 1030
-
-    /// 所有打开对话栏的地方都走这里：先把主窗口叫到前面，不够宽就先拉宽，下一轮再展开对话栏，最后把光标放进输入框。
+    /// 所有打开对话栏的地方都走这里：先把主窗口叫到前面，下一轮再展开对话栏，最后把光标放进输入框。
     func show() {
         guard !open else { focusRequest?(); return }
         if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
-            Self.widen(window, to: Self.minWindowWidth)
         }
         DispatchQueue.main.async {
             withAnimation(.snappy) { self.open = true }
             DispatchQueue.main.async { self.focusRequest?() }
         }
-    }
-
-    /// 把窗口拉到至少 `width` 宽，尽量不出屏幕：先往右长，右边不够再往左挪。
-    static func widen(_ window: NSWindow, to width: CGFloat) {
-        var frame = window.frame
-        guard frame.width < width else { return }
-        let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? frame
-        frame.size.width = min(width, screen.width)
-        if frame.maxX > screen.maxX { frame.origin.x = max(screen.minX, screen.maxX - frame.width) }
-        window.setFrame(frame, display: true, animate: false)
     }
 
     public func newConversation() {
@@ -117,9 +104,9 @@ private struct ThinkingRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .bottom, spacing: 6) {
-                MascotView(.xiaxia, pose: .think, size: 72)
+                MascotView(.xiaxia, pose: .think, size: 72, animated: false)
                 if let engine {
-                    MascotView(MascotCharacter.of(engine), pose: .think, size: 56)
+                    MascotView(MascotCharacter.of(engine), pose: .think, size: 56, animated: false)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
@@ -146,8 +133,6 @@ private struct ThinkingRow: View {
 struct XiaxiaChatPanel: View {
     @Environment(LedgerModel.self) var model
     @FocusState var inputFocused: Bool
-    /// 夏夏刚回了一句：头像张嘴说两秒多。
-    @State private var speaking = false
 
     var body: some View {
         let chat = model.chat
@@ -157,6 +142,7 @@ struct XiaxiaChatPanel: View {
             if model.store is InMemoryLedgerStore {
                 notice(symbol: "eye", title: "示例数据不连 AI",
                        text: "现在看的是编出来的示例账本。AI 连的是你自己的账本，两边对不上，所以这里先不聊。")
+                Spacer()
             } else if chat.available.isEmpty {
                 notice(symbol: "sparkles", title: "这台 Mac 上还没有能用的 AI",
                        text: "装好并登录 Claude Code、Codex 或 Hermes 其中一个，夏夏就能在这里直接回答，用的是你自己的订阅。也可以先复制这一页的情况去 Claude 里问。")
@@ -171,28 +157,20 @@ struct XiaxiaChatPanel: View {
                 input(chat)
             }
         }
+        // 占满对话栏、内容靠上：不让对话栏的大小跟着里面的内容变（分栏跟着重算会陷进约束死循环）。
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.pageBackground)
         .onAppear {
-            chat.refreshEngines(); inputFocused = true
             chat.focusRequest = { inputFocused = true }
-            speak()
-        }
-        .onChange(of: chat.messages.count) { _, _ in
-            if let last = chat.messages.last, !last.fromUser, !last.isError { speak() }
-        }
-    }
-
-    private func speak() {
-        speaking = true
-        Task {
-            try? await Task.sleep(for: .seconds(2.4))
-            speaking = false
+            inputFocused = true
+            // 对话栏展开的动画做完再看装了哪些 AI，别在分栏正在动的时候改顶上那一行。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { chat.refreshEngines() }
         }
     }
 
     private func header(_ chat: XiaxiaChatState) -> some View {
         HStack(spacing: 8) {
-            MascotView(.xiaxia, size: 26, face: true, talking: speaking)
+            MascotView(.xiaxia, size: 26, face: true, animated: false)
             Text("夏夏").font(.headline)
             Spacer()
             if chat.available.count > 1 {
@@ -202,7 +180,8 @@ struct XiaxiaChatPanel: View {
                     }
                     .pickerStyle(.inline)
                 } label: { Text(chat.engine?.name ?? "选 AI").font(.caption) }
-                    .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+                    .menuStyle(.button).buttonStyle(.borderless)
+                    .frame(width: 96, alignment: .trailing)  // 宽度固定，不随选中的名字变（AppKit 菜单按钮的尺寸一变就会重排整个分栏）
                     .accessibilityLabel("用哪个 AI：\(chat.engine?.name ?? "还没选")")
             } else if let e = chat.engine {
                 Text(e.name).font(.caption).foregroundStyle(Color.fg2)
@@ -251,7 +230,7 @@ struct XiaxiaChatPanel: View {
     private func starter(_ chat: XiaxiaChatState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
-                MascotView(.xiaxia, pose: speaking ? .idle : .hello, size: 96, talking: speaking)  // 先张嘴说这句，说完挥手
+                MascotView(.xiaxia, pose: .hello, size: 96, animated: false)
                 Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 10)
