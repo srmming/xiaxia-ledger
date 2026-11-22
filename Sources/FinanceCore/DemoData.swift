@@ -37,8 +37,9 @@ extension Ledger {
 extension LedgerStores {
     /// 真实账本可能在的位置（不看 XIAXIA_LEDGER_PATH）。fin demo 绝不往这些地方写。
     public static var standardLocations: [URL] {
-        [iCloudFolder.appendingPathComponent("ledger.sqlite"), iCloudFolder.appendingPathComponent("ledger.json"),
-         appSupportFolder.appendingPathComponent("ledger.sqlite"), appSupportFolder.appendingPathComponent("ledger.json")]
+        [containerDocumentsOnDisk, iCloudFolder, appSupportFolder].flatMap {
+            [$0.appendingPathComponent("ledger.sqlite"), $0.appendingPathComponent("ledger.json")]
+        }
     }
 }
 
