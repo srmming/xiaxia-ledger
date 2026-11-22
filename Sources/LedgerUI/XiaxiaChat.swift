@@ -1,5 +1,6 @@
 #if os(macOS)
 import FinanceCore
+import AppKit
 import SwiftUI
 
 /// app 右边的「夏夏」对话栏：不用切窗口，说一句就查账、记账。回答来自这台 Mac 上已登录的 Claude Code / Codex / Hermes。
@@ -71,6 +72,20 @@ public final class XiaxiaChatState {
             // AI 可能刚记了账：马上读一次，顶上会弹「刚记了 N 笔」，能看、能撤销。
             model.refreshIfChanged()
         }
+    }
+}
+
+extension LedgerModel {
+    /// ⌘K、菜单「和夏夏聊」、工具栏「问夏夏」共用：开关对话栏。打开时先把主窗口叫到前面并设成当前窗口，
+    /// 不然从菜单点（或窗口刚被别的弹窗抢了焦点）时，对话栏开了也看不到、输入框拿不到光标。
+    func toggleChat() {
+        let opening = !chat.open
+        if opening, let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+        withAnimation(.snappy) { chat.open = opening }
+        if opening { DispatchQueue.main.async { [chat] in chat.focusRequest?() } }
     }
 }
 

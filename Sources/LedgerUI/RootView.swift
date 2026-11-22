@@ -277,7 +277,7 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
-            Button { withAnimation(.snappy) { model.chat.open.toggle() } } label: {
+            Button { model.toggleChat() } label: {
                 Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
             }
             .tint(Color.ai)
@@ -467,6 +467,8 @@ public struct XiaxiaScene: Scene {
         if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
         #if os(macOS)
         if let out = value("-XiaxiaSnapshot") { WindowSnapshot.schedule(to: out) }
+        // -XiaxiaChat：一打开就展开右边的夏夏对话栏（检查对话栏、截图用）。
+        if args.contains("-XiaxiaChat") { model.chat.open = true }
         #endif
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
@@ -487,7 +489,7 @@ public struct XiaxiaScene: Scene {
                 Button("记一笔") { model.sheet = .add }.keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .pasteboard) {
-                Button(model.chat.open ? "收起夏夏对话栏" : "和夏夏聊") { withAnimation(.snappy) { model.chat.open.toggle() } }
+                Button(model.chat.open ? "收起夏夏对话栏" : "和夏夏聊") { model.toggleChat() }
                     .keyboardShortcut("k", modifiers: .command)
                 Button("复制这一页的情况，去 Claude 里问") {
                     let page = (model.section ?? .overview).rawValue
