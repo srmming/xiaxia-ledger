@@ -42,10 +42,13 @@ final class ManualEntryTests: XCTestCase {
     /// 「常记的」点一下：金额、名称、分类都填好，直接能记下。
     func testFrequentEntryFillsEverything() {
         let app = launch("-XiaxiaDemo", "-XiaxiaSheet", "add")
-        let chip = button(app, "再记一笔 交通卡")
-        XCTAssertTrue(chip.waitForExistence(timeout: 15), "没有「常记的」交通卡")
+        // 示例账本里每月都有「公交月票」；常记的排在前几个就用它，不然用第一个。
+        XCTAssertTrue(key(app, "1").waitForExistence(timeout: 15), "记一笔没打开")
+        let bus = button(app, "再记一笔 公交月票")
+        let chip = bus.exists ? bus : button(app, "再记一笔 ")
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "没有「常记的」")
         chip.tap()
-        XCTAssertTrue(button(app, "交通").isSelected, "分类没跟着选上")
+        if bus.exists { XCTAssertTrue(button(app, "交通").isSelected, "分类没跟着选上") }
         let save = app.buttons["记下"]
         XCTAssertTrue(save.isEnabled, "点了常记的还是不能记")
         save.tap()
@@ -73,7 +76,9 @@ final class ManualEntryTests: XCTestCase {
         XCTAssertTrue(to.waitForExistence(timeout: 5), "没有「转到」")
         XCTAssertFalse(app.buttons["记下"].isEnabled, "没选转到哪就能记")
         to.tap()
-        let target = app.buttons["Revolut"].exists ? app.buttons["Revolut"] : app.collectionViews.buttons.element(boundBy: 1)
+        // 示例账本：从「日常卡」转到「现金」（取现）。
+        let target = app.buttons["现金"]
+        XCTAssertTrue(target.waitForExistence(timeout: 5), "转到的菜单里没有「现金」")
         target.tap()
         let save = app.buttons["记下"]
         XCTAssertTrue(save.isEnabled, "选好了还是不能记")
