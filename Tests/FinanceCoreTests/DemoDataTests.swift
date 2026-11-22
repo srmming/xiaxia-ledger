@@ -73,6 +73,7 @@ final class DemoDataTests: XCTestCase {
         // 夏夏建议：每种都有，有一条看过了。
         XCTAssertEqual(Set(l.insights.map(\.kind)), Set(Insight.Kind.allCases))
         XCTAssertEqual(l.insights(month: end.yearMonth).filter { $0.kind == .monthlyReview }.count, 2, "全部 + 小店各一条本月点评")
+        XCTAssertNil(l.insights(month: end.yearMonth).first?.bookID, "看「全部」时第一条要是总的点评，不是小店的")
         XCTAssertTrue(l.insights.contains { $0.dismissedAt != nil })
         // 还没整理的。
         XCTAssertEqual(l.transactions.filter { $0.flow == nil && $0.category == nil && $0.bookID == nil }.count, 3)
@@ -122,7 +123,7 @@ final class DemoDataTests: XCTestCase {
             XCTAssertGreaterThan(shop.income.cents, 300_000, "\(m) 店里进账太少")
             XCTAssertGreaterThan(me.income.cents, 130_000, "\(m) 个人收入太少")
             XCTAssertTrue((150_000...900_000).contains(all.expense.magnitude.cents), "\(m) 花了 \(all.expense.formatted)")
-            XCTAssertEqual(me.betweenBooks.cents, 90_000, "\(m) 老板提款应该是 900 €")
+            XCTAssertEqual(me.betweenBooks.cents, 70_000, "\(m) 老板提款应该是 700 €")
             XCTAssertNil(all.byCategory["未分类"], "\(m) 有没分类的")
             if all.net.cents > 0 { positive += 1 }
         }

@@ -298,9 +298,10 @@ struct DemoBuilder {
             move(d(1), eur(150), from: "daily", to: "wallet", "电子钱包充值", fromBook: P, toBook: P)
         } else {
             let prev = months[i - 1]
+            // 充到够上个月花的再多留 50 €，凑整到 50。
             let used = total("wallet", in: prev, outflowOnly: true).magnitude.cents
-            let top = max(10_000, (used + 4_999) / 5_000 * 5_000)
-            move(d(1), Money(cents: top), from: "daily", to: "wallet", "电子钱包充值", fromBook: P, toBook: P)
+            let need = used + 5_000 - balance("wallet", upTo: d(1)).cents
+            if need >= 5_000 { move(d(1), Money(cents: (need + 4_999) / 5_000 * 5_000), from: "daily", to: "wallet", "电子钱包充值", fromBook: P, toBook: P) }
             let owed = -l.transactions.filter { $0.accountID == "credit" && $0.date.yearMonth == prev && $0.flow != .internal }
                 .reduce(Money.zero) { $0 + $1.amount }.cents
             if owed > 0 { move(d(3), Money(cents: owed), from: "daily", to: "credit", "信用卡还款", fromBook: P, toBook: P) }
@@ -356,7 +357,8 @@ struct DemoBuilder {
         if rng.chance(0.3) { spend(d(rng.int(1...28)), rng.euros(6, 28), "药店", "cash", P, "医疗") }
 
         // 取现、存私房钱。
-        move(d(rng.int(4...12)), eur(rng.chance(0.5) ? 100 : 150), from: "daily", to: "cash", "ATM 取现", fromBook: P, toBook: P)
+        let atm = d(rng.int(4...12))
+        if balance("cash", upTo: atm).cents < 12_000 { move(atm, eur(100), from: "daily", to: "cash", "ATM 取现", fromBook: P, toBook: P) }
         move(d(15), eur(40), from: "cash", to: "stash", "存进私房钱", fromBook: P, toBook: P)
 
         // 存钱、还分期。
@@ -389,10 +391,10 @@ struct DemoBuilder {
 
         spend(d(1), eur(1100), "店租", "shop", S, "店租")
         // 每个月 1 号老板给自己发生活费：店里账户 → 日常卡。
-        move(d(1), eur(900), from: "shop", to: "daily", "老板提款 · 生活费", fromBook: S, toBook: Self.P)
+        move(d(1), eur(700), from: "shop", to: "daily", "老板提款 · 生活费", fromBook: S, toBook: Self.P)
         var card = Money.zero
         for day in [7, 14, 21, 28] {
-            let m = rng.euros(1250 * season * 0.85, 1250 * season * 1.15)
+            let m = rng.euros(1350 * season * 0.85, 1350 * season * 1.15)
             if d(day) <= end { card = card + m }
             earn(d(day), m, "刷卡收款（周结）", "shop", S, "营业收入")
         }
@@ -576,6 +578,15 @@ struct DemoBuilder {
                       body: "花得最多的是\(lastTop)。应急金照常存了 250 €，店里的咖啡机分期也按时还了。", author: "Claude"),
               on: demoDay(cur, 1), hour: 9, dismissed: true)
 
+        // 小店的本月点评（先写：看「全部」时显示后写的那条总的）。
+        let shopNow = Summaries.monthly(all, month: cur, bookID: Self.S, hiddenAccounts: hidden)
+        let shopBefore = Summaries.monthly(prevSame, month: prev, bookID: Self.S, hiddenAccounts: hidden)
+        let diff = shopNow.income - shopBefore.income
+        let flowers = (shopNow.byCategory["花材"] ?? .zero).magnitude
+        write(Insight(month: cur, bookID: Self.S, kind: .monthlyReview,
+                      title: "小店这个月到今天进账 \(shopNow.income.formatted)，\(diff.cents >= 0 ? "比上个月同期多 \(diff.formatted)" : "比上个月同期少 \(diff.magnitude.formatted)")。",
+                      body: "花材进货花了 \(flowers.formatted)。装修基金每个月存 200 €，按计划走。", author: "Claude"), on: end, hour: 0)
+
         // 本月点评。
         let now = Summaries.monthly(all, month: cur, bookID: nil, hiddenAccounts: hidden)
         let before = Summaries.monthly(prevSame, month: prev, bookID: nil, hiddenAccounts: hidden)
@@ -627,15 +638,6 @@ struct DemoBuilder {
         write(Insight(month: cur, kind: .tip, title: "订阅每个月扣 \(subs.formatted)，一年就是 \(Money(cents: subs.cents * 12).formatted)",
                       body: "StreamBox 视频会员从 11,99 € 涨到了 12,99 €；LinguaPal 语言课每月扣 9,99 €，还没记成订阅。不常用的可以停掉。",
                       page: "trends", author: "Claude"), on: end, hour: 0)
-
-        // 小店的本月点评。
-        let shopNow = Summaries.monthly(all, month: cur, bookID: Self.S, hiddenAccounts: hidden)
-        let shopBefore = Summaries.monthly(prevSame, month: prev, bookID: Self.S, hiddenAccounts: hidden)
-        let diff = shopNow.income - shopBefore.income
-        let flowers = (shopNow.byCategory["花材"] ?? .zero).magnitude
-        write(Insight(month: cur, bookID: Self.S, kind: .monthlyReview,
-                      title: "小店这个月到今天进账 \(shopNow.income.formatted)，\(diff.cents >= 0 ? "比上个月同期多 \(diff.formatted)" : "比上个月同期少 \(diff.magnitude.formatted)")。",
-                      body: "花材进货花了 \(flowers.formatted)。装修基金每个月存 200 €，按计划走。", author: "Claude"), on: end, hour: 0)
     }
 
     mutating func write(_ insight: Insight, on date: LocalDate, hour: Int, dismissed: Bool = false) {
