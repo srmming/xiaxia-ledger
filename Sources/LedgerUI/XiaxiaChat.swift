@@ -177,7 +177,7 @@ struct XiaxiaChatPanel: View {
     private func starter(_ chat: XiaxiaChatState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
-                MascotView(.xiaxia, pose: .hello, size: 96, talking: speaking)
+                MascotView(.xiaxia, pose: speaking ? .idle : .hello, size: 96, talking: speaking)  // 先张嘴说这句，说完挥手
                 Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 10)
