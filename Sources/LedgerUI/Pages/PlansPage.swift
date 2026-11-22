@@ -154,6 +154,10 @@ struct PlansPage: View {
             }
             return model.voiced("「\(g.name)」还差 \(left.rounded)，已经存了 \(g.percent)%。", .neutral)
         }
+        let subs = Subscriptions.totals(model.subscriptionStatus, bookID: model.selectedBookID)
+        if subs.activeCount > 0 {
+            return model.voiced("还没有存钱目标。订阅每月固定扣 \(subs.monthly.rounded)，一年约 \(subs.yearly.rounded)。", .neutral)
+        }
         let monthly = installments.filter { $0.nextDate != nil }.reduce(Money.zero) { $0 + $1.perPayment }
         if monthly.cents > 0 { return model.voiced("分期每月要还 \(monthly.rounded)，还没有存钱目标。", .neutral) }
         let owed = debts.filter { $0.direction == .theyOweMe }.reduce(Money.zero) { $0 + $1.outstanding }

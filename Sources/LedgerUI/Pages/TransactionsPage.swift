@@ -101,7 +101,8 @@ struct TransactionsPage: View {
 
     private func groups(_ list: [Transaction]) -> [DayGroup] {
         Dictionary(grouping: list, by: \.date).map { d, items in
-            DayGroup(date: d, items: items, total: items.filter { $0.flow == nil }.reduce(.zero) { $0 + $1.amount })
+            // 外币账户的流水先换成主币种再加，不把美元和欧元直接相加。
+            DayGroup(date: d, items: items, total: items.filter { $0.flow == nil }.reduce(.zero) { $0 + model.ledger.baseAmount($1) })
         }
         .sorted { $0.date > $1.date }
     }
