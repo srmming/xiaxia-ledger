@@ -150,14 +150,23 @@ struct CategoryDonut: View {
     }
 
     var body: some View {
-        Chart(slices) { s in
-            SectorMark(angle: .value("金额", shown || reduceMotion ? Double(s.amount.cents) : (s.id == slices.first?.id ? 1 : 0.0001)),
-                       innerRadius: .ratio(0.7), angularInset: 1.2)
+        // 只画大于 0 的块；很小的块不留缝、不切圆角，免得图表算出 NaN 崩掉（2026-11-22 Mac 上翻月份时崩过一次）。
+        let drawn = slices.filter { $0.amount.cents > 0 }
+        let sum = Double(drawn.reduce(0) { $0 + $1.amount.cents })
+        let smallest = drawn.map { Double($0.amount.cents) / max(sum, 1) * 360 }.min() ?? 0
+        let roomy = smallest >= 6
+        Chart(drawn) { s in
+            SectorMark(angle: .value("金额", Double(s.amount.cents)),
+                       innerRadius: .ratio(0.7), angularInset: roomy ? 1.2 : 0)
                 .foregroundStyle(s.name == "其它" ? Color.fg3 : CategoryStyle.color(s.name))
-                .cornerRadius(3)
+                .cornerRadius(roomy ? 3 : 0)
         }
         .chartLegend(.hidden)
         .frame(width: size, height: size)
+        // 打开时整个圆环转一下、放大出现，不去改数据本身。
+        .scaleEffect(shown || reduceMotion ? 1 : 0.85)
+        .rotationEffect(.degrees(shown || reduceMotion ? 0 : -40))
+        .opacity(shown || reduceMotion ? 1 : 0)
         .overlay {
             VStack(spacing: 2) {
                 Text(centerLabel).font(.caption).foregroundStyle(Color.fg2)
