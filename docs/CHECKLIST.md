@@ -6,7 +6,7 @@
 
 「怎么查」一栏：
 - **自动**：CI 每次推送都会跑。`swift test` 测核心规则，`scripts/fin-smoke.sh` 测 fin 和 MCP，`App/UITests` 在 iPhone 模拟器上真的点一遍，`scripts/screenshots.sh` 截图。
-- **Mac**：GitHub 的机器截不到 Mac 窗口，要在 Mac 上开 Debug 示例版（`夏夏账本 Debug.app --args -XiaxiaDemo`）点一遍。
+- **Mac**：GitHub 的机器截不到 Mac 窗口，要在 Mac 上开 Debug 示例版（`夏夏账本 Debug.app --args -XiaxiaDemo 1`）点一遍。
 
 ## 1. 管理类操作：每样东西都能加、改、删、撤销
 
@@ -78,6 +78,21 @@
 | 6.1 | 第一次打开（全新账本）只有一个「个人」账本，能从零开始用 | 自动 |
 | 6.2 | 关掉窗口再打开、退出再打开，主窗口都会出来 | Mac |
 | 6.3 | Mac 和 iPhone 通过 iCloud 看到同一本账；在一边加的账本另一边也有 | 两台设备 |
+
+## 8. 连 AI 引导（新用户第一次打开）
+
+| # | 检查项 | 怎么查 |
+|---|---|---|
+| 8.1 | Mac app 里带着 fin（`夏夏账本.app/Contents/MacOS/fin`），能跑、MCP 能握手 | 自动（CI「Mac app 里带了 fin」） |
+| 8.2 | 认出装了哪些 AI 工具；写配置只加「夏夏账本」一项，别的设置不动，第一次改前留 .bak-xiaxia；配置坏了不硬改 | 自动（单元测试 AIConnectTests） |
+| 8.3 | MCP 握手后记下是哪个 AI 连上的，引导页据此变绿 | 自动（fin-smoke） |
+| 8.4 | 第一次打开、没连过 AI 时自动弹「连上你的 AI」，只弹一次；连过 AI 的人（比如 ming）不弹 | Mac |
+| 8.5 | 引导三种情况都有出路：装了 AI 工具、一个都没装、用别的工具（复制配置） | 自动截图（mac-20 / 21） + Mac |
+| 8.6 | 真点「连上」后重开 Claude，说「用夏夏账本帮我记一笔」，引导页显示「连好了」 | Mac（用空账本：`XIAXIA_LEDGER_PATH` 指到临时目录） |
+| 8.7 | app 从「下载」挪到「应用程序」后再打开，AI 配置里的路径自动改好 | Mac |
+| 8.8 | 设置里能再进「连上你的 AI」；iPhone 设置里只说「在 Mac 上连」 | 截图 + Mac |
+| 8.9 | 浅色 / 深色、窗口里文字不截断 | 自动截图（mac-22） + Mac |
+| 8.10 | release 流程能做出 dmg；配了证书后能签名公证 | 手动跑 release（签名部分要等 ming 开通开发者账号） |
 
 ## 7. 设计套件里有、app 里还没有的
 

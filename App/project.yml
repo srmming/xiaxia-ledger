@@ -10,6 +10,9 @@ options:
 packages:
   XiaxiaLedgerKit:
     path: ..
+  swift-argument-parser:
+    url: https://github.com/apple/swift-argument-parser
+    from: 1.5.0
 settings:
   base:
     MARKETING_VERSION: "0.1.0"
@@ -41,6 +44,27 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
+  # fin（命令行 + MCP 服务）跟着 Mac app 走：装好 app 就有，放在 夏夏账本.app/Contents/MacOS/fin。
+  # 「连上你的 AI」把各 AI 工具的 MCP 配置指到这里，别人不用自己编译、不用装命令行。
+  fin-tool:
+    type: tool
+    platform: macOS
+    sources:
+      - path: ../Sources/fin
+    dependencies:
+      - package: XiaxiaLedgerKit
+        product: FinanceCore
+      - package: swift-argument-parser
+        product: ArgumentParser
+    settings:
+      base:
+        PRODUCT_NAME: fin
+        PRODUCT_MODULE_NAME: FinTool
+        PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.fin
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        SKIP_INSTALL: YES
   XiaxiaLedger-macOS:
     type: application
     platform: macOS
@@ -48,6 +72,11 @@ targets:
     dependencies:
       - package: XiaxiaLedgerKit
         product: LedgerUI
+      - target: fin-tool
+        embed: true
+        link: false
+        copy:
+          destination: executables
     info:
       path: Generated/macOS-Info.plist
       properties:
@@ -93,5 +122,5 @@ schemes:
       config: Debug
       targets: [XiaxiaLedger-iOSUITests]
   XiaxiaLedger-macOS:
-    build: { targets: { XiaxiaLedger-macOS: all } }
+    build: { targets: { XiaxiaLedger-macOS: all, fin-tool: all } }
     run: { config: Debug }

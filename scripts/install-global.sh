@@ -37,17 +37,30 @@ backup() { [ -f "$1" ] && [ ! -e "$1.bak-xiaxia" ] && [ $DRY = 0 ] && cp -p "$1"
 has() { command -v "$1" >/dev/null 2>&1; }
 
 # ---------- 1. fin ----------
-say "fin → $FIN"
-if [ "${XIAXIA_SKIP_BUILD:-0}" = 1 ]; then
+# 装了夏夏账本 app 就用 app 里自带的 fin：~/.local/bin/fin 只是指向它的软链，MCP 配置直接写 app 里的路径。只留一份，app 更新 fin 跟着更新。
+APP_FIN=""
+for app in "$HOME/Applications/夏夏账本.app" "/Applications/夏夏账本.app"; do
+  [ -x "$app/Contents/MacOS/fin" ] && { APP_FIN="$app/Contents/MacOS/fin"; break; }
+done
+if [ -n "$APP_FIN" ] && [ "${XIAXIA_SKIP_BUILD:-0}" != 1 ]; then
+  say "fin：用 app 自带的 $APP_FIN，$FIN 链到它"
+  doit mkdir -p "$BIN_DIR"
+  doit ln -sfn "$APP_FIN" "$FIN"
+  FIN="$APP_FIN"
+elif [ "${XIAXIA_SKIP_BUILD:-0}" = 1 ]; then
+  say "fin → $FIN"
   BUILT="${XIAXIA_FIN_BINARY:?XIAXIA_SKIP_BUILD=1 时要用 XIAXIA_FIN_BINARY 指定 fin}"
 else
+  say "fin → $FIN（没找到夏夏账本 app，从源码编译）"
   doit swift build -c release --package-path "$REPO" --product fin
   BUILT="$REPO/.build/release/fin"
 fi
-doit mkdir -p "$BIN_DIR"
-# 先复制成临时文件再 mv 替换：直接 cp 覆盖正在用的文件，macOS 会拿旧签名缓存校验新文件，fin 一跑就被杀掉（退出码 137）
-doit cp -f "$BUILT" "$FIN.new"
-doit mv -f "$FIN.new" "$FIN"
+if [ -z "$APP_FIN" ] || [ "${XIAXIA_SKIP_BUILD:-0}" = 1 ]; then
+  doit mkdir -p "$BIN_DIR"
+  # 先复制成临时文件再 mv 替换：直接 cp 覆盖正在用的文件，macOS 会拿旧签名缓存校验新文件，fin 一跑就被杀掉（退出码 137）
+  doit cp -f "$BUILT" "$FIN.new"
+  doit mv -f "$FIN.new" "$FIN"
+fi
 case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "注意：$BIN_DIR 不在 PATH 里，命令行里要写全路径（MCP 配置已用全路径）";; esac
 
 # ---------- 2. skill ----------

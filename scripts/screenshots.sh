@@ -4,6 +4,7 @@
 set -u
 OUT="${1:-screenshots}"
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IOS_APP="$(find "$ROOT/App/build/Build/Products" -path '*iphonesimulator*' -name '*.app' -maxdepth 2 | head -1)"
 MAC_APP="$(find "$ROOT/App/build/Build/Products/Debug" -name '*.app' -maxdepth 1 | head -1)"
@@ -43,7 +44,32 @@ if [ -n "$IOS_APP" ]; then
   ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
 fi
 
-# GitHub 的机器截不到 Mac 窗口（只有黑屏），所以 CI 上跳过 Mac 部分；在自己的 Mac 上跑会截。
+# GitHub 的机器上 screencapture 只有黑屏，改让 app 自己把窗口画成图（-XiaxiaSnapshot），不用屏幕录制权限。
+if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
+  BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
+  snap() {
+    local name="$1"; shift
+    # 用 open 启动，让 app 被激活。系统参数（-AppleLanguages 这种成对的）放前面：
+    # 开关都带上值（-XiaxiaDemo 1）：参数凑不成「-键 值」对时，多出来的那个词会被 macOS 当成要打开的文件，
+    # app 就不开主窗口了（只有个数凑成双数的那次截到了）。
+    open -n -a "$MAC_APP" --stdout "$OUT/mac-$name.log" --stderr "$OUT/mac-$name.log" \
+      --args -AppleLanguages "(zh-Hans)" -AppleLocale es_ES -XiaxiaSnapshot "$OUT/mac-$name.png" "$@"
+    for _ in $(seq 1 45); do [ -f "$OUT/mac-$name.png" ] && break; pgrep -f "$BIN" >/dev/null || break; sleep 1; done
+    sleep 1
+    pkill -9 -f "$BIN" 2>/dev/null
+    if [ -f "$OUT/mac-$name.png" ]; then echo "mac-$name 截好了"; rm -f "$OUT/mac-$name.log"
+    else echo "mac-$name 没截到"; tail -5 "$OUT/mac-$name.log" 2>/dev/null; fi
+  }
+  snap 1-overview -XiaxiaDemo 1
+  snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
+  snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
+  snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights
+  snap 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
+  snap 21-connect-ai-no-tools -XiaxiaEmpty 1 -XiaxiaNoTools 1 -XiaxiaSheet connectAI
+  snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+fi
+
+# 在自己的 Mac 上跑会用 screencapture 截整屏。
 if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   mac() {
@@ -62,19 +88,20 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
     pkill -9 -f "$BIN" 2>/dev/null
     sleep 1
   }
-  mac 1-overview -XiaxiaDemo
-  mac 2-spending -XiaxiaDemo -XiaxiaSection spending
-  mac 3-trends -XiaxiaDemo -XiaxiaSection trends
-  mac 4-wealth -XiaxiaDemo -XiaxiaSection wealth
-  mac 5-plans -XiaxiaDemo -XiaxiaSection plans
-  mac 6-ai -XiaxiaDemo -XiaxiaSection insights
-  mac 7-changes -XiaxiaDemo -XiaxiaSection changes
-  mac 8-transactions -XiaxiaDemo -XiaxiaSection transactions
-  mac 9-settings -XiaxiaDemo -XiaxiaSection settings
-  mac 10-add -XiaxiaDemo -XiaxiaSheet add
-  mac 11-empty -XiaxiaEmpty
-  mac 12-books -XiaxiaDemo -XiaxiaSheet books
-  mac 13-accounts -XiaxiaDemo -XiaxiaSheet accounts
-  mac 14-new-plan -XiaxiaDemo -XiaxiaSheet plan
+  mac 1-overview -XiaxiaDemo 1
+  mac 2-spending -XiaxiaDemo 1 -XiaxiaSection spending
+  mac 3-trends -XiaxiaDemo 1 -XiaxiaSection trends
+  mac 4-wealth -XiaxiaDemo 1 -XiaxiaSection wealth
+  mac 5-plans -XiaxiaDemo 1 -XiaxiaSection plans
+  mac 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
+  mac 7-changes -XiaxiaDemo 1 -XiaxiaSection changes
+  mac 8-transactions -XiaxiaDemo 1 -XiaxiaSection transactions
+  mac 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
+  mac 10-add -XiaxiaDemo 1 -XiaxiaSheet add
+  mac 11-empty -XiaxiaEmpty 1
+  mac 12-books -XiaxiaDemo 1 -XiaxiaSheet books
+  mac 13-accounts -XiaxiaDemo 1 -XiaxiaSheet accounts
+  mac 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
+  mac 14-new-plan -XiaxiaDemo 1 -XiaxiaSheet plan
 fi
 ls -la "$OUT"

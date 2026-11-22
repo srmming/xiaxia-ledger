@@ -12,23 +12,32 @@ struct SettingsPage: View {
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
-            group("外部 AI 工具（MCP）", note: "Claude、Codex 这些 AI 通过 MCP 读写同一本账。用过账本的会显示在这里。") {
-                let tools = model.aiTools
-                if tools.isEmpty {
-                    item(symbol: "sparkles", color: .ai, title: "还没有 AI 写过账本") { Text("没连").foregroundStyle(Color.fg2) }
-                }
-                ForEach(tools) { t in
-                    item(monogram: Monogram.author(t.name, isMe: false, size: 26), title: t.name) {
-                        StatusDot(color: .income, text: "用过 · \(t.last.friendly) 写过").foregroundStyle(Color.fg2)
+            group("AI 连接（MCP）", note: "Claude、Codex 这些 AI 通过 MCP 读写同一本账。「用过账本」是 AI 最近一次打开账本的时间。") {
+                #if os(macOS)
+                AIStatusRows()
+                Button {
+                    Clipboard.copy(model.aiSetupPrompt)
+                    model.toast = .init(text: "已复制，粘贴给你的 AI，它会自己配好", changeID: nil)
+                } label: {
+                    item(symbol: "text.bubble.fill", color: .ai, title: "复制一段话，让 AI 自己配好") {
+                        Image(systemName: "doc.on.doc").font(.caption).foregroundStyle(Color.fg3)
                     }
                 }
-                item(symbol: "plus", color: .fg3, title: "连别的 AI（Cursor、Gemini CLI…）") {
-                    Button {
-                        Clipboard.copy(model.mcpConfig)
-                        model.toast = .init(text: "MCP 配置已复制", changeID: nil)
-                    } label: { Label("复制 MCP 配置", systemImage: "doc.on.doc") }
-                        .buttonStyle(.softAI)
+                .buttonStyle(.plain)
+                Button { model.sheet = .connectAI } label: {
+                    item(symbol: "link", color: .ai, title: "连上你的 AI（Claude、Codex、Cursor…）") {
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
+                    }
                 }
+                .buttonStyle(.plain)
+                #else
+                ForEach(model.aiTools) { t in
+                    item(monogram: Monogram.author(t.name, isMe: false, size: 26), title: t.name) {
+                        StatusDot(color: .income, text: "\(t.last.friendly) 写过").foregroundStyle(Color.fg2)
+                    }
+                }
+                ConnectAIPhoneNote().padding(.vertical, 8)
+                #endif
             }
             group("你") {
                 item(symbol: "person.fill", color: .brand, title: "记账的人") {

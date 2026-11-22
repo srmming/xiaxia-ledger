@@ -82,18 +82,26 @@ public struct RootView: View {
                 case .books: BookManager()
                 case .accounts: AccountManager()
                 case .categories: CategoryManager()
+                case .connectAI: ConnectAIView()
                 case .plan: NewPlanSheet()
                 }
             }
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
-                .frame(width: sheet == .add ? 460 : 520, height: sheet == .add ? nil : 580)
+                .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : 520,
+                       height: sheet == .add ? nil : sheet == .connectAI ? 720 : 580)
                 #else
                 .presentationDetents([.large])
                 #endif
         }
         .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
+        .task {
+            // Mac：app 换过位置就把 AI 配置里的路径改过来；第一次打开、还没连过 AI 就弹「连上你的 AI」。
+            model.repairAIConnections()
+            try? await Task.sleep(for: .seconds(0.6))
+            model.showAISetupIfNeeded()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }
         }
@@ -420,6 +428,9 @@ public struct XiaxiaScene: Scene {
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
         if let v = value("-XiaxiaSheet"), let sheet = AppSheet(rawValue: v) { model.sheet = sheet }
         if args.contains("-XiaxiaPrivate") { model.showPrivate = true }
+        #if os(macOS)
+        if let out = value("-XiaxiaSnapshot") { WindowSnapshot.schedule(to: out) }
+        #endif
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
         }

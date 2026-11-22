@@ -172,6 +172,8 @@ for line in sys.stdin:
     else:
         print(json.dumps(m, ensure_ascii=False)[:600])
 '
+echo; echo "MCP 握手后记下连上的 AI 工具（app 的连 AI 引导靠它显示「连上了」）："
+if grep -q smoke-client "$WORK/ai-connections.json" 2>/dev/null; then cat "$WORK/ai-connections.json"; else echo "↳ 没记下 ai-connections.json"; FAILS=$((FAILS + 1)); fi
 call() { mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"smoke-client"}}}' \
              "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":$2}}" \
          | tail -1 | python3 -c 'import json,sys; r=json.load(sys.stdin); res=r.get("result") or r; print(("出错 " if res.get("isError") else "") + "\n".join(c["text"] for c in res.get("content",[])) if "content" in res else json.dumps(r, ensure_ascii=False))'; }
@@ -214,6 +216,14 @@ for spec in \
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
   call "${spec%%|*}" "${spec#*|}"
 done
+
+echo; echo "===== fin connect：让 AI 自己把夏夏账本连上（在假的主目录里试） ====="
+FAKEHOME="$WORK/home"; mkdir -p "$FAKEHOME/.codex"
+HOME="$FAKEHOME" run connect --list
+HOME="$FAKEHOME" run connect codex
+HOME="$FAKEHOME" run connect --all --dry-run
+expect_fail connect nosuchtool
+grep -q "mcp_servers.xiaxia-ledger" "$FAKEHOME/.codex/config.toml" && cat "$FAKEHOME/.codex/config.toml" || { echo "↳ Codex 配置没写进去"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 历史里的作者 ====="
 "$FIN" history --limit 4
