@@ -72,14 +72,14 @@ struct SpendingPaceChart: View {
                     RuleMark(x: .value("今天", t.day)).foregroundStyle(Color.fg3.opacity(0.35)).lineStyle(StrokeStyle(lineWidth: 1))
                     PointMark(x: .value("日", t.day), y: .value("花掉", t.amount))
                         .foregroundStyle(Color.brand).symbolSize(50)
-                        .annotation(position: .topLeading, spacing: 4) {
+                        .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                             Text("\(status.isCurrent ? "今天" : "月底") \(Money(cents: Int64(t.amount * 100)).rounded)")
                                 .font(.caption2.weight(.semibold)).foregroundStyle(.primary)
                         }
                     if let l = lastSameDay, status.isCurrent {
                         PointMark(x: .value("日", t.day), y: .value("花掉", l.amount))
                             .symbolSize(0)
-                            .annotation(position: .bottomTrailing, spacing: 2) {
+                            .annotation(position: .bottomTrailing, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                                 Text("上月这天 \(Money(cents: Int64(l.amount * 100)).rounded)").font(.caption2).foregroundStyle(Color.fg2)
                             }
                     }
@@ -209,19 +209,20 @@ struct MonthBars: View {
             .font(.caption).foregroundStyle(Color.fg2)
             Chart {
                 ForEach(bars) { b in
-                    BarMark(x: .value("月", b.month.shortLabel), y: .value("金额", b.value), width: .ratio(0.8))
+                    BarMark(x: .value("月", b.month.description), y: .value("金额", b.value), width: .ratio(0.8))
                         .position(by: .value("类", b.kind))
                         .foregroundStyle(b.kind == "进账" ? Color.income : Color.barExpense)
                         .opacity(b.month == current ? 0.55 : 1)
                         .cornerRadius(3)
                 }
                 ForEach(summaries.filter { $0.net.isExpense }, id: \.month) { s in
-                    PointMark(x: .value("月", s.month.shortLabel), y: .value("金额", top * 1.07))
+                    PointMark(x: .value("月", s.month.description), y: .value("金额", top * 1.07))
                         .foregroundStyle(Color.alert).symbolSize(22)
                 }
             }
             .chartLegend(.hidden)
             .chartYScale(domain: 0...(top * 1.15))
+            .chartXAxis { MonthAxis(months: summaries.map(\.month), every: 2) }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
                     AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
@@ -248,28 +249,24 @@ struct NetWorthChart: View {
         let pad = max((hi - lo) * 0.15, 100)
         Chart {
             ForEach(points) { p in
-                AreaMark(x: .value("月", p.month.shortLabel), yStart: .value("底", lo - pad), yEnd: .value("家底", Double(p.value.cents) / 100))
+                AreaMark(x: .value("月", p.month.description), yStart: .value("底", lo - pad), yEnd: .value("家底", Double(p.value.cents) / 100))
                     .foregroundStyle(LinearGradient(colors: [Color.income.opacity(0.22), Color.income.opacity(0.02)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.monotone)
-                LineMark(x: .value("月", p.month.shortLabel), y: .value("家底", Double(p.value.cents) / 100))
+                LineMark(x: .value("月", p.month.description), y: .value("家底", Double(p.value.cents) / 100))
                     .foregroundStyle(Color.income)
                     .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
                     .interpolationMethod(.monotone)
             }
             if let last = points.last {
-                PointMark(x: .value("月", last.month.shortLabel), y: .value("家底", Double(last.value.cents) / 100))
+                PointMark(x: .value("月", last.month.description), y: .value("家底", Double(last.value.cents) / 100))
                     .foregroundStyle(Color.income).symbolSize(50)
-                    .annotation(position: .topLeading, spacing: 4) {
+                    .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                         Text(last.value.rounded).font(.caption2.weight(.semibold))
                     }
             }
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
-        .chartXAxis {
-            AxisMarks(values: points.enumerated().filter { ($0.offset - (points.count - 1)) % 3 == 0 }.map { $0.element.month.shortLabel }) { _ in
-                AxisValueLabel()
-            }
-        }
+        .chartXAxis { MonthAxis(months: points.map(\.month), every: 3) }
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
                 AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
@@ -280,5 +277,26 @@ struct NetWorthChart: View {
         .revealFromLeading()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("近 \(points.count) 个月家底曲线，从 \(points.first?.value.rounded ?? "") 到 \(points.last?.value.rounded ?? "")。")
+    }
+}
+
+// MARK: - 月份横轴
+
+/// 按月的横轴：每个月用「2026-11」这样不会重复的键（跨年时两个「11月」不会挤在一起），
+/// 只隔几个月标一次、并且一定标最后一个月，标签写「11月」，窄屏上不会被截成「1…」。
+struct MonthAxis: AxisContent {
+    let months: [YearMonth]
+    var every: Int
+
+    var body: some AxisContent {
+        let count = months.count
+        let shown = months.enumerated().filter { (count - 1 - $0.offset) % max(every, 1) == 0 }.map(\.element)
+        AxisMarks(values: shown.map(\.description)) { v in
+            AxisValueLabel(collisionResolution: .disabled) {
+                if let key = v.as(String.self), let m = YearMonth(key) {
+                    Text(m.month == 1 || m == shown.first ? "\(m.year % 100)年\(m.month)月" : m.shortLabel).fixedSize()
+                }
+            }
+        }
     }
 }
