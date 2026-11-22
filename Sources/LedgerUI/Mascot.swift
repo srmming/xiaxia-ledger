@@ -48,6 +48,7 @@ enum MascotCharacter: String, CaseIterable, Identifiable {
         }
     }
 
+    #if os(macOS)
     /// 对话栏用哪个 AI 回答，就由哪个伙伴陪着。
     static func of(_ engine: ChatEngine) -> MascotCharacter {
         switch engine {
@@ -56,6 +57,7 @@ enum MascotCharacter: String, CaseIterable, Identifiable {
         case .hermes: .star
         }
     }
+    #endif
 
     static func of(_ app: AIApp) -> MascotCharacter {
         switch app {
