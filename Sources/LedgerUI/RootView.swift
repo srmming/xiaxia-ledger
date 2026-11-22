@@ -211,20 +211,27 @@ struct MacRoot: View {
             .safeAreaInset(edge: .bottom) { SidebarFooter() }
         } detail: {
             let section = model.section ?? .overview
-            NavigationStack {
-                section.screen
-                    .navigationTitle(section.rawValue)
-                    .toolbar { MacToolbar(model: model, section: section) }
+            // 对话栏不用系统的 .inspector：它是 AppKit 分栏里的一栏，展开收起时分栏要重算，
+            // 2026-11-22 在 Mac 上连着几次陷进约束死循环闪退（_postWindowNeedsUpdateConstraints）。
+            // 这里就是中间这栏里一个普通的左右排版，右边固定 340 宽，分栏本身完全不动。
+            HStack(spacing: 0) {
+                NavigationStack {
+                    section.screen
+                        .navigationTitle(section.rawValue)
+                        .toolbar { MacToolbar(model: model, section: section) }
+                }
+                .id(section)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                if model.chat.open {
+                    Divider()
+                    XiaxiaChatPanel()
+                        .frame(width: 340)
+                        .frame(maxHeight: .infinity)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
-            .id(section)
-            // 中间这栏的最小宽度固定死，不随页面内容变：换页、详情出现时分栏就不用重算最小宽度（不然对话栏开着会触发 AppKit 约束死循环闪退）。
-            .frame(minWidth: 520, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-            // 对话栏挂在中间这栏上（苹果推荐的放法），不挂在整个分栏外面：挂外面时打开对话栏，三栏加起来比窗口宽，
-            // 左边侧栏和右边对话栏都被切掉一截。
-            .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
-                XiaxiaChatPanel()
-                    .inspectorColumnWidth(min: 300, ideal: 340, max: 520)
-            }
+            // 中间这栏的最小宽度固定死，不随页面内容、对话栏开关变：分栏就不用重算最小宽度（「看看」闪退就是这么修的）。
+            .frame(minWidth: 460, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
     }
 
@@ -483,8 +490,8 @@ public struct XiaxiaScene: Scene {
         Window("夏夏账本", id: "main") {
             RootView()
                 .environment(model)
-                // 对话栏开着时窗口不能拉得比三栏加起来还窄（不然 AppKit 分栏约束死循环闪退）。
-                .frame(minWidth: model.chat.open ? XiaxiaChatState.minWindowWidth : 760, minHeight: 560)
+                // 窗口最窄也要放得下：侧栏 190 + 页面 460 + 对话栏 340。宽度固定不变，开关对话栏时不改窗口最小宽度。
+                .frame(minWidth: 1000, minHeight: 560)
         }
         .defaultSize(width: 1240, height: 820)
         .commands {
