@@ -273,6 +273,13 @@ final class AIConnectTests: XCTestCase {
         XCTAssertTrue(try read(".agents/skills/fin/SKILL.md").contains("name: fin"))
     }
 
+    func testSetupExplainsSandboxDenial() {
+        let denied = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteNoPermissionError,
+                             userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: 1)])
+        XCTAssertTrue(AISetup.explain(denied).contains("终端"))
+        XCTAssertFalse(AISetup.explain(AIConnector.ConnectError.unreadableConfig("/x")).contains("终端"))
+    }
+
     func testSetupRemoveTakesEverythingBack() throws {
         try write(".claude.json", "{}")
         try write(".claude/CLAUDE.md", "我的\n")
