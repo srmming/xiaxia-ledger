@@ -284,18 +284,13 @@ struct NetWorthChart: View {
 
 /// 按月的横轴：每个月用「2026-11」这样不会重复的键（跨年时两个「11月」不会挤在一起），
 /// 只隔几个月标一次、并且一定标最后一个月，标签写「11月」，窄屏上不会被截成「1…」。
-struct MonthAxis: AxisContent {
-    let months: [YearMonth]
-    var every: Int
-
-    var body: some AxisContent {
-        let count = months.count
-        let shown = months.enumerated().filter { (count - 1 - $0.offset) % max(every, 1) == 0 }.map(\.element)
-        AxisMarks(values: shown.map(\.description)) { v in
-            AxisValueLabel(collisionResolution: .disabled) {
-                if let key = v.as(String.self), let m = YearMonth(key) {
-                    Text(m.month == 1 || m == shown.first ? "\(m.year % 100)年\(m.month)月" : m.shortLabel).fixedSize()
-                }
+func MonthAxis(months: [YearMonth], every: Int) -> some AxisContent {
+    let count = months.count
+    let shown = months.enumerated().filter { (count - 1 - $0.offset) % max(every, 1) == 0 }.map(\.element)
+    return AxisMarks(values: shown.map(\.description)) { v in
+        AxisValueLabel(collisionResolution: .disabled) {
+            if let key = v.as(String.self), let m = YearMonth(key) {
+                Text(m.month == 1 || m == shown.first ? "\(m.year % 100)年\(m.month)月" : m.shortLabel).fixedSize()
             }
         }
     }
