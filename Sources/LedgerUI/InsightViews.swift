@@ -40,6 +40,18 @@ struct InsightCard: View {
     var showAllLink = true
     @State var appeared = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// 夏夏的动作跟着这条意见的口气：好消息庆祝、要处理担心、留意在想、点评按性格。
+    private var pose: MascotPose {
+        switch insight.kind {
+        case .goodNews: .celebrate
+        case .action: .worried
+        case .alert: .think
+        case .tip: .write
+        case .monthlyReview: model.persona.mascotPose
+        }
+    }
 
     var body: some View {
         AskAIReader { ask in
@@ -48,27 +60,37 @@ struct InsightCard: View {
                     Label {
                         Text(insight.kind == .monthlyReview ? "夏夏 · \(insight.month.month) 月点评" : "夏夏说 · \(insight.kind.label)")
                     } icon: {
-                        Image(systemName: "sparkles")
+                        // 写这条的 AI 伙伴的小头像（Claude 写的是小橘、Codex 是小紫……）
+                        MascotView(MascotCharacter.of(author: insight.author), size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()
                     Text("\(insight.author) · \(insight.createdAt.friendly)").font(.caption).foregroundStyle(Color.fg2)
                 }
-                Text(insight.title).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
-                if !insight.body.isEmpty {
-                    Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .bottom, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(insight.title).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
+                        if !insight.body.isEmpty {
+                            Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                        }
+                        HStack(spacing: 8) {
+                            Button {
+                                ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
+                            } label: { Label("接着问", systemImage: "sparkles") }
+                                .buttonStyle(.softAI)
+                            Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
+                                .buttonStyle(.soft)
+                            Spacer()
+                            if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
+                        }
+                        .padding(.top, 2)
+                    }
+                    // 夏夏本人站在卡片右边念这条意见；大字号时让出位置给文字。
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        MascotView(.xiaxia, pose: pose, size: large ? 120 : 80)
+                            .padding(.bottom, -6)
+                    }
                 }
-                HStack(spacing: 8) {
-                    Button {
-                        ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
-                    } label: { Label("接着问", systemImage: "sparkles") }
-                        .buttonStyle(.softAI)
-                    Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
-                        .buttonStyle(.soft)
-                    Spacer()
-                    if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
-                }
-                .padding(.top, 2)
             }
             .aiCard()
         }

@@ -391,7 +391,8 @@ struct AIStatusRows: View {
                 line(symbol: "sparkles", color: .fg3, title: "这台 Mac 上没找到能自动连的 AI 工具", detail: "点下面「连上你的 AI」看看别的办法") { EmptyView() }
             }
             ForEach(shown, id: \.app) { r in
-                line(symbol: r.connected ? "checkmark" : "link", color: r.connected ? .income : .fg3, title: r.app.name, detail: detail(r)) {
+                line(symbol: r.connected ? "checkmark" : "link", color: r.connected ? .income : .fg3, title: r.app.name, detail: detail(r),
+                     mascot: .of(r.app)) {
                     if !r.connected {
                         Button(r.repair ? "重新连" : "连上") { connect(r.app) }.buttonStyle(.softAI)
                     }
@@ -399,7 +400,8 @@ struct AIStatusRows: View {
             }
             // 握手过、但不是上面能自动连的工具（比如 Cherry Studio）
             ForEach(otherClients, id: \.self) { name in
-                line(symbol: "checkmark", color: .income, title: name, detail: "已连上 · \(handshakes[name]!.friendly) 用过账本") { EmptyView() }
+                line(symbol: "checkmark", color: .income, title: name, detail: "已连上 · \(handshakes[name]!.friendly) 用过账本",
+                     mascot: .of(author: name)) { EmptyView() }
             }
         }
         .task {
@@ -418,11 +420,25 @@ struct AIStatusRows: View {
         return "装了，还没连"
     }
 
-    private func line<Trailing: View>(symbol: String, color: Color, title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+    private func line<Trailing: View>(symbol: String, color: Color, title: String, detail: String, mascot: MascotCharacter? = nil,
+                                      @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                .frame(width: 26, height: 26).background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .accessibilityHidden(true)
+            if let mascot {
+                // 每个 AI 工具一个小伙伴头像，右下角小圆点表示连没连
+                MascotView(mascot, size: 32, face: true, animated: false)
+                    .saturation(color == .income ? 1 : 0.35)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: symbol).font(.system(size: 7, weight: .heavy)).foregroundStyle(.white)
+                            .frame(width: 14, height: 14).background(color, in: Circle())
+                            .overlay(Circle().strokeBorder(Color.pageBackground, lineWidth: 1.5))
+                            .offset(x: 3, y: 3)
+                    }
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 26, height: 26).background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.callout)
                 Text(detail).font(.caption).foregroundStyle(Color.fg2)

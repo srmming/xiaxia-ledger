@@ -361,8 +361,13 @@ struct KitEmptyState: View {
     var body: some View {
         AskAIReader { ask in
             VStack(spacing: 10) {
-                XiaxiaIllustration(art ?? Self.artFor(symbol), width: 150)
-                    .padding(.bottom, -2)
+                // 道具插画 + 站在旁边的夏夏（动作跟着这页的情况：空着在打盹、出错了担心、做完了庆祝…）
+                let glyph = art ?? Self.artFor(symbol)
+                HStack(alignment: .bottom, spacing: -18) {
+                    MascotView(.xiaxia, pose: Self.poseFor(glyph), size: 96)
+                    XiaxiaIllustration(glyph, width: 132)
+                }
+                .padding(.bottom, -2)
                 Text(title).font(.headline)
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
@@ -374,6 +379,17 @@ struct KitEmptyState: View {
             }
             .padding(.vertical, 24).padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    static func poseFor(_ art: XiaGlyph) -> MascotPose {
+        switch art {
+        case .illoError: .worried
+        case .illoDone: .celebrate
+        case .illoConnect: .hello
+        case .illoSearch, .illoTrends, .illoLoading: .think
+        case .illoPlans, .illoAccounts: .write
+        default: .sleep
         }
     }
 
