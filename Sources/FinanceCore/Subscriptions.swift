@@ -258,7 +258,7 @@ public enum Subscriptions {
     public static func detect(_ ledger: Ledger, today: LocalDate = .today) -> [SubscriptionCandidate] {
         let registered = ledger.subscriptions.map(\.matchKey).filter { !$0.isEmpty }
         var groups: [String: [Transaction]] = [:]
-        for tx in ledger.transactions where tx.amount.cents < 0 && tx.flow == nil && !tx.isTransfer {
+        for tx in ledger.transactions where tx.amount.cents < 0 && tx.flow == nil && !tx.isTransfer && !isFixedCost(tx) {
             let k = key(tx.description)
             guard k.count >= 2 else { continue }
             groups["\(tx.accountID)|\(k)", default: []].append(tx)
@@ -285,6 +285,30 @@ public enum Subscriptions {
                                              transactionIDs: run.suffix(6).map(\.id)))
         }
         return out.sorted { $0.nextDate == $1.nextDate ? $0.name < $1.name : $0.nextDate < $1.nextDate }
+    }
+
+    /// 房租、工资、水电、税、交通卡这些固定开销每月也扣，但不是「订阅」，不往候选里放。
+    /// 看分类（中文名或图标名都认），没分类再看描述里的字。
+    static let fixedCostCategories: Set<String> = [
+        "房租", "housing", "店租", "shoprent", "水电", "utilities", "工资", "salary", "员工工资", "staff",
+        "税费", "tax", "社保", "social", "交通", "transport", "还款", "repay", "借款", "loan",
+        "储蓄", "savings", "投资", "invest", "转账", "transfer", "老板提款", "withdraw", "充值", "topup",
+    ]
+    static let fixedCostWords = ["房租", "租金", "店租", "工资", "薪水", "水电", "电费", "水费", "燃气", "增值税", "税",
+                                 "社保", "交通卡", "月票", "alquiler", "nomina", "nómina", "iva", "hacienda",
+                                 "seguridad social", "abono transporte", "rent", "salary", "payroll"]
+
+    static func isFixedCost(_ tx: Transaction) -> Bool {
+        if let c = tx.category?.trimmingCharacters(in: .whitespaces), !c.isEmpty {
+            return fixedCostCategories.contains(c) || fixedCostCategories.contains(c.lowercased())
+        }
+        let text = tx.description.lowercased()
+        return fixedCostWords.contains { w in
+            // 短的西语/英语词按整词比，免得 "iva" 撞上 "privada"。
+            w.allSatisfy(\.isASCII) && w.count <= 4
+                ? text.split(whereSeparator: { !$0.isLetter }).contains { $0 == Substring(w) }
+                : text.contains(w)
+        }
     }
 
     static func days(of cycle: Subscription.Cycle) -> Int {

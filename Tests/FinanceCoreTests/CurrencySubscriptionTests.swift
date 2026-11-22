@@ -174,6 +174,13 @@ final class SubscriptionTests: XCTestCase {
         for (i, day) in [2, 5, 9, 14, 20, 26].enumerated() {
             for m in 9...11 { txs.append(Transaction(date: d(2026, m, day), amount: Money(cents: -1000 - Int64(i * 777)), description: "MERCADONA", accountID: "card")) }
         }
+        // 固定开销：每月同一天同一个数，但不是订阅（有分类的看分类，没分类的看描述）
+        for m in 6...11 {
+            txs.append(Transaction(date: d(2026, m, 1), amount: Money(cents: -90000), description: "ALQUILER PISO", accountID: "card", category: "房租"))
+            txs.append(Transaction(date: d(2026, m, 28), amount: Money(cents: -150000), description: "NOMINA EMPLEADA", accountID: "card"))
+            txs.append(Transaction(date: d(2026, m, 5), amount: Money(cents: -5480), description: "ABONO TRANSPORTE", accountID: "card"))
+        }
+        for m in [1, 4, 7, 10] { txs.append(Transaction(date: d(2026, m, 20), amount: Money(cents: -61200), description: "AEAT IVA TRIMESTRAL", accountID: "card")) }
         // 健身房：停了（最后一次是 6 月）
         for m in 2...6 { txs.append(Transaction(date: d(2026, m, 10), amount: Money(cents: -2990), description: "GYMFIT", accountID: "card")) }
         l.transactions = txs
