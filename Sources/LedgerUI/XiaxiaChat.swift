@@ -34,7 +34,7 @@ public final class XiaxiaChatState {
 
     /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
     @ObservationIgnored var focusRequest: (() -> Void)?
-    public func ask(about tx: Transaction, model: LedgerModel) {
+    func ask(about tx: Transaction, model: LedgerModel) {
         open = true
         model.selectedTransactionID = tx.id
         draft = "这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，"
