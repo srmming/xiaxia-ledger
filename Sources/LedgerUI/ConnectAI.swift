@@ -108,9 +108,15 @@ struct ConnectAIView: View {
                         .foregroundStyle(Color.alert)
                 }
             } else {
-                toolsSection
-                selfSetupSection
-                otherSection
+                if shownApps.isEmpty && !firstLoad {
+                    // 这台 Mac 上一个 AI 都没有：先告诉他装哪个，别先给一排「没找到」和用不上的「连上」说明。
+                    otherSection
+                    selfSetupSection
+                } else {
+                    toolsSection
+                    selfSetupSection
+                    otherSection
+                }
                 trySection
             }
         }
@@ -244,8 +250,8 @@ struct ConnectAIView: View {
 
     private var otherSection: some View {
         Section {
-            if installed.isEmpty && connected.isEmpty {
-                Text("这台 Mac 上还没有能连的 AI 工具。挑一个装上，回来点「连上」就行：")
+            if shownApps.isEmpty {
+                Text("这台 Mac 上还没有能连的 AI 工具。挑一个装上，这一页会自动认出来，再点「连上」就行：")
                     .font(.callout)
             }
             linkRow("下载 Claude 桌面版", note: "最省事，装好登录就能用", url: "https://claude.ai/download", symbol: "arrow.down.circle.fill")
@@ -266,7 +272,7 @@ struct ConnectAIView: View {
                     .buttonStyle(.softAI)
             }
         } header: {
-            Text("② 没有这些 AI，或者用别的")
+            Text(shownApps.isEmpty ? "① 先装一个 AI" : "② 没有这些 AI，或者用别的")
         }
     }
 
@@ -357,6 +363,7 @@ struct ConnectAIView: View {
 
     private func refresh() {
         guard let c = connector else { return }
+        let before = installed
         installed = Set(AIApp.allCases.filter { c.isInstalled($0) })
         connected = Set(AIApp.allCases.filter { c.isConnected($0) })
         repair = Set(AIApp.allCases.filter { c.needsRepair($0) })
@@ -366,6 +373,8 @@ struct ConnectAIView: View {
             picked = installed.union(repair).subtracting(connected)
             firstLoad = false
         } else {
+            // 开着这一页时刚装好的 AI，也默认勾上
+            picked.formUnion(installed.subtracting(before).subtracting(connected))
             picked.subtract(connected)
         }
         model.refreshIfChanged()
