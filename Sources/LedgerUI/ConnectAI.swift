@@ -138,7 +138,12 @@ struct ConnectAIView: View {
 
     private var toolsSection: some View {
         Section {
-            ForEach(AIApp.allCases) { app in toolRow(app) }
+            // 只列这台 Mac 上有的；没找到的合成一行小字，新用户不用对着一排灰色的「没找到」发愁。
+            ForEach(shownApps) { app in toolRow(app) }
+            if !missingApps.isEmpty {
+                Text((shownApps.isEmpty ? "这台 Mac 上没找到：" : "没找到：") + missingApps.map(\.name).joined(separator: "、"))
+                    .font(.caption).foregroundStyle(Color.fg2)
+            }
             if !results.isEmpty || !errors.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(AIApp.allCases.filter { results[$0] != nil }) { app in
@@ -169,6 +174,9 @@ struct ConnectAIView: View {
             footnote("点「连上」会在这些工具的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。")
         }
     }
+
+    private var shownApps: [AIApp] { AIApp.allCases.filter { installed.contains($0) || connected.contains($0) || repair.contains($0) } }
+    private var missingApps: [AIApp] { AIApp.allCases.filter { !shownApps.contains($0) } }
 
     private func toolRow(_ app: AIApp) -> some View {
         let isOn = Binding(get: { picked.contains(app) }, set: { on in if on { picked.insert(app) } else { picked.remove(app) } })
@@ -288,8 +296,19 @@ struct ConnectAIView: View {
                 HStack(spacing: 10) {
                     Text("「\(sentence)」").font(.callout).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    #if os(macOS)
+                    if model.chatReady {
+                        // 装了 Claude Code / Codex / Hermes：不用离开 app，放进夏夏对话栏，点发送就试。
+                        Button { dismiss(); model.chat.prefill(sentence) } label: { Label("在夏夏对话栏里试", systemImage: "sparkles") }
+                            .buttonStyle(.softAI)
+                    } else {
+                        Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
+                            .buttonStyle(.softAI)
+                    }
+                    #else
                     Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
                         .buttonStyle(.softAI)
+                    #endif
                 }
             }
             tryStatus

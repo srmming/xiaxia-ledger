@@ -78,7 +78,7 @@ jobs:
       - name: 做成 dmg
         run: |
           DMG="夏夏账本-${{ steps.ver.outputs.version }}.dmg"
-          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/应用程序
+          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/应用程序 && cp App/DMG/打不开看这里.txt dmg/
           hdiutil create -volname "夏夏账本" -srcfolder dmg -ov -format UDZO "$DMG"
           [ "$HAS_SIGNING" = true ] && codesign --force --timestamp --sign "$SIGN_ID" "$DMG"
           echo "DMG=$DMG" >> "$GITHUB_ENV"

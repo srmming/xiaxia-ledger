@@ -63,7 +63,7 @@ codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "iCloud.com.srmming.x
 ID="$(security find-identity -v -p codesigning | grep "Developer ID Application" | grep "$TEAM" | head -1 | grep -oE '[0-9A-F]{40}')"
 [ -n "$ID" ] || { echo "钥匙串里没有 Developer ID Application 证书，先按 docs/DISTRIBUTE.md 建一个"; exit 1; }
 mkdir -p "$REPO/dist"; DMG="$REPO/dist/夏夏账本-$VERSION.dmg"
-STAGE="$(mktemp -d)"; cp -R "$APP" "$STAGE/"; ln -s /Applications "$STAGE/应用程序"
+STAGE="$(mktemp -d)"; cp -R "$APP" "$STAGE/"; ln -s /Applications "$STAGE/应用程序"; cp "$REPO/App/DMG/打不开看这里.txt" "$STAGE/"
 hdiutil create -volname "夏夏账本" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 codesign --force --timestamp --sign "$ID" "$DMG"
 if xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then

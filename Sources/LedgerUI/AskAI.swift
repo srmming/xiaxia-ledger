@@ -61,9 +61,11 @@ extension LedgerModel {
 
     /// Mac 上所有「问 AI」入口都进右边的夏夏对话栏，不再复制去 Claude。
     /// 没装 AI、看的是示例数据这些情况由对话栏自己说清楚（并给「复制并打开 Claude」），入口这边不分情况，文案也就只有一套。
+    /// 右边的夏夏对话栏真能回答：Mac 上装了 Claude Code / Codex / Hermes，而且不是示例数据。
+    /// 只有 Claude 桌面版的人（最常见的新用户）对话栏答不了，例句就复制去 Claude，别塞进一个用不了的对话栏里丢掉。
     var chatReady: Bool {
         #if os(macOS)
-        true
+        !chat.available.isEmpty && !(store is InMemoryLedgerStore)
         #else
         false
         #endif
