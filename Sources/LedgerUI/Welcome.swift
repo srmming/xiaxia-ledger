@@ -450,9 +450,9 @@ struct WelcomeView: View {
     // MARK: 小零件
 
     /// 一页：大标题、一句说明、中间的选项、底下一排按钮、再底下几个小链接。
-    private func pageBody<Body: View, Buttons: View, Extras: View>(
+    private func pageBody<Main: View, Buttons: View, Extras: View>(
         _ title: String, _ subtitle: String,
-        @ViewBuilder body: () -> Body, @ViewBuilder buttons: () -> Buttons, @ViewBuilder extras: () -> Extras
+        @ViewBuilder main: () -> Main, @ViewBuilder buttons: () -> Buttons, @ViewBuilder extras: () -> Extras
     ) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 10) {
@@ -466,17 +466,17 @@ struct WelcomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            body()
+            main()
             FlowLayout(spacing: 10) { buttons() }.padding(.top, 4)
             FlowLayout(spacing: 16) { extras() }
         }
     }
 
-    private func pageBody<Body: View, Buttons: View>(
+    private func pageBody<Main: View, Buttons: View>(
         _ title: String, _ subtitle: String,
-        @ViewBuilder body: () -> Body, @ViewBuilder buttons: () -> Buttons
+        @ViewBuilder main: () -> Main, @ViewBuilder buttons: () -> Buttons
     ) -> some View {
-        pageBody(title, subtitle, body: body, buttons: buttons, extras: { EmptyView() })
+        pageBody(title, subtitle, main: main, buttons: buttons, extras: { EmptyView() })
     }
 
     private func toggle(_ set: inout Set<String>, _ name: String) {
