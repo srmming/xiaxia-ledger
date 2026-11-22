@@ -125,7 +125,7 @@ public enum ChatRunner {
                 let text = String(decoding: data, as: UTF8.self)
                 let errText = String(decoding: errData, as: UTF8.self)
                 if stopped.value || p.terminationReason == .uncaughtSignal {
-                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。可以再发一次试试，或者在右上角换一个 AI。", sessionID: nil, isError: true))
+                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。如果屏幕上有系统问「“夏夏账本”想访问…」的小窗，点「允许」后再发一次；也可以在右上角换一个 AI。", sessionID: nil, isError: true))
                     return
                 }
                 cont.resume(returning: parse(engine, stdout: text, stderr: errText, status: p.terminationStatus))
