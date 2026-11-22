@@ -64,7 +64,7 @@ public final class XiaxiaChatState {
                                        where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
         let resume = engine == .claude ? session : nil
         Task {
-            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume)
+            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path)
             if engine == .claude, let s = reply.sessionID { session = s }
             messages.append(Message(fromUser: false, text: reply.text, isError: reply.isError, engine: engine.name))
             busy = false
