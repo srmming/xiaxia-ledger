@@ -112,6 +112,8 @@ struct WelcomeView: View {
 
     @State private var aiMode: AIMode = .choose
     @State private var family: AIFamily?
+    /// 刚点了哪一家、正在看它连没连上（这一小会儿要让人看得出在忙）。
+    @State private var checking: AIFamily?
     /// 这一家的工具里已经连着的（设置里有夏夏账本）。
     @State private var linked: [AIApp] = []
     /// 这台 Mac 上有、还没连的。
@@ -356,8 +358,21 @@ struct WelcomeView: View {
                 pageBody("连接你的 AI", "连接后，用一句话就能记账、查账。你平时用哪个？") {
                     FlowLayout(spacing: 8) {
                         ForEach(AIFamily.allCases) { f in
-                            chip(f.title, symbol: f == .newbie ? "questionmark.circle" : "sparkles", on: false) { Task { await choose(f) } }
+                            chip(f.title, symbol: f == .newbie ? "questionmark.circle" : "sparkles", on: checking == f) { Task { await choose(f) } }
+                                .opacity(checking == nil || checking == f ? 1 : 0.45)
                         }
+                    }
+                    .allowsHitTesting(checking == nil)
+                    if let checking {
+                        // 点下去马上有回应：选中的那个变色，下面转圈说在干什么。
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text(checking == .newbie ? "正在看这台 Mac 上有没有装 AI…" : "正在看这台 Mac 上的 \(checking.title) 连上没有…")
+                                .font(.subheadline).foregroundStyle(Color.fg2)
+                        }
+                        .transition(.opacity)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("welcome.ai.checking")
                     }
                 } buttons: {
                     secondary("先跳过") { Task { await skipAI() } }
@@ -449,8 +464,8 @@ struct WelcomeView: View {
     private var trySubtitle: String {
         guard let f = family else { return "" }
         if let first = linked.first {
-            if let justConnected { return "先\(justConnected.afterConnect)，再把下面这段话发给它。" }
-            return "把下面这段话发给 \(first.name)，它会带你记下第一笔。"
+            if let justConnected { return "记账工具我已经装进 \(justConnected.name) 了，不用你再配置。先\(justConnected.afterConnect)，再把下面这段话发给它。" }
+            return "记账工具已经装在 \(first.name) 里了，不用你再配置。把下面这段话发给它，它会带你记下第一笔。"
         }
         if !toConnect.isEmpty {
             return "这台 Mac 上有 \(toConnect.map(\.name).joined(separator: "、"))，点一下我就帮你连上。我只在它的设置里加上「夏夏账本」这一项，别的都不动。"
@@ -629,9 +644,10 @@ struct WelcomeView: View {
         case .accounts: go(.books)
         case .ai:
             if aiMode == .trying {
-                withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; partner = nil; family = nil }
+                withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; partner = nil; family = nil; checking = nil }
                 Task { await say("换一个也行，你平时用哪个？", pose: .think) }
             } else {
+                checking = nil
                 go(.accounts)
             }
         case .hello, .done: break
@@ -691,10 +707,14 @@ struct WelcomeView: View {
     }
 
     private func choose(_ f: AIFamily) async {
+        guard checking == nil else { return }
         guard let c = model.aiConnector else { await skipAI(); return }
         family = f
+        withAnimation(.snappy(duration: 0.2)) { checking = f }
         await say(f == .newbie ? "没关系，我来带你。" : "那我们看看吧。", pose: .think)
-        try? await Task.sleep(for: .seconds(reduceMotion ? 0.1 : 0.7))
+        try? await Task.sleep(for: .seconds(reduceMotion ? 0.1 : 0.3))
+        // 这一小会儿里点了「返回」或「先跳过」：不再往下走。
+        guard step == .ai, aiMode == .choose, checking == f else { return }
         linked = f.apps.filter { c.isConnected($0) }
         toConnect = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
         handshakeSeen = false
@@ -705,6 +725,7 @@ struct WelcomeView: View {
         knownGoals = Set(model.ledger.goals.map(\.id))
         withAnimation(.smooth(duration: 0.35)) {
             aiMode = .trying
+            checking = nil
             if !linked.isEmpty || !toConnect.isEmpty { partner = f.partner }
         }
         if !linked.isEmpty {
@@ -740,6 +761,7 @@ struct WelcomeView: View {
     }
 
     private func skipAI() async {
+        checking = nil
         go(.done)
         await say("好，以后再连也行。", pose: .calm)
     }
