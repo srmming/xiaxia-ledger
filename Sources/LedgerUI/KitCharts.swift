@@ -70,19 +70,21 @@ struct SpendingPaceChart: View {
                 }
                 if let t = today, t.day > 0 {
                     RuleMark(x: .value("今天", t.day)).foregroundStyle(Color.fg3.opacity(0.35)).lineStyle(StrokeStyle(lineWidth: 1))
+                    // 「今天」和「上月这天」写在同一个标注里，上下两行，不会互相压住，虚线也不会穿过字。
                     PointMark(x: .value("日", t.day), y: .value("花掉", t.amount))
                         .foregroundStyle(Color.brand).symbolSize(50)
                         .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                            Text("\(status.isCurrent ? "今天" : "月底") \(Money(cents: Int64(t.amount * 100)).rounded)")
-                                .font(.caption2.weight(.semibold)).foregroundStyle(.primary)
-                        }
-                    if let l = lastSameDay, status.isCurrent {
-                        PointMark(x: .value("日", t.day), y: .value("花掉", l.amount))
-                            .symbolSize(0)
-                            .annotation(position: .bottomTrailing, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                                Text("上月这天 \(Money(cents: Int64(l.amount * 100)).rounded)").font(.caption2).foregroundStyle(Color.fg2)
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text("\(status.isCurrent ? "今天" : "月底") \(Money(cents: Int64(t.amount * 100)).rounded)")
+                                    .font(.caption2.weight(.semibold)).foregroundStyle(.primary)
+                                if let l = lastSameDay, status.isCurrent {
+                                    Text("上月这天 \(Money(cents: Int64(l.amount * 100)).rounded)").font(.caption2).foregroundStyle(Color.fg2)
+                                }
                             }
-                    }
+                            .fixedSize()
+                            .padding(.horizontal, 4).padding(.vertical, 2)
+                            .background(Color.cardBackground.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                        }
                 }
             }
             .chartXScale(domain: 1...days)
@@ -248,17 +250,17 @@ struct NetWorthChart: View {
         let lo = values.min() ?? 0, hi = values.max() ?? 1
         let pad = max((hi - lo) * 0.15, 100)
         Chart {
-            ForEach(points) { p in
-                AreaMark(x: .value("月", p.month.description), yStart: .value("底", lo - pad), yEnd: .value("家底", Double(p.value.cents) / 100))
+            ForEach(Array(points.enumerated()), id: \.offset) { i, p in
+                AreaMark(x: .value("月", i), yStart: .value("底", lo - pad), yEnd: .value("家底", Double(p.value.cents) / 100))
                     .foregroundStyle(LinearGradient(colors: [Color.income.opacity(0.22), Color.income.opacity(0.02)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.monotone)
-                LineMark(x: .value("月", p.month.description), y: .value("家底", Double(p.value.cents) / 100))
+                LineMark(x: .value("月", i), y: .value("家底", Double(p.value.cents) / 100))
                     .foregroundStyle(Color.income)
                     .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
                     .interpolationMethod(.monotone)
             }
             if let last = points.last {
-                PointMark(x: .value("月", last.month.description), y: .value("家底", Double(last.value.cents) / 100))
+                PointMark(x: .value("月", points.count - 1), y: .value("家底", Double(last.value.cents) / 100))
                     .foregroundStyle(Color.income).symbolSize(50)
                     .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                         Text(last.value.rounded).font(.caption2.weight(.semibold))
@@ -266,7 +268,15 @@ struct NetWorthChart: View {
             }
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
-        .chartXAxis { MonthAxis(months: points.map(\.month), every: 3) }
+        // 横轴用序号（0、1、2…），比用文字分类稳：隔 3 个月标一次，最后一个月一定标。
+        .chartXScale(domain: 0...max(points.count - 1, 1))
+        .chartXAxis {
+            AxisMarks(values: MonthAxisTicks.indices(count: points.count, every: 3)) { v in
+                AxisValueLabel(anchor: .top) {
+                    if let i = v.as(Int.self), points.indices.contains(i) { Text(points[i].month.shortLabel).fixedSize() }
+                }
+            }
+        }
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
                 AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
@@ -284,14 +294,20 @@ struct NetWorthChart: View {
 
 /// 按月的横轴：每个月用「2026-11」这样不会重复的键（跨年时两个「11月」不会挤在一起），
 /// 只隔几个月标一次、并且一定标最后一个月，标签写「11月」，窄屏上不会被截成「1…」。
+/// 标签只写「1月」这种短的：带年份的「26年1月」太宽，会和旁边的标签叠在一起。
 func MonthAxis(months: [YearMonth], every: Int) -> some AxisContent {
-    let count = months.count
-    let shown = months.enumerated().filter { (count - 1 - $0.offset) % max(every, 1) == 0 }.map(\.element)
+    let shown = MonthAxisTicks.indices(count: months.count, every: every).map { months[$0] }
     return AxisMarks(values: shown.map(\.description)) { v in
         AxisValueLabel(collisionResolution: .disabled) {
-            if let key = v.as(String.self), let m = YearMonth(key) {
-                Text(m.month == 1 || m == shown.first ? "\(m.year % 100)年\(m.month)月" : m.shortLabel).fixedSize()
-            }
+            if let key = v.as(String.self), let m = YearMonth(key) { Text(m.shortLabel).fixedSize() }
         }
+    }
+}
+
+enum MonthAxisTicks {
+    /// 要标的位置：从最后一个往前每隔 every 个取一个，最后一个一定在。
+    static func indices(count: Int, every: Int) -> [Int] {
+        guard count > 0 else { return [] }
+        return stride(from: count - 1, through: 0, by: -max(every, 1)).reversed()
     }
 }
