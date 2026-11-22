@@ -19,10 +19,43 @@ final class ICloudContainerTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: old.appendingPathComponent("ledger.sqlite").path), "旧文件留着当备份")
         XCTAssertTrue(fm.fileExists(atPath: old.appendingPathComponent("已搬家-请看这里.txt").path))
 
-        // 容器里已经有（比如 iPhone 记过），再也不覆盖
-        try Data("容器里新记的".utf8).write(to: container.appendingPathComponent("ledger.sqlite"))
+        // 搬过一次（有说明文件）就不再搬
+        try fm.removeItem(at: container.appendingPathComponent("ledger.sqlite"))
         XCTAssertFalse(LedgerStores.migrateToContainer(container, from: old))
-        XCTAssertEqual(try String(contentsOf: container.appendingPathComponent("ledger.sqlite"), encoding: .utf8), "容器里新记的")
+    }
+
+    /// iPhone 先开、容器里是空账本：Mac 搬家时把空的挪开换成老账本；容器里已经有流水就不动。
+    func testMigrateReplacesEmptyContainerOnly() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("xiaxia-icloud-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let old = root.appendingPathComponent("CloudDocs/夏夏账本")
+        let container = root.appendingPathComponent("container/Documents")
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        try fm.createDirectory(at: container, withIntermediateDirectories: true)
+
+        // 老账本：一笔编造的流水
+        var mac = Ledger.fresh
+        mac.transactions.append(Transaction(date: LocalDate(year: 2026, month: 1, day: 2), amount: Money(cents: -1234),
+                                            description: "编造的咖啡", accountID: mac.accounts.first?.id ?? "cash"))
+        try LedgerStores.sqlite(old.appendingPathComponent("ledger.sqlite")).save(mac)
+        // 容器里：iPhone 建的空账本
+        try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).save(.fresh)
+
+        XCTAssertTrue(LedgerStores.migrateToContainer(container, from: old))
+        XCTAssertEqual(try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).load().transactions.count, 1)
+        XCTAssertTrue(try fm.contentsOfDirectory(atPath: container.path).contains { $0.hasPrefix("ledger.sqlite.空账本-") }, "空的留作备份")
+
+        // 换一个场景：容器里已经有流水，不覆盖
+        try fm.removeItem(at: old.appendingPathComponent(LedgerStores.movedMarker))
+        var phone = Ledger.fresh
+        phone.transactions.append(Transaction(date: LocalDate(year: 2026, month: 2, day: 3), amount: Money(cents: -500),
+                                              description: "编造的面包", accountID: phone.accounts.first?.id ?? "cash"))
+        phone.transactions.append(Transaction(date: LocalDate(year: 2026, month: 2, day: 4), amount: Money(cents: -700),
+                                              description: "编造的牛奶", accountID: phone.accounts.first?.id ?? "cash"))
+        try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).save(phone)
+        XCTAssertFalse(LedgerStores.migrateToContainer(container, from: old))
+        XCTAssertEqual(try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).load().transactions.count, 2)
     }
 
     func testContainerPathOnDisk() {

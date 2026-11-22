@@ -102,8 +102,7 @@ struct WealthPage: View {
                     ForEach(list) { a in
                         let b = balances[a.id] ?? .zero
                         HStack(spacing: 12) {
-                            Image(systemName: a.kind.symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.fg2)
-                                .frame(width: 30, height: 30).background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            AccountIcon(kind: a.kind, isPrivate: a.isPrivate, size: 32)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(a.name).font(.callout.weight(.medium)).lineLimit(1)
                                 Text(subtitle(a)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)

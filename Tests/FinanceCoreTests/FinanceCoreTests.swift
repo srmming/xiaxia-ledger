@@ -999,6 +999,43 @@ final class ProfileTests: XCTestCase {
         XCTAssertFalse(l.profile.categories.contains { $0.name == "宠物" && !$0.income })
     }
 
+    func testCategoryIcons() throws {
+        var l = Ledger.fresh
+        l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]
+        XCTAssertTrue(CategoryIcons.isValid("bubbletea"))
+        XCTAssertFalse(CategoryIcons.isValid("nosuchicon"))
+        XCTAssertThrowsError(try l.addCategory("奶茶", income: false, icon: "nosuchicon", author: "我"), "不认识的图标要提示")
+        XCTAssertTrue(l.profile.categories.isEmpty, "报错不留半截")
+        _ = try l.addCategory("奶茶", income: false, icon: "bubbletea", author: "我")
+        XCTAssertEqual(l.categoryIcons, ["奶茶": "bubbletea"])
+
+        // 已有流水、没自建过的分类也能换图标；方向按流水猜
+        _ = try l.addTransaction(Transaction(date: .today, amount: Money(cents: 120_000), description: "工资", accountID: "bank",
+                                             bookID: "personal", category: "工资"), author: "我")
+        let c = try l.setCategoryIcon("工资", icon: "bonus", author: "我")
+        XCTAssertEqual(l.categoryIcons["工资"], "bonus")
+        XCTAssertEqual(l.profile.categories.first { $0.name == "工资" }?.income, true)
+        _ = try l.undo(changeID: c.id, author: "我")
+        XCTAssertNil(l.categoryIcons["工资"], "换图标能撤销")
+
+        _ = try l.setCategoryIcon("奶茶", icon: nil, author: "我")
+        XCTAssertNil(l.categoryIcons["奶茶"], "nil = 改回自动")
+        XCTAssertTrue(l.profile.categories.contains { $0.name == "奶茶" }, "改回自动不删分类")
+
+        // 改名、并进别的分类，挑过的图标跟着走
+        _ = try l.setCategoryIcon("奶茶", icon: "bubbletea", author: "我")
+        _ = try l.addCategory("饮品", income: false, author: "我")
+        _ = try l.renameCategory("奶茶", to: "饮品", author: "我")
+        XCTAssertEqual(l.profile.categories.filter { $0.name == "饮品" }.count, 1, "并进去只留一个")
+        XCTAssertEqual(l.categoryIcons["饮品"], "bubbletea", "并进去图标不丢")
+    }
+
+    func testOldProfileWithoutIconsStillLoads() throws {
+        let p = try JSONDecoder().decode(Profile.self, from: Data(#"{"persona":"calm","categories":[{"name":"宠物","income":false}]}"#.utf8))
+        XCTAssertEqual(p.categories, [CustomCategory(name: "宠物", income: false)])
+        XCTAssertNil(p.categories[0].icon)
+    }
+
     func testRenameCategoryWithTransactionsAlsoRenamesCustom() throws {
         var l = Ledger.fresh
         l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]

@@ -100,7 +100,7 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(find(app, "银行卡2").waitForExistence(timeout: 5), "账户改名没生效")
     }
 
-    /// 全新的空账本：记一笔时当场加账户和新分类（原地输入），能记下。
+    /// 全新的空账本：记一笔时当场加账户和新分类（弹出新建分类面板，名字按「咖啡」自动配图标），能记下。
     func testQuickAddOnEmptyLedger() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "add")
         let one = app.buttons["1"]
@@ -112,10 +112,13 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertFalse(save.isEnabled, "没选分类和账户就能记")
 
         app.buttons["加一个新分类"].tap()
-        let field = app.textFields["新分类的名字"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "新分类没有原地出输入框")
-        field.typeText("咖啡\n")
+        let field = app.textFields["分类名字"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "新建分类面板没出来")
+        field.tap()
+        field.typeText("咖啡")
+        app.buttons["建好了"].tap()
         XCTAssertTrue(button(app, "咖啡").waitForExistence(timeout: 5), "新分类没出现在格子里")
+        XCTAssertTrue(button(app, "咖啡").isSelected, "建好的分类没直接选上")
 
         app.buttons["账户：还没选"].tap()
         app.buttons["新账户…"].tap()

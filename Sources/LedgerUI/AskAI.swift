@@ -159,7 +159,7 @@ struct AskAIButton: View {
                 Button {
                     ask("", page: page)
                 } label: {
-                    Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
+                    Label { Text("问夏夏") } icon: { XiaGlyph.actAsk.image(size: 17) }.labelStyle(.titleAndIcon)
                 }
                 .tint(Color.ai)
                 .help("把这一页的情况复制好，打开 Claude，粘贴就能问夏夏（⌘K）")
@@ -168,7 +168,7 @@ struct AskAIButton: View {
                 Button {
                     ask("", page: page)
                 } label: {
-                    Label("问 AI", systemImage: "sparkles")
+                    Label { Text("问 AI") } icon: { XiaGlyph.actAsk.image(size: 16) }
                 }
                 .buttonStyle(AISolidButtonStyle())
                 .help("复制当前页面的上下文，打开 Claude（⌘K）")
