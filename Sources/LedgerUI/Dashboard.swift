@@ -43,7 +43,7 @@ struct MonthStatus {
     var lastMonthSameDayNet: Money
     var spentSoFar: Money          // 正数
     var lastMonthSameDaySpent: Money
-    var projectedEnd: Money?       // 照现在的速度，月底大概剩多少（只有本月才有）
+    var projectedEnd: Money?       // 照上个月剩下那段的收支，月底大概剩多少（只有本月才有）
     var pace: [PacePoint]
     var lastPace: [PacePoint]
 
@@ -110,9 +110,15 @@ extension LedgerModel {
         let lastSpent = Money(cents: Int64(((lastPace.first { $0.day == prevDay }?.amount ?? 0) * 100).rounded()))
         var projected: Money? = nil
         if isCurrent, day >= 3, day < month.dayCount {
-            let perDay = Double(spent.cents) / Double(day)
-            let more = Int64(perDay * Double(month.dayCount - day))
-            projected = summary.net - Money(cents: more)
+            // 月底剩多少 = 到今天剩的 + 剩下这些天还会进出的钱。
+            // 剩下这些天照上个月同一段的收支估：月底发工资、交社保、收房租这种一来一去都算进去，
+            // 不然只按「每天花多少」往后推，会漏掉月底的进账，出现「比上月多剩，却说月底超支」的矛盾。
+            if !scopedTransactions(prev, bookID: book).isEmpty {
+                projected = summary.net + (net(prev, bookID: book, upTo: prev.dayCount) - net(prev, bookID: book, upTo: prevDay))
+            } else {
+                let perDay = Double(spent.cents) / Double(day)
+                projected = summary.net - Money(cents: Int64(perDay * Double(month.dayCount - day)))
+            }
         }
         return MonthStatus(month: month, summary: summary, dayOfMonth: day, isCurrent: isCurrent,
                            lastMonthSameDayNet: net(prev, bookID: book, upTo: prevDay),
