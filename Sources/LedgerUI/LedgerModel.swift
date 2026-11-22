@@ -70,11 +70,71 @@ public final class LedgerModel {
     }
 
     /// 回到 app 时看一眼账本有没有被别处改过（比如 AI 刚用 fin 记了几笔），有就换成新的。
+    /// 别人做的新改动记进 `activity`，界面弹「Claude 刚记了 12 笔」。
     public func refreshIfChanged() {
+        lastStamp = store.changeStamp()
         guard loadError == nil, let fresh = try? store.load(), fresh != ledger else { return }
+        let old = ledger
         ledger = fresh
         cache = nil; authorCache = nil
-        authorCache = nil
+        dropMissingSelection()
+        if let found = ExternalActivity.between(old, fresh, me: author) {
+            activity = activity.map { $0.merged(with: found) } ?? found
+        }
+    }
+
+    // MARK: 外面的 AI 刚做了什么
+
+    /// 外面的 AI（经 fin / MCP）刚改了账本：还没看过的那一批。
+    public var activity: ExternalActivity?
+    /// 「看看」之后在流水页高亮的那几笔。
+    public var highlighted: Set<UUID> = []
+    @ObservationIgnored private var lastStamp: String?
+
+    /// 每隔两秒看一眼账本文件，变了（AI 刚写过）就重新读。弹着窗口时先不换，免得正在填的东西被打断。
+    public func watch() async {
+        lastStamp = store.changeStamp()
+        guard lastStamp != nil else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
+            guard sheet == nil, let stamp = store.changeStamp(), stamp != lastStamp else { continue }
+            refreshIfChanged()
+        }
+    }
+
+    /// 「看看」：去流水页，只列这几笔并高亮。
+    public func showActivity() {
+        guard let a = activity else { return }
+        highlighted = Set(a.transactionIDs)
+        if let first = a.transactionIDs.compactMap({ transaction($0) }).map(\.date).max() { selectedMonth = first.yearMonth }
+        showTransactions(TransactionFilter(ids: Set(a.transactionIDs)))
+        activity = nil
+    }
+
+    /// 「全部撤销」：把这一批从新到旧撤掉，一次保存。
+    public func undoActivity() {
+        guard let a = activity else { return }
+        var copy = ledger
+        var done = 0
+        var failed = 0
+        for id in a.undoableIDs {
+            do { _ = try copy.undo(changeID: id, author: author); done += 1 } catch { failed += 1 }
+        }
+        activity = nil
+        guard done > 0 else {
+            toast = Toast(text: "这些改动撤不了，可以去「改动记录」一条条看", changeID: nil, isError: true)
+            return
+        }
+        do {
+            try store.save(copy)
+            ledger = copy
+            lastStamp = store.changeStamp()
+            cache = nil; authorCache = nil
+            dropMissingSelection()
+            toast = Toast(text: failed == 0 ? "撤销了 \(done) 处改动" : "撤销了 \(done) 处，另有 \(failed) 处撤不了", changeID: nil, isError: failed > 0)
+        } catch {
+            toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
+        }
     }
 
     /// 改一次账本：成功就保存并在底部给提示（能撤销），失败把错误抛给界面显示。
@@ -83,6 +143,7 @@ public final class LedgerModel {
         var copy = ledger
         let change = try body(&copy)
         try store.save(copy)
+        lastStamp = store.changeStamp()
         ledger = copy
         cache = nil; authorCache = nil
         dropMissingSelection()
@@ -102,6 +163,7 @@ public final class LedgerModel {
             var copy = ledger
             let change = try copy.undo(changeID: changeID, author: author)
             try store.save(copy)
+            lastStamp = store.changeStamp()
             ledger = copy
             cache = nil; authorCache = nil
             dropMissingSelection()

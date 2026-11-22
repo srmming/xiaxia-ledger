@@ -71,6 +71,17 @@ public struct RootView: View {
         .overlay(alignment: .bottom) {
             ZStack { toastLayer }.animation(.snappy, value: model.toast)
         }
+        .overlay(alignment: .top) {
+            ZStack {
+                if let a = model.activity {
+                    ActivityBanner(activity: a).environment(model)
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: model.activity)
+        }
+        .task { await model.watch() }
         .sensoryFeedback(trigger: model.toast) { _, new in
             guard let new else { return nil }
             return new.isError ? .error : .success

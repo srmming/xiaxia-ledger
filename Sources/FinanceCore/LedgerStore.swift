@@ -5,6 +5,24 @@ import Foundation
 public protocol LedgerStore: Sendable {
     func load() throws -> Ledger
     func save(_ ledger: Ledger) throws
+    /// 账本文件现在的「指纹」（修改时间 + 大小）。app 隔几秒看一眼，变了才重新读，用来发现 AI 用 fin / MCP 刚写过。
+    /// 不在文件里的（内存账本）返回 nil，就不去看。
+    func changeStamp() -> String?
+}
+
+extension LedgerStore {
+    public func changeStamp() -> String? { nil }
+}
+
+/// 几个文件的修改时间和大小拼在一起。文件不在就跳过。
+func fileStamp(_ urls: [URL]) -> String? {
+    let parts = urls.compactMap { url -> String? in
+        guard let a = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+        let t = (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let n = (a[.size] as? NSNumber)?.int64Value ?? 0
+        return "\(url.lastPathComponent):\(t):\(n)"
+    }
+    return parts.isEmpty ? nil : parts.joined(separator: "|")
 }
 
 public struct JSONFileLedgerStore: LedgerStore {
@@ -37,6 +55,8 @@ public struct JSONFileLedgerStore: LedgerStore {
         encoder.dateEncodingStrategy = .iso8601
         try encoder.encode(ledger).write(to: url, options: .atomic)
     }
+
+    public func changeStamp() -> String? { fileStamp([url]) }
 }
 
 /// 测试和界面预览用。
