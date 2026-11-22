@@ -69,8 +69,7 @@ struct XiaxiaHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 24, height: 24).background(Color.ai, in: Circle())
+            XiaxiaAvatar(persona: model.persona, size: 28)
                 .accessibilityHidden(true)
             Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
             Spacer()
@@ -91,9 +90,14 @@ struct PersonaPicker: View {
                     model.perform { try $0.setPersona(p, author: model.author) }
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: p == model.persona ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(p == model.persona ? Color.ai : Color.fg3)
-                            .font(.body)
+                        XiaxiaAvatar(persona: p, size: 40)
+                            .overlay(alignment: .bottomTrailing) {
+                                if p == model.persona {
+                                    Image(systemName: "checkmark.circle.fill").font(.system(size: 14))
+                                        .foregroundStyle(.white, Color.ai)
+                                        .offset(x: 2, y: 2)
+                                }
+                            }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.label + (p == .gentle ? "（默认）" : "")).font(.callout.weight(.medium)).foregroundStyle(.primary)
                             Text("「\(p.sample)」").font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)

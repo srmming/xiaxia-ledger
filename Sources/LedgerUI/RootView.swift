@@ -196,7 +196,7 @@ struct MacRoot: View {
     }
 
     private func row(_ s: AppSection) -> some View {
-        Label(s.rawValue, systemImage: s.symbol)
+        Label { Text(s.rawValue) } icon: { s.glyph.image(size: 18) }
             .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
             .tag(s)
     }
@@ -244,7 +244,7 @@ struct MacToolbar: ToolbarContent {
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
-            Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
+            Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
             AskAIButton(page: section.rawValue, inToolbar: true).environment(model)
         }
@@ -361,7 +361,7 @@ struct PhoneRoot: View {
                 }
                 .navigationDestination(for: AppSection.self) { s in s.screen.navigationTitle(s.rawValue) }
         }
-        .tabItem { Label(title, systemImage: section.symbol) }
+        .tabItem { Label { Text(title) } icon: { section.glyph.image(size: 25) } }
         .tag(section)
     }
 }

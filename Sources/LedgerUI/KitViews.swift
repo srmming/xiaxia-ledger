@@ -104,20 +104,14 @@ struct MoreLink: View {
 
 // MARK: - 图标
 
-/// 分类图标：彩色小方块里一个 SF Symbol。
+/// 分类图标：浅浅一层分类色的圆角方块，中间是夏夏自己画的分类图标（design/icon-kit）。
 struct CategoryIcon: View {
     let category: String?
     var isMove = false
     var size: CGFloat = 32
 
     var body: some View {
-        let color = isMove ? Color.kit(0x0A64D6, 0x5AA0FF) : CategoryStyle.color(category)
-        Image(systemName: isMove ? "arrow.left.arrow.right" : (CategoryStyle.symbol(category) ?? "tag"))
-            .font(.system(size: size * 0.45, weight: .semibold))
-            .foregroundStyle(color)
-            .frame(width: size, height: size)
-            .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
-            .accessibilityHidden(true)
+        XiaTile(glyph: isMove ? .transfer : CategoryStyle.glyph(category), size: size)
     }
 }
 
@@ -323,7 +317,10 @@ struct SegmentedProgress: View {
 
 /// 空的时候一律把人引去找 AI：一句说明 + 一个「复制这句话」按钮。
 struct KitEmptyState: View {
-    var symbol = "sparkles"
+    /// 旧写法：给一个 SF Symbol 名字，按它挑一张合适的夏夏插画（见 artFor）。
+    var symbol: String? = nil
+    /// 夏夏插画（160×120）：睡着的、在想事情的、出错的……不给就按 symbol 挑。
+    var art: XiaGlyph? = nil
     let title: String
     let message: String
     var prompt: String? = nil
@@ -333,9 +330,8 @@ struct KitEmptyState: View {
     var body: some View {
         AskAIReader { ask in
             VStack(spacing: 10) {
-                Image(systemName: symbol).font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(symbol == "sparkles" ? Color.ai : Color.fg3)
-                    .symbolRenderingMode(.hierarchical)
+                XiaxiaIllustration(art ?? Self.artFor(symbol), width: 150)
+                    .padding(.bottom, -2)
                 Text(title).font(.headline)
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
@@ -345,8 +341,23 @@ struct KitEmptyState: View {
                         .padding(.top, 4)
                 }
             }
-            .padding(.vertical, 28).padding(.horizontal, 16)
+            .padding(.vertical, 24).padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    static func artFor(_ symbol: String?) -> XiaGlyph {
+        switch symbol {
+        case "chart.bar", "chart.bar.fill", "chart.line.uptrend.xyaxis": .illoTrends
+        case "chart.pie", "chart.pie.fill": .illoSpending
+        case "building.columns", "creditcard", "banknote", "wallet.bifold": .illoAccounts
+        case "target", "flag": .illoPlans
+        case "calendar": .illoMonth
+        case "magnifyingglass": .illoSearch
+        case "link", "powerplug": .illoConnect
+        case "exclamationmark.triangle", "exclamationmark.triangle.fill", "xmark.octagon": .illoError
+        case "checkmark.circle", "checkmark.seal": .illoDone
+        default: .illoLedger
         }
     }
 }

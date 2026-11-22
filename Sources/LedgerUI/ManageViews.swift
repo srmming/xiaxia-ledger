@@ -148,7 +148,7 @@ struct AccountManager: View {
                 ForEach(model.ledger.accounts) { a in
                     Button { editing = AccountDraft(a) } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: a.kind.symbol).foregroundStyle(Color.fg2).frame(width: 24)
+                            AccountIcon(kind: a.kind, isPrivate: a.isPrivate, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(a.name).foregroundStyle(.primary)
                                 Text([a.kind.label, a.institution == a.name ? nil : a.institution, a.isPrivate ? "私房钱" : nil].compactMap { $0 }.joined(separator: " · "))
