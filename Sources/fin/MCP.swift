@@ -102,7 +102,7 @@ struct ToolError: Error, LocalizedError {
 
 enum MCPTools {
     static func prop(_ type: String, _ desc: String) -> [String: Any] { ["type": type, "description": desc] }
-    static let author = prop("string", "谁在改，不填就用 AI 工具自己的名字")
+    static let author = prop("string", "不用填：会自动记成你这个 AI 工具的名字")
     static let dryRun = prop("boolean", "预演：只返回会改什么，不写进账本")
 
     static func tool(_ name: String, _ desc: String, _ props: [String: [String: Any]], required: [String] = [],
@@ -395,7 +395,9 @@ enum MCPTools {
             guard let d = LocalDate(v) else { throw ToolError(message: "日期要写成 2026-11-21：\(v)") }
             return d
         }
-        let who = s("author") ?? clientName
+        // 经 MCP 来的改动一律记成这个 AI 工具的名字：有的 AI 会把 author 填成用户的名字，
+        // app 就认不出「这是 AI 记的」（不弹提醒、引导也不撒花）。
+        let who = clientName
         var ledger = try loadLedger()
 
         /// 写入收尾：预演不保存。
