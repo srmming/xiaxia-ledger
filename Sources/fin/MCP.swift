@@ -115,7 +115,9 @@ enum MCPTools {
             "account": prop("string", "账户 id"),
             "month": prop("string", "月份，如 2026-11"),
             "category": prop("string", "分类"),
-            "query": prop("string", "在说明里搜索"),
+            "query": prop("string", "搜索：说明、商户、备注、标签、金额都搜；以 # 开头只按标签找"),
+            "tag": prop("string", "只看带这个标签的"),
+            "kind": ["type": "string", "enum": ["expense", "income"], "description": "只看支出或只看收入"],
             "limit": prop("integer", "最多几条，默认 50"),
             "include_private": prop("boolean", "包括私房钱账户。只有 用户本人问时才用"),
         ], readOnly: true),
@@ -142,13 +144,17 @@ enum MCPTools {
         tool("installments", "分期：第几期、每期多少、还剩多少、下次扣款日。", [:], readOnly: true),
         tool("goals", "目标和储蓄进度。", [:], readOnly: true),
         tool("history", "改动记录：谁、什么时候、改了什么。", ["limit": prop("integer", "最多几条，默认 20")], readOnly: true),
-        tool("add_transaction", "记一笔收支。amount 负数是支出、正数是收入。", [
-            "amount": prop("string", "金额，如 -12,50 或 300"),
-            "description": prop("string", "说明"),
+        tool("add_transaction", "记一笔收支。amount 负数是支出、正数是收入。repeat 填了就设成重复记账，以后到日子自动记。", [
+            "amount": prop("string", "金额，如 -12,50 或 300；也可以是算式 -12,50-3,20"),
+            "description": prop("string", "名称：买了什么、在哪花的"),
             "account": prop("string", "账户 id"),
             "book": prop("string", "账本 id"),
             "category": prop("string", "分类"),
             "date": prop("string", "日期 2026-11-21，默认今天"),
+            "note": prop("string", "备注（可不填）"),
+            "tags": ["type": "array", "items": ["type": "string"], "description": "标签，如 [\"旅行\"]，不带 #"],
+            "repeat": ["type": "string", "enum": ["weekly", "monthly", "yearly"], "description": "重复：每周 / 每月 / 每年（可不填）"],
+            "until": prop("string", "重复到哪天为止（可不填）"),
             "original": prop("string", "用别的币种付的原价，如「50 USD」（欧元卡在国外刷卡时）。amount 填银行扣的数"),
             "author": author, "dry_run": dryRun,
         ], required: ["amount", "description", "account", "book"], readOnly: false),
@@ -175,8 +181,43 @@ enum MCPTools {
             "amount": prop("string", "新金额，负数是支出"), "description": prop("string", "新说明"),
             "date": prop("string", "新日期"), "account": prop("string", "换到哪个账户"),
             "book": prop("string", "换到哪个账本"), "category": prop("string", "新分类"),
+            "note": prop("string", "新备注；空字符串 = 清掉"),
+            "tags": ["type": "array", "items": ["type": "string"], "description": "标签整个换成这些；空数组 = 清掉"],
             "author": author, "dry_run": dryRun,
         ], required: ["id"], readOnly: false),
+        tool("split_transaction", "把一笔拆成几笔不同分类（超市小票里有吃的也有日用品）。每份金额写正数，合计要等于原来那笔。", [
+            "id": prop("string", "流水 id（前 8 位也行）"),
+            "parts": ["type": "array", "description": "每份：{amount: \"30\", category: \"超市\", description: 可不填}",
+                      "items": ["type": "object", "properties": ["amount": prop("string", "金额，正数"), "category": prop("string", "分类"),
+                                                                 "description": prop("string", "新说明（可不填）")] as [String: Any],
+                                "required": ["amount"]] as [String: Any]],
+            "author": author, "dry_run": dryRun,
+        ], required: ["id", "parts"], readOnly: false),
+        tool("duplicate_transaction", "照着一笔再记一笔（日期默认今天）。", [
+            "id": prop("string", "流水 id"), "date": prop("string", "新日期，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["id"], readOnly: false),
+        tool("add_refund", "给一笔支出记退款：钱回到同一个账户，分类「退款」，冲减支出。", [
+            "id": prop("string", "原来那笔支出的 id"), "amount": prop("string", "退了多少，不填 = 全额"),
+            "date": prop("string", "退款日期，默认今天"), "author": author, "dry_run": dryRun,
+        ], required: ["id"], readOnly: false),
+        tool("tag_transactions", "给几笔流水加 / 去标签。", [
+            "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
+            "add": ["type": "array", "items": ["type": "string"], "description": "要加的标签"],
+            "remove": ["type": "array", "items": ["type": "string"], "description": "要去掉的标签"],
+            "author": author, "dry_run": dryRun,
+        ], required: ["ids"], readOnly: false),
+        tool("list_recurring", "重复记账（房租、话费这种到日子自动记的）：多久一次、下次哪天、是否暂停。", [:], readOnly: true),
+        tool("set_recurring", "把已有的一笔设成重复，从它的下一期开始自动记。", [
+            "id": prop("string", "流水 id"),
+            "frequency": ["type": "string", "enum": ["weekly", "monthly", "yearly"], "description": "每周 / 每月 / 每年"],
+            "until": prop("string", "到哪天为止（可不填）"), "author": author, "dry_run": dryRun,
+        ], required: ["id", "frequency"], readOnly: false),
+        tool("update_recurring", "暂停、继续或停掉一条重复记账（已经记上的流水不动）。", [
+            "key": prop("string", "list_recurring 里的 id 前 8 位，或说明里的字"),
+            "action": ["type": "string", "enum": ["pause", "resume", "remove"], "description": "暂停 / 继续 / 停掉"],
+            "author": author, "dry_run": dryRun,
+        ], required: ["key", "action"], readOnly: false),
+        tool("run_recurring", "把到日子的重复记账记上（app 打开时也会自动做）。", ["author": author, "dry_run": dryRun], readOnly: false),
         tool("delete_transactions", "删流水（能 undo 放回来）。先 dry_run 给用户 看要删哪几笔，确认后再删。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "author": author, "dry_run": dryRun,
@@ -390,13 +431,20 @@ enum MCPTools {
             }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
             let q = s("query").map(Dedup.normalize)
+            let rawQuery = s("query"), tagQuery = s("tag").map { "#" + Tags.clean([$0]).joined() }, kind = s("kind")
+            let extra: (Transaction) -> Bool = { (t: Transaction) -> Bool in
+                if let q, let rawQuery, !Dedup.normalize(t.description).contains(q), !t.matches(rawQuery) { return false }
+                if let tagQuery, !t.matches(tagQuery) { return false }
+                if let kind { return kind == "income" ? t.amount.isIncome : t.amount.isExpense }
+                return true
+            }
             let txs = ledger.transactions
                 .filter { !hidden.contains($0.accountID) }
                 .filter { s("book") == nil || $0.bookID == s("book") }
                 .filter { s("account") == nil || $0.accountID == s("account") }
                 .filter { ym == nil || $0.date.yearMonth == ym }
                 .filter { s("category") == nil || $0.category == s("category") }
-                .filter { q == nil || Dedup.normalize($0.description).contains(q!) }
+                .filter(extra)
                 .sorted { $0.date > $1.date }
                 .prefix(int("limit", 50))
             return try json(Array(txs))
@@ -434,7 +482,8 @@ enum MCPTools {
             guard t.flow == nil, !t.isTransfer else {
                 throw ToolError(message: "这笔是转账、借款、分期或目标的一部分，不能直接改。先 undo 原来那条改动，再重新记。")
             }
-            guard ["amount", "description", "date", "account", "book", "category"].contains(where: { s($0) != nil }) else {
+            guard ["amount", "description", "date", "account", "book", "category"].contains(where: { s($0) != nil })
+                    || a["note"] != nil || a["tags"] != nil else {
                 throw ToolError(message: "没写要改什么")
             }
             if s("amount") != nil { t.amount = try money("amount") }
@@ -443,6 +492,8 @@ enum MCPTools {
             if let v = s("account") { t.accountID = v }
             if let v = s("book") { t.bookID = v }
             if let v = s("category") { t.category = v }
+            if a["note"] != nil { t.note = s("note") }
+            if let v = a["tags"] as? [String] { t.tags = Tags.clean(v).isEmpty ? nil : Tags.clean(v) }
             return try commit(try ledger.editTransaction(t, author: who))
         case "delete_transactions":
             guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
@@ -524,13 +575,70 @@ enum MCPTools {
         case "history":
             return try json(Array(ledger.changes.suffix(int("limit", 20)).reversed()))
         case "add_transaction":
-            var tx = Transaction(date: try date("date") ?? .today, amount: try money("amount"), description: try req("description"),
-                                 accountID: try req("account"), bookID: try req("book"), category: s("category"), source: "手记（\(who)）")
+            guard let amount = Money.evaluate(try req("amount")) else { throw ToolError(message: "金额看不懂：\(a["amount"] ?? "")") }
+            let tags = Tags.clean(a["tags"] as? [String] ?? [])
+            var tx = Transaction(date: try date("date") ?? .today, amount: amount, description: try req("description"),
+                                 accountID: try req("account"), bookID: try req("book"), category: s("category"), source: "手记（\(who)）",
+                                 note: s("note"), tags: tags.isEmpty ? nil : tags)
+            tx.fx = ledger.fxNote(accountID: tx.accountID, date: tx.date)
             if let o = s("original") {
                 do { tx.original = try parseForeign(o, sign: tx.amount.cents < 0 ? -1 : 1) }
                 catch { throw ToolError(message: "original 写成「50 USD」这样") }
             }
+            if let r = s("repeat") {
+                guard let f = Recurring.Frequency(rawValue: r) else { throw ToolError(message: "repeat 要写 weekly、monthly 或 yearly") }
+                return try commit(try ledger.addRecurring(tx, frequency: f, until: try date("until"), author: who))
+            }
             return try commit(try ledger.addTransaction(tx, author: who))
+        case "split_transaction":
+            let t = try ledger.findTransactions([try req("id")])[0]
+            guard let raw = a["parts"] as? [[String: Any]], raw.count >= 2 else { throw ToolError(message: "parts 至少要两份") }
+            let parts = try raw.map { p -> SplitPart in
+                let text = (p["amount"] as? String) ?? (p["amount"] as? NSNumber).map { "\($0)" } ?? ""
+                guard let m = Money.evaluate(text), m.cents != 0 else { throw ToolError(message: "金额看不懂：\(text)") }
+                return SplitPart(amount: m.magnitude, category: p["category"] as? String, description: p["description"] as? String)
+            }
+            return try commit(try ledger.splitTransaction(t.id, parts: parts, author: who))
+        case "duplicate_transaction":
+            let t = try ledger.findTransactions([try req("id")])[0]
+            return try commit(try ledger.duplicateTransaction(t.id, date: try date("date") ?? .today, author: who))
+        case "add_refund":
+            let t = try ledger.findTransactions([try req("id")])[0]
+            let amount = try s("amount").map { v -> Money in
+                guard let m = Money.evaluate(v) else { throw ToolError(message: "金额看不懂：\(v)") }
+                return m.magnitude
+            }
+            return try commit(try ledger.addRefund(of: t.id, amount: amount, date: try date("date") ?? .today, author: who))
+        case "tag_transactions":
+            guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
+            let txs = try ledger.findTransactions(ids)
+            return try commit(try ledger.tagTransactions(txs.map(\.id), add: a["add"] as? [String] ?? [],
+                                                         remove: a["remove"] as? [String] ?? [], author: who))
+        case "list_recurring":
+            struct Row: Encodable { var id: String; var summary: String; var frequency: String; var next: String; var until: String?; var paused: Bool; var account: String; var book: String?; var category: String? }
+            return try json(ledger.recurring.map {
+                Row(id: String($0.id.uuidString.prefix(8)).lowercased(), summary: $0.summary, frequency: $0.frequency.rawValue,
+                    next: $0.nextDate.description, until: $0.until?.description, paused: $0.paused, account: $0.template.accountID,
+                    book: $0.template.bookID, category: $0.template.category)
+            })
+        case "set_recurring":
+            let t = try ledger.findTransactions([try req("id")])[0]
+            guard let f = Recurring.Frequency(rawValue: try req("frequency")) else { throw ToolError(message: "frequency 要写 weekly、monthly 或 yearly") }
+            return try commit(try ledger.makeRecurring(t.id, frequency: f, until: try date("until"), author: who))
+        case "update_recurring":
+            let hits = ledger.findRecurring(try req("key"))
+            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "找不到这条重复记账" : "对上了 \(hits.count) 条，写 id") }
+            var r = hits[0]
+            switch try req("action") {
+            case "pause": r.paused = true
+            case "resume": r.paused = false
+            case "remove": return try commit(try ledger.removeRecurring(r.id, author: who))
+            default: throw ToolError(message: "action 要写 pause、resume 或 remove")
+            }
+            return try commit(try ledger.updateRecurring(r, author: who))
+        case "run_recurring":
+            guard let change = ledger.postDueRecurring(author: who) else { return "没有到日子的重复记账。" }
+            return try commit(change)
         case "add_debt":
             let dir: Debt.Direction
             switch try req("direction") {
