@@ -329,3 +329,20 @@ struct Bar: View {
         }
     }
 }
+
+/// 表单里的输入框：Mac 上左边写标题、框里写示例；iPhone 的表单不显示标题，就把两句合成一句放进框里。
+struct FormField: View {
+    let title: String
+    let example: String
+    @Binding var text: String
+    init(_ title: String, _ example: String, text: Binding<String>) {
+        self.title = title; self.example = example; self._text = text
+    }
+    var body: some View {
+        #if os(macOS)
+        TextField(title, text: $text, prompt: Text(example))
+        #else
+        TextField("\(title)，\(example)", text: $text)
+        #endif
+    }
+}

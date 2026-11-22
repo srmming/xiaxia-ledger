@@ -86,8 +86,8 @@ struct NewPlanSheet: View {
 
     @ViewBuilder private var goalFields: some View {
         Section {
-            TextField("名字", text: $name, prompt: Text("比如「旅行」"))
-            TextField("要存多少", text: $amountText, prompt: Text("比如 2.000")).decimalKeyboard()
+            FormField("名字", "比如「旅行」", text: $name)
+            FormField("要存多少", "比如 2.000", text: $amountText).decimalKeyboard()
             Toggle("有截止日期", isOn: $hasDeadline)
             if hasDeadline {
                 DatePicker("哪天前存够", selection: $deadline, displayedComponents: .date)
@@ -103,8 +103,8 @@ struct NewPlanSheet: View {
 
     @ViewBuilder private var installmentFields: some View {
         Section {
-            TextField("买的是什么", text: $name, prompt: Text("比如「手机」"))
-            TextField("每期多少", text: $amountText, prompt: Text("比如 45")).decimalKeyboard()
+            FormField("买的是什么", "比如「手机」", text: $name)
+            FormField("每期多少", "比如 45", text: $amountText).decimalKeyboard()
             Stepper("一共 \(count) 期", value: $count, in: 2...120)
             DatePicker("第一期哪天扣", selection: $firstPayment, displayedComponents: .date)
             accountPicker("从哪个账户扣", allowNone: false)
@@ -120,8 +120,8 @@ struct NewPlanSheet: View {
                 Text("我向别人借").tag(false)
             }
             .pickerStyle(.segmented)
-            TextField(theyOweMe ? "借给谁" : "向谁借", text: $name, prompt: Text("名字"))
-            TextField("多少", text: $amountText, prompt: Text("比如 300")).decimalKeyboard()
+            FormField(theyOweMe ? "借给谁" : "向谁借", "写对方的名字", text: $name)
+            FormField("多少", "比如 300", text: $amountText).decimalKeyboard()
             DatePicker("哪天", selection: $date, displayedComponents: .date)
             accountPicker(theyOweMe ? "钱从哪个账户出去" : "钱进了哪个账户", allowNone: true)
         } footer: {
