@@ -136,6 +136,8 @@ extension View {
                 .frame(maxWidth: 1240)
                 .frame(maxWidth: .infinity)
         }
+        // 打开页面时停在最上面：上面的卡片晚一点出现（比如连 AI 的提示）也不会把开头挤到工具栏下面。
+        .defaultScrollAnchor(.top)
         #if os(iOS)
         // 右下角浮着「问 AI」按钮，底部多留一点，最后一张卡不会被挡住。
         .contentMargins(.bottom, 64, for: .scrollContent)

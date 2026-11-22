@@ -1,0 +1,207 @@
+#if os(macOS)
+import FinanceCore
+import SwiftUI
+
+/// app 右边的「夏夏」对话栏：不用切窗口，说一句就查账、记账。回答来自这台 Mac 上已登录的 Claude Code / Codex / Hermes。
+@MainActor @Observable
+public final class XiaxiaChatState {
+    public struct Message: Identifiable, Equatable {
+        public let id = UUID()
+        public var fromUser: Bool
+        public var text: String
+        public var isError = false
+        public var engine: String?
+    }
+
+    public var open = false
+    public var messages: [Message] = []
+    public var busy = false
+    public var draft = ""
+    /// 用哪个 AI。记住上次选的；没选过就用装了的第一个（Claude Code 最快）。
+    public var engine: ChatEngine? {
+        didSet { UserDefaults.standard.set(engine?.rawValue, forKey: "xiaxia.chatEngine") }
+    }
+    public private(set) var available: [ChatEngine] = []
+    @ObservationIgnored var session: String?
+
+    public init() { refreshEngines() }
+
+    public func refreshEngines() {
+        available = ChatEngine.available()
+        let saved = UserDefaults.standard.string(forKey: "xiaxia.chatEngine").flatMap(ChatEngine.init(rawValue:))
+        if let saved, available.contains(saved) { engine = saved } else { engine = available.first }
+    }
+
+    public func newConversation() {
+        messages = []
+        session = nil
+    }
+
+    func send(_ text: String, model: LedgerModel) {
+        let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty, !busy, let engine else { return }
+        let history = messages.filter { !$0.isError }.map { (user: $0.fromUser, text: $0.text) }
+        messages.append(Message(fromUser: true, text: question))
+        draft = ""
+        busy = true
+        let prompt = ChatRunner.prompt(question: question, voice: model.ledger.profile.persona.instruction, aim: model.ledger.profile.aim,
+                                       where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
+        let resume = engine == .claude ? session : nil
+        Task {
+            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume)
+            if engine == .claude, let s = reply.sessionID { session = s }
+            messages.append(Message(fromUser: false, text: reply.text, isError: reply.isError, engine: engine.name))
+            busy = false
+            // AI 可能刚记了账：马上读一次，顶上会弹「刚记了 N 笔」，能看、能撤销。
+            model.refreshIfChanged()
+        }
+    }
+}
+
+struct XiaxiaChatPanel: View {
+    @Environment(LedgerModel.self) var model
+    @FocusState var inputFocused: Bool
+
+    var body: some View {
+        let chat = model.chat
+        VStack(spacing: 0) {
+            header(chat)
+            Divider()
+            if model.store is InMemoryLedgerStore {
+                notice(symbol: "eye", title: "示例数据不连 AI",
+                       text: "现在看的是编出来的示例账本。AI 连的是你自己的账本，两边对不上，所以这里先不聊。")
+            } else if chat.available.isEmpty {
+                notice(symbol: "sparkles", title: "这台 Mac 上还没有能用的 AI",
+                       text: "装好并登录 Claude Code、Codex 或 Hermes 其中一个，夏夏就能在这里直接回答，用的是你自己的订阅。也可以先复制这一页的情况去 Claude 里问。")
+                AskAIReader { ask in
+                    Button { ask("", page: (model.section ?? .overview).rawValue) } label: { Label("复制并打开 Claude", systemImage: "doc.on.doc") }
+                        .buttonStyle(.soft).padding(.top, 4)
+                }
+                Spacer()
+            } else {
+                messages(chat)
+                Divider()
+                input(chat)
+            }
+        }
+        .background(Color.pageBackground)
+        .onAppear { chat.refreshEngines(); inputFocused = true }
+    }
+
+    private func header(_ chat: XiaxiaChatState) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                .frame(width: 22, height: 22).background(Color.ai, in: Circle())
+                .accessibilityHidden(true)
+            Text("夏夏").font(.headline)
+            Spacer()
+            if chat.available.count > 1 {
+                Menu {
+                    Picker("用哪个 AI", selection: Binding(get: { chat.engine }, set: { chat.engine = $0; chat.newConversation() })) {
+                        ForEach(chat.available) { Text($0.name).tag(Optional($0)) }
+                    }
+                    .pickerStyle(.inline)
+                } label: { Text(chat.engine?.name ?? "选 AI").font(.caption) }
+                    .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+                    .accessibilityLabel("用哪个 AI：\(chat.engine?.name ?? "还没选")")
+            } else if let e = chat.engine {
+                Text(e.name).font(.caption).foregroundStyle(Color.fg2)
+            }
+            Button { chat.newConversation() } label: { Image(systemName: "square.and.pencil") }
+                .buttonStyle(.borderless).help("新对话").accessibilityLabel("新对话")
+                .disabled(chat.messages.isEmpty || chat.busy)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+    }
+
+    private func notice(symbol: String, title: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: symbol).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
+            Text(text).font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func messages(_ chat: XiaxiaChatState) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    if chat.messages.isEmpty { starter(chat) }
+                    ForEach(chat.messages) { m in bubble(m).id(m.id) }
+                    if chat.busy {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg2)
+                        }
+                        .id("busy")
+                        .accessibilityLabel("夏夏在想")
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .defaultScrollAnchor(.bottom)
+            .onChange(of: chat.messages.count) { _, _ in
+                if let id = chat.messages.last?.id { withAnimation(.snappy) { proxy.scrollTo(id, anchor: .bottom) } }
+            }
+            .onChange(of: chat.busy) { _, busy in
+                if busy { withAnimation(.snappy) { proxy.scrollTo("busy", anchor: .bottom) } }
+            }
+        }
+    }
+
+    private func starter(_ chat: XiaxiaChatState) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
+                .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
+                Button { chat.send(p.text, model: model) } label: { PromptRow(prompt: p) }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel("问夏夏：\(p.text)")
+            }
+        }
+    }
+
+    private func bubble(_ m: XiaxiaChatState.Message) -> some View {
+        HStack {
+            if m.fromUser { Spacer(minLength: 40) }
+            Text(LocalizedStringKey(m.text))
+                .font(.callout)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .foregroundStyle(m.fromUser ? Color.white : (m.isError ? Color.alert : Color.primary))
+                .background(m.fromUser ? AnyShapeStyle(Color.aiSolid) : AnyShapeStyle(Color.aiSoft),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            if !m.fromUser { Spacer(minLength: 40) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel((m.fromUser ? "你：" : "夏夏：") + m.text)
+    }
+
+    private func input(_ chat: XiaxiaChatState) -> some View {
+        @Bindable var chat = chat
+        return HStack(alignment: .bottom, spacing: 8) {
+            TextField("跟夏夏说，比如「午饭 12 欧」", text: $chat.draft, axis: .vertical)
+                .textFieldStyle(.plain)
+                .lineLimit(1...5)
+                .focused($inputFocused)
+                .onSubmit { chat.send(chat.draft, model: model) }
+                .padding(.horizontal, 10).padding(.vertical, 8)
+                .background(Color.sunken, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityLabel("跟夏夏说")
+            Button { chat.send(chat.draft, model: model) } label: {
+                Image(systemName: "arrow.up").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(Color.aiSolid.opacity(chat.draft.trimmingCharacters(in: .whitespaces).isEmpty || chat.busy ? 0.35 : 1), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(chat.draft.trimmingCharacters(in: .whitespaces).isEmpty || chat.busy)
+            .keyboardShortcut(.return, modifiers: .command)
+            .accessibilityLabel("发送")
+        }
+        .padding(12)
+    }
+}
+#endif
