@@ -481,7 +481,8 @@ public struct XiaxiaScene: Scene {
         Window("夏夏账本", id: "main") {
             RootView()
                 .environment(model)
-                .frame(minWidth: 760, minHeight: 560)
+                // 对话栏开着时窗口不能拉得比三栏加起来还窄（不然 AppKit 分栏约束死循环闪退）。
+                .frame(minWidth: model.chat.open ? XiaxiaChatState.minWindowWidth : 760, minHeight: 560)
         }
         .defaultSize(width: 1240, height: 820)
         .commands {

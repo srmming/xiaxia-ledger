@@ -36,17 +36,43 @@ public final class XiaxiaChatState {
     /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
     @ObservationIgnored var focusRequest: (() -> Void)?
     func ask(about tx: Transaction, model: LedgerModel) {
-        open = true
         model.selectedTransactionID = tx.id
         draft = "这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，"
-        focusRequest?()
+        show()
     }
 
     /// 把一句话放进输入框（来自页面上的例句、「问 AI」按钮），打开对话栏等用户改完再发。
     func prefill(_ text: String) {
-        open = true
         if !text.isEmpty { draft = text }
-        focusRequest?()
+        show()
+    }
+
+    /// 开着对话栏时窗口最少要多宽：左边侧栏 190 + 中间 520 + 对话栏 300，再留一点边。
+    /// 窗口比这窄时硬塞对话栏，AppKit 分栏会陷进约束死循环直接闪退（2026-11-22 在 Mac 上从菜单打开时崩过）。
+    static let minWindowWidth: CGFloat = 1030
+
+    /// 所有打开对话栏的地方都走这里：先把主窗口叫到前面，不够宽就先拉宽，下一轮再展开对话栏，最后把光标放进输入框。
+    func show() {
+        guard !open else { focusRequest?(); return }
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            Self.widen(window, to: Self.minWindowWidth)
+        }
+        DispatchQueue.main.async {
+            withAnimation(.snappy) { self.open = true }
+            DispatchQueue.main.async { self.focusRequest?() }
+        }
+    }
+
+    /// 把窗口拉到至少 `width` 宽，尽量不出屏幕：先往右长，右边不够再往左挪。
+    static func widen(_ window: NSWindow, to width: CGFloat) {
+        var frame = window.frame
+        guard frame.width < width else { return }
+        let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? frame
+        frame.size.width = min(width, screen.width)
+        if frame.maxX > screen.maxX { frame.origin.x = max(screen.minX, screen.maxX - frame.width) }
+        window.setFrame(frame, display: true, animate: false)
     }
 
     public func newConversation() {
@@ -76,16 +102,9 @@ public final class XiaxiaChatState {
 }
 
 extension LedgerModel {
-    /// ⌘K、菜单「和夏夏聊」、工具栏「问夏夏」共用：开关对话栏。打开时先把主窗口叫到前面并设成当前窗口，
-    /// 不然从菜单点（或窗口刚被别的弹窗抢了焦点）时，对话栏开了也看不到、输入框拿不到光标。
+    /// ⌘K、菜单「和夏夏聊」、工具栏「问夏夏」共用：开着就收起，没开就 chat.show()。
     func toggleChat() {
-        let opening = !chat.open
-        if opening, let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-        }
-        withAnimation(.snappy) { chat.open = opening }
-        if opening { DispatchQueue.main.async { [chat] in chat.focusRequest?() } }
+        if chat.open { withAnimation(.snappy) { chat.open = false } } else { chat.show() }
     }
 }
 
