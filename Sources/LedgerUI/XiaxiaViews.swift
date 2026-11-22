@@ -27,6 +27,7 @@ extension LedgerModel {
 /// 下面「让夏夏细说」复制一段话并打开 Claude，让 AI 写一条给这一页的意见。
 struct XiaxiaSays: View {
     @Environment(LedgerModel.self) var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// overview / spending / trends / wealth / plans
     let page: String
     /// 页面中文名，比如「花销」。
@@ -41,17 +42,25 @@ struct XiaxiaSays: View {
             InsightCard(insight: insight)
         } else {
             AskAIReader { ask in
-                VStack(alignment: .leading, spacing: 10) {
-                    XiaxiaHeader(title: "夏夏说")
-                    Text(sentence).font(.body).fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
-                        Button {
-                            ask(question + " 说完用 add_insight 写一条给「\(pageName)」页的意见（page=\(page)）。", page: pageName)
-                        } label: { Label("让夏夏细说", systemImage: "sparkles") }
-                            .buttonStyle(.softAI)
-                            .accessibilityHint("复制一段话并打开 Claude")
-                        Spacer()
-                        MoreLink(title: "夏夏建议", section: .insights)
+                HStack(alignment: .bottom, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        XiaxiaHeader(title: "夏夏说")
+                        Text(sentence).font(.body).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            Button {
+                                ask(question + " 说完用 add_insight 写一条给「\(pageName)」页的意见（page=\(page)）。", page: pageName)
+                            } label: { Label("让夏夏细说", systemImage: "sparkles") }
+                                .buttonStyle(.softAI)
+                                .accessibilityHint("复制一段话并打开 Claude")
+                            Spacer()
+                            MoreLink(title: "夏夏建议", section: .insights)
+                        }
+                    }
+                    // 夏夏本人站在卡片右边，按性格摆动作；大字号时让出位置给文字。
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        MascotView(.xiaxia, pose: model.persona.mascotPose, size: 92)
+                            .padding(.bottom, -6)
+                            .animation(.spring(duration: 0.45, bounce: 0.35), value: model.persona)
                     }
                 }
                 .aiCard()
@@ -89,10 +98,16 @@ struct PersonaPicker: View {
                     guard p != model.persona else { return }
                     model.perform { try $0.setPersona(p, author: model.author) }
                 } label: {
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: p == model.persona ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(p == model.persona ? Color.ai : Color.fg3)
-                            .font(.body)
+                    HStack(alignment: .center, spacing: 12) {
+                        // 每种性格一个夏夏表情；选中的那个会动
+                        MascotView(.xiaxia, pose: p.mascotPose, size: 44, face: true, animated: p == model.persona)
+                            .overlay(alignment: .bottomTrailing) {
+                                if p == model.persona {
+                                    Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .semibold))
+                                        .symbolRenderingMode(.palette).foregroundStyle(.white, Color.ai)
+                                        .offset(x: 3, y: 3)
+                                }
+                            }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.label + (p == .gentle ? "（默认）" : "")).font(.callout.weight(.medium)).foregroundStyle(.primary)
                             Text("「\(p.sample)」").font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)

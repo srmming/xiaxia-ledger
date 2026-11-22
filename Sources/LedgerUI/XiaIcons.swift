@@ -8,7 +8,7 @@ import SwiftUI
 //   XiaIcon            单个图标，任意大小
 //   XiaTile            分类方块：浅色底 + 图标（流水行、花销排行、记一笔）
 //   AccountIcon        账户图标方块（家底、管理账户）
-//   XiaxiaAvatar       夏夏头像（现在是占位，正式形象另做）
+//   XiaxiaAvatar       夏夏头像（会眨眼的圆形头像，形象见 Mascot.swift）
 //   XiaxiaIllustration 空状态 / 出错 / 加载插画
 //   CategoryIconGrid / CategoryCreator / CategoryIconEditor  挑图标、新建分类、换图标（CategoryPicker.swift）
 //   XiaBadge           小徽章：图标 + 几个字（AI 记的、留意、每月扣…）
@@ -192,12 +192,9 @@ struct XiaxiaAvatar: View {
 
     init(persona: Persona? = nil, size: CGFloat = 28) { self.persona = persona; self.size = size }
 
+    /// 夏夏的圆形头像（会眨眼），按性格换表情。形象见 Mascot.swift。
     var body: some View {
-        XiaGlyph.actAsk.image(size: size * 0.56)
-            .foregroundStyle(Color.ai)
-            .frame(width: size, height: size)
-            .background(Color.aiSoft, in: Circle())
-            .overlay(Circle().strokeBorder(Color.aiLine, lineWidth: 1))
+        MascotView(.xiaxia, pose: persona?.mascotPose ?? .idle, size: size, face: true)
             .accessibilityLabel("夏夏")
     }
 }

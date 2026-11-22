@@ -61,6 +61,8 @@ public final class XiaxiaChatState {
 struct XiaxiaChatPanel: View {
     @Environment(LedgerModel.self) var model
     @FocusState var inputFocused: Bool
+    /// 夏夏刚回了一句：头像张嘴说两秒多。
+    @State private var speaking = false
 
     var body: some View {
         let chat = model.chat
@@ -85,14 +87,23 @@ struct XiaxiaChatPanel: View {
             }
         }
         .background(Color.pageBackground)
-        .onAppear { chat.refreshEngines(); inputFocused = true }
+        .onAppear { chat.refreshEngines(); inputFocused = true; speak() }
+        .onChange(of: chat.messages.count) { _, _ in
+            if let last = chat.messages.last, !last.fromUser, !last.isError { speak() }
+        }
+    }
+
+    private func speak() {
+        speaking = true
+        Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            speaking = false
+        }
     }
 
     private func header(_ chat: XiaxiaChatState) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 22, height: 22).background(Color.ai, in: Circle())
-                .accessibilityHidden(true)
+            MascotView(.xiaxia, size: 26, face: true, talking: speaking)
             Text("夏夏").font(.headline)
             Spacer()
             if chat.available.count > 1 {
@@ -130,11 +141,24 @@ struct XiaxiaChatPanel: View {
                     if chat.messages.isEmpty { starter(chat) }
                     ForEach(chat.messages) { m in bubble(m).id(m.id) }
                     if chat.busy {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg2)
+                        // 夏夏托着下巴想，旁边是这次帮她查账的 AI 伙伴
+                        HStack(alignment: .bottom, spacing: 6) {
+                            MascotView(.xiaxia, pose: .think, size: 72)
+                            if let e = chat.engine {
+                                MascotView(MascotCharacter.of(e), size: 30, face: true)
+                                    .padding(.bottom, 6)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
+                                if let e = chat.engine {
+                                    Text("\(MascotCharacter.of(e).name)（\(e.name)）在帮她查账").font(.caption2).foregroundStyle(Color.fg3)
+                                }
+                            }
+                            .padding(.bottom, 8)
                         }
                         .id("busy")
+                        .transition(.opacity)
+                        .accessibilityElement(children: .ignore)
                         .accessibilityLabel("夏夏在想")
                     }
                 }
@@ -153,8 +177,12 @@ struct XiaxiaChatPanel: View {
 
     private func starter(_ chat: XiaxiaChatState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
-                .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .bottom, spacing: 8) {
+                MascotView(.xiaxia, pose: .hello, size: 96, talking: speaking)
+                Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
+                    .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 10)
+            }
             ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
                 Button { chat.send(p.text, model: model) } label: { PromptRow(prompt: p) }
                     .buttonStyle(.pressable)
@@ -164,8 +192,10 @@ struct XiaxiaChatPanel: View {
     }
 
     private func bubble(_ m: XiaxiaChatState.Message) -> some View {
-        HStack {
-            if m.fromUser { Spacer(minLength: 40) }
+        HStack(alignment: .top, spacing: 6) {
+            if m.fromUser { Spacer(minLength: 40) } else {
+                MascotView(.xiaxia, pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
+            }
             Text(LocalizedStringKey(m.text))
                 .font(.callout)
                 .textSelection(.enabled)

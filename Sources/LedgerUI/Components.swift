@@ -362,9 +362,8 @@ struct ActivityBanner: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 24, height: 24).background(Color.ai, in: Circle())
-                .accessibilityHidden(true)
+            // 哪个 AI 记的，就是哪个伙伴的头像（Claude → 小橘，Codex → 小紫…）
+            MascotView(MascotCharacter.of(author: activity.authors.first ?? ""), size: 30, face: true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(activity.headline).font(.subheadline.weight(.semibold)).lineLimit(1)
                 if let last = activity.changes.last, activity.changes.count > 1 || !activity.transactionIDs.isEmpty {
