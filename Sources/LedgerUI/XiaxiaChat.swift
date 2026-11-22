@@ -145,8 +145,7 @@ struct XiaxiaChatPanel: View {
                         HStack(alignment: .bottom, spacing: 6) {
                             MascotView(.xiaxia, pose: .think, size: 72)
                             if let e = chat.engine {
-                                MascotView(MascotCharacter.of(e), size: 30, face: true)
-                                    .padding(.bottom, 6)
+                                MascotView(MascotCharacter.of(e), pose: .think, size: 56)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
