@@ -108,10 +108,22 @@ struct MoreLink: View {
 struct CategoryIcon: View {
     let category: String?
     var isMove = false
+    /// 不算收支的那几种流水各用自己的图标：期初余额、借还款、存进目标、自己账户互转。
+    var flow: Transaction.Flow? = nil
     var size: CGFloat = 32
 
     var body: some View {
-        XiaTile(glyph: isMove ? .transfer : CategoryStyle.glyph(category), size: size)
+        XiaTile(glyph: glyph, size: size)
+    }
+
+    private var glyph: XiaGlyph {
+        switch flow {
+        case .opening: .bank
+        case .debt: .loan
+        case .saving: .savings
+        case .internal: .transfer
+        case nil: isMove ? .transfer : CategoryStyle.glyph(category)
+        }
     }
 }
 
@@ -170,7 +182,7 @@ struct TxRow: View {
     var body: some View {
         let internalMove = tx.flow != nil
         HStack(spacing: 12) {
-            CategoryIcon(category: tx.category, isMove: internalMove)
+            CategoryIcon(category: tx.category, isMove: internalMove, flow: tx.flow)
             VStack(alignment: .leading, spacing: 3) {
                 Text(Merchant.display(tx.description)).font(.callout.weight(.medium)).lineLimit(1)
                 HStack(spacing: 5) {
