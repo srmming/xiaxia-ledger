@@ -60,7 +60,10 @@ final class ManualEntryTests: XCTestCase {
         let app = launch("-XiaxiaDemo", "-XiaxiaSheet", "add")
         XCTAssertTrue(key(app, "4").waitForExistence(timeout: 15))
         key(app, "4").tap()
-        button(app, "超市").tap()
+        // 分类一页两行，点第一页上看得见的一个。
+        let pickable = ["超市", "餐饮", "交通", "购物"].map { button(app, $0) }.first { $0.exists && $0.isHittable }
+        XCTAssertNotNil(pickable, "第一页分类里一个常用的都没有")
+        pickable?.tap()
         // 选好分类：键盘收起来，露出账户、日期、备注。
         XCTAssertTrue(key(app, "5").waitForNonExistence(timeout: 3), "选好分类计算器键盘没收起，挡着下面的账户、日期")
         app.buttons["再记一笔"].tap()

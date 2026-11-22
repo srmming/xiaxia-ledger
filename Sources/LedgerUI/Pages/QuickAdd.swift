@@ -493,7 +493,11 @@ struct QuickAdd: View {
                     .accessibilityLabel("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? "还没选")")
                 }
             }
+            #if os(iOS)
+            datePicker   // iPhone 的日期按钮自己就是胶囊，不再套一层
+            #else
             chip { datePicker }
+            #endif
         }
         .font(.callout)
         .frame(maxWidth: .infinity)
