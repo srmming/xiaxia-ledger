@@ -197,6 +197,14 @@ final class AIConnectTests: XCTestCase {
         for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.name)) }
     }
 
+    func testWelcomePromptGuidesFirstEntry() {
+        let p = AIConnector.welcomePrompt(fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
+        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup"#), "没连上时要能自己连")
+        XCTAssertTrue(p.contains("今天花了什么"), "连上后由 AI 问第一笔")
+        XCTAssertTrue(p.contains("add_transaction") && p.contains("add_goal"))
+        XCTAssertTrue(p.contains("网页版"), "碰不到本机的 AI 要直说，不能假装记了")
+    }
+
     // MARK: fin setup（MCP + skill + 提示词）
 
     var setup: AISetup { AISetup(connector: connector) }

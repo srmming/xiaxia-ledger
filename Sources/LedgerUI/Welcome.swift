@@ -109,25 +109,29 @@ struct WelcomeView: View {
             case .other: ("Hermes Agent", "https://hermes-agent.nousresearch.com")
             }
         }
-        var missingNote: String {
-            switch self {
-            case .claude: "这台 Mac 上还没找到 Claude。装一个 Claude 桌面版，登录好，再回到这里，我会自己认出来。"
-            case .chatgpt: "ChatGPT 要通过它家的 Codex 才能读到这台电脑上的账本，用的还是你的 ChatGPT 账号。这台 Mac 上还没找到 Codex，装好再回到这里，我会自己认出来。"
-            case .gemini: "这台 Mac 上还没找到 Gemini CLI。装好再回到这里，我会自己认出来。"
-            case .other: "DeepSeek 这些要通过 Hermes Agent 这样的助手才能读到这台电脑上的账本。这台 Mac 上还没找到，装好再回到这里，我会自己认出来。"
-            case .newbie: "那我推荐从 Claude 桌面版开始，最省事：装好、登录，再回到这里，我会自己认出来。不急的话也可以以后再说。"
-            }
-        }
     }
-    enum AIMode: Hashable { case choose, found, missing, trying }
+    enum AIMode: Hashable { case choose, trying }
     @State private var aiMode: AIMode = .choose
     @State private var family: AIFamily?
     /// 找到了、还没连的工具。
     @State private var toConnect: [AIApp] = []
     @State private var partner: MascotCharacter?
+    /// 这一家的工具已经连着的（设置里有夏夏账本）。
+    @State private var linked: [AIApp] = []
     @State private var tryStartedAt = Date()
+    /// AI 真的来读过账本了（fin 握手）。
+    @State private var handshakeSeen = false
+    @State private var knownTransactions: Set<UUID> = []
+    @State private var knownGoals: Set<UUID> = []
+    /// AI 连上并且带着记了第一笔 / 建了目标：结尾是庆祝，不是「记第一笔试试」。
+    @State private var celebrated = false
+    @State private var confetti = false
     @Environment(\.openURL) private var openURL
-    private let trySentence = "用夏夏账本看看我这个月花了多少"
+
+    /// 示例账本、假装新电脑时 AI 不会真的来：给一个「演示」按钮看连上之后的样子。
+    private var isPretend: Bool {
+        model.usesSampleData || ProcessInfo.processInfo.arguments.contains("-XiaxiaFreshAI")
+    }
     @FocusState private var customFocused: Bool
 
     var body: some View {
@@ -190,6 +194,9 @@ struct WelcomeView: View {
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.pageBackground.ignoresSafeArea())
+        .overlay {
+            if confetti && !reduceMotion { ConfettiView().allowsHitTesting(false).transition(.opacity) }
+        }
         .task { await start() }
         .task(id: aiMode) { await watchAI() }
     }
@@ -310,44 +317,47 @@ struct WelcomeView: View {
                         }
                     }
                     secondary("以后再说") { Task { await skipAI() } }
-                case .found:
-                    HStack(spacing: 10) {
-                        secondary("换一个") { backToFamilies() }
-                        primary("帮我连上", id: "welcome.ai.connect", tint: .aiSolid) { Task { await connectFound() } }
-                    }
-                case .missing:
-                    HStack(spacing: 10) {
-                        secondary("换一个") { backToFamilies() }
-                        secondary("以后再说") { Task { await skipAI() } }
-                        primary("去下载 \(family?.install.name ?? "")", id: "welcome.ai.download", tint: .aiSolid) {
-                            if let u = (family?.install.url).flatMap(URL.init(string:)) { openURL(u) }
-                        }
-                    }
                 case .trying:
-                    HStack(spacing: 10) {
-                        Text("「\(trySentence)」").font(.callout.weight(.medium)).textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Button {
-                            Clipboard.copy(trySentence)
-                            model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
-                        } label: { Label("复制这句话", systemImage: "doc.on.doc") }
-                            .buttonStyle(.softAI)
-                            .accessibilityIdentifier("welcome.ai.copyTry")
-                    }
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    promptCard
                     HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("等你的 AI 来读账本…").font(.caption).foregroundStyle(Color.fg2)
+                        if handshakeSeen {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
+                            Text("连上了，等它帮你记第一笔…").font(.caption).foregroundStyle(Color.fg2)
+                        } else {
+                            ProgressView().controlSize(.small)
+                            Text("等你的 AI 来读账本…").font(.caption).foregroundStyle(Color.fg2)
+                        }
                         Spacer()
-                        secondary("先跳过") { Task { await skipTry() } }
+                    }
+                    FlowLayout(spacing: 8) {
+                        secondary("换一个") { backToFamilies() }
+                        if !toConnect.isEmpty {
+                            secondary("夏夏直接帮我连上") { Task { await connectFound() } }
+                                .accessibilityIdentifier("welcome.ai.connect")
+                        } else if linked.isEmpty, let f = family {
+                            secondary("去下载 \(f.install.name)") {
+                                if let u = URL(string: f.install.url) { openURL(u) }
+                            }
+                        }
+                        if isPretend {
+                            secondary("演示：假装 AI 记了一笔") { Task { await celebrate(who: family?.title ?? "AI", note: "咖啡 -3,50 €", goal: nil) } }
+                        }
+                        if handshakeSeen {
+                            secondary("好了，进账本") { Task { await celebrate(who: nil, note: nil, goal: nil) } }
+                        } else {
+                            secondary("先跳过") { Task { await skipTry() } }
+                        }
                     }
                 }
             }
         case .done:
-            HStack(spacing: 10) {
-                secondary("先逛逛") { finish(openAdd: false) }
-                primary("记第一笔", id: "welcome.done.add") { finish(openAdd: true) }
+            if celebrated {
+                primary("进入夏夏账本", id: "welcome.done.enter") { finish(openAdd: false) }
+            } else {
+                HStack(spacing: 10) {
+                    secondary("先逛逛") { finish(openAdd: false) }
+                    primary("记第一笔", id: "welcome.done.add") { finish(openAdd: true) }
+                }
             }
         }
     }
@@ -419,6 +429,28 @@ struct WelcomeView: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .accessibilityIdentifier(id)
+    }
+
+    /// 交给 AI 的提示词：一张卡片，点一下复制。里面写了怎么连、连不上怎么说、连上后问「今天花了什么」。
+    private var promptCard: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("给 \(family == .newbie ? "AI" : (family?.title ?? "AI")) 的提示词").font(.subheadline.weight(.semibold))
+                Text("它会自己连上账本，问你「今天花了什么？」，帮你记下第一笔；连不上也会告诉你为什么。")
+                    .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button {
+                Clipboard.copy(model.aiWelcomePrompt)
+                model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
+            } label: { Label("复制提示词", systemImage: "doc.on.doc") }
+                .buttonStyle(AISolidButtonStyle())
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("welcome.ai.copyPrompt")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.aiLine, lineWidth: 1))
     }
 
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
@@ -505,19 +537,30 @@ struct WelcomeView: View {
         answer(f.title)
         family = f
         guard let c = model.aiConnector else { await wrapUp(); return }
-        let linked = f.apps.filter { c.isConnected($0) }
+        await say(f == .newbie ? "没关系，我来带你。" : "那我们看看吧。", pose: .think)
+        linked = f.apps.filter { c.isConnected($0) }
         toConnect = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
-        if !toConnect.isEmpty {
-            withAnimation(.bouncy) { partner = f.partner; aiMode = .found }
-            await say("找到了！这台 Mac 上有：", items: toConnect.map(\.name), pose: .cheer)
-            await say("要我现在帮你连上吗？我只在它的设置里加上「夏夏账本」这一项，别的都不动。", pose: .idle)
-        } else if !linked.isEmpty {
+        handshakeSeen = false
+        tryStartedAt = Date()
+        knownTransactions = Set(model.ledger.transactions.map(\.id))
+        knownGoals = Set(model.ledger.goals.map(\.id))
+        if !linked.isEmpty {
             withAnimation(.bouncy) { partner = f.partner }
-            await say("这些已经连着了，不用再弄：", items: linked.map(\.name), pose: .cheer)
-            await startTry(linked)
+            await say("连接上了！", items: linked.map(\.name), pose: .cheer)
+            withAnimation(.snappy) { aiMode = .trying }
+            await say("现在试试第一笔：点「复制提示词」，粘给 \(linked[0].name)。它会问你今天花了什么，帮你记下来。我在这儿等着。", pose: .idle)
+        } else if !toConnect.isEmpty {
+            withAnimation(.bouncy) { partner = f.partner }
+            await say("还没有连接上。不过这台 Mac 上有：", items: toConnect.map(\.name), pose: .worried)
+            withAnimation(.snappy) { aiMode = .trying }
+            await say("点「复制提示词」，粘给它，它会自己连上账本，再问你今天花了什么。想省事也可以让我直接帮你连。", pose: .idle)
+        } else if f == .newbie {
+            withAnimation(.snappy) { aiMode = .trying }
+            await say("我推荐从 Claude 桌面版开始，最省事。装好、登录，再把下面的提示词粘给它就行。不急的话也可以先跳过。", pose: .idle)
         } else {
-            withAnimation(.snappy) { aiMode = .missing }
-            await say(f.missingNote, pose: f == .newbie ? .idle : .worried)
+            withAnimation(.snappy) { aiMode = .trying }
+            await say("还没有连接上，这台 Mac 上也没找到 \(f.install.name)。", pose: .worried)
+            await say("可以先装一个。已经在用的话，把下面的提示词粘给它，它会告诉你怎么连；如果它是网页版、连不到这台电脑，也会直接告诉你。", pose: .idle)
         }
     }
 
@@ -528,25 +571,19 @@ struct WelcomeView: View {
 
     private func connectFound() async {
         guard let c = model.aiConnector else { return }
-        answer("帮我连上")
+        answer("夏夏直接帮我连上")
         var done: [AIApp] = []
         var failed: [String] = []
         for app in toConnect {
             do { try AISetup(connector: c).connect(app); done.append(app) }
             catch { failed.append("\(app.name)：\(error.localizedDescription)") }
         }
-        if !failed.isEmpty { await say("有的没连上：\(failed.joined(separator: "；"))。等下可以去「设置」里再试。", pose: .worried) }
-        if done.isEmpty { await wrapUp(); return }
-        await say("设置写好了：", items: done.map(\.name), pose: .write)
-        await startTry(done)
-    }
-
-    /// 真的试一句：AI 来读账本（fin 握手）才算连上。
-    private func startTry(_ apps: [AIApp]) async {
-        tryStartedAt = Date()
-        withAnimation(.snappy) { aiMode = .trying }
-        let how = apps.first.map { "先\($0.afterConnect)，再" } ?? ""
-        await say("最后真的试一下：\(how)跟它说下面这句话。它一来读账本，我马上告诉你。", pose: .think)
+        toConnect.removeAll { done.contains($0) }
+        linked += done
+        if !failed.isEmpty { await say("有的没连上：\(failed.joined(separator: "；"))。可以把提示词粘给它，让它自己连。", pose: .worried) }
+        guard let first = done.first else { return }
+        await say("连接上了！", items: done.map(\.name), pose: .cheer)
+        await say("先\(first.afterConnect)，再把提示词粘给它。它会问你今天花了什么。", pose: .idle)
     }
 
     private func skipTry() async {
@@ -561,35 +598,67 @@ struct WelcomeView: View {
         await wrapUp()
     }
 
-    /// 每 2 秒看一眼：等装好的工具出现；等 AI 真的来读账本。
+    /// 每 2 秒看一眼：新装的工具出现了没有；AI 有没有真的来读账本；有没有帮着记下第一笔、建了目标。
     private func watchAI() async {
-        guard aiMode == .missing || aiMode == .trying else { return }
+        guard aiMode == .trying else { return }
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, !typing, step == .ai, let c = model.aiConnector else { continue }
-            if aiMode == .missing, let f = family {
+            guard !Task.isCancelled, !typing, step == .ai, aiMode == .trying, let c = model.aiConnector, let f = family else { continue }
+            if linked.isEmpty, toConnect.isEmpty {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
                     toConnect = found
-                    typing = true
-                    withAnimation(.bouncy) { partner = f.partner; aiMode = .found }
-                    // 换了 aiMode 这个任务会被取消，接下来的话另起一个任务说完。
-                    Task {
-                        await say("认出来了！你装好了：", items: found.map(\.name), pose: .cheer)
-                        await say("要我现在帮你连上吗？我只在它的设置里加上「夏夏账本」这一项，别的都不动。", pose: .idle)
-                    }
-                    return
-                }
-            } else if aiMode == .trying, !model.usesSampleData {
-                let fresh = AIConnections.load().filter { $0.value > tryStartedAt }
-                if let who = fresh.max(by: { $0.value < $1.value })?.key {
-                    model.refreshIfChanged()
-                    await say("连上了！我看到 \(AIApp.displayName(clientName: who)) 刚刚来读账本了。", pose: .celebrate)
-                    await wrapUp()
-                    return
+                    withAnimation(.bouncy) { partner = f.partner }
+                    await say("认出来了！你装好了：", items: found.map(\.name), pose: .cheer)
+                    await say("把提示词粘给它，或者让我直接帮你连。", pose: .idle)
+                    continue
                 }
             }
+            let nowLinked = f.apps.filter { c.isConnected($0) }
+            if nowLinked.count > linked.count {
+                // AI 照着提示词自己连好了。
+                let new = nowLinked.filter { !linked.contains($0) }
+                linked = nowLinked
+                toConnect.removeAll { nowLinked.contains($0) }
+                withAnimation(.bouncy) { partner = f.partner }
+                await say("连接上了！", items: new.map(\.name), pose: .cheer)
+                continue
+            }
+            guard !model.usesSampleData else { continue }
+            let fresh = AIConnections.load().filter { $0.value > tryStartedAt }
+            let who = fresh.max(by: { $0.value < $1.value }).map { AIApp.displayName(clientName: $0.key) }
+            if !handshakeSeen, let who {
+                withAnimation(.snappy) { handshakeSeen = true }
+                await say("我看到 \(who) 刚刚来读账本了！接着跟它说说今天花了什么吧。", pose: .cheer)
+                continue
+            }
+            model.refreshIfChanged()
+            let newTx = model.ledger.transactions.filter { !knownTransactions.contains($0.id) }
+            let newGoal = model.ledger.goals.first { !knownGoals.contains($0.id) }
+            if !newTx.isEmpty || newGoal != nil {
+                let note = newTx.max(by: { $0.date < $1.date }).map { "\(Merchant.display($0.description)) \($0.amount.formatted)" }
+                await celebrate(who: who, note: note, goal: newGoal?.name)
+                return
+            }
         }
+    }
+
+    /// 连上了：撒花，说恭喜。
+    private func celebrate(who: String?, note: String?, goal: String?) async {
+        guard !celebrated else { return }
+        celebrated = true
+        model.activity = nil   // 顶上那条「AI 刚记了 1 笔」不用再弹，夏夏自己说
+        step = .done
+        withAnimation(.smooth) { confetti = true }
+        await say("🎉 恭喜，连接成功！", pose: .celebrate)
+        if let note { await say("\(who ?? "你的 AI") 帮你记下了第一笔：\(note)。") }
+        if let goal {
+            await say("祝你早日达成「\(goal)」！让我们一起努力吧！", pose: .cheer)
+        } else {
+            await say("祝你想存的钱都存到，心愿一个个达成。让我们一起努力吧！", pose: .cheer)
+        }
+        try? await Task.sleep(for: .seconds(4))
+        withAnimation(.smooth) { confetti = false }
     }
 
     private func wrapUp() async {
@@ -612,4 +681,43 @@ struct WelcomeView: View {
         #endif
     }
 
+}
+
+/// 撒花：从上面飘下来的彩色纸片，几秒后落完。
+struct ConfettiView: View {
+    struct Piece {
+        var x = Double.random(in: 0...1)
+        var delay = Double.random(in: 0...1.2)
+        var speed = Double.random(in: 0.28...0.55)
+        var size = Double.random(in: 6...11)
+        var spin = Double.random(in: -5...5)
+        var sway = Double.random(in: 0.8...2.2)
+        var color = Int.random(in: 0..<6)
+    }
+
+    @State private var pieces = (0..<90).map { _ in Piece() }
+    @State private var start = Date()
+    private let colors: [Color] = [.brand, .ai, .income, .warn, .pink, .yellow]
+
+    var body: some View {
+        TimelineView(.animation) { ctx in
+            Canvas { context, size in
+                let t = ctx.date.timeIntervalSince(start)
+                for p in pieces {
+                    let life = t - p.delay
+                    guard life > 0 else { continue }
+                    let y = -20 + life * p.speed * size.height
+                    guard y < size.height + 20 else { continue }
+                    let x = p.x * size.width + sin(life * p.sway * 2) * 18
+                    var c = context
+                    c.translateBy(x: x, y: y)
+                    c.rotate(by: .radians(life * p.spin))
+                    c.opacity = max(0, min(1, 4.5 - t))
+                    c.fill(Path(roundedRect: CGRect(x: -p.size / 2, y: -p.size / 4, width: p.size, height: p.size / 2), cornerRadius: 1.5),
+                           with: .color(colors[p.color]))
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
 }
