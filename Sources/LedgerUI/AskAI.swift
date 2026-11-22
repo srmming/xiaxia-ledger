@@ -140,16 +140,29 @@ struct PromptRow: View {
 struct AskAIButton: View {
     let page: String
     var compact = false
+    /// Mac 工具栏里用系统自己的按钮样子（带字），不自己涂紫色：工具栏会把按钮放进一个胶囊里，自己涂的色块会被切掉一角。
+    var inToolbar = false
     var body: some View {
         AskAIReader { ask in
-            Button {
-                ask("", page: page)
-            } label: {
-                Label("问 AI", systemImage: "sparkles")
+            if inToolbar {
+                Button {
+                    ask("", page: page)
+                } label: {
+                    Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
+                }
+                .tint(Color.ai)
+                .help("把这一页的情况复制好，打开 Claude，粘贴就能问夏夏（⌘K）")
+                .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
+            } else {
+                Button {
+                    ask("", page: page)
+                } label: {
+                    Label("问 AI", systemImage: "sparkles")
+                }
+                .buttonStyle(AISolidButtonStyle())
+                .help("复制当前页面的上下文，打开 Claude（⌘K）")
+                .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
             }
-            .buttonStyle(AISolidButtonStyle())
-            .help("复制当前页面的上下文，打开 Claude（⌘K）")
-            .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
         }
     }
 }
