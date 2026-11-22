@@ -10,13 +10,22 @@ final class CategoryStyleTests: XCTestCase {
             ("店铺·房租押金", .shoprent), ("AI·软件·订阅", .subscription), ("转给亲友·汇款", .remit),
             ("取现金", .cash), ("店铺·服务与保险", .insurance), ("住房·水电燃气", .utilities),
             ("美甲店收入", .revenue), ("其他收入", .income), ("员工工资", .staff), ("个人·外卖", .delivery),
-            ("退税", .taxrefund), ("店租", .shoprent), ("美甲店·刷卡收入", .revenue), ("工资收入", .salary),
+            ("退税", .taxrefund), ("店租", .shoprent), ("美甲店·刷卡收入", .revenue), ("花材", .plants), ("原料", .supplies), ("推广", .marketing), ("个人护理", .skincare), ("工资收入", .salary),
         ]
         for (name, want) in cases {
             XCTAssertEqual(CategoryStyle.glyph(name), want, name)
         }
         XCTAssertEqual(CategoryStyle.glyph(nil), .uncategorized)
         XCTAssertEqual(CategoryStyle.glyph("完全对不上的名字xyz"), .other)
+    }
+
+    /// 示例账本（截图、新用户看的）里用到的每个分类都要有图标。
+    func testDemoCategoriesAllHaveIcons() {
+        let names = Set(DemoData.make().transactions.compactMap(\.category))
+        XCTAssertFalse(names.isEmpty)
+        for name in names where name != "其他" {
+            XCTAssertNotEqual(CategoryStyle.glyph(name), .other, "示例账本里的「\(name)」配不上图标")
+        }
     }
 
     func testEveryIconLabelMatchesItself() {

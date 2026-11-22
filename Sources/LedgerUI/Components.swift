@@ -165,7 +165,7 @@ enum CategoryStyle {
         "借款": .loan, "借出": .loan, "还款": .repay, "运动": .sport, "健身": .sport, "家居": .home, "家具": .home,
         "零食": .snacks, "甜品": .dessert, "奶茶": .bubbletea, "外卖": .delivery,
         "押金": .housing, "汇款": .remit, "转给": .remit, "亲友": .family, "取现": .cash, "现金": .cash, "软件": .software,
-        "水电燃气": .utilities, "水电煤": .utilities, "燃气": .gas, "煤气": .gas, "电费": .power, "水费": .water, "网费": .internet, "宽带": .internet, "物业": .property,
+        "水电燃气": .utilities, "水电煤": .utilities, "期初余额": .bank, "期初": .bank, "花材": .plants, "鲜花": .plants, "原料": .supplies, "材料": .supplies, "推广": .marketing, "护理": .skincare, "燃气": .gas, "煤气": .gas, "电费": .power, "水费": .water, "网费": .internet, "宽带": .internet, "物业": .property,
         "机票": .flight, "火车": .train, "停车": .parking, "房贷": .mortgage, "理发": .haircut, "看牙": .dental, "数码": .digital, "电子": .digital, "未分类": .uncategorized, "其他": .other,
     ]
 
