@@ -140,10 +140,15 @@ struct QuickAdd: View {
 
     private var canSave: Bool { amount != nil && category != nil && !accountID.isEmpty }
 
+    /// 格子里直接显示的分类：常用的 6 个（选过「更多」里的或新建的，就把它也放进来）。
     private var categories: [String] {
-        let list = model.categories(bookID: bookID, income: income, limit: customCategory == nil ? 7 : 6)
+        let list = Array(allCategories.prefix(customCategory == nil ? 6 : 5))
         return list + [customCategory].compactMap { $0 }.filter { !list.contains($0) }
     }
+
+    /// 这个账本、这个方向能选的所有分类；格子里放不下的进「更多」。
+    private var allCategories: [String] { model.categories(bookID: bookID, income: income, limit: 60) }
+    private var moreCategories: [String] { allCategories.filter { !categories.contains($0) } }
 
     private func detailRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack {
@@ -235,6 +240,23 @@ struct QuickAdd: View {
                 .buttonStyle(.pressable)
                 .accessibilityAddTraits(category == c ? .isSelected : [])
             }
+            if !moreCategories.isEmpty && !addingCategory {
+                Menu {
+                    ForEach(moreCategories, id: \.self) { c in
+                        Button(c) { customCategory = c; category = c }
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.fg2)
+                            .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
+                        Text("更多").font(.caption).foregroundStyle(Color.fg2)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 7)
+                    .contentShape(Rectangle())
+                }
+                .menuStyle(.button).buttonStyle(.pressable).menuIndicator(.hidden)
+                .accessibilityLabel("更多分类")
+            }
             if addingCategory {
                 VStack(spacing: 4) {
                     TextField("新分类", text: $newCategory)
@@ -244,8 +266,8 @@ struct QuickAdd: View {
                         .frame(height: 30)
                         .accessibilityLabel("新分类的名字")
                     HStack(spacing: 10) {
-                        Button("取消") { addingCategory = false }.font(.caption2).buttonStyle(.borderless)
-                        Button("用") { useNewCategory() }.font(.caption2.weight(.semibold)).buttonStyle(.borderless)
+                        Button("取消") { addingCategory = false }.font(.caption).buttonStyle(.borderless)
+                        Button("用") { useNewCategory() }.font(.caption.weight(.semibold)).buttonStyle(.borderless)
                             .disabled(newCategory.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }

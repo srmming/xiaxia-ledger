@@ -32,7 +32,7 @@ final class ManageFlowTests: XCTestCase {
     /// 账本：新建 → 改名 → 删除（空账本直接删）。
     func testBookAddRenameDelete() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "books")
-        let field = app.textFields["名字，比如「家庭」「第二家店」"]
+        let field = app.textFields["名字"]
         XCTAssertTrue(field.waitForExistence(timeout: 15), "管理账本页没打开")
         field.tap()
         field.typeText("家庭")
@@ -74,7 +74,7 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(menu.waitForExistence(timeout: 15), "顶部没有账本菜单")
         menu.tap()
         app.buttons["管理账本…"].tap()
-        XCTAssertTrue(app.textFields["名字，比如「家庭」「第二家店」"].waitForExistence(timeout: 5), "管理账本页没打开")
+        XCTAssertTrue(app.textFields["名字"].waitForExistence(timeout: 5), "管理账本页没打开")
     }
 
     /// 账户：加一个，再改名。
@@ -146,11 +146,11 @@ final class ManageFlowTests: XCTestCase {
     /// 计划页自己登记一个存钱目标。
     func testNewGoalFromPlans() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "plan")
-        let name = app.textFields["名字，比如「旅行」"]
+        let name = app.textFields["名字"]
         XCTAssertTrue(name.waitForExistence(timeout: 15), "新计划没打开")
         name.tap()
         name.typeText("旅行")
-        let amount = app.textFields["要存多少，比如 2.000"]
+        let amount = app.textFields["要存多少"]
         amount.tap()
         amount.typeText("2000")
         app.buttons["保存"].tap()

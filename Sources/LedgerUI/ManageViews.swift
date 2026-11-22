@@ -27,7 +27,7 @@ struct BookManager: View {
                 Text("每个账本有自己的收支和报表，看板上可以只看一个，也可以看「全部」。账户可以在几个账本之间混用。")
             }
             Section("新建账本") {
-                TextField("名字，比如「家庭」「第二家店」", text: $newName)
+                TextField("名字", text: $newName, prompt: Text("比如「家庭」「第二家店」"))
                     .onSubmit(add)
                 Picker("用来记", selection: $newKind) {
                     ForEach(BookKind.allCases, id: \.self) { Text($0.label).tag($0) }
@@ -213,12 +213,12 @@ struct AccountEditor: View {
                 Picker("类型", selection: $draft.kind) {
                     ForEach(AccountKind.allCases, id: \.self) { Label($0.label, systemImage: $0.symbol).tag($0) }
                 }
-                TextField("银行或机构（可不填）", text: $draft.institution)
+                TextField("银行或机构", text: $draft.institution, prompt: Text("可不填"))
                 Toggle("私房钱", isOn: $draft.isPrivate)
             }
             if draft.original == nil {
                 Section {
-                    TextField("现在的余额（可不填），比如 1.250,00", text: $draft.opening)
+                    TextField("现在的余额", text: $draft.opening, prompt: Text("可不填，比如 1.250,00"))
                         .decimalKeyboard()
                 } footer: { Text("记成开账余额，不算收入。信用卡欠款写负数。") }
             } else {
@@ -317,7 +317,7 @@ struct CategoryManager: View {
                 Text("改成一个已有的名字，就是把两个分类并成一个。")
             }
             Section {
-                TextField("名字，比如「宠物」「学费」", text: $newName)
+                TextField("名字", text: $newName, prompt: Text("比如「宠物」「学费」"))
                     .onSubmit(add)
                 Picker("用在", selection: $newIncome) {
                     Text("支出").tag(false)
