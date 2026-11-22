@@ -84,9 +84,8 @@ public final class LedgerModel {
         ledger = fresh
         cache = nil; authorCache = nil
         dropMissingSelection()
-        if let found = ExternalActivity.between(old, fresh, me: author) {
-            activity = activity.map { $0.merged(with: found) } ?? found
-        }
+        let found = ExternalActivity.between(old, fresh, me: author)
+        activity = (found.map { f in activity.map { $0.merged(with: f) } ?? f } ?? activity)?.current(in: fresh)
     }
 
     // MARK: 外面的 AI 刚做了什么

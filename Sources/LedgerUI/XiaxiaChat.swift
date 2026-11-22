@@ -74,6 +74,41 @@ public final class XiaxiaChatState {
     }
 }
 
+/// 「夏夏在想…」。等了 15 秒还没回，提醒看一眼有没有系统弹窗：
+/// 第一次在 app 里叫 AI 时，macOS 可能问「“夏夏账本”想访问“文稿”文件夹」，不点它 AI 就一直等着（实测卡满 3 分钟）。
+/// 夏夏托着下巴想，旁边是这次帮她查账的 AI 伙伴；等久了提示去点系统的「允许」。
+private struct ThinkingRow: View {
+    var engine: ChatEngine?
+    @State private var long = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 6) {
+                MascotView(.xiaxia, pose: .think, size: 72)
+                if let engine {
+                    MascotView(MascotCharacter.of(engine), pose: .think, size: 56)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
+                    if let engine {
+                        Text("\(MascotCharacter.of(engine).name)（\(engine.name)）在帮她查账").font(.caption2).foregroundStyle(Color.fg3)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+            if long {
+                Text("等得有点久。看看屏幕上有没有系统问「“夏夏账本”想访问…」的小窗，点「允许」夏夏就能接着回答。")
+                    .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .task {
+            try? await Task.sleep(for: .seconds(15))
+            withAnimation { long = true }
+        }
+    }
+}
+
 struct XiaxiaChatPanel: View {
     @Environment(LedgerModel.self) var model
     @FocusState var inputFocused: Bool
@@ -161,24 +196,9 @@ struct XiaxiaChatPanel: View {
                     if chat.messages.isEmpty { starter(chat) }
                     ForEach(chat.messages) { m in bubble(m).id(m.id) }
                     if chat.busy {
-                        // 夏夏托着下巴想，旁边是这次帮她查账的 AI 伙伴
-                        HStack(alignment: .bottom, spacing: 6) {
-                            MascotView(.xiaxia, pose: .think, size: 72)
-                            if let e = chat.engine {
-                                MascotView(MascotCharacter.of(e), pose: .think, size: 56)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
-                                if let e = chat.engine {
-                                    Text("\(MascotCharacter.of(e).name)（\(e.name)）在帮她查账").font(.caption2).foregroundStyle(Color.fg3)
-                                }
-                            }
-                            .padding(.bottom, 8)
-                        }
-                        .id("busy")
-                        .transition(.opacity)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("夏夏在想")
+                        ThinkingRow(engine: chat.engine)
+                            .id("busy")
+                            .transition(.opacity)
                     }
                 }
                 .padding(14)
