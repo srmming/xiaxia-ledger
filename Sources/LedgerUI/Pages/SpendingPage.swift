@@ -43,6 +43,7 @@ struct SpendingPage: View {
         let diff = top.amount - topBefore
         return VStack(spacing: 14) {
             CategoryDonut(slices: CategoryDonut.slices(totals), centerLabel: "\(month.month) 月花掉", total: now.expense.magnitude, size: 250)
+                .id(month)
             if status.lastMonthSameDaySpent.cents > 0 {
                 Text(delta.isExpense ? "比上月同期少花 \(delta.magnitude.rounded)" : "比上月同期多花 \(delta.rounded)")
                     .font(.caption.weight(.semibold))

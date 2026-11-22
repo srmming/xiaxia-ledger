@@ -329,3 +329,60 @@ struct Bar: View {
         }
     }
 }
+
+/// 表单里的输入框：Mac 上左边写标题、框里写示例；iPhone 的表单不显示标题，就把两句合成一句放进框里。
+struct FormField: View {
+    let title: String
+    let example: String
+    @Binding var text: String
+    init(_ title: String, _ example: String, text: Binding<String>) {
+        self.title = title; self.example = example; self._text = text
+    }
+    var body: some View {
+        #if os(macOS)
+        TextField(title, text: $text, prompt: Text(example))
+        #else
+        TextField("\(title)，\(example)", text: $text)
+        #endif
+    }
+}
+
+/// 外面的 AI 刚改了账本：顶上弹一条「✦ Claude 刚记了 12 笔」，能「看看」、能「全部撤销」，不点就一直留着，点 ✕ 收起。
+struct ActivityBanner: View {
+    @Environment(LedgerModel.self) var model
+    let activity: ExternalActivity
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                .frame(width: 24, height: 24).background(Color.ai, in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(activity.headline).font(.subheadline.weight(.semibold)).lineLimit(1)
+                if let last = activity.changes.last, activity.changes.count > 1 || !activity.transactionIDs.isEmpty {
+                    Text(last.summary).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                }
+            }
+            if !activity.transactionIDs.isEmpty {
+                Button("看看") { withAnimation(.snappy) { model.showActivity() } }
+                    .font(.subheadline.weight(.semibold)).buttonStyle(.borderless).tint(Color.ai)
+            }
+            if !activity.undoableIDs.isEmpty {
+                Button("全部撤销") { withAnimation(.snappy) { model.undoActivity() } }
+                    .font(.subheadline).buttonStyle(.borderless)
+            }
+            Button { withAnimation(.snappy) { model.activity = nil } } label: {
+                Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("知道了")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ai.opacity(0.35)))
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        .padding(.horizontal)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(activity.headline)
+    }
+}
