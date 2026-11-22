@@ -112,6 +112,67 @@ final class AIConnectTests: XCTestCase {
         XCTAssertTrue(try read(".codex/config.toml").contains("[mcp_servers.other]"))
     }
 
+    func testHermesYAML() throws {
+        // 没有配置文件：新建
+        try connector.connect(.hermes)
+        XCTAssertTrue(connector.isConnected(.hermes))
+        XCTAssertEqual(try read(".hermes/config.yaml"), "mcp_servers:\n  xiaxia-ledger:\n    command: \"\(fin.path)\"\n    args: [\"mcp\"]\n")
+
+        // 已有别的设置和别的 MCP：只动自己那项，换位置后再连只剩一份
+        try write(".hermes/config.yaml", """
+        model:
+          provider: "deepseek"
+          default: "deepseek-chat"
+
+        mcp_servers:
+          # 我的文件夹
+          filesystem:
+            command: "npx"
+            args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+          xiaxia-ledger:
+            command: "/old/fin"
+            args: ["mcp"]
+            env:
+              A: "1"
+
+        terminal:
+          backend: local
+        """)
+        XCTAssertEqual(connector.configuredCommand(.hermes), "/old/fin")
+        XCTAssertTrue(connector.needsRepair(.hermes))
+        try connector.connect(.hermes)
+        let text = try read(".hermes/config.yaml")
+        XCTAssertTrue(connector.isConnected(.hermes))
+        XCTAssertFalse(text.contains("/old/fin"))
+        XCTAssertFalse(text.contains("A: \"1\""))
+        XCTAssertEqual(text.components(separatedBy: "xiaxia-ledger:").count, 2)
+        XCTAssertTrue(text.contains("provider: \"deepseek\""))
+        XCTAssertTrue(text.contains("  filesystem:\n    command: \"npx\""))
+        XCTAssertTrue(text.contains("# 我的文件夹"))
+        XCTAssertTrue(text.contains("terminal:\n  backend: local"))
+        try connector.connect(.hermes)
+        XCTAssertEqual(try read(".hermes/config.yaml"), text, "再连一次不变")
+        try connector.disconnect(.hermes)
+        XCTAssertNil(connector.configuredCommand(.hermes))
+        XCTAssertTrue(try read(".hermes/config.yaml").contains("filesystem:"))
+
+        // mcp_servers: {} 写在一行
+        try write(".hermes/config.yaml", "mcp_servers: {}\n")
+        try connector.connect(.hermes)
+        XCTAssertTrue(connector.isConnected(.hermes))
+    }
+
+    func testCLILookup() throws {
+        let bin = home.appendingPathComponent(".local/bin/hermes")
+        try FileManager.default.createDirectory(at: bin.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\n".utf8).write(to: bin)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bin.path)
+        XCTAssertEqual(connector.cliExecutable(.hermes), bin.path)
+        XCTAssertNil(connector.cliExecutable(.claudeDesktop))
+        XCTAssertEqual(AIApp.hermes.headlessArguments("你好"), ["-z", "你好"])
+        XCTAssertEqual(AIApp.from(clientName: "hermes-agent"), .hermes)
+    }
+
     func testPathWithQuotesInTOML() throws {
         let odd = AIConnector(home: home, fin: #"/a "b"/fin"#)
         try odd.connect(.codex)

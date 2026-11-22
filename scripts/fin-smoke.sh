@@ -225,11 +225,14 @@ echo; echo "open_in_app 留给 app 的纸条："
 if grep -q '"花销"' "$WORK/open.json" 2>/dev/null; then cat "$WORK/open.json"; else echo "↳ 没写出 open.json"; FAILS=$((FAILS + 1)); fi
 
 echo; echo "===== fin connect：让 AI 自己把夏夏账本连上（在假的主目录里试） ====="
-FAKEHOME="$WORK/home"; mkdir -p "$FAKEHOME/.codex"
+FAKEHOME="$WORK/home"; mkdir -p "$FAKEHOME/.codex" "$FAKEHOME/.hermes"
+printf 'model:\n  provider: "deepseek"\n' > "$FAKEHOME/.hermes/config.yaml"
 HOME="$FAKEHOME" run connect --list
 HOME="$FAKEHOME" run connect codex
 HOME="$FAKEHOME" run connect --all --dry-run
 expect_fail connect nosuchtool
+HOME="$FAKEHOME" run connect hermes
+grep -q "provider: \"deepseek\"" "$FAKEHOME/.hermes/config.yaml" && grep -q "xiaxia-ledger:" "$FAKEHOME/.hermes/config.yaml" && cat "$FAKEHOME/.hermes/config.yaml" || { echo "↳ Hermes 配置不对"; FAILS=$((FAILS + 1)); }
 grep -q "mcp_servers.xiaxia-ledger" "$FAKEHOME/.codex/config.toml" && cat "$FAKEHOME/.codex/config.toml" || { echo "↳ Codex 配置没写进去"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 历史里的作者 ====="
