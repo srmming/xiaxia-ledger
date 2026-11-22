@@ -64,13 +64,14 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 能选的模型（不含「跟随默认」）。
-    /// Claude Code：opus / sonnet / haiku 是它命令行认的别名，永远指向这一代最新的那个。
+    /// Claude Code：fable / opus / sonnet / haiku 是它命令行认的别名，永远指向这一代最新的那个（claude --help 里写着 fable、opus、sonnet）。
     /// Codex：只列用户自己在 ~/.codex/config.toml 里写过的模型（默认的和各个 profile 的），不猜 OpenAI 有哪些名字。
     /// Hermes：模型在它自己的设置里换，这里只跟随默认。
     public func models(home: String = NSHomeDirectory()) -> [ChatModel] {
         switch self {
         case .claude:
-            return [ChatModel(id: "opus", name: "Opus", note: "最聪明，慢一点"),
+            return [ChatModel(id: "fable", name: "Fable", note: "最聪明"),
+                    ChatModel(id: "opus", name: "Opus", note: "很聪明，慢一点"),
                     ChatModel(id: "sonnet", name: "Sonnet", note: "又快又好，日常够用"),
                     ChatModel(id: "haiku", name: "Haiku", note: "最快，简单记账")]
         case .codex:
@@ -79,7 +80,9 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
             for line in text.split(separator: "\n") {
                 if let m = Self.tomlString(String(line), key: "model"), !seen.contains(m) { seen.append(m) }
             }
-            return seen.map { ChatModel(id: $0, name: $0, note: "") }
+            // 和默认一样的不再列一遍（「跟随默认」已经是它了）。
+            let fallback = defaultModel(home: home)
+            return seen.filter { $0 != fallback }.map { ChatModel(id: $0, name: $0, note: "") }
         case .hermes:
             return []
         }
@@ -128,7 +131,7 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     /// claude-opus-4-… / opus → Opus，看得懂就行。
     static func prettyClaude(_ m: String) -> String {
         let l = m.lowercased()
-        for (k, v) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")] where l.contains(k) { return v }
+        for (k, v) in [("fable", "Fable"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")] where l.contains(k) { return v }
         return m
     }
 

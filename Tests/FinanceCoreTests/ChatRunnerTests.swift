@@ -24,7 +24,7 @@ final class ChatRunnerTests: XCTestCase {
         XCTAssertEqual(ChatEngine.codex.arguments(prompt: "x", resume: nil, model: "some-model"),
                        ["exec", "--skip-git-repo-check", "--model", "some-model", "x"])
         XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil, model: "y"), ["-z", "x", "-t", "xiaxia-ledger"])
-        XCTAssertEqual(ChatEngine.claude.models().map(\.id), ["opus", "sonnet", "haiku"])
+        XCTAssertEqual(ChatEngine.claude.models().map(\.id), ["fable", "opus", "sonnet", "haiku"])
 
         // 读各家自己的设置：默认模型、Codex 用过的模型（假的主目录，名字都是编的）。
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("chat-model-\(UUID().uuidString)")
@@ -37,7 +37,7 @@ final class ChatRunnerTests: XCTestCase {
         try Data("model = \"model-a\"\nmodel_reasoning_effort = \"high\"\n\n[profiles.fast]\nmodel = 'model-b'\n[profiles.again]\nmodel = \"model-a\"\n".utf8)
             .write(to: home.appendingPathComponent(".codex/config.toml"))
         XCTAssertEqual(ChatEngine.codex.defaultModel(home: home.path), "model-a")
-        XCTAssertEqual(ChatEngine.codex.models(home: home.path).map(\.id), ["model-a", "model-b"])
+        XCTAssertEqual(ChatEngine.codex.models(home: home.path).map(\.id), ["model-b"])   // model-a 就是默认，不再列
         try Data("model:\n  default: model-h\n  provider: x\ntoolsets: []\n".utf8).write(to: home.appendingPathComponent(".hermes/config.yaml"))
         XCTAssertEqual(ChatEngine.hermes.defaultModel(home: home.path), "model-h")
         XCTAssertTrue(ChatEngine.hermes.models(home: home.path).isEmpty)
