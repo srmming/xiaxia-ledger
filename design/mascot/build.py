@@ -11,6 +11,8 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, "Sources/LedgerUI/Resources/Mascot")
 SIZE = 640
+# 自动找脸找错时手动指定（比如庆祝图里粉色存钱罐会被当成脸）
+OVERRIDES = {"xiaxia-celebrate": (0.455, 0.37, 0.4)}
 
 def face(im):
     """脸在图里的位置：亮肤色像素最集中的地方。返回 (中心 x, 中心 y, 边长)，都按图宽归一化。"""
@@ -35,7 +37,7 @@ def main(raw):
         # 眨眼 / 说话帧沿用定稿图的脸位置，免得头像跳
         base = key.rsplit("-", 1)[0] + "-idle"
         if not (key.endswith("-blink") or key.endswith("-talk")):
-            faces[key] = face(im)
+            faces[key] = OVERRIDES.get(key) or face(im)
         im.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(OUT, key + ".webp"), "WEBP", quality=88, method=6)
         print(key)
     lines = ["// 由 design/mascot/build.py 生成，别手改。每张形象图里脸的位置（中心 x、中心 y、边长，按图宽算）。",
