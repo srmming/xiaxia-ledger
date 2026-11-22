@@ -107,7 +107,8 @@ struct OverviewPage: View {
     // MARK: 最近流水
 
     private var recentCard: some View {
-        let recent = Array(model.visibleTransactions.prefix(5))
+        // 开账余额、自己账户之间互转不算收支，不占「最近流水」的位置（流水页里都还在）。
+        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(5))
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "最近流水") {
                 MoreLink(title: "全部", section: .transactions)

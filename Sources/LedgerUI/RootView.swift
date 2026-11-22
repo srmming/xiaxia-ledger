@@ -246,7 +246,7 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button { model.sheet = .add } label: { Label("记一笔", systemImage: "plus").labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
-            AskAIButton(page: section.rawValue).environment(model)
+            AskAIButton(page: section.rawValue, inToolbar: true).environment(model)
         }
     }
 }
@@ -450,7 +450,7 @@ public struct XiaxiaScene: Scene {
                 Button("记一笔") { model.sheet = .add }.keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .pasteboard) {
-                Button("问 AI（复制当前页面的话术）") {
+                Button("问夏夏（复制这一页的情况，打开 Claude）") {
                     let page = (model.section ?? .overview).rawValue
                     Clipboard.copy(model.contextLine(page: page))
                     model.toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
