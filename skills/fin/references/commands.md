@@ -11,6 +11,7 @@
 | 想做的事 | 命令行 | MCP |
 | --- | --- | --- |
 | 说明书（先看这个） | `fin context [--json]` | `context` |
+| 账本文件在哪 | `fin where` | — |
 | 账本列表 | `fin books` | 在 `context` 里 |
 | 账户和余额 | `fin accounts` | `accounts` |
 | 查流水 | `fin tx [--include-private] [--book miora] [--account caixa] [--month 2026-11] [--category 餐饮] [--limit 50]` | `list_transactions`（还能 `query` 搜说明；私房钱要 `include_private`） |
