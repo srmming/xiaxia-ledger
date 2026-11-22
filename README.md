@@ -46,11 +46,26 @@ swift test
 swift run fin context          # 说明书：账本、账户、口径
 swift run XiaxiaLedgerApp -XiaxiaDemo   # Mac 开发版，用编造的示例账本
 cd App && xcodegen generate && open XiaxiaLedger.xcodeproj   # iOS / Mac 正式工程
-swift run fin summary --month 2026-11 --book miora
+swift run fin summary --month 2026-11 --book shop
 swift run XiaxiaLedgerApp      # 打开 Mac app（也可以用 Xcode 打开 Package.swift 再运行）
 ```
 
 用 `XIAXIA_LEDGER_PATH=/path/to/test.json` 可以指向一份测试账本。
+
+### 示例账本（全是编的）
+
+开发、检查、截图、给别人演示，一律用示例账本，不碰真实账本：
+
+```bash
+swift run fin demo --out ~/Desktop/示例账本.sqlite      # 一键生成：今天为止 13 个月
+XIAXIA_LEDGER_PATH=~/Desktop/示例账本.sqlite swift run fin report
+swift run XiaxiaLedgerApp -XiaxiaDemo                   # app 的示例模式用的是同一份
+```
+
+一个虚构的人：有份兼职工资，自己开一家小花店（带咖啡角）。两个账本（个人、我的小店），8 个账户（日常卡、信用卡、电子钱包、现金、应急金储蓄罐、店里账户、店里现金、私房钱），
+覆盖所有功能：各类收支和淡旺季、还信用卡 / 充值 / 取现 / 老板提款、账本间转账、退款、订阅（涨价的、停掉的、没登记的）、
+两个分期（一个带手续费）、借出 / 借入 / 逾期 / 已还清、四个存钱目标（储蓄罐、划出、锁定、店里的）、夏夏建议、改动记录（导入、手记、改分类、分账本、撤销）、还没整理的几笔。
+银行、商户、人名都是编的。生成代码在 `Sources/FinanceCore/DemoData.swift`，同一个「今天」和种子生成的账本一模一样（`--seed` 换一套）。
 
 ## 现在能做什么
 
