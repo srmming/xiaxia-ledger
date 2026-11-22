@@ -121,7 +121,7 @@ public enum ChatRunner {
                 let errData = errBox.data
                 p.waitUntilExit()
                 killer.cancel()
-                writeLog(dir: dir, engine: engine, args: args, seconds: Date().timeIntervalSince(started),
+                writeLog(dir: dir, engine: engine, args: args, prompt: prompt, seconds: Date().timeIntervalSince(started),
                          status: p.terminationStatus, stopped: stopped.value, stderr: errData)
                 let text = String(decoding: data, as: UTF8.self)
                 let errText = String(decoding: errData, as: UTF8.self)
@@ -135,12 +135,18 @@ public enum ChatRunner {
     }
 
     /// 每次调用记一份日志（chat/last-run.log，只留最近一次）：卡住、出错时能直接看到原因。不记提问内容。
-    static func writeLog(dir: URL, engine: ChatEngine, args: [String], seconds: TimeInterval, status: Int32, stopped: Bool, stderr: Data) {
-        let shown = args.enumerated().map { i, a in i > 0 && args[i - 1] == "-p" || (engine != .claude && i == args.count - 1) ? "<提问>" : a }
+    static func writeLog(dir: URL, engine: ChatEngine, args: [String], prompt: String, seconds: TimeInterval, status: Int32, stopped: Bool, stderr: Data) {
+        let shown = redacted(args, prompt: prompt)
         var log = "\(ISO8601DateFormatter().string(from: Date())) \(engine.rawValue) \(String(format: "%.1f", seconds)) 秒 退出码 \(status)\(stopped ? "（超时被停）" : "")\n"
         log += "参数：\(shown.joined(separator: " "))\n--- stderr ---\n"
         log += String(decoding: stderr.suffix(20_000), as: UTF8.self)
         try? log.write(to: dir.appendingPathComponent("last-run.log"), atomically: true, encoding: .utf8)
+    }
+
+    /// 日志里的参数：提问那一项（不管排在第几个、跟在 -p 还是 -z 后面）一律换成「<提问>」。
+    /// 按内容比，不按位置猜：Hermes 的参数是 -z 提问 -t xiaxia-ledger，提问不在最后（2026-11-22 曾因此把提问原样写进日志）。
+    public static func redacted(_ args: [String], prompt: String) -> [String] {
+        args.map { $0 == prompt ? "<提问>" : $0 }
     }
 
     /// 把命令行的输出变成一句回答。
