@@ -111,8 +111,10 @@ public struct RootView: View {
                 .tint(Color.brand)
                 #if os(macOS)
                 // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
+                // 记一笔多减一些：面板挂在工具栏下面（约 52），按钮那排要整个露在窗口里。
                 .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : 520,
-                       height: sheet == .add ? nil : min(sheet == .connectAI ? 720 : 580, max(360, windowHeight - 60)))
+                       height: sheet == .add ? min(760, max(420, windowHeight - 110))
+                                              : min(sheet == .connectAI ? 720 : 580, max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
                 #endif
