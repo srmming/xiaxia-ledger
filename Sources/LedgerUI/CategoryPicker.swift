@@ -9,6 +9,8 @@ struct CategoryIconGrid: View {
     @Binding var selection: XiaGlyph?
     /// 按名字猜的那个图标，没挑的时候淡淡地圈出来。
     var suggestion: XiaGlyph? = nil
+    /// 建收入分类时把「收入」那组放最前面。
+    var incomeFirst = false
     @State private var search = ""
 
     private var sections: [(key: String, label: String, icons: [XiaGlyph])] {
@@ -19,7 +21,8 @@ struct CategoryIconGrid: View {
                 .compactMap { XiaGlyph(rawValue: $0.name) }.filter { seen.insert($0).inserted }
             return [("search", hits.isEmpty ? "没有叫「\(q)」的图标，换个说法试试" : "找到 \(hits.count) 个", hits)]
         }
-        return CategoryIcons.sections.map { ($0.key, $0.label, $0.icons.compactMap(XiaGlyph.init(rawValue:))) }
+        let all = CategoryIcons.sections.map { ($0.key, $0.label, $0.icons.compactMap(XiaGlyph.init(rawValue:))) }
+        return incomeFirst ? all.filter { $0.0 == "income" } + all.filter { $0.0 != "income" } : all
     }
 
     var body: some View {
@@ -77,6 +80,8 @@ struct CategoryCreator: View {
     @Environment(\.dismiss) var dismiss
     var income = false
     var initialName = ""
+    /// 记一笔里方向已经定了，就不再让选支出 / 收入。
+    var showsDirection = true
     /// 名字已经有了就直接用它（记一笔里），不报错；挑了图标就顺手换上。
     var allowExisting = false
     /// 建好后把名字交回去（记一笔里用来直接选中）。
@@ -86,6 +91,8 @@ struct CategoryCreator: View {
     @State private var isIncome = false
     @State private var icon: XiaGlyph?
     @State private var error: String?
+    /// 名字是点图标时自动填的（再点别的图标就跟着换；自己改过就不动）。
+    @State private var autoName: String?
     @FocusState private var nameFocused: Bool
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -108,23 +115,27 @@ struct CategoryCreator: View {
                             .focused($nameFocused)
                             .onSubmit(save)
                             .accessibilityLabel("分类名字")
-                        Picker("用在", selection: $isIncome) {
-                            Text("支出").tag(false)
-                            Text("收入").tag(true)
+                        if showsDirection {
+                            Picker("用在", selection: $isIncome) {
+                                Text("支出").tag(false)
+                                Text("收入").tag(true)
+                            }
+                            .pickerStyle(.segmented).labelsHidden()
+                            .frame(maxWidth: 200)
+                        } else {
+                            Text(isIncome ? "收入分类" : "支出分类").font(.subheadline).foregroundStyle(Color.fg2)
                         }
-                        .pickerStyle(.segmented).labelsHidden()
-                        .frame(maxWidth: 200)
                     }
                 }
                 .padding(14)
                 .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
 
                 Text(icon == nil
-                     ? (guess == nil ? "挑一个图标，记一笔和花销页里都会用它。" : "按名字先配了「\(guess!.label)」，想换就在下面点一个。")
-                     : "选了「\(icon!.label)」。")
+                     ? (guess == nil ? "先在下面点一个图标，名字会跟着填好，想改再改。" : "按名字先配了「\(guess!.label)」，想换就在下面点一个。")
+                     : (autoName == nil ? "选了「\(icon!.label)」。" : "选了「\(icon!.label)」，名字也先填上了，想改就改。"))
                     .font(.subheadline).foregroundStyle(Color.fg2)
 
-                CategoryIconGrid(selection: $icon, suggestion: guess)
+                CategoryIconGrid(selection: $icon, suggestion: guess, incomeFirst: isIncome)
             }
             .padding(Kit.side)
         }
@@ -141,10 +152,14 @@ struct CategoryCreator: View {
         #if os(macOS)
         .frame(minWidth: 480, idealWidth: 560, minHeight: 560, idealHeight: 680)
         #endif
-        .onAppear {
-            name = initialName; isIncome = income
-            if initialName.isEmpty { nameFocused = true }
+        .onAppear { name = initialName; isIncome = income }
+        // 先挑图标：名字空着（或还是上次自动填的）就用图标的名字，点一下图标再点「建好了」就行。
+        // 不一上来就弹键盘：iPhone 上键盘会把图标格子挡掉一半。
+        .onChange(of: icon) { _, g in
+            guard let g, trimmed.isEmpty || trimmed == autoName else { return }
+            name = g.label; autoName = g.label
         }
+        .onChange(of: name) { _, n in if n != autoName { autoName = nil } }
     }
 
     private func save() {
