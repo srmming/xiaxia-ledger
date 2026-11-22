@@ -221,7 +221,7 @@ struct QuickAdd: View {
         }
     }
 
-    private var savedNotice: some View {
+    @ViewBuilder private var savedNotice: some View {
         #if os(iOS)
         Label("已记下 \(savedInARow) 笔，接着记下一笔", systemImage: "checkmark.circle.fill")
             .font(.caption).foregroundStyle(Color.income)
