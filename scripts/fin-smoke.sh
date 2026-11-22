@@ -8,6 +8,7 @@ FIN="$(cd "$(dirname "$FIN")" && pwd)/$(basename "$FIN")"
 WORK="$(mktemp -d)"
 export XIAXIA_LEDGER_PATH="$WORK/ledger.json"
 export XIAXIA_AUTHOR="smoke"
+export XIAXIA_NO_OPEN=1
 FAILS=0
 
 run() {
@@ -212,10 +213,16 @@ for spec in \
   'set_profile|{"persona":"sharp","aim":"每个月存下 500 €"}' \
   'set_profile|{"persona":"pirate"}' \
   'list_insights|{}' 'ai_status|{}' \
+  'current_view|{}' \
+  'open_in_app|{"page":"spending","month":"2026-10","note":"看看 10 月"}' \
+  'open_in_app|{"page":"nopage"}' \
   'nope|{}' ; do
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
   call "${spec%%|*}" "${spec#*|}"
 done
+
+echo; echo "open_in_app 留给 app 的纸条："
+if grep -q '"花销"' "$WORK/open.json" 2>/dev/null; then cat "$WORK/open.json"; else echo "↳ 没写出 open.json"; FAILS=$((FAILS + 1)); fi
 
 echo; echo "===== fin connect：让 AI 自己把夏夏账本连上（在假的主目录里试） ====="
 FAKEHOME="$WORK/home"; mkdir -p "$FAKEHOME/.codex"

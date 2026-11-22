@@ -71,6 +71,17 @@ public struct RootView: View {
         .overlay(alignment: .bottom) {
             ZStack { toastLayer }.animation(.snappy, value: model.toast)
         }
+        .overlay(alignment: .top) {
+            ZStack {
+                if let a = model.activity {
+                    ActivityBanner(activity: a).environment(model)
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: model.activity)
+        }
+        .task { await model.watch() }
         .sensoryFeedback(trigger: model.toast) { _, new in
             guard let new else { return nil }
             return new.isError ? .error : .success
@@ -114,7 +125,7 @@ public struct RootView: View {
                 .padding(.bottom, toastInset)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task(id: toast.id) {
-                    try? await Task.sleep(for: .seconds(toast.changeID == nil ? 3 : 10))
+                    try? await Task.sleep(for: .seconds(toast.seconds ?? (toast.changeID == nil ? 3 : 10)))
                     if model.toast?.id == toast.id { withAnimation { model.toast = nil } }
                 }
                 .id(toast.id)
@@ -193,6 +204,10 @@ struct MacRoot: View {
             }
             .id(section)
         }
+        .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
+            XiaxiaChatPanel()
+                .inspectorColumnWidth(min: 300, ideal: 360, max: 520)
+        }
     }
 
     private func row(_ s: AppSection) -> some View {
@@ -246,7 +261,11 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
                 .help("记一笔（⌘N）")
-            AskAIButton(page: section.rawValue, inToolbar: true).environment(model)
+            Button { withAnimation(.snappy) { model.chat.open.toggle() } } label: {
+                Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
+            }
+            .tint(Color.ai)
+            .help("打开右边的夏夏对话栏，说一句就记账、查账（⌘K）")
         }
     }
 }
@@ -450,12 +469,13 @@ public struct XiaxiaScene: Scene {
                 Button("记一笔") { model.sheet = .add }.keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .pasteboard) {
-                Button("问夏夏（复制这一页的情况，打开 Claude）") {
+                Button(model.chat.open ? "收起夏夏对话栏" : "和夏夏聊") { withAnimation(.snappy) { model.chat.open.toggle() } }
+                    .keyboardShortcut("k", modifiers: .command)
+                Button("复制这一页的情况，去 Claude 里问") {
                     let page = (model.section ?? .overview).rawValue
                     Clipboard.copy(model.contextLine(page: page))
                     model.toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
                 }
-                .keyboardShortcut("k", modifiers: .command)
                 Button("搜流水") { model.section = .transactions; model.focusSearch = true }.keyboardShortcut("f", modifiers: .command)
             }
             CommandMenu("账本") {
