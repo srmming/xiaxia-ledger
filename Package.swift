@@ -30,5 +30,6 @@ let package = Package(
         // Mac 开发版：swift run XiaxiaLedgerApp 直接看界面
         .executableTarget(name: "XiaxiaLedgerApp", dependencies: ["LedgerUI"]),
         .testTarget(name: "FinanceCoreTests", dependencies: ["FinanceCore"]),
+        .testTarget(name: "LedgerUITests", dependencies: ["LedgerUI", "FinanceCore"]),
     ]
 )
