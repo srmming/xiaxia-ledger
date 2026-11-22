@@ -394,6 +394,12 @@ extension Ledger {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
         }
         if let p = s.profile { profile = p }
+        if let c = s.currency { currency = c; Money.defaultCurrency = c.base }
+        for x in s.subscriptions ?? [] {
+            if let i = subscriptions.firstIndex(where: { $0.id == x.id }) { subscriptions[i] = x } else { subscriptions.append(x) }
+        }
+        let addedSubs = Set(s.addedSubscriptionIDs ?? [])
+        if !addedSubs.isEmpty { subscriptions.removeAll { addedSubs.contains($0.id) } }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

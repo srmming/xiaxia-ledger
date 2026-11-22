@@ -61,4 +61,11 @@ final class ICloudContainerTests: XCTestCase {
     func testContainerPathOnDisk() {
         XCTAssertTrue(LedgerStores.containerDocumentsOnDisk.path.hasSuffix("Library/Mobile Documents/iCloud~com~srmming~xiaxia-ledger/Documents"))
     }
+
+    /// 测试进程没签 iCloud 权限：不能去用容器（不然会把账本搬进一个不同步的文件夹）。
+    func testUnsignedProcessHasNoICloudEntitlement() {
+        #if os(macOS)
+        XCTAssertFalse(LedgerStores.hasICloudEntitlement)
+        #endif
+    }
 }

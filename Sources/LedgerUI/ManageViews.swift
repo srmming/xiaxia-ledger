@@ -155,7 +155,7 @@ struct AccountManager: View {
                                     .font(.caption).foregroundStyle(Color.fg2)
                             }
                             Spacer()
-                            Text((balances[a.id] ?? .zero).balance).font(.kitAmount).foregroundStyle(Color.fg2)
+                            Text(model.balanceText(a.id)).font(.kitAmount).foregroundStyle(Color.fg2)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
                         }
                         .contentShape(Rectangle())
@@ -192,10 +192,12 @@ struct AccountDraft: Identifiable {
     var institution = ""
     var isPrivate = false
     var opening = ""
+    /// 空 = 主币种。
+    var currency = ""
 
     init() {}
     init(_ a: Account) {
-        original = a; name = a.name; kind = a.kind; institution = a.institution ?? ""; isPrivate = a.isPrivate
+        original = a; name = a.name; kind = a.kind; institution = a.institution ?? ""; isPrivate = a.isPrivate; currency = a.currency ?? ""
     }
 }
 
@@ -215,6 +217,11 @@ struct AccountEditor: View {
                 }
                 FormField("银行或机构", "可不填", text: $draft.institution)
                 Toggle("私房钱", isOn: $draft.isPrivate)
+                CurrencyPicker(title: "币种", selection: $draft.currency)
+            } footer: {
+                if !draft.currency.isEmpty && draft.currency != model.ledger.baseCurrency {
+                    Text("这个账户的流水按\(Currencies.info(draft.currency).name)记，看板上按当天汇率换成\(Currencies.info(model.ledger.baseCurrency).name)。")
+                }
             }
             if draft.original == nil {
                 Section {
@@ -249,6 +256,10 @@ struct AccountEditor: View {
             if var a = draft.original {
                 a.name = name; a.kind = draft.kind; a.institution = inst.isEmpty ? nil : inst; a.isPrivate = draft.isPrivate
                 if a != draft.original { try model.edit { try $0.updateAccount(a, author: model.author) } }
+                let newCode = draft.currency.isEmpty ? model.ledger.baseCurrency : draft.currency
+                if newCode != model.ledger.currency(ofAccount: a.id) {
+                    try model.edit { try $0.setAccountCurrency(a.id, newCode, author: model.author) }
+                }
             } else {
                 var opening: Money?
                 let text = draft.opening.replacingOccurrences(of: " ", with: "")
@@ -256,8 +267,9 @@ struct AccountEditor: View {
                     guard let m = Money(parsing: text) else { error = "余额看不懂，写成 1.250,00 这样。"; return }
                     opening = m
                 }
+                let code = draft.currency.isEmpty || draft.currency == model.ledger.baseCurrency ? nil : draft.currency
                 let a = Account(id: model.ledger.newAccountID(for: name), name: name, kind: draft.kind,
-                                institution: inst.isEmpty ? nil : inst, isPrivate: draft.isPrivate)
+                                institution: inst.isEmpty ? nil : inst, isPrivate: draft.isPrivate, currency: code)
                 try model.edit { try $0.createAccount(a, openingBalance: opening, author: model.author) }
             }
             dismiss()

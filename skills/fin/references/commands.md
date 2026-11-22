@@ -11,6 +11,7 @@
 | 想做的事 | 命令行 | MCP |
 | --- | --- | --- |
 | 说明书（先看这个） | `fin context [--json]` | `context` |
+| 账本文件在哪 | `fin where` | — |
 | 账本列表 | `fin books` | 在 `context` 里 |
 | 账户和余额 | `fin accounts` | `accounts` |
 | 查流水 | `fin tx [--include-private] [--book miora] [--account caixa] [--month 2026-11] [--category 餐饮] [--limit 50]` | `list_transactions`（还能 `query` 搜说明；私房钱要 `include_private`） |
@@ -44,6 +45,8 @@
 | 开账余额 | `fin account opening caixa 382,64 [--date …]`（信用卡欠款写负数） | `set_opening_balance` |
 | 分期 | `fin installment add 名称 总额 --count 6 --account … --book … [--first] [--fee] [--category]`；`fin installment pay 名称 [--tx 编号] [--amount]` | `add_installment`、`pay_installment` |
 | 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
+| 多币种 | `fin fx`；`fin fx update`；`fin fx account 账户 USD`；`fin fx set-rate <编号> --bank 46,12｜--rate 0,925`；`fin fx base USD`；记一笔带原价 `fin add … --original "50 USD"`；外币账户 `fin account add … --currency USD` | `currency`、`update_rates`、`set_account_currency`、`set_rate`、`set_base_currency`、`add_transaction` 的 `original`、`add_account` 的 `currency` |
+| 订阅 | `fin subscriptions [--all]`；`fin subscription find`；`fin subscription add 名称 金额 --next 日期 [--cycle weekly｜monthly｜quarterly｜yearly] [--account] [--book] [--category] [--match 关键词] [--currency]`；`fin subscription edit 名称 [--amount …]`；`fin subscription cancel 名称`；`fin subscription remove 名称` | `subscriptions`、`find_subscriptions`、`add_subscription`、`edit_subscription`、`remove_subscription` |
 | 撤销 | `fin undo <改动编号>` | `undo` |
 
 ## 还做不到的（要做就告诉 ming，别绕过去直接改文件）

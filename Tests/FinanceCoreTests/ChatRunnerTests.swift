@@ -15,6 +15,16 @@ final class ChatRunnerTests: XCTestCase {
         XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil), ["-z", "x"])
     }
 
+    func testClaudeGetsAppFinAsOnlyMCP() {
+        let a = ChatEngine.claude.arguments(prompt: "x", resume: nil, fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
+        let i = try! XCTUnwrap(a.firstIndex(of: "--mcp-config"))
+        let obj = try! JSONSerialization.jsonObject(with: Data(a[i + 1].utf8)) as! [String: [String: [String: Any]]]
+        XCTAssertEqual(obj["mcpServers"]?["xiaxia-ledger"]?["command"] as? String, "/Applications/夏夏账本.app/Contents/MacOS/fin")
+        XCTAssertEqual(obj["mcpServers"]?["xiaxia-ledger"]?["args"] as? [String], ["mcp"])
+        XCTAssertTrue(a.contains("--strict-mcp-config"))
+        XCTAssertFalse(ChatEngine.claude.arguments(prompt: "x", resume: nil).contains("--mcp-config"))
+    }
+
     func testCandidatesPreferLocalAndBun() {
         let codex = ChatEngine.candidates(.codex, home: "/Users/someone")
         XCTAssertEqual(codex.first, "/Users/someone/.local/bin/codex")

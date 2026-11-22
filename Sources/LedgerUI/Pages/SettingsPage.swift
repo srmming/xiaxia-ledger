@@ -65,6 +65,9 @@ struct SettingsPage: View {
                         .multilineTextAlignment(.trailing).textSelection(.enabled)
                 }
             }
+            group("币种", note: "每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种；银行实际扣了多少，就以银行为准。取汇率只下载欧洲央行的公开汇率表，不会发出任何账目。") {
+                CurrencySettingsRows()
+            }
             group("账本、账户和分类") {
                 ForEach(model.ledger.books) { b in
                     let n = model.ledger.bookUsage(b.id).transactions

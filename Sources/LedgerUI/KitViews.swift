@@ -108,10 +108,22 @@ struct MoreLink: View {
 struct CategoryIcon: View {
     let category: String?
     var isMove = false
+    /// 不算收支的那几种流水各用自己的图标：期初余额、借还款、存进目标、自己账户互转。
+    var flow: Transaction.Flow? = nil
     var size: CGFloat = 32
 
     var body: some View {
-        XiaTile(glyph: isMove ? .transfer : CategoryStyle.glyph(category), size: size)
+        XiaTile(glyph: glyph, size: size)
+    }
+
+    private var glyph: XiaGlyph {
+        switch flow {
+        case .opening: .bank
+        case .debt: .loan
+        case .saving: .savings
+        case .internal: .transfer
+        case nil: isMove ? .transfer : CategoryStyle.glyph(category)
+        }
     }
 }
 
@@ -126,12 +138,18 @@ struct Monogram: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: circle ? size / 2 : size * 0.28, style: .continuous)
-        Text(raw ? text : String(text.prefix(1)).uppercased())
+        Text(raw ? text : Self.initial(text))
             .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color, in: shape)
             .accessibilityHidden(true)
+    }
+
+    /// 第一个字：跳过开头的数字和符号（「12 | Ana López」取 A），全是数字符号就取第一个。
+    static func initial(_ text: String) -> String {
+        let c = text.first { $0.isLetter } ?? text.first
+        return c.map { String($0).uppercased() } ?? ""
     }
 
     /// 作者头像：Claude 橙、Codex 黑、自己灰。
@@ -164,7 +182,7 @@ struct TxRow: View {
     var body: some View {
         let internalMove = tx.flow != nil
         HStack(spacing: 12) {
-            CategoryIcon(category: tx.category, isMove: internalMove)
+            CategoryIcon(category: tx.category, isMove: internalMove, flow: tx.flow)
             VStack(alignment: .leading, spacing: 3) {
                 Text(Merchant.display(tx.description)).font(.callout.weight(.medium)).lineLimit(1)
                 HStack(spacing: 5) {
@@ -175,7 +193,7 @@ struct TxRow: View {
                 }
             }
             Spacer(minLength: 8)
-            AmountText(money: tx.amount, neutral: internalMove)
+            AmountText(money: tx.amount, neutral: internalMove, currency: model.ledger.currency(ofAccount: tx.accountID))
         }
         .padding(.vertical, 7)
         .background {
@@ -186,6 +204,12 @@ struct TxRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .contextMenu {
+            Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
+        }
+        .accessibilityAction(named: "问夏夏这一笔") { model.chat.ask(about: tx, model: model) }
+        #endif
     }
 
     private var detail: String {
@@ -213,8 +237,8 @@ struct BookCard: View {
 
     var body: some View {
         let months = Reports.months(endingAt: model.shownMonth, count: 6)
-        let list = Reports.summaries(model.ledger.transactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
-        let now = list.last ?? Summaries.monthly(model.ledger.transactions, month: model.shownMonth, bookID: book.id)
+        let list = Reports.summaries(model.baseTransactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
+        let now = list.last ?? Summaries.monthly(model.baseTransactions, month: model.shownMonth, bookID: book.id)
         Button {
             withAnimation(.snappy) { model.selectedBookID = book.id }
         } label: {
@@ -323,6 +347,7 @@ struct SegmentedProgress: View {
 
 /// 空的时候一律把人引去找 AI：一句说明 + 一个「复制这句话」按钮。
 struct KitEmptyState: View {
+    @Environment(LedgerModel.self) var model
     /// 旧写法：给一个 SF Symbol 名字，按它挑一张合适的夏夏插画（见 artFor）。
     var symbol: String? = nil
     /// 夏夏插画（160×120）：睡着的、在想事情的、出错的……不给就按 symbol 挑。
@@ -331,7 +356,7 @@ struct KitEmptyState: View {
     let message: String
     var prompt: String? = nil
     var page = "总览"
-    var buttonTitle = "复制这句话"
+    var buttonTitle = "复制好去问 AI"
 
     var body: some View {
         AskAIReader { ask in
@@ -347,7 +372,7 @@ struct KitEmptyState: View {
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
                 if let prompt {
-                    Button { ask(prompt, page: page) } label: { Label(buttonTitle, systemImage: "doc.on.doc") }
+                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? "跟夏夏说" : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)
                 }

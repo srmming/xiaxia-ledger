@@ -32,6 +32,22 @@ public final class XiaxiaChatState {
         if let saved, available.contains(saved) { engine = saved } else { engine = available.first }
     }
 
+    /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
+    @ObservationIgnored var focusRequest: (() -> Void)?
+    func ask(about tx: Transaction, model: LedgerModel) {
+        open = true
+        model.selectedTransactionID = tx.id
+        draft = "这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，"
+        focusRequest?()
+    }
+
+    /// 把一句话放进输入框（来自页面上的例句、「问 AI」按钮），打开对话栏等用户改完再发。
+    func prefill(_ text: String) {
+        open = true
+        if !text.isEmpty { draft = text }
+        focusRequest?()
+    }
+
     public func newConversation() {
         messages = []
         session = nil
@@ -48,7 +64,7 @@ public final class XiaxiaChatState {
                                        where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
         let resume = engine == .claude ? session : nil
         Task {
-            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume)
+            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path)
             if engine == .claude, let s = reply.sessionID { session = s }
             messages.append(Message(fromUser: false, text: reply.text, isError: reply.isError, engine: engine.name))
             busy = false
@@ -87,7 +103,11 @@ struct XiaxiaChatPanel: View {
             }
         }
         .background(Color.pageBackground)
-        .onAppear { chat.refreshEngines(); inputFocused = true; speak() }
+        .onAppear {
+            chat.refreshEngines(); inputFocused = true
+            chat.focusRequest = { inputFocused = true }
+            speak()
+        }
         .onChange(of: chat.messages.count) { _, _ in
             if let last = chat.messages.last, !last.fromUser, !last.isError { speak() }
         }
@@ -183,7 +203,7 @@ struct XiaxiaChatPanel: View {
                     .padding(.bottom, 10)
             }
             ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
-                Button { chat.send(p.text, model: model) } label: { PromptRow(prompt: p) }
+                Button { chat.prefill(p.text) } label: { PromptRow(prompt: p) }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("问夏夏：\(p.text)")
             }

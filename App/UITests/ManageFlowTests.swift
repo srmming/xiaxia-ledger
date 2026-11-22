@@ -29,6 +29,45 @@ final class ManageFlowTests: XCTestCase {
         field.typeText(text)
     }
 
+    /// 新建分类先挑图标：点「奶茶」图标，名字跟着填成「奶茶」，建好后能在管理分类里看到。
+    func testNewCategoryIconFirst() {
+        let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "newCategory")
+        let field = app.textFields["分类名字"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15), "新建分类面板没出来")
+        XCTAssertFalse(app.buttons["建好了"].isEnabled, "没名字就能建")
+        let tea = app.buttons["奶茶"]
+        XCTAssertTrue(tea.waitForExistence(timeout: 5), "图标格子里没有「奶茶」按钮（VoiceOver 也点不到）")
+        tea.tap()
+        XCTAssertEqual(field.value as? String, "奶茶", "点了图标，名字没跟着填")
+        XCTAssertTrue(tea.isSelected, "点过的图标没标成选中")
+        // 搜图标
+        let search = app.textFields["按名字搜图标"]
+        search.tap()
+        search.typeText("火锅")
+        XCTAssertTrue(app.buttons["火锅"].waitForExistence(timeout: 5), "搜「火锅」没找到")
+        app.buttons["建好了"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "建好了面板没关")
+    }
+
+    /// 已有分类换图标 → 改回自动。
+    func testChangeCategoryIcon() {
+        let app = launch("-XiaxiaDemo", "-XiaxiaSheet", "categories")
+        let iconButton = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "给「")).firstMatch
+        XCTAssertTrue(iconButton.waitForExistence(timeout: 15), "分类前面的图标点不到")
+        iconButton.tap()
+        XCTAssertTrue(find(app, "现在是按名字自动配的").waitForExistence(timeout: 5), "换图标面板没出来")
+        let done = app.buttons["换好了"]
+        XCTAssertFalse(done.isEnabled, "没挑就能换")
+        app.buttons["火锅"].tap()
+        XCTAssertTrue(done.isEnabled)
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "换好了面板没关")
+        iconButton.tap()
+        XCTAssertTrue(find(app, "你挑过图标").waitForExistence(timeout: 5), "换过的图标没记住")
+        app.buttons["改回自动"].tap()
+        XCTAssertTrue(find(app, "你挑过图标").waitForNonExistence(timeout: 5), "改回自动后面板没关")
+    }
+
     /// 账本：新建 → 改名 → 删除（空账本直接删）。
     func testBookAddRenameDelete() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "books")
@@ -139,8 +178,8 @@ final class ManageFlowTests: XCTestCase {
         one.tap()
         let name = app.textFields["名称"]
         name.tap()
-        name.typeText("Merc")
-        let hint = find(app, "用「Mercadona」")
+        name.typeText("Lumi")
+        let hint = find(app, "用「Super Lumi」")
         XCTAssertTrue(hint.waitForExistence(timeout: 5), "没有提示以前用过的名字")
         hint.tap()
         XCTAssertTrue(button(app, "超市").isSelected, "点了提示，分类没跟着选上")
@@ -160,6 +199,32 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
         app.tabBars.buttons["计划"].tap()
         XCTAssertTrue(find(app, "旅行").waitForExistence(timeout: 5), "目标没出现在计划页")
+    }
+
+    /// 计划页「订阅」：登记一个，合计和这一行出来；再「不续了」，合计变成 0。
+    func testSubscriptionAddAndCancel() {
+        let app = launch("-XiaxiaEmpty")
+        app.tabBars.buttons["计划"].tap()
+        let tab = app.segmentedControls["plansTab"].buttons["订阅"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 15), "计划页没有「订阅」那一格")
+        tab.tap()
+        let add = app.buttons["addSubscription"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "没有登记订阅的按钮")
+        add.tap()
+        let name = app.textFields["名字，比如「视频会员」"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5), "登记订阅没打开")
+        name.tap()
+        name.typeText("音乐会员")
+        let amount = app.textFields["每次扣多少，比如 13,99"]
+        amount.tap()
+        amount.typeText("10,99")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
+        XCTAssertTrue(find(app, "10,99 €").waitForExistence(timeout: 5), "每月合计没出来")
+        XCTAssertTrue(find(app, "音乐会员").exists, "订阅没出现在列表里")
+        app.buttons["音乐会员 的操作"].tap()
+        app.buttons["不续了"].tap()
+        XCTAssertTrue(find(app, "已经停了的 1 个").waitForExistence(timeout: 5), "停了以后没归到「已经停了的」")
     }
 
     /// 夏夏建议页：点一个例子写下目标。

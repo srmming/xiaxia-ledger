@@ -8,6 +8,9 @@ public struct LedgerContext: Codable, Sendable {
         public var balance: String; public var lastStatementDate: String?
         /// 私房钱：只回答用户本人，不写进给别人看的报表。
         public var isPrivate: Bool
+        /// 账户币种（三个字母）。balance 是这个币种的；balanceInBase 是换成主币种的（只有外币账户有）。
+        public var currency: String
+        public var balanceInBase: String?
     }
 
     public var books: [BookInfo]
@@ -23,6 +26,15 @@ public struct LedgerContext: Codable, Sendable {
     public var activeInstallments: Int
     public var goals: Int
     public var unassignedCount: Int
+    /// 主币种：所有汇总、月报都换成它。
+    public var baseCurrency: String
+    /// 订阅：在续的个数、每月合计、一年合计（主币种），以及 7 天内要扣的。
+    public var subscriptions: Int
+    public var subscriptionsMonthly: String
+    public var subscriptionsYearly: String
+    public var subscriptionsDueSoon: [String]
+    /// 缺汇率的外币（还没联网取过）。
+    public var missingRates: [String]
     /// 夏夏（app 里 AI 的名字）的说话方式：写意见、回答用户时照这个口吻。
     public var voice: String
     public var persona: String
@@ -32,6 +44,8 @@ public struct LedgerContext: Codable, Sendable {
 
     public static let rules: [String] = [
         "金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。",
+        "多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。",
+        "订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。",
         "每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。",
         "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
         "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
@@ -50,14 +64,17 @@ public struct LedgerContext: Codable, Sendable {
     ]
 
     public init(ledger: Ledger) {
-        let balances = Summaries.balances(ledger.transactions)
+        let balances = ledger.accountBalances()
         books = ledger.books.map { b in
             BookInfo(id: b.id, name: b.name, transactions: ledger.transactions.filter { $0.bookID == b.id }.count)
         }
         accounts = ledger.accounts.map { a in
-            AccountInfo(id: a.id, name: a.name, kind: a.kind.rawValue,
-                        balance: (balances[a.id] ?? .zero).formatted,
-                        lastStatementDate: ledger.lastStatementDate[a.id]?.description, isPrivate: a.isPrivate)
+            let code = ledger.currency(ofAccount: a.id)
+            let b = balances[a.id] ?? (.zero, .zero)
+            return AccountInfo(id: a.id, name: a.name, kind: a.kind.rawValue,
+                        balance: b.native.formatted(in: code),
+                        lastStatementDate: ledger.lastStatementDate[a.id]?.description, isPrivate: a.isPrivate,
+                        currency: code, balanceInBase: code == ledger.baseCurrency ? nil : b.base.formatted(in: ledger.baseCurrency))
         }
         transactionCount = ledger.transactions.count
         let dates = ledger.transactions.map(\.date).sorted()
@@ -71,6 +88,15 @@ public struct LedgerContext: Codable, Sendable {
         goals = ledger.goals.count
         recentChanges = ledger.changes.filter { !$0.undone }.suffix(5).reversed().map { "\($0.author)：\($0.summary)" }
         unassignedCount = ledger.transactions.filter { $0.bookID == nil }.count
+        baseCurrency = ledger.baseCurrency
+        let subs = Subscriptions.status(ledger)
+        let totals = Subscriptions.totals(subs)
+        subscriptions = totals.activeCount
+        subscriptionsMonthly = totals.monthly.formatted(in: ledger.baseCurrency)
+        subscriptionsYearly = totals.yearly.formatted(in: ledger.baseCurrency)
+        subscriptionsDueSoon = subs.filter { $0.cancelledOn == nil && $0.isDueSoon }
+            .map { "\($0.name) \($0.nextDate?.description ?? "") \($0.amount.formatted(in: $0.currency))" }
+        missingRates = ledger.missingRateCurrencies
         persona = ledger.profile.persona.label
         voice = ledger.profile.persona.instruction
         aim = ledger.profile.aim

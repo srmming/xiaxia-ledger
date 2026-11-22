@@ -29,6 +29,8 @@ expect_fail() {
 first_id() { "$FIN" tx "$@" --limit 1 | head -1 | cut -f1; }
 
 echo "临时账本：$XIAXIA_LEDGER_PATH"
+run where
+[ "$("$FIN" where)" = "$XIAXIA_LEDGER_PATH" ] || { echo "↳ fin where 和 XIAXIA_LEDGER_PATH 对不上"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 空账本：新用户只有「个人」，自己加账本 ====="
 run books
@@ -158,6 +160,32 @@ echo; echo "===== 私房钱是否隐藏 ====="
 echo "（stash 账户里有一笔 -20 私房零花）"
 "$FIN" tx | grep -q 私房零花 && echo "fin tx：显示了私房钱" || echo "fin tx：没显示私房钱"
 
+echo; echo "===== 多币种（不联网：没取过汇率时外币先按 1:1 算） ====="
+run account add usdcard 美元卡 --currency USD
+expect_fail account add bad 坏币种 --currency XYZ
+run add --account usdcard --book personal --category 软件 --date 2026-11-02 -- -20 OpenAI
+run add --account caixa --book personal --category 旅行 --date 2026-11-05 --original "50 USD" -- -46,12 Hotel
+run fx
+run accounts
+run tx --limit 3
+ID_USD=$("$FIN" tx --account usdcard | head -1 | cut -f1)
+run fx set-rate "$ID_USD" --bank 18,40
+run fx set-rate "$ID_USD" --rate 0,9 --dry-run
+run summary --month 2026-11
+run fx base USD --dry-run
+
+echo; echo "===== 订阅 ====="
+for m in 07 08 09 10 11; do "$FIN" add --account caixa --book personal --category 娱乐 --date 2026-$m-03 -- -12,99 "NETFLIX.COM 866" >/dev/null; done
+run subscription find
+run subscription add 视频会员 12,99 --next 2026-12-03 --account caixa --match netflix --category 娱乐
+run subscription add 云盘 29,99 --cycle yearly --next 2027-02-01
+expect_fail subscription add 坏周期 5 --cycle biweekly --next 2027-01-01
+run subscriptions
+run subscription edit 视频 --amount 13,99
+run subscription cancel 云盘
+run subscriptions --all --json
+run subscription find
+
 echo; echo "===== MCP ====="
 mcp() { printf '%s\n' "$@" | "$FIN" mcp 2>&1; }
 mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"smoke-client","version":"1"}}}' \
@@ -218,6 +246,15 @@ for spec in \
   'set_profile|{"persona":"sharp","aim":"每个月存下 500 €"}' \
   'set_profile|{"persona":"pirate"}' \
   'list_insights|{}' 'ai_status|{}' \
+  'currency|{}' \
+  'set_account_currency|{"account":"pot","currency":"CNY","dry_run":true}' \
+  'set_base_currency|{"currency":"XYZ"}' \
+  'add_transaction|{"amount":"-30","description":"国外刷卡","account":"cash","book":"personal","original":"35 USD","dry_run":true}' \
+  'subscriptions|{}' 'find_subscriptions|{}' \
+  'add_subscription|{"name":"音乐会员","amount":"10,99","cycle":"monthly","next_date":"2026-12-10","account":"caixa"}' \
+  'edit_subscription|{"subscription":"音乐会员","amount":"11,99"}' \
+  'edit_subscription|{"subscription":"音乐会员","cancel":true,"dry_run":true}' \
+  'remove_subscription|{"subscription":"没有这个"}' \
   'current_view|{}' \
   'open_in_app|{"page":"spending","month":"2026-10","note":"看看 10 月"}' \
   'open_in_app|{"page":"nopage"}' \
@@ -247,6 +284,33 @@ echo; echo "===== 删账本：有流水的要先挪 ====="
 expect_fail book rm shop
 run book rm shop --move-to personal --dry-run
 expect_fail book rm personal --move-to personal
+
+echo; echo "===== fin demo：一键生成示例账本（全是编的），读出来看看 ====="
+DEMO="$WORK/demo/示例账本.sqlite"
+run demo --out "$DEMO" --end 2026-11-20
+expect_fail demo --out "$DEMO" --end 2026-11-20
+run demo --out "$DEMO" --end 2026-11-20 --force --json
+expect_fail demo --out "$WORK/demo/x.txt"
+echo '{"schemaVersion":1}' > "$WORK/demo/real.json"
+expect_fail demo --out "$WORK/demo/real.json" --force
+REAL_TMP="$XIAXIA_LEDGER_PATH"
+export XIAXIA_LEDGER_PATH="$DEMO"
+  run context
+  run accounts
+  run summary --month 2026-10
+  run summary --month 2026-10 --book shop
+  run report --month 2026-11
+  run debts
+  run installments
+  run goals
+  run insight list
+  run history --limit 8
+  run tx --limit 8
+  run reconcile --account daily --balance 1000
+export XIAXIA_LEDGER_PATH="$REAL_TMP"
+# 同一天、同一个种子，两次生成的账本一模一样。
+"$FIN" demo --out "$WORK/demo/a.json" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.json" --end 2026-11-20 >/dev/null
+cmp -s "$WORK/demo/a.json" "$WORK/demo/b.json" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
 
 rm -rf "$WORK"
 echo; echo "意外失败：$FAILS 处"
