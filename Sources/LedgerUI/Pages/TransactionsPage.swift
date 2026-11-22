@@ -313,7 +313,7 @@ struct TransactionDetail: View {
                 row("账户") { Text(model.accountName(tx.accountID)) }
                 if let o = tx.original {
                     Divider()
-                    row("原价") { Text(o.ui).monospacedDigit() }
+                    row("原价") { Text(o.amount.ui(in: o.currency)).monospacedDigit() }
                 }
                 if code != model.ledger.baseCurrency {
                     Divider()
