@@ -63,7 +63,7 @@ enum MascotCharacter: String, CaseIterable, Identifiable {
         switch app {
         case .claudeDesktop, .claudeCode: .orange
         case .codex: .lilac
-        case .cursor, .gemini: .star
+        case .hermes, .cursor, .gemini: .star
         }
     }
 
