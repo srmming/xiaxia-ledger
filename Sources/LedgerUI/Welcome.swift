@@ -139,14 +139,15 @@ struct WelcomeView: View {
             Group {
                 if wide {
                     HStack(spacing: 0) {
-                        hero(mascot: min(280, geo.size.height * 0.42))
-                            .frame(width: min(geo.size.width * 0.4, 520))
-                        content(padding: 44)
+                        let heroWidth = min(geo.size.width * 0.4, 560)
+                        hero(mascot: min(geo.size.height * 0.58, heroWidth * 0.82))
+                            .frame(width: heroWidth)
+                        content(padding: 48, wide: true)
                     }
                 } else {
                     VStack(spacing: 0) {
                         hero(mascot: 120).frame(height: min(250, geo.size.height * 0.32))
-                        content(padding: 20)
+                        content(padding: 20, wide: false)
                     }
                 }
             }
@@ -227,26 +228,29 @@ struct WelcomeView: View {
 
     // MARK: 右边：三步
 
-    private func content(padding: CGFloat) -> some View {
+    private func content(padding: CGFloat, wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center) {
-                stepper
-                Spacer(minLength: 12)
+            HStack(alignment: .center, spacing: 16) {
+                stepper(big: wide)
                 if step != .done {
                     Button("以后再说") { model.finishWelcome() }
                         .buttonStyle(.borderless).foregroundStyle(Color.fg2)
+                        .fixedSize()
                         .accessibilityIdentifier("welcome.skip")
                 }
             }
-            ScrollView {
-                page
-                    .frame(maxWidth: 620, alignment: .leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, padding * 0.9)
-                    .id(pageKey)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+            // 内容在剩下的高度里上下居中；窗口矮了就能滚。
+            GeometryReader { area in
+                ScrollView {
+                    page
+                        .environment(\.welcomeBig, wide)
+                        .frame(maxWidth: 680, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: area.size.height, alignment: .leading)
+                        .id(pageKey)
+                        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+                }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollBounceBehavior(.basedOnSize)
             if canGoBack {
                 Button { goBack() } label: { Label("返回", systemImage: "chevron.left") }
                     .buttonStyle(.borderless).foregroundStyle(Color.fg2)
@@ -262,27 +266,28 @@ struct WelcomeView: View {
 
     private var stepNames: [String] { aiStepAvailable ? ["账本", "账户", "连接 AI"] : ["账本", "账户"] }
 
-    private var stepper: some View {
-        HStack(spacing: 10) {
+    private func stepper(big: Bool) -> some View {
+        let dot: CGFloat = big ? 34 : 26
+        return HStack(spacing: big ? 14 : 8) {
             ForEach(Array(stepNames.enumerated()), id: \.offset) { i, name in
                 let number = i + 1
                 let done = step.rawValue > number
                 let current = step.rawValue == number
                 if i > 0 {
                     Capsule().fill(step.rawValue >= number ? Color.ai.opacity(0.45) : Color.fg3.opacity(0.22))
-                        .frame(height: 2).frame(maxWidth: 64)
+                        .frame(height: 2).frame(minWidth: 16, maxWidth: .infinity)
                 }
                 HStack(spacing: 7) {
                     ZStack {
                         Circle().fill(current ? Color.aiSolid : done ? Color.ai.opacity(0.18) : Color.fg3.opacity(0.15))
                         if done {
-                            Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(Color.ai)
+                            Image(systemName: "checkmark").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(Color.ai)
                         } else {
-                            Text("\(number)").font(.caption.weight(.bold)).foregroundStyle(current ? Color.white : Color.fg2)
+                            Text("\(number)").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(current ? Color.white : Color.fg2)
                         }
                     }
-                    .frame(width: 26, height: 26)
-                    Text(name).font(.subheadline.weight(current ? .semibold : .regular))
+                    .frame(width: dot, height: dot)
+                    Text(name).font((big ? Font.title3 : .subheadline).weight(current ? .semibold : .regular))
                         .foregroundStyle(current ? Color.ai : Color.fg2)
                         .lineLimit(1).fixedSize()
                 }
@@ -352,7 +357,7 @@ struct WelcomeView: View {
                     // 交给 AI 的那段话：卡片上是一句话的意思，复制的是完整指令。
                     VStack(alignment: .leading, spacing: 6) {
                         Text("「帮我连上夏夏账本，再问我今天花了什么」")
-                            .font(.title3.weight(.medium))
+                            .font(.title2.weight(.semibold))
                             .fixedSize(horizontal: false, vertical: true)
                         Text("复制的是一段完整的指令：它会自己连上账本，带你记下第一笔；连不上也会告诉你为什么。")
                             .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
@@ -454,10 +459,12 @@ struct WelcomeView: View {
         _ title: String, _ subtitle: String,
         @ViewBuilder main: () -> Main, @ViewBuilder buttons: () -> Buttons, @ViewBuilder extras: () -> Extras
     ) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 10) {
+        let mainView = main(), buttonsView = buttons(), extrasView = extras()
+        return WelcomeSized { big in
+        VStack(alignment: .leading, spacing: big ? 26 : 18) {
+            VStack(alignment: .leading, spacing: big ? 14 : 10) {
                 Text(title)
-                    .font(.system(size: 38, weight: .bold))
+                    .font(.system(size: big ? 54 : 34, weight: .heavy))
                     .minimumScaleFactor(0.6)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -466,9 +473,11 @@ struct WelcomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            main()
-            FlowLayout(spacing: 10) { buttons() }.padding(.top, 4)
-            FlowLayout(spacing: 16) { extras() }
+            mainView
+            FlowLayout(spacing: 12) { buttonsView }.padding(.top, 4)
+            FlowLayout(spacing: 16) { extrasView }
+        }
+        .padding(.vertical, 16)
         }
     }
 
@@ -496,17 +505,17 @@ struct WelcomeView: View {
                 } else {
                     Image(systemName: symbol).font(.subheadline)
                 }
-                Text(title).font(.body.weight(.medium))
+                Text(title).font(.title3.weight(.medium))
             }
             .foregroundStyle(on ? Color.white : Color.primary)
-            .padding(.horizontal, 15).padding(.vertical, 10)
+            .padding(.horizontal, 18).padding(.vertical, 11)
             .background(on ? Color.aiSolid : Color.pageBackground, in: Capsule())
             .overlay(Capsule().strokeBorder(on ? Color.clear : Color.fg3.opacity(0.22), lineWidth: 1))
             .scaleEffect(on ? 1.03 : 1)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(locked)
+        .allowsHitTesting(!locked)   // 已经有的：不能取消，但不变灰
         .accessibilityLabel(title)
         .accessibilityValue(locked ? "已经有了" : on ? "已选" : "没选")
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -524,7 +533,8 @@ struct WelcomeView: View {
             TextField(prompt, text: $custom)
                 .textFieldStyle(.plain)
                 .onSubmit(submit)
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .font(.body)
+                .padding(.horizontal, 16).padding(.vertical, 12)
                 .background(Color.pageBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.fg3.opacity(0.22), lineWidth: 1))
                 .accessibilityIdentifier("welcome.custom")
@@ -532,7 +542,7 @@ struct WelcomeView: View {
                 .buttonStyle(.softAI)
                 .disabled(custom.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .frame(maxWidth: 420)
+        .frame(maxWidth: 480)
     }
 
     private func primary(_ title: String, symbol: String? = nil, id: String, action: @escaping () -> Void) -> some View {
@@ -541,9 +551,9 @@ struct WelcomeView: View {
                 if let symbol { Image(systemName: symbol) }
                 Text(title)
             }
-            .font(.body.weight(.semibold)).foregroundStyle(.white)
-            .padding(.horizontal, 26).padding(.vertical, 13)
-            .frame(minWidth: 150)
+            .font(.title3.weight(.semibold)).foregroundStyle(.white)
+            .padding(.horizontal, 30).padding(.vertical, 15)
+            .frame(minWidth: 170)
             .background(Color.aiSolid, in: Capsule())
             .contentShape(Capsule())
         }
@@ -554,8 +564,8 @@ struct WelcomeView: View {
 
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.body.weight(.medium)).foregroundStyle(Color.primary)
-                .padding(.horizontal, 26).padding(.vertical, 13)
+            Text(title).font(.title3.weight(.medium)).foregroundStyle(Color.primary)
+                .padding(.horizontal, 30).padding(.vertical, 15)
                 .background(Color.cardBackground, in: Capsule())
                 .overlay(Capsule().strokeBorder(Color.fg3.opacity(0.3), lineWidth: 1))
                 .contentShape(Capsule())
@@ -588,7 +598,7 @@ struct WelcomeView: View {
         withAnimation(.smooth(duration: 0.35)) { step = next }
     }
 
-    private var canGoBack: Bool { step == .books || step == .accounts || step == .ai }
+    private var canGoBack: Bool { step == .accounts || step == .ai }
 
     private func goBack() {
         switch step {
@@ -772,6 +782,21 @@ struct WelcomeView: View {
         false
         #endif
     }
+}
+
+/// 宽窗口（Mac）字大一号，窄的（iPhone）小一号。
+private struct WelcomeBigKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var welcomeBig: Bool {
+        get { self[WelcomeBigKey.self] }
+        set { self[WelcomeBigKey.self] = newValue }
+    }
+}
+
+struct WelcomeSized<Content: View>: View {
+    @Environment(\.welcomeBig) private var big
+    @ViewBuilder var content: (Bool) -> Content
+    var body: some View { content(big) }
 }
 
 /// 左边背景里慢慢往上飘的泡泡。
