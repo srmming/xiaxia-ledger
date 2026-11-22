@@ -119,10 +119,9 @@ struct QuickAdd: View {
                 .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 180)
             }
 
-            if savedInARow > 0 {
-                Label("已记下 \(savedInARow) 笔，接着记下一笔", systemImage: "checkmark.circle.fill")
-                    .font(.caption).foregroundStyle(Color.income)
-            }
+            #if os(iOS)
+            if savedInARow > 0 { savedNotice }
+            #endif
 
             amountDisplay
 
@@ -195,6 +194,8 @@ struct QuickAdd: View {
                 Button("取消") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .controlSize(.large)
+                // Mac 上放在按钮这一排，不往上加一行：面板不会变高、把按钮挤出窗口。
+                if savedInARow > 0 { savedNotice.padding(.leading, 8) }
                 Spacer()
                 #endif
                 Button(action: { save(keepOpen: true) }) {
@@ -218,6 +219,16 @@ struct QuickAdd: View {
                 .disabled(!canSave)
             }
         }
+    }
+
+    @ViewBuilder private var savedNotice: some View {
+        #if os(iOS)
+        Label("已记下 \(savedInARow) 笔，接着记下一笔", systemImage: "checkmark.circle.fill")
+            .font(.caption).foregroundStyle(Color.income)
+        #else
+        Label("已记下 \(savedInARow) 笔", systemImage: "checkmark.circle.fill")
+            .font(.caption).foregroundStyle(Color.income).lineLimit(1).fixedSize()
+        #endif
     }
 
     // MARK: 金额
@@ -328,7 +339,10 @@ struct QuickAdd: View {
                 // 打的名字以前用过：回车就把上次的分类也带上（Mac 上不用摸鼠标就能记下）。
                 .onSubmit {
                     let n = name.trimmingCharacters(in: .whitespaces).lowercased()
-                    if category == nil, let hit = lists.names.first(where: { $0.name.lowercased() == n }) { pick(hit) }
+                    guard category == nil, !n.isEmpty else { return }
+                    if let hit = lists.names.first(where: { $0.name.lowercased() == n }) { pick(hit) }
+                    // 名字就是某个分类（「超市」「房租」）：直接选上这个分类。
+                    else if let c = allCategories.first(where: { $0.lowercased() == n }) { category = c }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
