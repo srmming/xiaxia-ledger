@@ -199,6 +199,8 @@ struct TransactionsPage: View {
         .kitCard()
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { if selected == nil { selected = list.first?.id } }
+        // 筛选变了（比如从「刚改的 N 笔」跳进来），右边详情别还停在列表里看不到的那一笔。
+        .onChange(of: list.map(\.id)) { _, ids in if selected.map({ !ids.contains($0) }) ?? true { selected = ids.first } }
         .onChange(of: selected, initial: true) { _, id in model.selectedTransactionID = id }
         .onDisappear { model.selectedTransactionID = nil }
     }
