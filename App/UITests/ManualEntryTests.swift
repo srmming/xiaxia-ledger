@@ -105,8 +105,8 @@ final class ManualEntryTests: XCTestCase {
         let select = app.buttons["select-toggle"]
         XCTAssertTrue(select.waitForExistence(timeout: 5), "流水页没有「选择」")
         select.tap()
+        app.collectionViews.cells.element(boundBy: 1).tap()
         app.collectionViews.cells.element(boundBy: 2).tap()
-        app.collectionViews.cells.element(boundBy: 3).tap()
         XCTAssertTrue(find(app, "选了 2 笔").waitForExistence(timeout: 5), "多选没选上")
         app.buttons["一起改…"].tap()
         XCTAssertTrue(button(app, "改分类").waitForExistence(timeout: 5), "一起改面板没出来")

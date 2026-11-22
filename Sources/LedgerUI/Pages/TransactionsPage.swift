@@ -62,7 +62,14 @@ struct TransactionsPage: View {
                     ForEach(groups(list), id: \.date) { g in
                         Section {
                             ForEach(g.items) { t in
-                                NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle("这一笔") } label: { TxRow(tx: t) }
+                                // 选择的时候整行就是勾选，不再点进详情。
+                                Group {
+                                    if selecting {
+                                        TxRow(tx: t)
+                                    } else {
+                                        NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle("这一笔") } label: { TxRow(tx: t) }
+                                    }
+                                }
                                     .tag(t.id)
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {

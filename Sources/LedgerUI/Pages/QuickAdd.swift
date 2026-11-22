@@ -56,15 +56,14 @@ struct QuickAdd: View {
         VStack(spacing: 0) {
             ScrollView { content.padding(.bottom, 12) }
                 .scrollDismissesKeyboard(.interactively)
-            if focus == nil {
-                VStack(spacing: 8) {
-                    Keypad(text: $amountText)
-                    actionButtons
-                }
-                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 8)
-                .background(.bar)
-                .overlay(alignment: .top) { Divider() }
+            // 打字（名称、备注、标签）时收起计算器键盘，按钮一直在。
+            VStack(spacing: 8) {
+                if focus == nil { Keypad(text: $amountText) }
+                actionButtons
             }
+            .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 8)
+            .background(.bar)
+            .overlay(alignment: .top) { Divider() }
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
@@ -166,12 +165,10 @@ struct QuickAdd: View {
                 Spacer()
                 #endif
                 Button(action: { save(keepOpen: true) }) {
-                    Text("再记一笔").padding(.vertical, 6).padding(.horizontal, 4)
-                    #if os(iOS)
-                        .frame(maxWidth: .infinity)
-                    #endif
+                    Text("再记一笔").padding(.vertical, 6).padding(.horizontal, 4).lineLimit(1)
                 }
                 .buttonStyle(.bordered).controlSize(.large)
+                .fixedSize()
                 .keyboardShortcut(.return, modifiers: [.command, .shift])
                 .disabled(!canSave)
                 .help("记下这笔，表单留着接着记（⌘⇧↩）")
@@ -186,9 +183,6 @@ struct QuickAdd: View {
                 .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
-                #if os(iOS)
-                .layoutPriority(1)
-                #endif
             }
         }
     }
