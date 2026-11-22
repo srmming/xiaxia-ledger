@@ -39,6 +39,7 @@ final class MCPServer {
     6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
     7. 用户说「这笔」「这个月」「我在看的这个」时，先用 current_view 看用户在 app 里停在哪、选中了哪一笔。答完想让用户在 app 里看到，用 open_in_app 让 app 跳过去、圈出那几笔。
     8. 用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时：先调用 welcome，照它返回的步骤带用户走。
+    9. 用用户说话的语言回答（用户说中文就用中文）。不要主动报账本里有几笔、有哪些账户，用户问了再说。
     """
     let protocolVersion = "2025-06-18"
 
@@ -72,6 +73,8 @@ final class MCPServer {
             case "tools/call":
                 let name = params["name"] as? String ?? ""
                 let args = params["arguments"] as? [String: Any] ?? [:]
+                // 每次用工具都记一下：有的 AI（Claude 桌面版）一直开着同一个连接，只在握手时记的话，app 等不到「刚刚来过」。
+                AIConnections.record(client: clientName)
                 do {
                     let text = try MCPTools.call(name, args, author: clientName)
                     result = ["content": [["type": "text", "text": text]], "isError": false] as [String: Any]

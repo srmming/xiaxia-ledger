@@ -147,7 +147,7 @@ struct WelcomeView: View {
                         hero(mascot: min(geo.size.height * 0.58, heroWidth * 0.72))
                             .frame(width: heroWidth)
                             .clipped()
-                        content(padding: 48, wide: true)
+                        content(padding: 56, wide: true)
                     }
                 } else {
                     VStack(spacing: 0) {
@@ -254,7 +254,7 @@ struct WelcomeView: View {
                 ScrollView {
                     page
                         .environment(\.welcomeBig, wide)
-                        .frame(maxWidth: 680, alignment: .leading)
+                        .frame(maxWidth: 780, alignment: .leading)
                         .frame(maxWidth: .infinity, minHeight: area.size.height, alignment: .leading)
                         .id(pageKey)
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
@@ -789,7 +789,9 @@ struct WelcomeView: View {
             let newGoal = model.ledger.goals.first { !knownGoals.contains($0.id) }
             if !newTx.isEmpty || newGoal != nil {
                 let note = newTx.max(by: { $0.date < $1.date }).map { "\(Merchant.display($0.description)) \($0.amount.formatted)" }
-                await celebrate(who: who, note: note, goal: newGoal?.name)
+                // 没等到握手记录（旧版的记账服务只在连接时记一次）：从改动记录的作者认出是谁记的。
+                let writer = model.ledger.changes.last.map(\.author).flatMap { $0 == model.author ? nil : AIApp.displayName(clientName: $0) }
+                await celebrate(who: who ?? writer, note: note, goal: newGoal?.name)
                 return
             }
         }
