@@ -10,7 +10,7 @@ struct Fin: ParsableCommand {
         discussion: "账本在哪：跑 fin where。一般在 iCloud 云盘「夏夏账本/ledger.sqlite」；签名正式版搬家后在 app 的 iCloud 容器里；没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/。可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, FXCommand.self, SubscriptionsCommand.self, SubscriptionCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, MCPCommand.self, ConnectCommand.self, DemoCommand.self]
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self, DemoCommand.self]
     )
 
     /// 负数金额（-12,50）会被当成选项，报「缺少参数」。这里先把开头的减号换成全角减号「−」，金额解析认得它。
@@ -58,6 +58,12 @@ struct WriteOptions: ParsableArguments {
 
 func parseMoney(_ s: String) throws -> Money {
     guard let m = Money(parsing: s) else { throw ValidationError("金额看不懂：\(s)，写成 12,50 或 12.50") }
+    return m
+}
+
+/// 金额，也认算式：「12,50+3,20」。
+func parseAmount(_ s: String) throws -> Money {
+    guard let m = Money.evaluate(s) else { throw ValidationError("金额看不懂：\(s)，写成 12,50、12.50 或 12,50+3,20") }
     return m
 }
 
@@ -185,6 +191,9 @@ struct TxCommand: ParsableCommand {
     @Option(help: "账户 id。") var account: String?
     @Option(help: "月份，如 2026-11。") var month: String?
     @Option(help: "分类。") var category: String?
+    @Option(help: "搜索：说明、商户、备注、标签、金额都搜。以 # 开头只按标签找。") var query: String?
+    @Option(help: "只看带这个标签的。") var tag: String?
+    @Option(help: "expense 只看支出，income 只看收入。") var kind: String?
     @Option(help: "最多显示几条。") var limit: Int = 50
 
     func run() throws {
@@ -195,18 +204,27 @@ struct TxCommand: ParsableCommand {
         } else { ym = nil }
         let ledger = try loadLedger()
         let hidden = options.includePrivate ? [] : ledger.privateAccountIDs
+        let tagQuery: String? = tag.map { "#" + Tags.clean([$0]).joined() }
+        let extra: (Transaction) -> Bool = { (t: Transaction) -> Bool in
+            if let query, !t.matches(query) { return false }
+            if let tagQuery, !t.matches(tagQuery) { return false }
+            if let kind { return kind == "income" ? t.amount.isIncome : t.amount.isExpense }
+            return true
+        }
         let txs = ledger.transactions
             .filter { !hidden.contains($0.accountID) }
             .filter { options.book == nil || $0.bookID == options.book }
             .filter { account == nil || $0.accountID == account }
             .filter { ym == nil || $0.date.yearMonth == ym }
             .filter { category == nil || $0.category == category }
+            .filter(extra)
             .sorted { $0.date > $1.date }
             .prefix(limit)
         if options.json { return try Output.json(Array(txs)) }
         if txs.isEmpty { print("没有符合条件的流水。") }
         for t in txs {
-            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(ledger.formatted(t))\(t.original.map { "（原价 \($0.formatted)）" } ?? "")\t\(t.bookID ?? (t.flow != nil ? "—" : "未分"))\t\(t.category ?? "未分类")\t\(t.description)")
+            let extra = (t.note.map { "（\($0)）" } ?? "") + t.tagList.map { " #\($0)" }.joined()
+            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(ledger.formatted(t))\(t.original.map { "（原价 \($0.formatted)）" } ?? "")\t\(t.bookID ?? (t.flow != nil ? "—" : "未分"))\t\(t.category ?? "未分类")\t\(t.description)\(extra)")
         }
     }
 }
@@ -360,16 +378,27 @@ struct AddCommand: ParsableCommand {
     @Option(help: "账本 id。") var book: String
     @Option(help: "分类。") var category: String?
     @Option(help: "日期，默认今天。") var date: String?
+    @Option(help: "备注。") var note: String?
+    @Option(help: "标签，可以写几次：--tag 旅行 --tag 报销。") var tag: [String] = []
+    @Option(help: "重复：weekly 每周、monthly 每月、yearly 每年。以后到日子自动记（app 打开时或 fin repeat run）。") var `repeat`: String?
+    @Option(help: "重复到哪天为止（可不填）。") var until: String?
     @Option(help: "原价（用别的币种付的），如 \"50 USD\"。只做备注，金额以银行扣的为准。") var original: String?
 
     func run() throws {
         var ledger = try loadLedger()
         let d = try parseDate(date)
-        var tx = Transaction(date: d, amount: try parseMoney(amount), description: text,
-                             accountID: account, bookID: book, category: category, source: "手记")
+        var tx = Transaction(date: d, amount: try parseAmount(amount), description: text,
+                             accountID: account, bookID: book, category: category, source: "手记",
+                             note: note.flatMap { $0.isEmpty ? nil : $0 }, tags: Tags.clean(tag).isEmpty ? nil : Tags.clean(tag))
         tx.fx = ledger.fxNote(accountID: account, date: d)
         if let original { tx.original = try parseForeign(original, sign: tx.amount.cents < 0 ? -1 : 1) }
-        let change = try ledger.addTransaction(tx, author: w.who)
+        let change: ChangeRecord
+        if let r = `repeat` {
+            guard let f = Recurring.Frequency(rawValue: r) else { throw ValidationError("--repeat 要写 weekly、monthly 或 yearly") }
+            change = try ledger.addRecurring(tx, frequency: f, until: try until.map { try parseDate($0) }, author: w.who)
+        } else {
+            change = try ledger.addTransaction(tx, author: w.who)
+        }
         try finish(ledger, change, w)
     }
 }

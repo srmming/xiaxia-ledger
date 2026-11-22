@@ -55,6 +55,8 @@ public final class LedgerModel {
     /// 现在在哪一页、弹着哪个窗口。
     public var section: AppSection? = .overview { didSet { publishView() } }
     public var sheet: AppSheet?
+    /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
+    public var editingID: UUID?
     /// 做完一件事后底部的提示。
     public var toast: Toast?
     /// 这次打开 app 以来自己做的改动，⌥⌘Z 从最后一条往回撤。
@@ -66,6 +68,7 @@ public final class LedgerModel {
     public init(store: any LedgerStore) {
         self.store = store
         reload()
+        postDueRecurring()
     }
 
     public func reload() {
@@ -78,6 +81,8 @@ public final class LedgerModel {
     /// 回到 app 时看一眼账本有没有被别处改过（比如 AI 刚用 fin 记了几笔），有就换成新的。
     /// 别人做的新改动记进 `activity`，界面弹「Claude 刚记了 12 笔」。
     public func refreshIfChanged() {
+        // app 一直开着跨了天（Mac 常这样）：回来时把到日子的重复记账补上。
+        defer { postDueRecurring() }
         lastStamp = store.changeStamp()
         guard loadError == nil, let fresh = try? store.load(), fresh != ledger else { return }
         let old = ledger

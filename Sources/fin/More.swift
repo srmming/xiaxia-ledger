@@ -12,6 +12,8 @@ struct EditCommand: ParsableCommand {
     @Option(help: "换到哪个账户（id）。") var account: String?
     @Option(help: "换到哪个账本（id）。") var book: String?
     @Option(help: "新分类。") var category: String?
+    @Option(help: "新备注（写空字符串 \"\" 就是清掉）。") var note: String?
+    @Option(help: "标签整个换成这些，逗号隔开（写空字符串就是清掉）。只想加一个用 fin tag。") var tags: String?
 
     func run() throws {
         var ledger = try loadLedger()
@@ -19,7 +21,8 @@ struct EditCommand: ParsableCommand {
         guard t.flow == nil, !t.isTransfer else {
             throw ValidationError("这笔是转账、借款、分期或目标的一部分，不能直接改。先 fin undo 撤销原来那条改动，再重新记。")
         }
-        guard amount != nil || text != nil || date != nil || account != nil || book != nil || category != nil else {
+        guard amount != nil || text != nil || date != nil || account != nil || book != nil || category != nil
+            || note != nil || tags != nil else {
             throw ValidationError("没写要改什么。比如：fin edit \(id) --amount=-12,50")
         }
         if let amount { t.amount = try parseMoney(amount) }
@@ -28,6 +31,8 @@ struct EditCommand: ParsableCommand {
         if let account { t.accountID = account }
         if let book { t.bookID = book }
         if let category { t.category = category }
+        if let note { t.note = note.isEmpty ? nil : note }
+        if let tags { t.tags = Tags.clean([tags]).isEmpty ? nil : Tags.clean([tags]) }
         let change = try ledger.editTransaction(t, author: w.who)
         try finish(ledger, change, w)
     }

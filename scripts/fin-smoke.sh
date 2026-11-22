@@ -146,6 +146,37 @@ run reconcile --account cash --balance=-1
 run report --month 2026-11
 run report --month 2026-11 --book shop
 
+echo; echo "===== 自己动手记账：算式、备注、标签、复制、拆开、退款、重复 ====="
+run add --account cash --book personal --category 餐饮 --date 2026-11-20 --note 和小王AA --tag 聚餐 --tag 周末 -- -12,50-3,20 火锅
+ID_HOTPOT=$("$FIN" tx --query 火锅 | cut -f1)
+"$FIN" tx --query 火锅 | grep -q -- "-15,70" && echo "算式 -12,50-3,20 记成了 -15,70" || { echo "↳ 算式金额不对"; FAILS=$((FAILS + 1)); }
+run tx --tag 聚餐
+run tx --query "#周末" --kind expense
+run tx --query 小王
+run edit "$ID_HOTPOT" --note 改过的备注 --tags "聚餐,朋友"
+run tag "$ID_HOTPOT" --add 报销 --remove 朋友
+run copy "$ID_HOTPOT" --date 2026-11-21
+run add --account caixa --book personal --category 超市 --date 2026-11-21 -- -48,30 大超市
+ID_BIG=$("$FIN" tx --query 大超市 | cut -f1)
+expect_fail split "$ID_BIG" 30:超市 10:日用品
+run split "$ID_BIG" 30:超市 18,30:日用品:洗衣液
+"$FIN" tx --query 洗衣液 | grep -q 日用品 && echo "拆开存进账本了" || { echo "↳ 拆开没存进账本"; FAILS=$((FAILS + 1)); }
+run add --account caixa --book personal --category 购物 --date 2026-11-15 -- -60 鞋子
+ID_SHOES=$("$FIN" tx --query 鞋子 | cut -f1)
+expect_fail refund "$ID_SHOES" --amount 70
+run refund "$ID_SHOES" --amount 20 --date 2026-11-18
+run add --account caixa --book personal --category 住房 --date 2026-09-01 --repeat monthly -- -650 房租
+run repeat list
+run repeat run --date 2026-11-22
+run repeat run --date 2026-11-22
+"$FIN" tx --query 房租 | wc -l | grep -q 3 && echo "房租 9、10、11 月各一笔" || { echo "↳ 房租笔数不对"; "$FIN" tx --query 房租; FAILS=$((FAILS + 1)); }
+run repeat pause 房租
+"$FIN" repeat list | grep -q 暂停中 && echo "暂停存进账本了" || { echo "↳ 暂停没存进账本"; FAILS=$((FAILS + 1)); }
+run repeat resume 房租
+run repeat set "$ID_SHOES" yearly --dry-run
+run repeat rm 房租
+"$FIN" repeat list | grep -q 房租 && { echo "↳ 停掉没存进账本"; FAILS=$((FAILS + 1)); } || echo "停掉存进账本了"
+
 echo; echo "===== 改动记录、撤销 ====="
 run history
 LAST=$("$FIN" history --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"][:8])')
@@ -227,6 +258,13 @@ for spec in \
   'goal_deposit|{"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}' \
   "import_statement|{\"file\":\"$WORK/revolut.csv\",\"account\":\"revolut\",\"format\":\"revolut\",\"dry_run\":true}" \
   'add_book|{"name":"家庭","kind":"personal"}' \
+  'add_transaction|{"amount":"-2,20*3","description":"MCP 咖啡","account":"cash","book":"personal","category":"餐饮","note":"三杯","tags":["上班"]}' \
+  'list_transactions|{"tag":"上班"}' \
+  'list_transactions|{"query":"三杯","kind":"expense"}' \
+  'add_transaction|{"amount":"-9","description":"MCP 话费","account":"cash","book":"personal","category":"通讯","repeat":"monthly"}' \
+  'list_recurring|{}' \
+  'update_recurring|{"key":"MCP 话费","action":"pause"}' \
+  'run_recurring|{}' \
   'rename_book|{"book":"shop","name":"小店","dry_run":true}' \
   'remove_book|{"book":"shop","dry_run":true}' \
   'remove_book|{"book":"shop","move_to":"personal","dry_run":true}' \

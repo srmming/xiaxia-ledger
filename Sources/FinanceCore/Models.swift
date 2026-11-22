@@ -75,20 +75,24 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     public var fx: FXNote?
     /// 用别的币种付的原价（欧元卡在国外刷了 50 美元）。只是备注，amount 以银行扣的为准。
     public var original: ForeignAmount?
+    /// 备注：名称之外想多写的话（「和小王 AA」）。单独存，能单独改、能搜。
+    public var note: String?
+    /// 标签：「旅行」「报销」……一笔可以有几个，不带 #。没有就是 nil。
+    public var tags: [String]?
 
     public enum Flow: String, Codable, Sendable { case debt, saving, opening, `internal` }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,
                 transferID: UUID? = nil, source: String? = nil, flow: Flow? = nil,
-                fx: FXNote? = nil, original: ForeignAmount? = nil) {
+                fx: FXNote? = nil, original: ForeignAmount? = nil, note: String? = nil, tags: [String]? = nil) {
         self.id = id; self.date = date; self.amount = amount; self.description = description
         self.accountID = accountID; self.bookID = bookID; self.category = category
         self.transferID = transferID; self.source = source; self.flow = flow
-        self.fx = fx; self.original = original
+        self.fx = fx; self.original = original; self.note = note; self.tags = tags
     }
 
-    enum CodingKeys: String, CodingKey { case id, date, amount, description, accountID, bookID, category, transferID, source, flow, fx, original }
+    enum CodingKeys: String, CodingKey { case id, date, amount, description, accountID, bookID, category, transferID, source, flow, fx, original, note, tags }
 
     /// 自己写解码：flow 遇到不认识的值（比如更新版本写的）不让整本账打不开，当成普通收支读进来。
     public init(from decoder: Decoder) throws {
@@ -106,6 +110,8 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
         flow = raw.flatMap { Flow(rawValue: $0 == "move" ? "internal" : $0) }
         fx = try? c.decodeIfPresent(FXNote.self, forKey: .fx)
         original = try? c.decodeIfPresent(ForeignAmount.self, forKey: .original)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+        tags = try c.decodeIfPresent([String].self, forKey: .tags)
     }
 
     public var isTransfer: Bool { transferID != nil }
@@ -236,6 +242,9 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 订阅改之前的样子；这次新加的订阅（撤销时删掉）。
     public var subscriptions: [Subscription]?
     public var addedSubscriptionIDs: [UUID]?
+    /// 重复记账改之前的样子；这次新加的重复记账（撤销时删掉）。
+    public var recurring: [Recurring]?
+    public var addedRecurringIDs: [UUID]?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,
@@ -264,6 +273,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var currency = CurrencySettings()
     /// 订阅：每月 / 每年固定在扣的钱。
     public var subscriptions: [Subscription] = []
+    /// 重复记账：房租、话费这种固定的，到日子自动记上。
+    public var recurring: [Recurring] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -273,7 +284,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile
+        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
         case currency, subscriptions
     }
 
@@ -293,6 +304,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         profile = try c.decodeIfPresent(Profile.self, forKey: .profile) ?? Profile()
         currency = (try? c.decodeIfPresent(CurrencySettings.self, forKey: .currency)) ?? CurrencySettings()
         subscriptions = try c.decodeIfPresent([Subscription].self, forKey: .subscriptions) ?? []
+        recurring = try c.decodeIfPresent([Recurring].self, forKey: .recurring) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。

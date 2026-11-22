@@ -394,6 +394,11 @@ extension Ledger {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
         }
         if let p = s.profile { profile = p }
+        for r in s.recurring ?? [] {
+            if let i = recurring.firstIndex(where: { $0.id == r.id }) { recurring[i] = r } else { recurring.append(r) }
+        }
+        let addedRecurring = Set(s.addedRecurringIDs ?? [])
+        if !addedRecurring.isEmpty { recurring.removeAll { addedRecurring.contains($0.id) } }
         if let c = s.currency { currency = c; Money.defaultCurrency = c.base }
         for x in s.subscriptions ?? [] {
             if let i = subscriptions.firstIndex(where: { $0.id == x.id }) { subscriptions[i] = x } else { subscriptions.append(x) }

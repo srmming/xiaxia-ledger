@@ -47,6 +47,10 @@ public struct SQLiteLedgerStore: LedgerStore {
         if let v = try db.query("SELECT value FROM meta WHERE key = 'profile'").first {
             ledger.profile = (try? dec.decode(Profile.self, from: Data(v.utf8))) ?? Profile()
         }
+        // 重复记账：也放在 meta 里，不加新表，旧版本 app 读同一个文件不受影响。
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'recurring'").first {
+            ledger.recurring = try dec.decode([Recurring].self, from: Data(v.utf8))
+        }
         // 主币种和汇率表（2026-11-22 加）。没有就是欧元。
         if let v = try db.query("SELECT value FROM meta WHERE key = 'currency'").first {
             ledger.currency = (try? dec.decode(CurrencySettings.self, from: Data(v.utf8))) ?? CurrencySettings()
@@ -88,6 +92,7 @@ public struct SQLiteLedgerStore: LedgerStore {
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('profile', ?)", [js(ledger.profile)])
+            try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('recurring', ?)", [js(ledger.recurring)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('currency', ?)", [js(ledger.currency)])
             try db.exec("COMMIT")
         } catch {
