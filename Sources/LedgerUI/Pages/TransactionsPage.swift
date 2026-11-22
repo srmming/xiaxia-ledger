@@ -325,6 +325,10 @@ struct TransactionDetail: View {
                             .buttonStyle(.soft)
                     }
                     Spacer()
+                    #if os(macOS)
+                    Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏", systemImage: "sparkles") }
+                        .buttonStyle(.soft).help("在右边的对话栏里问夏夏这一笔")
+                    #endif
                     Button("删除这笔") { confirmDelete = true }.buttonStyle(.softAlert)
                 }
             } else {

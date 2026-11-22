@@ -192,6 +192,12 @@ struct TxRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .contextMenu {
+            Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
+        }
+        .accessibilityAction(named: "问夏夏这一笔") { model.chat.ask(about: tx, model: model) }
+        #endif
     }
 
     private var detail: String {
