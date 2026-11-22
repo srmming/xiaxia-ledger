@@ -207,10 +207,12 @@ struct MacRoot: View {
             .id(section)
             // 中间这栏的最小宽度固定死，不随页面内容变：换页、详情出现时分栏就不用重算最小宽度（不然对话栏开着会触发 AppKit 约束死循环闪退）。
             .frame(minWidth: 520, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-        }
-        .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
-            XiaxiaChatPanel()
-                .inspectorColumnWidth(min: 300, ideal: 360, max: 520)
+            // 对话栏挂在中间这栏上（苹果推荐的放法），不挂在整个分栏外面：挂外面时打开对话栏，三栏加起来比窗口宽，
+            // 左边侧栏和右边对话栏都被切掉一截。
+            .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
+                XiaxiaChatPanel()
+                    .inspectorColumnWidth(min: 300, ideal: 340, max: 520)
+            }
         }
     }
 

@@ -103,7 +103,9 @@ public enum ChatRunner {
                     cont.resume(returning: ChatReply(text: "\(engine.name) 打不开：\(error.localizedDescription)", sessionID: nil, isError: true))
                     return
                 }
-                let killer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+                // 记下是不是我们停的：claude 收到 SIGTERM 会自己正常退出（退出码 143），光看退出原因看不出来。
+                let stopped = StopFlag()
+                let killer = DispatchWorkItem { if p.isRunning { stopped.set(); p.terminate() } }
                 DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
                 // 先读完输出再等退出，免得输出太长把管道塞满卡住。
                 let data = out.fileHandleForReading.readDataToEndOfFile()
@@ -112,8 +114,8 @@ public enum ChatRunner {
                 killer.cancel()
                 let text = String(decoding: data, as: UTF8.self)
                 let errText = String(decoding: errData, as: UTF8.self)
-                if p.terminationReason == .uncaughtSignal {
-                    cont.resume(returning: ChatReply(text: "\(engine.name) 太久没回（超过 \(Int(timeout)) 秒），先停下了。", sessionID: nil, isError: true))
+                if stopped.value || p.terminationReason == .uncaughtSignal {
+                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。可以再发一次试试，或者在右上角换一个 AI。", sessionID: nil, isError: true))
                     return
                 }
                 cont.resume(returning: parse(engine, stdout: text, stderr: errText, status: p.terminationStatus))
@@ -157,5 +159,12 @@ public enum ChatRunner {
         p += "\n\n用户这一句：\(question)"
         return p
     }
+}
+/// 超时有没有被我们停掉：在两个线程之间传一个是/否。
+private final class StopFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var on = false
+    func set() { lock.lock(); on = true; lock.unlock() }
+    var value: Bool { lock.lock(); defer { lock.unlock() }; return on }
 }
 #endif
