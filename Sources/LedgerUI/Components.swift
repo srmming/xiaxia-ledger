@@ -148,11 +148,10 @@ struct FlowLayout: Layout {
 
 /// 分类的图标和常用分类表。
 enum CategoryStyle {
-    /// 分类名 → 夏夏自己画的图标（design/icon-kit）。名字完全一样的优先；不然看开头，
-    /// 比如「交通出行」用「交通」的、「超市日用」用「超市」的。都对不上就用「其他」。
-    static let glyphs: [String: XiaGlyph] = [
-        "餐饮": .dining, "外卖": .dining, "吃饭": .dining, "超市": .grocery, "买菜": .grocery, "日用": .grocery,
-        "交通": .transport, "打车": .transport, "房租": .housing, "住房": .housing, "房贷": .housing,
+    /// 常用叫法 → 图标（补在图标自己的中文名之外，比如「吃饭」「打车」）。
+    private static let synonyms: [String: XiaGlyph] = [
+        "餐饮": .dining, "吃饭": .dining, "超市": .grocery, "买菜": .grocery, "日用": .grocery,
+        "交通": .transport, "打车": .taxi, "地铁": .metro, "公交": .metro, "房租": .housing, "住房": .housing, 
         "水电": .utilities, "购物": .shopping, "网购": .shopping, "娱乐": .entertainment, "游戏": .entertainment,
         "医疗": .medical, "药": .medical, "通讯": .phone, "话费": .phone, "旅行": .travel, "酒店": .travel,
         "宝宝": .baby, "孩子": .baby, "衣服": .clothing, "服饰": .clothing, "礼物": .gift, "红包": .gift,
@@ -162,27 +161,67 @@ enum CategoryStyle {
         "退款": .refund, "工资": .salary, "奖金": .salary, "收入": .income, "营业收入": .revenue, "营业": .revenue,
         "店租": .shoprent, "耗材": .supplies, "进货": .supplies, "设备": .equipment, "员工工资": .staff,
         "营销": .marketing, "广告": .marketing, "充值": .topup, "转入": .transfer, "转出": .transfer, "转账": .transfer,
-        "老板提款": .withdraw, "储蓄": .savings, "存钱": .savings, "投资": .invest, "理财": .invest,
+        "老板提款": .withdraw, "店收入": .revenue, "门店收入": .revenue, "储蓄": .savings, "存钱": .savings, "投资": .invest, "理财": .invest,
         "借款": .loan, "借出": .loan, "还款": .repay, "运动": .sport, "健身": .sport, "家居": .home, "家具": .home,
-        "零食": .snacks, "甜品": .snacks, "数码": .digital, "电子": .digital, "未分类": .uncategorized, "其他": .other,
+        "零食": .snacks, "甜品": .dessert, "奶茶": .bubbletea, "外卖": .delivery,
+        "押金": .housing, "汇款": .remit, "转给": .remit, "亲友": .family, "取现": .cash, "现金": .cash, "软件": .software,
+        "水电燃气": .utilities, "水电煤": .utilities, "燃气": .gas, "煤气": .gas, "电费": .power, "水费": .water, "网费": .internet, "宽带": .internet, "物业": .property,
+        "机票": .flight, "火车": .train, "停车": .parking, "房贷": .mortgage, "理发": .haircut, "看牙": .dental, "数码": .digital, "电子": .digital, "未分类": .uncategorized, "其他": .other,
     ]
 
-    /// 用户自己给分类挑的图标（账本里存着，LedgerModel 读账本时更新）：分类名 → 图标名。
-    nonisolated(unsafe) static var customIcons: [String: String] = [:]
+    /// 名字 → 图标：每个分类图标自己的中文名（138 个）加上面的常用叫法，叫法优先。
+    static let glyphs: [String: XiaGlyph] = {
+        var m: [String: XiaGlyph] = [:]
+        for (name, label) in CategoryIcons.all { if m[label] == nil, let g = XiaGlyph(rawValue: name) { m[label] = g } }
+        return m.merging(synonyms) { _, syn in syn }
+    }()
+    /// 名字里含着的最长那个；一样长取靠后的（中文的重点在后面：「美甲店收入」是收入，「住房水电」是水电）。
+    private static func contained(in text: String) -> XiaGlyph? {
+        var best: (len: Int, pos: Int, g: XiaGlyph)?
+        for (key, g) in glyphs {
+            guard let r = text.range(of: key, options: .backwards) else { continue }
+            let pos = text.distance(from: text.startIndex, to: r.lowerBound)
+            if best == nil || key.count > best!.len || (key.count == best!.len && pos > best!.pos) { best = (key.count, pos, g) }
+        }
+        return best?.g
+    }
 
+    /// 用户自己给分类挑的图标（账本里存着，LedgerModel 读账本时更新）：分类名 → 图标名。
+    nonisolated(unsafe) static var customIcons: [String: String] = [:] { didSet { matched.removeAll() } }
+    /// 按名字找过的记一下（流水列表每行都要找，别每次都扫一遍）。
+    nonisolated(unsafe) private static var matched: [String: XiaGlyph?] = [:]
+
+    /// 分类名 → 图标。顺序：用户挑过的 → 名字完全一样 → 「大类·小类」这种从后半段往前找 →
+    /// 名字里含着的最长那个（「住房·水电燃气」用水电，「转给亲友·汇款」用汇款）。都对不上用「其他」。
     static func glyph(_ category: String?) -> XiaGlyph {
         guard let category, !category.isEmpty else { return .uncategorized }
+        return match(category) ?? .other
+    }
+
+    static func match(_ category: String) -> XiaGlyph? {
         if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked }
         if let g = glyphs[category] { return g }
-        return glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { glyphs[$0] } ?? .other
+        if let hit = matched[category] { return hit }
+        let g = guess(category)
+        matched[category] = g
+        return g
+    }
+
+    private static func guess(_ category: String) -> XiaGlyph? {
+        let parts = category.split(whereSeparator: { "·・/|｜-—、 ".contains($0) }).map(String.init)
+        var found: XiaGlyph?
+        for part in parts.reversed() {
+            if let g = glyphs[part] ?? contained(in: part) { found = g; break }
+        }
+        // 店里的房租、押金用店租，不用家里的房子。
+        if found == .housing, category.contains("店") { return .shoprent }
+        return found
     }
 
     /// 分类颜色：图标、圆环、排行条都用这一个（就是图标自带的颜色）。
     static func hex(_ category: String?) -> String? {
-        guard let category else { return nil }
-        if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked.tint }
-        let key = glyphs[category] != nil ? category : glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }
-        return key.flatMap { glyphs[$0]?.tint }
+        guard let category, !category.isEmpty else { return nil }
+        return match(category)?.tint
     }
 
     static func color(_ category: String?) -> Color {

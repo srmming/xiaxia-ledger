@@ -126,12 +126,18 @@ struct Monogram: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: circle ? size / 2 : size * 0.28, style: .continuous)
-        Text(raw ? text : String(text.prefix(1)).uppercased())
+        Text(raw ? text : Self.initial(text))
             .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color, in: shape)
             .accessibilityHidden(true)
+    }
+
+    /// 第一个字：跳过开头的数字和符号（「12 | Ana López」取 A），全是数字符号就取第一个。
+    static func initial(_ text: String) -> String {
+        let c = text.first { $0.isLetter } ?? text.first
+        return c.map { String($0).uppercased() } ?? ""
     }
 
     /// 作者头像：Claude 橙、Codex 黑、自己灰。

@@ -150,7 +150,7 @@ struct CategoryCreator: View {
         }
         .errorAlert($error)
         #if os(macOS)
-        .frame(minWidth: 480, idealWidth: 560, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 440, idealWidth: 560, minHeight: 380, idealHeight: 520)
         #endif
         .onAppear { name = initialName; isIncome = income }
         // 先挑图标：名字空着（或还是上次自动填的）就用图标的名字，点一下图标再点「建好了」就行。
@@ -220,7 +220,7 @@ struct CategoryIconEditor: View {
         }
         .errorAlert($error)
         #if os(macOS)
-        .frame(minWidth: 480, idealWidth: 560, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 440, idealWidth: 560, minHeight: 380, idealHeight: 520)
         #endif
     }
 
