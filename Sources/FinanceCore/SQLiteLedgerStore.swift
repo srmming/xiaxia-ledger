@@ -14,6 +14,10 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public init(url: URL) { self.url = url }
 
+    public func changeStamp() -> String? {
+        fileStamp([url, URL(fileURLWithPath: url.path + "-wal"), URL(fileURLWithPath: url.path + "-journal")])
+    }
+
     static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions"]
 
     public func load() throws -> Ledger {

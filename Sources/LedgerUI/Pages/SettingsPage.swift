@@ -25,7 +25,7 @@ struct SettingsPage: View {
                 }
                 .buttonStyle(.plain)
                 Button { model.sheet = .connectAI } label: {
-                    item(symbol: "link", color: .ai, title: "连上你的 AI（Claude、Codex、Cursor…）") {
+                    item(symbol: "link", color: .ai, title: "连上你的 AI（Claude、Codex、Hermes…）") {
                         Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
                     }
                 }

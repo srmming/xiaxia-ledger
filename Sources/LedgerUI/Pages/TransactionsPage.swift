@@ -6,9 +6,11 @@ public struct TransactionFilter: Hashable {
     public var category: String?
     public var accountID: String?
     public var onlyAI = false
+    /// 只看这几笔（「Claude 刚记了 12 笔 → 看看」），不管月份。
+    public var ids: Set<UUID>?
 
-    public init(category: String? = nil, accountID: String? = nil, onlyAI: Bool = false) {
-        self.category = category; self.accountID = accountID; self.onlyAI = onlyAI
+    public init(category: String? = nil, accountID: String? = nil, onlyAI: Bool = false, ids: Set<UUID>? = nil) {
+        self.category = category; self.accountID = accountID; self.onlyAI = onlyAI; self.ids = ids
     }
 }
 
@@ -81,6 +83,7 @@ struct TransactionsPage: View {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         let month = model.shownMonth
         let authors = model.authors
+        if let ids = filter.ids { return model.visibleTransactions.filter { ids.contains($0.id) } }
         return model.visibleTransactions.filter { t in
             // 搜的时候不限月份；不搜就看工具栏选的那个月。
             if q.isEmpty, t.date.yearMonth != month { return false }
@@ -117,7 +120,11 @@ struct TransactionsPage: View {
     private var filters: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                chip("全部", on: filter == TransactionFilter()) { filter = TransactionFilter() }
+                if let ids = filter.ids {
+                    chip("刚改的 \(ids.count) 笔  ✕", symbol: "sparkles", on: true) { filter.ids = nil; model.highlighted = [] }
+                        .accessibilityLabel("只看刚改的 \(ids.count) 笔，点一下看全部")
+                }
+                chip("全部", on: filter == TransactionFilter()) { filter = TransactionFilter(); model.highlighted = [] }
                 Menu {
                     Button("全部分类") { filter.category = nil }
                     Divider()
@@ -192,6 +199,8 @@ struct TransactionsPage: View {
         .kitCard()
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { if selected == nil { selected = list.first?.id } }
+        .onChange(of: selected, initial: true) { _, id in model.selectedTransactionID = id }
+        .onDisappear { model.selectedTransactionID = nil }
     }
 
     @ViewBuilder private var detail: some View {
