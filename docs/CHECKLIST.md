@@ -6,7 +6,7 @@
 
 「怎么查」一栏：
 - **自动**：CI 每次推送都会跑。`swift test` 测核心规则，`scripts/fin-smoke.sh` 测 fin 和 MCP，`App/UITests` 在 iPhone 模拟器上真的点一遍，`scripts/screenshots.sh` 截图。
-- **Mac**：GitHub 的机器截不到 Mac 窗口，要在 Mac 上开 Debug 示例版（`夏夏账本 Debug.app --args -XiaxiaDemo`）点一遍。
+- **Mac**：GitHub 的机器截不到 Mac 窗口，要在 Mac 上开 Debug 示例版（`夏夏账本 Debug.app --args -XiaxiaDemo 1`）点一遍。
 
 ## 1. 管理类操作：每样东西都能加、改、删、撤销
 

@@ -48,7 +48,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap() {
     local name="$1"; shift
     # 用 open 启动，让 app 被激活。系统参数（-AppleLanguages 这种成对的）放前面：
-    # 放在 -XiaxiaDemo 这类单个开关后面时会被错位读成别的键，结果一个窗口都不出来（只有开关个数凑成双数的那次截到了）。
+    # 开关都带上值（-XiaxiaDemo 1）：参数凑不成「-键 值」对时，多出来的那个词会被 macOS 当成要打开的文件，
+    # app 就不开主窗口了（只有个数凑成双数的那次截到了）。
     open -n -a "$MAC_APP" --stdout "$OUT/mac-$name.log" --stderr "$OUT/mac-$name.log" \
       --args -AppleLanguages "(zh-Hans)" -AppleLocale es_ES -XiaxiaSnapshot "$OUT/mac-$name.png" "$@"
     for _ in $(seq 1 45); do [ -f "$OUT/mac-$name.png" ] && break; pgrep -f "$BIN" >/dev/null || break; sleep 1; done
@@ -57,13 +58,13 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
     if [ -f "$OUT/mac-$name.png" ]; then echo "mac-$name 截好了"; rm -f "$OUT/mac-$name.log"
     else echo "mac-$name 没截到"; tail -5 "$OUT/mac-$name.log" 2>/dev/null; fi
   }
-  snap 1-overview -XiaxiaDemo
-  snap 6-ai -XiaxiaDemo -XiaxiaSection insights
-  snap 9-settings -XiaxiaDemo -XiaxiaSection settings
-  snap 11-empty-ai -XiaxiaEmpty -XiaxiaSection insights
-  snap 20-connect-ai -XiaxiaEmpty -XiaxiaSheet connectAI
-  snap 21-connect-ai-no-tools -XiaxiaEmpty -XiaxiaNoTools -XiaxiaSheet connectAI
-  snap 22-connect-ai-dark -XiaxiaEmpty -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  snap 1-overview -XiaxiaDemo 1
+  snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
+  snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
+  snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights
+  snap 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
+  snap 21-connect-ai-no-tools -XiaxiaEmpty 1 -XiaxiaNoTools 1 -XiaxiaSheet connectAI
+  snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。
@@ -85,19 +86,19 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
     pkill -9 -f "$BIN" 2>/dev/null
     sleep 1
   }
-  mac 1-overview -XiaxiaDemo
-  mac 2-spending -XiaxiaDemo -XiaxiaSection spending
-  mac 3-trends -XiaxiaDemo -XiaxiaSection trends
-  mac 4-wealth -XiaxiaDemo -XiaxiaSection wealth
-  mac 5-plans -XiaxiaDemo -XiaxiaSection plans
-  mac 6-ai -XiaxiaDemo -XiaxiaSection insights
-  mac 7-changes -XiaxiaDemo -XiaxiaSection changes
-  mac 8-transactions -XiaxiaDemo -XiaxiaSection transactions
-  mac 9-settings -XiaxiaDemo -XiaxiaSection settings
-  mac 10-add -XiaxiaDemo -XiaxiaSheet add
-  mac 11-empty -XiaxiaEmpty
-  mac 12-books -XiaxiaDemo -XiaxiaSheet books
-  mac 13-accounts -XiaxiaDemo -XiaxiaSheet accounts
-  mac 20-connect-ai -XiaxiaEmpty -XiaxiaSheet connectAI
+  mac 1-overview -XiaxiaDemo 1
+  mac 2-spending -XiaxiaDemo 1 -XiaxiaSection spending
+  mac 3-trends -XiaxiaDemo 1 -XiaxiaSection trends
+  mac 4-wealth -XiaxiaDemo 1 -XiaxiaSection wealth
+  mac 5-plans -XiaxiaDemo 1 -XiaxiaSection plans
+  mac 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
+  mac 7-changes -XiaxiaDemo 1 -XiaxiaSection changes
+  mac 8-transactions -XiaxiaDemo 1 -XiaxiaSection transactions
+  mac 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
+  mac 10-add -XiaxiaDemo 1 -XiaxiaSheet add
+  mac 11-empty -XiaxiaEmpty 1
+  mac 12-books -XiaxiaDemo 1 -XiaxiaSheet books
+  mac 13-accounts -XiaxiaDemo 1 -XiaxiaSheet accounts
+  mac 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
 fi
 ls -la "$OUT"
