@@ -413,9 +413,16 @@ struct QuickAdd: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(pages.indices, id: \.self) { i in
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 5), spacing: 4) {
-                            ForEach(pages[i], id: \.self) { c in categoryCell(c) }
+                        // 不用 LazyVGrid：放在横向翻页里时 iPhone 上最后一格有时画不出来。
+                        VStack(spacing: 4) {
+                            ForEach(Array(stride(from: 0, to: pages[i].count, by: 5)), id: \.self) { start in
+                                HStack(spacing: 4) {
+                                    ForEach(pages[i][start..<min(start + 5, pages[i].count)], id: \.self) { c in categoryCell(c) }
+                                    ForEach(0..<(5 - min(5, pages[i].count - start)), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 1) }
+                                }
+                            }
                         }
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .containerRelativeFrame(.horizontal)
                         .id(i)
                     }
