@@ -14,6 +14,7 @@ struct SetupCommand: ParsableCommand {
         fin setup codex hermes     只装这几个（名字见 fin connect --list）
         fin setup --check          不改，只检查装好没有、账本读不读得到
         fin setup --remove         全部拿掉（MCP、skill、提示词）
+        fin setup --prompt         打出「一键复制配置提示词」那段话（粘给任何 AI）
         每个文件第一次改之前在旁边留一份 .bak-xiaxia；只动夏夏账本自己的那一项 / 那一段。
         """)
 
@@ -22,10 +23,12 @@ struct SetupCommand: ParsableCommand {
     @Flag(name: .long, help: "不改，只检查") var check = false
     @Flag(name: .long, help: "拿掉，不是装上") var remove = false
     @Flag(name: .long, help: "输出 JSON") var json = false
+    @Flag(name: .long, help: "只打出配置提示词（app 里「一键复制配置提示词」那段）") var prompt = false
 
     func run() throws {
         let home = ProcessInfo.processInfo.environment["HOME"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: NSHomeDirectory())
         let fin = ConnectCommand.selfPath
+        if prompt { return print(AIConnector.setupPrompt(fin: fin)) }
         let setup = AISetup(connector: AIConnector(home: home, fin: fin))
         let c = setup.connector
 
@@ -115,7 +118,8 @@ struct SetupCommand: ParsableCommand {
             return Check(ok: false, message: "fin mcp 没有正常回答")
         }
         if result["isError"] as? Bool == true { return Check(ok: false, message: text) }
-        let first = text.split(separator: "\n").first.map(String.init) ?? text
-        return Check(ok: true, message: "MCP 能读到账本（\(month)：\(first)）")
+        // 只报读到了，不把金额打出来
+        let read = text.contains("收入") || text.contains("没有")
+        return Check(ok: read, message: read ? "MCP 能读到账本（调了一次只读的 summary，\(month)）" : "MCP 回答看不懂：\(text.prefix(80))")
     }
 }
