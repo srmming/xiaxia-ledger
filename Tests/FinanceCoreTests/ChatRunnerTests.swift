@@ -15,6 +15,34 @@ final class ChatRunnerTests: XCTestCase {
         XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil), ["-z", "x", "-t", "xiaxia-ledger"])
     }
 
+    /// 选了模型才加参数；没选（跟随默认）不加，用的就是用户在那个 AI 里自己设的模型。
+    func testModelChoice() throws {
+        let c = ChatEngine.claude.arguments(prompt: "x", resume: nil, model: "sonnet")
+        let i = try XCTUnwrap(c.firstIndex(of: "--model"))
+        XCTAssertEqual(c[i + 1], "sonnet")
+        XCTAssertFalse(ChatEngine.claude.arguments(prompt: "x", resume: nil).contains("--model"))
+        XCTAssertEqual(ChatEngine.codex.arguments(prompt: "x", resume: nil, model: "some-model"),
+                       ["exec", "--skip-git-repo-check", "--model", "some-model", "x"])
+        XCTAssertEqual(ChatEngine.hermes.arguments(prompt: "x", resume: nil, model: "y"), ["-z", "x", "-t", "xiaxia-ledger"])
+        XCTAssertEqual(ChatEngine.claude.models().map(\.id), ["opus", "sonnet", "haiku"])
+
+        // 读各家自己的设置：默认模型、Codex 用过的模型（假的主目录，名字都是编的）。
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("chat-model-\(UUID().uuidString)")
+        let fm = FileManager.default
+        for d in [".claude", ".codex", ".hermes"] { try fm.createDirectory(at: home.appendingPathComponent(d), withIntermediateDirectories: true) }
+        defer { try? fm.removeItem(at: home) }
+        XCTAssertNil(ChatEngine.claude.defaultModel(home: home.path))
+        try Data(#"{"model": "claude-sonnet-9"}"#.utf8).write(to: home.appendingPathComponent(".claude/settings.json"))
+        XCTAssertEqual(ChatEngine.claude.defaultModel(home: home.path), "Sonnet")
+        try Data("model = \"model-a\"\nmodel_reasoning_effort = \"high\"\n\n[profiles.fast]\nmodel = 'model-b'\n[profiles.again]\nmodel = \"model-a\"\n".utf8)
+            .write(to: home.appendingPathComponent(".codex/config.toml"))
+        XCTAssertEqual(ChatEngine.codex.defaultModel(home: home.path), "model-a")
+        XCTAssertEqual(ChatEngine.codex.models(home: home.path).map(\.id), ["model-a", "model-b"])
+        try Data("model:\n  default: model-h\n  provider: x\ntoolsets: []\n".utf8).write(to: home.appendingPathComponent(".hermes/config.yaml"))
+        XCTAssertEqual(ChatEngine.hermes.defaultModel(home: home.path), "model-h")
+        XCTAssertTrue(ChatEngine.hermes.models(home: home.path).isEmpty)
+    }
+
     func testClaudeGetsAppFinAsOnlyMCP() {
         let a = ChatEngine.claude.arguments(prompt: "x", resume: nil, fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
         let i = try! XCTUnwrap(a.firstIndex(of: "--mcp-config"))

@@ -20,7 +20,42 @@ public final class XiaxiaChatState {
     public var draft = ""
     /// 用哪个 AI。记住上次选的；没选过就用装了的第一个（Claude Code 最快）。
     public var engine: ChatEngine? {
-        didSet { UserDefaults.standard.set(engine?.rawValue, forKey: "xiaxia.chatEngine") }
+        didSet {
+            UserDefaults.standard.set(engine?.rawValue, forKey: "xiaxia.chatEngine")
+            if engine != oldValue { model = engine.flatMap { Self.savedModel(for: $0) } }
+        }
+    }
+    /// 用哪个模型：nil = 跟随这个 AI 自己的默认（用户在 Claude Code / Codex 里设的）。每个 AI 各记各的。
+    public var model: String? {
+        didSet { if let engine { UserDefaults.standard.set(model ?? "", forKey: "xiaxia.chatModel.\(engine.rawValue)") } }
+    }
+
+    static func savedModel(for engine: ChatEngine) -> String? {
+        guard let m = UserDefaults.standard.string(forKey: "xiaxia.chatModel.\(engine.rawValue)"), !m.isEmpty else { return nil }
+        // 以前选过、现在已经不在列表里的（比如 Codex 设置里删掉了），回到跟随默认。
+        return engine.models().contains { $0.id == m } ? m : nil
+    }
+
+    /// 菜单里的一项：「claude|」= Claude Code 跟随默认，「claude|sonnet」= Claude Code 用 Sonnet。
+    var choiceKey: String { "\(engine?.rawValue ?? "")|\(model ?? "")" }
+
+    func choose(_ key: String) {
+        let parts = key.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        guard let e = ChatEngine(rawValue: parts[0]) else { return }
+        let m = parts.count > 1 && !parts[1].isEmpty ? parts[1] : nil
+        guard e != engine || m != model else { return }
+        let engineChanged = e != engine
+        engine = e
+        model = m
+        // 换了 AI 要重开对话（各家的对话接不上）；只换模型就接着聊。
+        if engineChanged { newConversation() } else { session = nil }
+    }
+
+    /// 顶上显示的名字：「Claude Code」或「Claude Code · Sonnet」。
+    var label: String {
+        guard let engine else { return "选 AI" }
+        guard let model else { return engine.name }
+        return "\(engine.name) · \(engine.models().first { $0.id == model }?.name ?? model)"
     }
     public private(set) var available: [ChatEngine] = []
     @ObservationIgnored var session: String?
@@ -33,6 +68,7 @@ public final class XiaxiaChatState {
         let saved = UserDefaults.standard.string(forKey: "xiaxia.chatEngine").flatMap(ChatEngine.init(rawValue:))
         let pick = saved.flatMap { found.contains($0) ? $0 : nil } ?? found.first
         if pick != engine { engine = pick }  // 没变就不赋值，免得界面白白重画
+        if let e = engine, model == nil, let m = Self.savedModel(for: e) { model = m }
     }
 
     /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
@@ -78,7 +114,7 @@ public final class XiaxiaChatState {
                                        where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
         let resume = engine == .claude ? session : nil
         Task {
-            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path)
+            let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path, model: model)
             if engine == .claude, let s = reply.sessionID { session = s }
             messages.append(Message(fromUser: false, text: reply.text, isError: reply.isError, engine: engine.name))
             busy = false
@@ -180,24 +216,37 @@ struct XiaxiaChatPanel: View {
             MascotView(.xiaxia, size: 26, face: true, animated: false)
             Text("夏夏").font(.headline)
             Spacer()
-            if chat.available.count > 1 {
+            if !chat.available.isEmpty {
+                // 每个 AI 一组：第一项「跟随默认」= 用户在那个 AI 里自己设的模型（不加参数），下面是可以手动换的。
                 Menu {
-                    Picker("用哪个 AI", selection: Binding(get: { chat.engine }, set: { chat.engine = $0; chat.newConversation() })) {
-                        ForEach(chat.available) { Text($0.name).tag(Optional($0)) }
+                    Picker("用哪个 AI 和模型", selection: Binding(get: { chat.choiceKey }, set: { chat.choose($0) })) {
+                        ForEach(chat.available) { e in
+                            Section(e.name) {
+                                Text(defaultTitle(e)).tag("\(e.rawValue)|")
+                                ForEach(e.models()) { m in
+                                    Text(m.note.isEmpty ? m.name : "\(m.name) · \(m.note)").tag("\(e.rawValue)|\(m.id)")
+                                }
+                            }
+                        }
                     }
                     .pickerStyle(.inline)
-                } label: { Text(chat.engine?.name ?? "选 AI").font(.caption) }
+                } label: { Text(chat.label).font(.caption).lineLimit(1) }
                     .menuStyle(.button).buttonStyle(.borderless)
-                    .frame(width: 96, alignment: .trailing)  // 宽度固定，不随选中的名字变（AppKit 菜单按钮的尺寸一变就会重排整个分栏）
-                    .accessibilityLabel("用哪个 AI：\(chat.engine?.name ?? "还没选")")
-            } else if let e = chat.engine {
-                Text(e.name).font(.caption).foregroundStyle(Color.fg2)
+                    .frame(width: 160, alignment: .trailing)  // 宽度固定，不随选中的名字变（AppKit 菜单按钮的尺寸一变就会重排整个分栏）
+                    .accessibilityLabel("用哪个 AI 和模型：\(chat.label)")
+                    .accessibilityIdentifier("chat.modelMenu")
             }
             Button { chat.newConversation() } label: { Image(systemName: "square.and.pencil") }
                 .buttonStyle(.borderless).help("新对话").accessibilityLabel("新对话")
                 .disabled(chat.messages.isEmpty || chat.busy)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
+    }
+
+    /// 「跟随默认（Opus）」：读得到那个 AI 自己设的模型就写出来。
+    private func defaultTitle(_ e: ChatEngine) -> String {
+        if let m = e.defaultModel() { return "跟随 \(e.name) 的默认（\(m)）" }
+        return "跟随 \(e.name) 的默认"
     }
 
     private func notice(symbol: String, title: String, text: String) -> some View {

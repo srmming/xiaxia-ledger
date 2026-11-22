@@ -42,7 +42,8 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 后台问一句的参数。claude 能接着上一轮聊（resume），另外两个每次把最近几句一起带上。
-    public func arguments(prompt: String, resume: String?, fin: String? = nil) -> [String] {
+    /// model：nil = 跟随这个 AI 自己的默认（用户在 Claude Code / Codex 里设的那个），不加参数。
+    public func arguments(prompt: String, resume: String?, fin: String? = nil, model: String? = nil) -> [String] {
         switch self {
         case .claude:
             // -p 无窗口；json 输出带 session_id，下一句接着聊；只放行夏夏账本这一组工具，别的工具要确认的就不做。
@@ -51,13 +52,98 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
             // （实测只靠用户配置时，有一次 claude 没起 MCP，干等到超时。）
             if let fin { a += ["--mcp-config", Self.mcpConfig(fin: fin), "--strict-mcp-config"] }
             if let resume { a += ["--resume", resume] }
+            if let model { a += ["--model", model] }
             return a
         case .codex:
+            if let model { return ["exec", "--skip-git-repo-check", "--model", model, prompt] }
             return ["exec", "--skip-git-repo-check", prompt]
         case .hermes:
             // -z 默认不加载新加的 MCP 工具集，要用 -t 点名 xiaxia-ledger（2026-11-22 在 ming 的 Mac 上实测）。
             return ["-z", prompt, "-t", "xiaxia-ledger"]
         }
+    }
+
+    /// 能选的模型（不含「跟随默认」）。
+    /// Claude Code：opus / sonnet / haiku 是它命令行认的别名，永远指向这一代最新的那个。
+    /// Codex：只列用户自己在 ~/.codex/config.toml 里写过的模型（默认的和各个 profile 的），不猜 OpenAI 有哪些名字。
+    /// Hermes：模型在它自己的设置里换，这里只跟随默认。
+    public func models(home: String = NSHomeDirectory()) -> [ChatModel] {
+        switch self {
+        case .claude:
+            return [ChatModel(id: "opus", name: "Opus", note: "最聪明，慢一点"),
+                    ChatModel(id: "sonnet", name: "Sonnet", note: "又快又好，日常够用"),
+                    ChatModel(id: "haiku", name: "Haiku", note: "最快，简单记账")]
+        case .codex:
+            let text = (try? String(contentsOfFile: "\(home)/.codex/config.toml", encoding: .utf8)) ?? ""
+            var seen: [String] = []
+            for line in text.split(separator: "\n") {
+                if let m = Self.tomlString(String(line), key: "model"), !seen.contains(m) { seen.append(m) }
+            }
+            return seen.map { ChatModel(id: $0, name: $0, note: "") }
+        case .hermes:
+            return []
+        }
+    }
+
+    /// 这个 AI 自己设的默认模型（读它的设置文件，读不到是 nil：那就是它出厂的默认）。
+    public func defaultModel(home: String = NSHomeDirectory()) -> String? {
+        switch self {
+        case .claude:
+            guard let data = FileManager.default.contents(atPath: "\(home)/.claude/settings.json"),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let m = obj["model"] as? String, !m.isEmpty else { return nil }
+            return Self.prettyClaude(m)
+        case .codex:
+            // 顶层（第一个 [section] 之前）的 model = "…"
+            let text = (try? String(contentsOfFile: "\(home)/.codex/config.toml", encoding: .utf8)) ?? ""
+            for line in text.split(separator: "\n") {
+                if line.trimmingCharacters(in: .whitespaces).hasPrefix("[") { break }
+                if let m = Self.tomlString(String(line), key: "model") { return m }
+            }
+            return nil
+        case .hermes:
+            // config.yaml 里 model: 下面的 default:（或者直接 model: xxx）
+            let text = (try? String(contentsOfFile: "\(home)/.hermes/config.yaml", encoding: .utf8)) ?? ""
+            var inModel = false
+            for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                let line = String(raw)
+                if line.hasPrefix("model:") {
+                    let v = line.dropFirst(6).trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    if !v.isEmpty { return v }
+                    inModel = true; continue
+                }
+                if inModel {
+                    if !line.hasPrefix(" ") && !line.isEmpty { break }
+                    let t = line.trimmingCharacters(in: .whitespaces)
+                    if t.hasPrefix("default:") {
+                        let v = t.dropFirst(8).trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                        return v.isEmpty ? nil : v
+                    }
+                }
+            }
+            return nil
+        }
+    }
+
+    /// claude-opus-4-… / opus → Opus，看得懂就行。
+    static func prettyClaude(_ m: String) -> String {
+        let l = m.lowercased()
+        for (k, v) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")] where l.contains(k) { return v }
+        return m
+    }
+
+    /// TOML 里一行 key = "value"（只认双引号或单引号的字符串）。
+    static func tomlString(_ line: String, key: String) -> String? {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.hasPrefix(key) else { return nil }
+        let rest = t.dropFirst(key.count).trimmingCharacters(in: .whitespaces)
+        guard rest.hasPrefix("=") else { return nil }
+        let v = rest.dropFirst().trimmingCharacters(in: .whitespaces)
+        guard let q = v.first, q == "\"" || q == "'" else { return nil }
+        let body = v.dropFirst()
+        guard let end = body.firstIndex(of: q) else { return nil }
+        let value = String(body[..<end])
+        return value.isEmpty ? nil : value
     }
 
     /// 环境：留着 HOME / USER / LOGNAME（claude 靠它读钥匙串里的登录），PATH 把常见位置放前面（codex 要找 node）。
@@ -72,6 +158,15 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+/// 对话栏可以换的一个模型。
+public struct ChatModel: Hashable, Sendable, Identifiable {
+    /// 传给命令行的名字（Claude Code 用别名 opus / sonnet / haiku）。
+    public var id: String
+    public var name: String
+    /// 一句大白话：快还是聪明。
+    public var note: String
+}
+
 /// 一次回答。
 public struct ChatReply: Sendable {
     public var text: String
@@ -82,13 +177,13 @@ public struct ChatReply: Sendable {
 public enum ChatRunner {
     /// 在后台跑一次，最多等 `timeout` 秒。
     public static func ask(_ engine: ChatEngine, prompt: String, resume: String? = nil, executable: String? = nil,
-                           fin: String? = nil, timeout: TimeInterval = 180) async -> ChatReply {
+                           fin: String? = nil, model: String? = nil, timeout: TimeInterval = 180) async -> ChatReply {
         guard let exe = executable ?? engine.executable() else {
             return ChatReply(text: "这台 Mac 上没找到 \(engine.name)。", sessionID: nil, isError: true)
         }
         let dir = LedgerStores.appSupportFolder.appendingPathComponent("chat")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let args = engine.arguments(prompt: prompt, resume: resume, fin: fin)
+        let args = engine.arguments(prompt: prompt, resume: resume, fin: fin, model: model)
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 let p = Process()
