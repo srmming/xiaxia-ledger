@@ -12,7 +12,7 @@
 
 没装任何 AI 工具：引导里给「下载 Claude 桌面版」；用 DeepSeek 的，装 Hermes Agent（能自动连）；用通义千问、Kimi 的，装 Cherry Studio，再点「复制配置」粘进它的 MCP 设置。别的支持 MCP 的工具同样粘这段。
 
-iPhone 不需要引导：AI 工具只能在 Mac 上接本地账本，手机上只看。（手机和 Mac 看同一本账要等 iCloud 同步做完，见下面「iPhone」。）
+iPhone 不需要引导：AI 工具只能在 Mac 上接本地账本，手机上只看。（手机和 Mac 靠 iCloud 看同一本账，见下面「iPhone 和 Mac 同步」。）
 
 app 挪过位置（比如先在「下载」里打开过，后来拖进「应用程序」）：下次打开时自动把各 AI 工具配置里的路径改过来，不用重新连。
 
@@ -25,14 +25,14 @@ GitHub Actions 里的 **release** 流程（`.github/workflows/release.yml`）：
 
 ## 三种发法
 
-| | A. 未签名 dmg（现在就能发） | B. 签名 + 公证的 dmg（推荐） | C. App Store / TestFlight |
+| | A. 未签名 dmg（现在就能发） | B. 签名 + 公证的 dmg（推荐） | C. 用线直接装 iPhone（ming 定：不上架） |
 |---|---|---|---|
-| 别人打开 | 第一次会被拦下（「无法验证开发者」），要去「系统设置 → 隐私与安全性」最下面点「仍要打开」 | 双击就开，和普通软件一样 | 从 App Store / TestFlight 装 |
+| 别人打开 | 第一次会被拦下（「无法验证开发者」），要去「系统设置 → 隐私与安全性」最下面点「仍要打开」 | 双击就开，和普通软件一样 | Mac 上跑 `release-local.sh --iphone` 装进连着的 iPhone |
 | 能不能一键连 AI | 能 | 能 | **Mac App Store 不行**：上架必须开沙盒，沙盒里的 app 不能改别的 AI 工具的配置、也不能让 AI 读账本。所以 Mac 版走 B |
-| iPhone | 装不了 | 装不了 | iPhone 只能走这条：TestFlight 先给朋友试，再上 App Store |
+| iPhone | 装不了 | 装不了 | 自己的 iPhone 直接装；别人的要先登记 UDID |
 | 要花的钱 | 0 | Apple Developer Program 每年 99 €（个人身份就行） | 同一个开发者账号，不另收钱 |
 
-建议：**Mac 用 B，iPhone 用 TestFlight（以后再上 App Store）**。开发者账号下来之前，先用 A 给愿意多点一步的朋友试。
+建议：**Mac 用 B，iPhone 用 C**。不上 App Store（2026-11-22 ming 定）。开发者账号下来之前，先用 A 给愿意多点一步的朋友试。
 
 ## 要 ming 本人做的（安全相关，Claude 不能代办）
 
@@ -43,15 +43,17 @@ GitHub Actions 里的 **release** 流程（`.github/workflows/release.yml`）：
 3. **公证密码**：<https://appleid.apple.com> → 登录与安全 → App 专用密码 → 生成（名字 xiaxia-notary），然后在终端：
    `xcrun notarytool store-credentials xiaxia-notary --apple-id <Apple ID 邮箱> --team-id U33A8DX2JT --password <专用密码>`
 4. **iCloud 容器和 App ID**：通常不用手动，打包时 Xcode 自动注册。报错的话去 developer.apple.com → Certificates, IDs & Profiles → Identifiers：先建 iCloud Container `iCloud.com.srmming.xiaxia-ledger`，再建 App ID `com.srmming.xiaxia-ledger`（iPhone）和 `com.srmming.xiaxia-ledger.mac`（Mac），都勾 iCloud 并选这个容器。
-5. **iPhone 的 TestFlight**：<https://appstoreconnect.apple.com> → App → 「+」新建（iOS，套装 ID `com.srmming.xiaxia-ledger`，名字「夏夏账本」）→ TestFlight → 内部测试里加自己。给团队外的朋友测，第一个版本要过苹果的 Beta 审核。
+5. **iPhone（不上架）**：不用去 App Store Connect。第一次把 iPhone 用线连到 Mac → 点「信任这台电脑」→ iPhone 设置 → 隐私与安全性 → **开发者模式** 打开（会重启一次）。之后跑 `release-local.sh --iphone` 就装上，一年内有效，到期再跑一次。
 6. **第一次打包时的弹窗**：钥匙串问 codesign 能不能用密钥，点「始终允许」。
-7. **发布**：GitHub Release 草稿和 App Store 提交，都由 ming 点最后那一下。
+7. **发布**：不上 App Store。dmg 发给别人前，GitHub Release 草稿由 ming 点最后那一下。
+
+别人的 iPhone 想装（不走 TestFlight）：要把那台 iPhone 的 UDID 登记到开发者账号（每年最多 100 台），再给他单独打一份。人多了再考虑 TestFlight（只是私下测试，不是上架）。
 
 做完以后，在 Mac 的仓库目录里：
 
 ```
 bash scripts/release-local.sh --install   # Mac：签名 + 公证 dmg 到 dist/，并装到 ~/Applications（旧版进废纸篓）
-bash scripts/release-local.sh --iphone    # iPhone：传到 App Store Connect，处理完在 TestFlight 里装
+bash scripts/release-local.sh --iphone    # iPhone：装到用线连着的那台 iPhone
 ```
 
 ### 想让 GitHub 自动打包（可选，不推荐先做）

@@ -4,7 +4,7 @@
 #
 #   bash scripts/release-local.sh            # 打包到 dist/
 #   bash scripts/release-local.sh --install  # 打包后顺便装到 ~/Applications（先退出正在开的夏夏账本，旧版挪到废纸篓）
-#   bash scripts/release-local.sh --iphone   # 打 iPhone 版直接传到 App Store Connect，几分钟后出现在 TestFlight
+#   bash scripts/release-local.sh --iphone   # 装到用线连着这台 Mac 的 iPhone（不上架、不走 TestFlight，开发者账号签名，一年内有效）
 #
 # 第一次用前要做一次（见 docs/DISTRIBUTE.md「明早要点的」）：
 #   - Xcode → 设置 → 账户 登录开发者 Apple ID，在「管理证书」里加 Developer ID Application
@@ -21,27 +21,19 @@ VERSION="$(grep MARKETING_VERSION project.yml | grep -oE '[0-9.]+' | head -1)"
 BUILDNO="$(date +%Y%m%d%H%M)"
 
 if [ "${1:-}" = "--iphone" ]; then
-  echo "• 归档 iPhone 版 $VERSION（$BUILDNO，带 iCloud）"
+  # iPhone 第一次要：用线连 Mac、点「信任这台电脑」、设置 → 隐私与安全性 → 开发者模式 打开（会重启一次）。
+  echo "• 编译 iPhone 版 $VERSION（$BUILDNO，带 iCloud）"
   xcodebuild -project XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Release \
-    -archivePath "$BUILD/XiaxiaLedger-iOS.xcarchive" -destination 'generic/platform=iOS' -allowProvisioningUpdates \
+    -destination 'generic/platform=iOS' -derivedDataPath "$BUILD/ios" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
     DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic XIAXIA_ICLOUD=YES CURRENT_PROJECT_VERSION="$BUILDNO" \
-    archive | grep -E "error|ARCHIVE" || true
-  test -d "$BUILD/XiaxiaLedger-iOS.xcarchive"
-  OPTS="$(mktemp).plist"
-  cat > "$OPTS" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>method</key><string>app-store-connect</string>
-  <key>destination</key><string>upload</string>
-  <key>teamID</key><string>$TEAM</string>
-  <key>signingStyle</key><string>automatic</string>
-</dict></plist>
-PLIST
-  echo "• 上传到 App Store Connect（要先在网页上建好 App，见 docs/DISTRIBUTE.md）"
-  xcodebuild -exportArchive -archivePath "$BUILD/XiaxiaLedger-iOS.xcarchive" -exportPath "$BUILD/export-ios" \
-    -exportOptionsPlist "$OPTS" -allowProvisioningUpdates
-  echo "传好了。苹果处理 5–15 分钟后，iPhone 上的 TestFlight app 里就能装。"
+    build | grep -E "error|BUILD" || true
+  IPA_APP="$BUILD/ios/Build/Products/Release-iphoneos/夏夏账本.app"
+  test -d "$IPA_APP"
+  DEV="$(xcrun devicectl list devices 2>/dev/null | grep -iE "connected|available \(paired\)" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1)"
+  [ -n "$DEV" ] || { echo "没找到连着的 iPhone：用线连上、解锁、点「信任」，再跑一次"; exit 1; }
+  echo "• 装到 iPhone（$DEV）"
+  xcrun devicectl device install app --device "$DEV" "$IPA_APP"
+  echo "装好了。iPhone 上打开夏夏账本，用和 Mac 同一个 Apple ID 的 iCloud，就是同一本账。"
   exit 0
 fi
 echo "• 归档 Release $VERSION（团队 $TEAM，带 iCloud）"
