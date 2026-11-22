@@ -301,11 +301,17 @@ private struct MascotEffects: View {
                       x: 0.32, y: 0.05, rise: 0.2, drift: 0.03, period: 2.3, phase: 1.1, scale: 0.08),
             ]
         case .celebrate:
-            return (0..<6).map { i in
-                Particle(symbol: i % 2 == 0 ? "eurosign.circle.fill" : "sparkle", color: Self.gold,
-                      x: CGFloat(i) / 5 - 0.5, y: -0.48, rise: -0.7, drift: (i % 2 == 0 ? 0.04 : -0.04), period: 2.2 + Double(i % 3) * 0.3,
-                      phase: Double(i) * 0.37, scale: i % 2 == 0 ? 0.1 : 0.08)
+            var list: [Particle] = []
+            for i in 0..<6 {
+                let even = i % 2 == 0
+                let x: CGFloat = CGFloat(i) / 5.0 - 0.5
+                let period: Double = 2.2 + Double(i % 3) * 0.3
+                let phase: Double = Double(i) * 0.37
+                list.append(Particle(symbol: even ? "eurosign.circle.fill" : "sparkle", color: Self.gold,
+                                     x: x, y: -0.48, rise: -0.7, drift: even ? 0.04 : -0.04,
+                                     period: period, phase: phase, scale: even ? 0.1 : 0.08))
             }
+            return list
         case .worried:
             return [.init(symbol: "drop.fill", color: Self.aqua, x: 0.2, y: -0.3, rise: -0.1, drift: 0, period: 1.4, phase: 0, scale: 0.08)]
         case .sleep:
