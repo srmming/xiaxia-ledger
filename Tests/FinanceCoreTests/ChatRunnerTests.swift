@@ -68,6 +68,17 @@ final class ChatRunnerTests: XCTestCase {
         XCTAssertTrue(p.hasSuffix("用户这一句：这笔是什么"))
     }
 
+    /// 日志不能记下提问：三家参数里提问的位置都不一样。
+    func testLogRedactsPromptWherever() {
+        let q = "系统提示……用户：我这个月花了多少"
+        for engine in [ChatEngine.claude, .codex, .hermes] {
+            let shown = ChatRunner.redacted(engine.arguments(prompt: q, resume: nil), prompt: q)
+            XCTAssertFalse(shown.contains(q), "\(engine) 的日志里有提问原文")
+            XCTAssertTrue(shown.contains("<提问>"))
+        }
+        XCTAssertTrue(ChatRunner.redacted(ChatEngine.hermes.arguments(prompt: q, resume: nil), prompt: q).contains("xiaxia-ledger"))
+    }
+
     /// 用一个假的命令行（shell 脚本）跑一遍完整流程：能启动、能读输出。
     func testAskRunsFakeHermes() async throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
