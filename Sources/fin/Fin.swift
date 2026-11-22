@@ -7,10 +7,10 @@ struct Fin: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
-        discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
-        subcommands: [ContextCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
-                      AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self]
+        discussion: "账本在哪：跑 fin where。一般在 iCloud 云盘「夏夏账本/ledger.sqlite」；签名正式版搬家后在 app 的 iCloud 容器里；没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/。可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
+        subcommands: [ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
+                      AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, FXCommand.self, SubscriptionsCommand.self, SubscriptionCommand.self, CategorizeCommand.self,
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self, DemoCommand.self]
     )
 
     /// 负数金额（-12,50）会被当成选项，报「缺少参数」。这里先把开头的减号换成全角减号「−」，金额解析认得它。
@@ -169,12 +169,19 @@ struct AccountsCommand: ParsableCommand {
     @OptionGroup var options: GlobalOptions
     func run() throws {
         let ledger = try loadLedger()
-        let balances = Summaries.balances(ledger.transactions)
+        let balances = ledger.accountBalances()
         if options.json {
-            struct Row: Encodable { var account: Account; var balance: String }
-            return try Output.json(ledger.accounts.map { Row(account: $0, balance: (balances[$0.id] ?? .zero).decimalString) })
+            struct Row: Encodable { var account: Account; var currency: String; var balance: String; var balanceInBase: String }
+            return try Output.json(ledger.accounts.map { Row(account: $0, currency: ledger.currency(ofAccount: $0.id),
+                                                               balance: (balances[$0.id]?.native ?? .zero).decimalString,
+                                                               balanceInBase: (balances[$0.id]?.base ?? .zero).decimalString) })
         }
-        for a in ledger.accounts { print("\(a.id)\t\(a.name)\(a.isPrivate ? "（私房钱）" : "")\t\((balances[a.id] ?? .zero).formatted)") }
+        for a in ledger.accounts {
+            let code = ledger.currency(ofAccount: a.id)
+            let b = balances[a.id] ?? (.zero, .zero)
+            let approx = code == ledger.baseCurrency ? "" : "（约 \(b.base.formatted(in: ledger.baseCurrency))）"
+            print("\(a.id)\t\(a.name)\(a.isPrivate ? "（私房钱）" : "")\t\(b.native.formatted(in: code))\(approx)")
+        }
     }
 }
 
@@ -217,7 +224,7 @@ struct TxCommand: ParsableCommand {
         if txs.isEmpty { print("没有符合条件的流水。") }
         for t in txs {
             let extra = (t.note.map { "（\($0)）" } ?? "") + t.tagList.map { " #\($0)" }.joined()
-            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(t.amount.formatted)\t\(t.bookID ?? (t.flow != nil ? "—" : "未分"))\t\(t.category ?? "未分类")\t\(t.description)\(extra)")
+            print("\(t.id.uuidString.prefix(8).lowercased())\t\(t.date)\t\(ledger.formatted(t))\(t.original.map { "（原价 \($0.formatted)）" } ?? "")\t\(t.bookID ?? (t.flow != nil ? "—" : "未分"))\t\(t.category ?? "未分类")\t\(t.description)\(extra)")
         }
     }
 }
@@ -240,7 +247,7 @@ struct SummaryCommand: ParsableCommand {
         let ledger = try loadLedger()
         let hidden = options.includePrivate ? [] : ledger.privateAccountIDs
         let months = try SummaryCommand.months(month: month, year: year, from: from, to: to)
-        let list = Reports.summaries(ledger.transactions, months: months, bookID: options.book, hiddenAccounts: hidden)
+        let list = Reports.summaries(ledger.baseTransactions, months: months, bookID: options.book, hiddenAccounts: hidden)
         if options.json {
             struct Row: Encodable { var month: String; var income: String; var expense: String; var net: String }
             struct Out: Encodable {
@@ -375,12 +382,16 @@ struct AddCommand: ParsableCommand {
     @Option(help: "标签，可以写几次：--tag 旅行 --tag 报销。") var tag: [String] = []
     @Option(help: "重复：weekly 每周、monthly 每月、yearly 每年。以后到日子自动记（app 打开时或 fin repeat run）。") var `repeat`: String?
     @Option(help: "重复到哪天为止（可不填）。") var until: String?
+    @Option(help: "原价（用别的币种付的），如 \"50 USD\"。只做备注，金额以银行扣的为准。") var original: String?
 
     func run() throws {
         var ledger = try loadLedger()
-        let tx = Transaction(date: try parseDate(date), amount: try parseAmount(amount), description: text,
+        let d = try parseDate(date)
+        var tx = Transaction(date: d, amount: try parseAmount(amount), description: text,
                              accountID: account, bookID: book, category: category, source: "手记",
                              note: note.flatMap { $0.isEmpty ? nil : $0 }, tags: Tags.clean(tag).isEmpty ? nil : Tags.clean(tag))
+        tx.fx = ledger.fxNote(accountID: account, date: d)
+        if let original { tx.original = try parseForeign(original, sign: tx.amount.cents < 0 ? -1 : 1) }
         let change: ChangeRecord
         if let r = `repeat` {
             guard let f = Recurring.Frequency(rawValue: r) else { throw ValidationError("--repeat 要写 weekly、monthly 或 yearly") }
@@ -469,12 +480,16 @@ struct AccountCommand: ParsableCommand {
         @Argument(help: "显示名，如「Revolut」。") var name: String
         @Option(help: "类型：bank、credit、cash、wallet、savings。") var kind: String = "bank"
         @Flag(help: "私房钱：app 默认不显示、不算进总览。") var `private` = false
+        @Option(help: "币种，三个字母，如 USD、CNY。不填 = 主币种。") var currency: String?
 
         func run() throws {
             guard let k = AccountKind(rawValue: kind) else { throw ValidationError("类型只能是 bank、credit、cash、wallet、savings") }
             var ledger = try loadLedger()
             guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ValidationError("已经有 \(id) 这个账户了") }
-            let change = ledger.addAccount(Account(id: id, name: name, kind: k, isPrivate: `private`), author: w.who)
+            if let currency, !Currencies.isKnown(currency) { throw ValidationError(CurrencyError.unknownCurrency(currency).localizedDescription) }
+            let code = currency?.uppercased()
+            let change = ledger.addAccount(Account(id: id, name: name, kind: k, isPrivate: `private`,
+                                                   currency: code == ledger.baseCurrency ? nil : code), author: w.who)
             try finish(ledger, change, w)
         }
     }
@@ -788,4 +803,9 @@ struct GoalCommand: ParsableCommand {
             try finish(ledger, change, w)
         }
     }
+}
+
+struct WhereCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "where", abstract: "账本文件在哪（fin、MCP 和 app 读的是这一份）。")
+    func run() throws { print(ledgerLocation(LedgerStores.defaultStore())) }
 }

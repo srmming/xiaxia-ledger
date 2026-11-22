@@ -43,7 +43,7 @@ struct MonthStatus {
     var lastMonthSameDayNet: Money
     var spentSoFar: Money          // 正数
     var lastMonthSameDaySpent: Money
-    var projectedEnd: Money?       // 照现在的速度，月底大概剩多少（只有本月才有）
+    var projectedEnd: Money?       // 照上个月剩下那段的收支，月底大概剩多少（只有本月才有）
     var pace: [PacePoint]
     var lastPace: [PacePoint]
 
@@ -65,7 +65,7 @@ extension LedgerModel {
     /// 和 Summaries.monthly 一样的范围：普通收支、没藏起来的账户、选中的账本（全部时不算账本间转账）。
     func scopedTransactions(_ month: YearMonth, bookID: String?) -> [Transaction] {
         let hidden = hiddenAccounts
-        return ledger.transactions.filter { tx in
+        return baseTransactions.filter { tx in
             guard tx.date.yearMonth == month, tx.countsAsIncomeOrExpense, !hidden.contains(tx.accountID) else { return false }
             if let bookID { return tx.bookID == bookID }
             return !tx.isTransfer
@@ -101,7 +101,7 @@ extension LedgerModel {
         let today = LocalDate.today
         let isCurrent = month == today.yearMonth
         let day = isCurrent ? today.day : month.dayCount
-        let summary = Summaries.monthly(ledger.transactions, month: month, bookID: book, hiddenAccounts: hiddenAccounts)
+        let summary = Summaries.monthly(baseTransactions, month: month, bookID: book, hiddenAccounts: hiddenAccounts)
         let prev = month.previous
         let prevDay = min(day, prev.dayCount)
         let pace = cumulative(month, bookID: book, upTo: day, series: "本月")
@@ -110,9 +110,15 @@ extension LedgerModel {
         let lastSpent = Money(cents: Int64(((lastPace.first { $0.day == prevDay }?.amount ?? 0) * 100).rounded()))
         var projected: Money? = nil
         if isCurrent, day >= 3, day < month.dayCount {
-            let perDay = Double(spent.cents) / Double(day)
-            let more = Int64(perDay * Double(month.dayCount - day))
-            projected = summary.net - Money(cents: more)
+            // 月底剩多少 = 到今天剩的 + 剩下这些天还会进出的钱。
+            // 剩下这些天照上个月同一段的收支估：月底发工资、交社保、收房租这种一来一去都算进去，
+            // 不然只按「每天花多少」往后推，会漏掉月底的进账，出现「比上月多剩，却说月底超支」的矛盾。
+            if !scopedTransactions(prev, bookID: book).isEmpty {
+                projected = summary.net + (net(prev, bookID: book, upTo: prev.dayCount) - net(prev, bookID: book, upTo: prevDay))
+            } else {
+                let perDay = Double(spent.cents) / Double(day)
+                projected = summary.net - Money(cents: Int64(perDay * Double(month.dayCount - day)))
+            }
         }
         return MonthStatus(month: month, summary: summary, dayOfMonth: day, isCurrent: isCurrent,
                            lastMonthSameDayNet: net(prev, bookID: book, upTo: prevDay),
@@ -136,7 +142,7 @@ extension LedgerModel {
     /// 每个月底的家底（所有看得见的账户余额加起来，信用卡是负的）。
     func netWorthSeries(months: [YearMonth]) -> [NetWorthPoint] {
         let hidden = hiddenAccounts
-        let txs = ledger.transactions.filter { !hidden.contains($0.accountID) }.sorted { $0.date < $1.date }
+        let txs = baseTransactions.filter { !hidden.contains($0.accountID) }.sorted { $0.date < $1.date }
         var result: [NetWorthPoint] = []
         var i = 0
         var running = Money.zero

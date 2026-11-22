@@ -6,7 +6,7 @@
 
 ## 夏夏账本（ming 的财务）
 
-ming 的个人和 Miora 美甲店财务（西班牙，欧元）记在「夏夏账本」里：iCloud 云盘「夏夏账本/ledger.sqlite」，Mac app、命令行 `fin`（`~/.local/bin/fin`）和 MCP 服务 `xiaxia-ledger`（`fin mcp`）读写同一份。账本 `personal`（个人）、`miora`（店里）。
+ming 的个人和 Miora 美甲店财务（西班牙，欧元）记在「夏夏账本」里：位置用 `fin where` 看（一般是 iCloud 云盘「夏夏账本/ledger.sqlite」），Mac app、命令行 `fin`（`~/.local/bin/fin`）和 MCP 服务 `xiaxia-ledger`（`fin mcp`）读写同一份。账本 `personal`（个人）、`miora`（店里）。
 
 ming 说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、店里还是个人、谁欠我钱、还款、分期、存钱目标、私房钱，或者 Caixa、imagin、Revolut、MyCard 时：
 

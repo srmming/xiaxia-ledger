@@ -8,6 +8,13 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     case claude, codex, hermes
     public var id: String { rawValue }
 
+    /// 给 claude --mcp-config 的一段 JSON：只有夏夏账本这一个 MCP，命令是 app 自带的 fin。
+    public static func mcpConfig(fin: String) -> String {
+        let obj: [String: Any] = ["mcpServers": [AIConnector.serverName: ["command": fin, "args": ["mcp"]]]]
+        let data = (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
     public var name: String {
         switch self {
         case .claude: "Claude Code"
@@ -35,11 +42,14 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 
     /// 后台问一句的参数。claude 能接着上一轮聊（resume），另外两个每次把最近几句一起带上。
-    public func arguments(prompt: String, resume: String?) -> [String] {
+    public func arguments(prompt: String, resume: String?, fin: String? = nil) -> [String] {
         switch self {
         case .claude:
             // -p 无窗口；json 输出带 session_id，下一句接着聊；只放行夏夏账本这一组工具，别的工具要确认的就不做。
             var a = ["-p", prompt, "--output-format", "json", "--allowedTools", "mcp__xiaxia-ledger"]
+            // 直接把 app 自带的 fin 交给它当 MCP，只用这一个：不靠用户自己有没有配过、配的是不是旧版 fin。
+            // （实测只靠用户配置时，有一次 claude 没起 MCP，干等到超时。）
+            if let fin { a += ["--mcp-config", Self.mcpConfig(fin: fin), "--strict-mcp-config"] }
             if let resume { a += ["--resume", resume] }
             return a
         case .codex:
@@ -71,13 +81,13 @@ public struct ChatReply: Sendable {
 public enum ChatRunner {
     /// 在后台跑一次，最多等 `timeout` 秒。
     public static func ask(_ engine: ChatEngine, prompt: String, resume: String? = nil, executable: String? = nil,
-                           timeout: TimeInterval = 180) async -> ChatReply {
+                           fin: String? = nil, timeout: TimeInterval = 180) async -> ChatReply {
         guard let exe = executable ?? engine.executable() else {
             return ChatReply(text: "这台 Mac 上没找到 \(engine.name)。", sessionID: nil, isError: true)
         }
         let dir = LedgerStores.appSupportFolder.appendingPathComponent("chat")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let args = engine.arguments(prompt: prompt, resume: resume)
+        let args = engine.arguments(prompt: prompt, resume: resume, fin: fin)
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 let p = Process()
@@ -93,7 +103,9 @@ public enum ChatRunner {
                     cont.resume(returning: ChatReply(text: "\(engine.name) 打不开：\(error.localizedDescription)", sessionID: nil, isError: true))
                     return
                 }
-                let killer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+                // 记下是不是我们停的：claude 收到 SIGTERM 会自己正常退出（退出码 143），光看退出原因看不出来。
+                let stopped = StopFlag()
+                let killer = DispatchWorkItem { if p.isRunning { stopped.set(); p.terminate() } }
                 DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
                 // 先读完输出再等退出，免得输出太长把管道塞满卡住。
                 let data = out.fileHandleForReading.readDataToEndOfFile()
@@ -102,8 +114,8 @@ public enum ChatRunner {
                 killer.cancel()
                 let text = String(decoding: data, as: UTF8.self)
                 let errText = String(decoding: errData, as: UTF8.self)
-                if p.terminationReason == .uncaughtSignal {
-                    cont.resume(returning: ChatReply(text: "\(engine.name) 太久没回（超过 \(Int(timeout)) 秒），先停下了。", sessionID: nil, isError: true))
+                if stopped.value || p.terminationReason == .uncaughtSignal {
+                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。可以再发一次试试，或者在右上角换一个 AI。", sessionID: nil, isError: true))
                     return
                 }
                 cont.resume(returning: parse(engine, stdout: text, stderr: errText, status: p.terminationStatus))
@@ -135,7 +147,7 @@ public enum ChatRunner {
         var p = """
         你是「夏夏」，夏夏账本 app 里的记账助手，用户正在 app 右边的对话栏里跟你说话。
         - 用 xiaxia-ledger 这组工具查账、记账；先调 context 看账本和账户。用户说「这笔」「这里」时调 current_view。
-        - 拿不准的（哪个账户、哪个账本、什么分类）先问一句，别猜；信息齐全的单笔可以直接记。记完一句话说清记了什么。
+        - 拿不准的（哪个账户、哪个账本、什么分类）先问一句，别猜；信息齐全的单笔可以直接记。记完一句话说清记了什么；别把改动编号、id 这类内部编码说给用户。
         - 想让用户在 app 里看到某几笔或某一页时用 open_in_app。
         - 口吻：\(voice) 回答用中文，短一点，三五句以内，不用 Markdown 表格。
         """
@@ -147,5 +159,12 @@ public enum ChatRunner {
         p += "\n\n用户这一句：\(question)"
         return p
     }
+}
+/// 超时有没有被我们停掉：在两个线程之间传一个是/否。
+private final class StopFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var on = false
+    func set() { lock.lock(); on = true; lock.unlock() }
+    var value: Bool { lock.lock(); defer { lock.unlock() }; return on }
 }
 #endif

@@ -155,6 +155,7 @@ enum MCPTools {
             "tags": ["type": "array", "items": ["type": "string"], "description": "标签，如 [\"旅行\"]，不带 #"],
             "repeat": ["type": "string", "enum": ["weekly", "monthly", "yearly"], "description": "重复：每周 / 每月 / 每年（可不填）"],
             "until": prop("string", "重复到哪天为止（可不填）"),
+            "original": prop("string", "用别的币种付的原价，如「50 USD」（欧元卡在国外刷卡时）。amount 填银行扣的数"),
             "author": author, "dry_run": dryRun,
         ], required: ["amount", "description", "account", "book"], readOnly: false),
         tool("add_debt", "记一笔欠款。direction：they_owe_me（我借出去）或 i_owe（我借来的）。", [
@@ -236,6 +237,7 @@ enum MCPTools {
             "kind": ["type": "string", "enum": ["bank", "credit", "cash", "wallet", "savings"], "description": "类型，默认 bank"],
             "private": prop("boolean", "私房钱：app 默认不显示、不算进总览"),
             "opening_balance": prop("string", "开账余额（可选）"), "date": prop("string", "开账余额是哪天的，默认今天"),
+            "currency": prop("string", "账户币种，三个字母如 USD、CNY；不填 = 主币种"),
             "author": author, "dry_run": dryRun,
         ], required: ["id", "name"], readOnly: false),
         tool("add_book", "新建一个账本（比如家庭、第二家店）。kind：personal = 生活，business = 生意。", [
@@ -365,7 +367,7 @@ enum MCPTools {
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
-    ]
+    ] + currencySubsTools
 
     static func json<T: Encodable>(_ v: T) throws -> String {
         let e = JSONEncoder()
@@ -452,13 +454,17 @@ enum MCPTools {
             do { months = try SummaryCommand.months(month: s("month"), year: year, from: s("from"), to: s("to")) }
             catch { throw ToolError(message: "要看哪段时间？填 month（2026-11）、year（2026），或 from + to（2026-01、2026-06）") }
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
-            let list = Reports.summaries(ledger.transactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
+            let list = Reports.summaries(ledger.baseTransactions, months: months, bookID: s("book"), hiddenAccounts: hidden)
             return SummaryCommand.text(list, months: months, book: s("book"), ledger: ledger, hidden: hidden)
         case "accounts":
             let hidden = flag("include_private") ? [] : ledger.privateAccountIDs
-            let balances = Summaries.balances(ledger.transactions)
-            return ledger.accounts.filter { !hidden.contains($0.id) }
-                .map { "\($0.id)\t\($0.name)\($0.isPrivate ? "（私房钱）" : "")\t\((balances[$0.id] ?? .zero).formatted)" }.joined(separator: "\n")
+            let balances = ledger.accountBalances()
+            return ledger.accounts.filter { !hidden.contains($0.id) }.map { acct -> String in
+                let code = ledger.currency(ofAccount: acct.id)
+                let b = balances[acct.id] ?? (.zero, .zero)
+                let approx = code == ledger.baseCurrency ? "" : "（约 \(b.base.formatted(in: ledger.baseCurrency))）"
+                return "\(acct.id)\t\(acct.name)\(acct.isPrivate ? "（私房钱）" : "")\t\(b.native.formatted(in: code))\(approx)"
+            }.joined(separator: "\n")
         case "monthly_report":
             let ym: YearMonth
             if let m = s("month") {
@@ -492,14 +498,17 @@ enum MCPTools {
         case "delete_transactions":
             guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
             let txs = try ledger.findTransactions(ids)
-            let listing = txs.map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
+            let listing = txs.map { "  \($0.date) \(ledger.formatted($0)) \($0.description)" }.joined(separator: "\n")
             return try commit(try ledger.removeTransactions(txs.map(\.id), author: who)) + "\n" + listing
         case "add_account":
             let id = try req("id")
             guard !ledger.accounts.contains(where: { $0.id == id }) else { throw ToolError(message: "已经有 \(id) 这个账户了") }
             guard let kind = AccountKind(rawValue: s("kind") ?? "bank") else { throw ToolError(message: "kind 只能是 bank、credit、cash、wallet、savings") }
             let opening: Money? = s("opening_balance") == nil ? nil : try money("opening_balance")
-            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private")),
+            if let c = s("currency"), !Currencies.isKnown(c) { throw CurrencyError.unknownCurrency(c) }
+            let code = s("currency")?.uppercased()
+            return try commit(try ledger.createAccount(Account(id: id, name: try req("name"), kind: kind, isPrivate: flag("private"),
+                                                               currency: code == ledger.baseCurrency ? nil : code),
                                                        openingBalance: opening, date: try date("date") ?? .today, author: who))
         case "add_book":
             guard let kind = BookKind(rawValue: s("kind") ?? "personal") else { throw ToolError(message: "kind 只能是 personal 或 business") }
@@ -568,9 +577,14 @@ enum MCPTools {
         case "add_transaction":
             guard let amount = Money.evaluate(try req("amount")) else { throw ToolError(message: "金额看不懂：\(a["amount"] ?? "")") }
             let tags = Tags.clean(a["tags"] as? [String] ?? [])
-            let tx = Transaction(date: try date("date") ?? .today, amount: amount, description: try req("description"),
+            var tx = Transaction(date: try date("date") ?? .today, amount: amount, description: try req("description"),
                                  accountID: try req("account"), bookID: try req("book"), category: s("category"), source: "手记（\(who)）",
                                  note: s("note"), tags: tags.isEmpty ? nil : tags)
+            tx.fx = ledger.fxNote(accountID: tx.accountID, date: tx.date)
+            if let o = s("original") {
+                do { tx.original = try parseForeign(o, sign: tx.amount.cents < 0 ? -1 : 1) }
+                catch { throw ToolError(message: "original 写成「50 USD」这样") }
+            }
             if let r = s("repeat") {
                 guard let f = Recurring.Frequency(rawValue: r) else { throw ToolError(message: "repeat 要写 weekly、monthly 或 yearly") }
                 return try commit(try ledger.addRecurring(tx, frequency: f, until: try date("until"), author: who))
@@ -751,6 +765,7 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这条改动" : "对上了好几条，多写几位") }
             return try commit(try ledger.undo(changeID: hits[0].id, author: who))
         default:
+            if let text = try MCPTools.callCurrencySubs(name, a, who: who) { return text }
             throw ToolError(message: "没有这个工具：\(name)")
         }
     }

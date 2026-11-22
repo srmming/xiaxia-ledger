@@ -55,6 +55,8 @@ public struct RootView: View {
     public init() {}
 
     @AppStorage("xiaxia.appearance") var appearance = "auto"
+    /// 主窗口有多高（Mac 上弹出的面板不能比它高）。
+    @State private var windowHeight: CGFloat = 900
 
     public var body: some View {
         @Bindable var model = model
@@ -68,6 +70,13 @@ public struct RootView: View {
             }
         }
         .tint(Color.brand)
+        #if os(macOS)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { windowHeight = geo.size.height }
+                .onChange(of: geo.size.height) { _, h in windowHeight = h }
+        })
+        #endif
         .overlay(alignment: .bottom) {
             ZStack { toastLayer }.animation(.snappy, value: model.toast)
         }
@@ -101,8 +110,9 @@ public struct RootView: View {
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
+                // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : 520,
-                       height: sheet == .add ? nil : sheet == .connectAI ? 720 : 580)
+                       height: sheet == .add ? nil : min(sheet == .connectAI ? 720 : 580, max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
                 #endif
@@ -111,6 +121,7 @@ public struct RootView: View {
         .task {
             // Mac：app 换过位置就把 AI 配置里的路径改过来；第一次打开、还没连过 AI 就弹「连上你的 AI」。
             model.repairAIConnections()
+            await model.refreshRatesIfNeeded()   // 有外币账户时，一天取一次欧洲央行汇率
             try? await Task.sleep(for: .seconds(0.6))
             model.showAISetupIfNeeded()
         }
@@ -204,10 +215,14 @@ struct MacRoot: View {
                     .toolbar { MacToolbar(model: model, section: section) }
             }
             .id(section)
-        }
-        .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
-            XiaxiaChatPanel()
-                .inspectorColumnWidth(min: 300, ideal: 360, max: 520)
+            // 中间这栏的最小宽度固定死，不随页面内容变：换页、详情出现时分栏就不用重算最小宽度（不然对话栏开着会触发 AppKit 约束死循环闪退）。
+            .frame(minWidth: 520, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            // 对话栏挂在中间这栏上（苹果推荐的放法），不挂在整个分栏外面：挂外面时打开对话栏，三栏加起来比窗口宽，
+            // 左边侧栏和右边对话栏都被切掉一截。
+            .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
+                XiaxiaChatPanel()
+                    .inspectorColumnWidth(min: 300, ideal: 340, max: 520)
+            }
         }
     }
 
@@ -338,12 +353,6 @@ struct PhoneRoot: View {
             page(.plans, title: "计划") { PlansPage() }
             page(.insights, title: "夏夏") { InsightsPage() }
         }
-        .overlay(alignment: .bottomTrailing) {
-            AskAIButton(page: (model.section ?? .overview).rawValue)
-                .shadow(color: Color.aiSolid.opacity(0.35), radius: 10, y: 4)
-                .padding(.trailing, 16)
-                .padding(.bottom, 62)
-        }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SettingsPage()
@@ -366,6 +375,14 @@ struct PhoneRoot: View {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         if section != .insights {
                             BookSwitch()
+                            // 「问 AI」放进顶栏，不再浮在右下角挡住卡片上的按钮；「夏夏」页自己有问的入口，这里不重复。
+                            AskAIReader { ask in
+                                Button { ask("", page: (model.section ?? section).rawValue) } label: {
+                                    Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ai)
+                                }
+                                .accessibilityLabel("问 AI")
+                                .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
+                            }
                         }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)

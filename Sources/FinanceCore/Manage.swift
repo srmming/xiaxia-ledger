@@ -399,6 +399,12 @@ extension Ledger {
         }
         let addedRecurring = Set(s.addedRecurringIDs ?? [])
         if !addedRecurring.isEmpty { recurring.removeAll { addedRecurring.contains($0.id) } }
+        if let c = s.currency { currency = c; Money.defaultCurrency = c.base }
+        for x in s.subscriptions ?? [] {
+            if let i = subscriptions.firstIndex(where: { $0.id == x.id }) { subscriptions[i] = x } else { subscriptions.append(x) }
+        }
+        let addedSubs = Set(s.addedSubscriptionIDs ?? [])
+        if !addedSubs.isEmpty { subscriptions.removeAll { addedSubs.contains($0.id) } }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

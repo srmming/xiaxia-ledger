@@ -53,7 +53,9 @@ struct TransactionsPage: View {
                     }
                 }
                 .padding(Kit.side)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+                // 最小宽度别跟着「有没有右边详情」变：不然 Mac 上对话栏开着时，详情一出一收会让分栏反复重排，AppKit 直接 abort（实测点「看看」闪退）。
+                .clipped()
                 .background(Color.pageBackground)
                 .background { WidthReader(width: $width) }
                 #else
@@ -184,7 +186,8 @@ struct TransactionsPage: View {
 
     private func groups(_ list: [Transaction]) -> [DayGroup] {
         Dictionary(grouping: list, by: \.date).map { d, items in
-            DayGroup(date: d, items: items, total: items.filter { $0.flow == nil }.reduce(.zero) { $0 + $1.amount })
+            // 外币账户的流水先换成主币种再加，不把美元和欧元直接相加。
+            DayGroup(date: d, items: items, total: items.filter { $0.flow == nil }.reduce(.zero) { $0 + model.ledger.baseAmount($1) })
         }
         .sorted { $0.date > $1.date }
     }
@@ -313,6 +316,8 @@ struct TransactionsPage: View {
         .kitCard()
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { if selected.isEmpty, let first = list.first?.id { selected = [first] } }
+        // 筛选变了（比如从「刚改的 N 笔」跳进来），右边详情别还停在列表里看不到的那一笔。
+        .onChange(of: list.map(\.id)) { _, ids in if !selected.contains(where: ids.contains) { selected = ids.first.map { [$0] } ?? [] } }
         .onChange(of: selected, initial: true) { _, ids in model.selectedTransactionID = ids.count == 1 ? ids.first : nil }
         .onDisappear { model.selectedTransactionID = nil }
     }
@@ -366,6 +371,18 @@ struct TransactionDetail: View {
 
     private let editable = true
 
+    /// 外币流水换成主币种：「≈ 18,40 € · 按 11 月 2 日欧洲央行汇率」。
+    private func fxLine(_ code: String) -> String {
+        let l = model.ledger
+        let base = l.baseAmount(tx).magnitude.formatted(in: l.baseCurrency)
+        if let fx = tx.fx, fx.base == l.baseCurrency {
+            return "≈ \(base) · \(fx.source == "ecb" ? "\(fx.date.month) 月 \(fx.date.day) 日\(fx.sourceLabel)汇率" : fx.sourceLabel)"
+        }
+        if let r = l.rateToBase(code, on: tx.date) { return "≈ \(base) · \(r.date.month) 月 \(r.date.day) 日欧洲央行汇率" }
+        return "还没有汇率，先按 1:1 算"
+    }
+
+
     var body: some View {
         // 改过之后用账本里最新的样子（iPhone 上推进来的详情不会自己换）。
         let tx = model.transaction(self.tx.id) ?? self.tx
@@ -375,7 +392,8 @@ struct TransactionDetail: View {
                 Text(Merchant.display(tx.description)).font(.headline)
                 Text(tx.date.friendly == "今天" ? "今天 · \(tx.date.short)" : tx.date.friendly).font(.caption).foregroundStyle(Color.fg2)
             }
-            Text(tx.flow == nil ? tx.amount.display : tx.amount.magnitude.formatted)
+            let code = model.ledger.currency(ofAccount: tx.accountID)
+            Text(tx.flow == nil ? tx.amount.display(in: code) : tx.amount.magnitude.formatted(in: code))
                 .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tx.flow != nil ? Color.fg3 : tx.amount.isIncome ? Color.income : .primary)
             VStack(spacing: 0) {
@@ -409,6 +427,16 @@ struct TransactionDetail: View {
                 }
                 Divider()
                 row("账户") { Text(model.accountName(tx.accountID)) }
+                if let o = tx.original {
+                    Divider()
+                    row("原价") { Text(o.formatted).monospacedDigit() }
+                }
+                if code != model.ledger.baseCurrency {
+                    Divider()
+                    row("约合") {
+                        Text(fxLine(code)).monospacedDigit().multilineTextAlignment(.trailing)
+                    }
+                }
                 if Merchant.display(tx.description) != tx.description {
                     Divider()
                     row("银行原文") { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
@@ -453,9 +481,16 @@ struct TransactionDetail: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(model.isMe(change.author) ? Color.sunken : Color.aiSoft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-            if let change, change.canUndo {
-                Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? "撤销这次改动（\(change.transactionIDs.count) 笔）" : "撤销这次改动", systemImage: "arrow.uturn.backward") }
-                    .buttonStyle(.soft)
+            HStack {
+                if let change, change.canUndo {
+                    Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? "撤销这次改动（\(change.transactionIDs.count) 笔）" : "撤销这次改动", systemImage: "arrow.uturn.backward") }
+                        .buttonStyle(.soft)
+                }
+                Spacer()
+                #if os(macOS)
+                Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏", systemImage: "sparkles") }
+                    .buttonStyle(.soft).help("在右边的对话栏里问夏夏这一笔")
+                #endif
             }
             TransactionActions(tx: tx)
         }

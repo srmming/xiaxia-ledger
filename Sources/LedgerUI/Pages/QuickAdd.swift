@@ -215,7 +215,7 @@ struct QuickAdd: View {
                     .frame(minWidth: 90)
                     .accessibilityLabel("金额，可以写算式，比如 12,50+3,20")
                 #endif
-                Text("€").font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
+                Text(Currencies.info(accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)).symbol).font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
