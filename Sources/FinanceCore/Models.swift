@@ -269,8 +269,12 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var insights: [Insight] = []
     /// 夏夏的性格、你的目标、自己加的分类。
     public var profile = Profile()
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
-        case currency, subscriptions
+    /// 主币种和汇率表。
+    public var currency = CurrencySettings()
+    /// 订阅：每月 / 每年固定在扣的钱。
+    public var subscriptions: [Subscription] = []
+    /// 重复记账：房租、话费这种固定的，到日子自动记上。
+    public var recurring: [Recurring] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -280,9 +284,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile
-        case currency, subscriptions
         case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
+        case currency, subscriptions
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
