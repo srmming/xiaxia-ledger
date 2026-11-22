@@ -221,10 +221,16 @@ enum MCPTools {
         tool("rename_category", "把一个分类整体改名，或并进另一个已有分类。", [
             "from": prop("string", "原分类"), "to": prop("string", "新分类"), "author": author, "dry_run": dryRun,
         ], required: ["from", "to"], readOnly: false),
-        tool("add_category", "加一个新分类（还没有流水用它也行），app 记一笔时就能选。重名会提示。", [
+        tool("add_category", "加一个新分类（还没有流水用它也行），app 记一笔时就能选。重名会提示。icon 可以挑一个图标（名字见 list_category_icons），不填按名字自动配。", [
             "name": prop("string", "分类名，如「宠物」"), "income": prop("boolean", "是收入分类就填 true，默认支出"),
+            "icon": prop("string", "图标名，如 pets、coffee（见 list_category_icons）"),
             "author": author, "dry_run": dryRun,
         ], required: ["name"], readOnly: false),
+        tool("set_category_icon", "给一个分类换图标（已有流水的分类也行）。icon 留空 = 改回按名字自动配。", [
+            "name": prop("string", "分类名"), "icon": prop("string", "图标名（见 list_category_icons），留空改回自动"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["name"], readOnly: false),
+        tool("list_category_icons", "分类能用的图标：按分组列出图标名和中文名，以及哪些分类已经挑过图标。", [:], readOnly: true),
         tool("set_profile", "改夏夏的说话方式或用户的目标。persona：gentle 温和直说 / sharp 毒舌 / calm 文静 / cheer 打气。aim：用户想让夏夏帮他做到什么（空字符串 = 清掉）。只在用户要求时改。", [
             "persona": prop("string", "gentle / sharp / calm / cheer"), "aim": prop("string", "用户的目标，如「每个月存下 500 €」"),
             "author": author, "dry_run": dryRun,
@@ -467,7 +473,17 @@ enum MCPTools {
         case "rename_category":
             return try commit(try ledger.renameCategory(try req("from"), to: try req("to"), author: who))
         case "add_category":
-            return try commit(try ledger.addCategory(try req("name"), income: flag("income"), author: who))
+            return try commit(try ledger.addCategory(try req("name"), income: flag("income"), icon: s("icon").flatMap { $0.isEmpty ? nil : $0 }, author: who))
+        case "set_category_icon":
+            let icon = s("icon").flatMap { $0.isEmpty ? nil : $0 }
+            return try commit(try ledger.setCategoryIcon(try req("name"), icon: icon, author: who))
+        case "list_category_icons":
+            var out = CategoryIcons.sections.map { sec in
+                "\(sec.label)：" + sec.icons.map { n in "\(n)（\(CategoryIcons.label(n) ?? n)）" }.joined(separator: " ")
+            }
+            let picked = ledger.categoryIcons.sorted { $0.key < $1.key }.map { "\($0.key) → \($0.value)" }
+            out.append(picked.isEmpty ? "还没有分类挑过图标（都按名字自动配）。" : "已挑过图标的分类：" + picked.joined(separator: "，"))
+            return out.joined(separator: "\n")
         case "set_profile":
             var last: ChangeRecord?
             if let p = s("persona") {

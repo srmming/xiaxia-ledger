@@ -210,6 +210,11 @@ for spec in \
   'add_insight|{"kind":"alert","title":"坏页面","page":"nopage"}' \
   'add_category|{"name":"宠物"}' \
   'add_category|{"name":"宠物"}' \
+  'add_category|{"name":"奶茶","icon":"bubbletea"}' \
+  'add_category|{"name":"坏图标","icon":"nosuchicon"}' \
+  'set_category_icon|{"name":"餐饮","icon":"hotpot"}' \
+  'set_category_icon|{"name":"餐饮","icon":""}' \
+  'list_category_icons|{}' \
   'set_profile|{"persona":"sharp","aim":"每个月存下 500 €"}' \
   'set_profile|{"persona":"pirate"}' \
   'list_insights|{}' 'ai_status|{}' \
