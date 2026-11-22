@@ -126,6 +126,8 @@ struct WelcomeView: View {
     @State private var justConnected: AIApp?
     /// 连着了但一直没等到 AI 来：等了几轮（提醒一次「网页版连不到」）。
     @State private var waitTicks = 0
+    /// 点过「复制指令」了：从这时起才算「在等 AI 来」。
+    @State private var copiedSentence = false
     @State private var knownTransactions: Set<UUID> = []
     @State private var knownGoals: Set<UUID> = []
     /// AI 连上了：结尾是庆祝，不是「记第一笔试试」。
@@ -409,6 +411,8 @@ struct WelcomeView: View {
                     if !linked.isEmpty {
                         primary("复制指令", symbol: "doc.on.doc", id: "welcome.ai.copyPrompt") {
                             Clipboard.copy(AIConnector.welcomeSentence)
+                            copiedSentence = true
+                            waitTicks = 0
                             model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
                         }
                     } else if !toConnect.isEmpty {
@@ -720,6 +724,7 @@ struct WelcomeView: View {
         handshakeSeen = false
         justConnected = nil
         waitTicks = 0
+        copiedSentence = false
         tryStartedAt = Date()
         knownTransactions = Set(model.ledger.transactions.map(\.id))
         knownGoals = Set(model.ledger.goals.map(\.id))
@@ -799,11 +804,12 @@ struct WelcomeView: View {
                 await say("我看到 \(who) 来读账本了！跟它说说今天花了什么吧。", pose: .cheer)
                 continue
             }
-            if !handshakeSeen, !linked.isEmpty {
+            if !handshakeSeen, !linked.isEmpty, copiedSentence {
                 waitTicks += 1
-                if waitTicks == 30 {
-                    // 等了一分钟：多半是粘到了网页版 / 手机版，或者还没重开 AI。
-                    await say("还没等到。网页版和手机版的 AI 连不到这台电脑，要用装在电脑上的那个哦。", pose: .worried)
+                if waitTicks == 45 {
+                    // 复制后等了一分半还没动静：可能还没发、粘到了网页版 / 手机版，或者还没重开 AI。只提醒一次，不吓人。
+                    let reopen = justConnected.map { "先\($0.afterConnect)，再发一次。" } ?? "要发给装在这台电脑上的那个，网页版和手机版连不过来。"
+                    await say("还没看到 AI 来读账本。\(reopen)", pose: .think)
                     continue
                 }
             }
