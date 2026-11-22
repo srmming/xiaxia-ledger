@@ -44,7 +44,9 @@ struct TransactionsPage: View {
                     }
                 }
                 .padding(Kit.side)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+                // 最小宽度别跟着「有没有右边详情」变：不然 Mac 上对话栏开着时，详情一出一收会让分栏反复重排，AppKit 直接 abort（实测点「看看」闪退）。
+                .clipped()
                 .background(Color.pageBackground)
                 .background { WidthReader(width: $width) }
                 #else
@@ -200,6 +202,8 @@ struct TransactionsPage: View {
         .kitCard()
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { if selected == nil { selected = list.first?.id } }
+        // 筛选变了（比如从「刚改的 N 笔」跳进来），右边详情别还停在列表里看不到的那一笔。
+        .onChange(of: list.map(\.id)) { _, ids in if selected.map({ !ids.contains($0) }) ?? true { selected = ids.first } }
         .onChange(of: selected, initial: true) { _, id in model.selectedTransactionID = id }
         .onDisappear { model.selectedTransactionID = nil }
     }
@@ -346,6 +350,10 @@ struct TransactionDetail: View {
                             .buttonStyle(.soft)
                     }
                     Spacer()
+                    #if os(macOS)
+                    Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏", systemImage: "sparkles") }
+                        .buttonStyle(.soft).help("在右边的对话栏里问夏夏这一笔")
+                    #endif
                     Button("删除这笔") { confirmDelete = true }.buttonStyle(.softAlert)
                 }
             } else {

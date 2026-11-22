@@ -44,8 +44,8 @@ struct OverviewPage: View {
             return model.voiced("\(m) 月还没有流水，导进来我再帮你看。", .neutral)
         }
         if s.isCurrent, let end = s.projectedEnd {
-            return end.isExpense ? model.voiced("照现在的花钱速度，\(m) 月底大概会超支 \(end.magnitude.rounded)。", .bad)
-                : model.voiced("照现在的花钱速度，\(m) 月底大概能剩 \(end.rounded)。", .good)
+            return end.isExpense ? model.voiced("照这样下去，\(m) 月底大概会超支 \(end.magnitude.rounded)。", .bad)
+                : model.voiced("照这样下去，\(m) 月底大概能剩 \(end.rounded)。", .good)
         }
         return s.net.isExpense ? model.voiced("\(m) 月花得比挣得多，超支了 \(s.net.magnitude.rounded)。", .bad)
             : model.voiced("\(m) 月剩下了 \(s.net.rounded)。", .good)

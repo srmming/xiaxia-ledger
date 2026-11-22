@@ -59,6 +59,15 @@ extension LedgerModel {
         }
     }
 
+    /// Mac 上对话栏能用：有登录好的 AI，且不是示例数据。这时所有「问 AI」入口都进对话栏，不再复制去 Claude。
+    var chatReady: Bool {
+        #if os(macOS)
+        chat.engine != nil && !(store is InMemoryLedgerStore)
+        #else
+        false
+        #endif
+    }
+
     /// 连别的 AI 工具时粘进它的 MCP 设置里的那段。
     var mcpConfig: String {
         AIConnector.configSnippet(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin")
@@ -72,6 +81,13 @@ struct AskAIAction {
     let openURL: OpenURLAction
 
     func callAsFunction(_ text: String, page: String? = nil, open: Bool = true) {
+        #if os(macOS)
+        // Mac 上连好了 AI：不跳去 Claude，直接放进右边的夏夏对话栏，用户改一改再发（例句里的金额是编的，不能替用户直接记）。
+        if open, model.chatReady {
+            model.chat.prefill(text)
+            return
+        }
+        #endif
         let full = page.map { model.contextLine(page: $0) + text } ?? text
         Clipboard.copy(full)
         model.toast = .init(text: open ? "已复制，在 Claude 里粘贴就行" : "已复制", changeID: nil)
@@ -97,16 +113,17 @@ struct AskAICard: View {
     let page: String
     let prompts: [AIPrompt]
 
+    @Environment(LedgerModel.self) var model
     var body: some View {
         AskAIReader { ask in
             VStack(alignment: .leading, spacing: 10) {
                 Label { Text(title).font(.kitSection) } icon: { Image(systemName: "sparkles").foregroundStyle(Color.ai) }
-                if let note { Text(note).font(.caption).foregroundStyle(Color.fg2) }
+                if let note { Text(model.chatReady ? "点一句，放进右边的夏夏对话栏，改一改再发。" : note).font(.caption).foregroundStyle(Color.fg2) }
                 VStack(spacing: 8) {
                     ForEach(prompts) { p in
                         Button { ask(p.text, page: page) } label: { PromptRow(prompt: p) }
                             .buttonStyle(.pressable)
-                            .accessibilityLabel("复制并问 AI：\(p.text)")
+                            .accessibilityLabel((model.chatReady ? "问夏夏：" : "复制并问 AI：") + p.text)
                     }
                 }
             }
@@ -116,13 +133,14 @@ struct AskAICard: View {
 }
 
 struct PromptRow: View {
+    @Environment(LedgerModel.self) var model
     let prompt: AIPrompt
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             KitTag(text: prompt.kind, color: .ai, background: .aiSoft)
             Text(prompt.text).font(.subheadline).foregroundStyle(.primary).multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "doc.on.doc").font(.caption).foregroundStyle(Color.fg3)
+            Image(systemName: model.chatReady ? "arrow.up.right" : "doc.on.doc").font(.caption).foregroundStyle(Color.fg3)
         }
         .padding(.horizontal, 10).padding(.vertical, 9)
         .background(Color.sunken.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))

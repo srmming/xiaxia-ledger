@@ -32,6 +32,22 @@ public final class XiaxiaChatState {
         if let saved, available.contains(saved) { engine = saved } else { engine = available.first }
     }
 
+    /// 右键一笔「问夏夏这一笔」：打开对话栏，把这一笔写进输入框开头，光标停在后面等用户接着问。
+    @ObservationIgnored var focusRequest: (() -> Void)?
+    func ask(about tx: Transaction, model: LedgerModel) {
+        open = true
+        model.selectedTransactionID = tx.id
+        draft = "这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，"
+        focusRequest?()
+    }
+
+    /// 把一句话放进输入框（来自页面上的例句、「问 AI」按钮），打开对话栏等用户改完再发。
+    func prefill(_ text: String) {
+        open = true
+        if !text.isEmpty { draft = text }
+        focusRequest?()
+    }
+
     public func newConversation() {
         messages = []
         session = nil
@@ -85,7 +101,10 @@ struct XiaxiaChatPanel: View {
             }
         }
         .background(Color.pageBackground)
-        .onAppear { chat.refreshEngines(); inputFocused = true }
+        .onAppear {
+            chat.refreshEngines(); inputFocused = true
+            chat.focusRequest = { inputFocused = true }
+        }
     }
 
     private func header(_ chat: XiaxiaChatState) -> some View {
@@ -156,7 +175,7 @@ struct XiaxiaChatPanel: View {
             Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
                 .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
-                Button { chat.send(p.text, model: model) } label: { PromptRow(prompt: p) }
+                Button { chat.prefill(p.text) } label: { PromptRow(prompt: p) }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("问夏夏：\(p.text)")
             }

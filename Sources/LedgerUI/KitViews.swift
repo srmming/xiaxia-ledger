@@ -186,6 +186,12 @@ struct TxRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .contextMenu {
+            Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
+        }
+        .accessibilityAction(named: "问夏夏这一笔") { model.chat.ask(about: tx, model: model) }
+        #endif
     }
 
     private var detail: String {
@@ -323,6 +329,7 @@ struct SegmentedProgress: View {
 
 /// 空的时候一律把人引去找 AI：一句说明 + 一个「复制这句话」按钮。
 struct KitEmptyState: View {
+    @Environment(LedgerModel.self) var model
     /// 旧写法：给一个 SF Symbol 名字，按它挑一张合适的夏夏插画（见 artFor）。
     var symbol: String? = nil
     /// 夏夏插画（160×120）：睡着的、在想事情的、出错的……不给就按 symbol 挑。
@@ -331,7 +338,7 @@ struct KitEmptyState: View {
     let message: String
     var prompt: String? = nil
     var page = "总览"
-    var buttonTitle = "复制这句话"
+    var buttonTitle = "复制好去问 AI"
 
     var body: some View {
         AskAIReader { ask in
@@ -342,7 +349,7 @@ struct KitEmptyState: View {
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
                 if let prompt {
-                    Button { ask(prompt, page: page) } label: { Label(buttonTitle, systemImage: "doc.on.doc") }
+                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? "跟夏夏说" : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)
                 }
