@@ -131,7 +131,7 @@ public final class LedgerModel {
                 category: t.category, account: accountName(t.accountID), book: ledger.books.first { $0.id == t.bookID }?.name) : nil
         }
         return AppBridge.View(page: page.rawValue, month: page.usesMonth ? shownMonth.description : nil,
-                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? "全部账本",
+                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? (ledger.books.count == 1 ? ledger.books[0].name + "账本（只有这一个）" : "全部账本"),
                               selected: sel)
     }
 
