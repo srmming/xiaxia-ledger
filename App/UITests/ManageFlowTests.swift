@@ -100,7 +100,7 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(find(app, "银行卡2").waitForExistence(timeout: 5), "账户改名没生效")
     }
 
-    /// 全新的空账本：记一笔时当场加账户和新分类（原地输入），能记下。
+    /// 全新的空账本：记一笔时当场加账户和新分类（弹出新建分类面板，名字按「咖啡」自动配图标），能记下。
     func testQuickAddOnEmptyLedger() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "add")
         let one = app.buttons["1"]
@@ -112,10 +112,13 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertFalse(save.isEnabled, "没选分类和账户就能记")
 
         app.buttons["加一个新分类"].tap()
-        let field = app.textFields["新分类的名字"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "新分类没有原地出输入框")
-        field.typeText("咖啡\n")
+        let field = app.textFields["分类名字"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "新建分类面板没出来")
+        field.tap()
+        field.typeText("咖啡")
+        app.buttons["建好了"].tap()
         XCTAssertTrue(button(app, "咖啡").waitForExistence(timeout: 5), "新分类没出现在格子里")
+        XCTAssertTrue(button(app, "咖啡").isSelected, "建好的分类没直接选上")
 
         app.buttons["账户：还没选"].tap()
         app.buttons["新账户…"].tap()
@@ -157,6 +160,32 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
         app.tabBars.buttons["计划"].tap()
         XCTAssertTrue(find(app, "旅行").waitForExistence(timeout: 5), "目标没出现在计划页")
+    }
+
+    /// 计划页「订阅」：登记一个，合计和这一行出来；再「不续了」，合计变成 0。
+    func testSubscriptionAddAndCancel() {
+        let app = launch("-XiaxiaEmpty")
+        app.tabBars.buttons["计划"].tap()
+        let tab = app.segmentedControls["plansTab"].buttons["订阅"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 15), "计划页没有「订阅」那一格")
+        tab.tap()
+        let add = app.buttons["addSubscription"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "没有登记订阅的按钮")
+        add.tap()
+        let name = app.textFields["名字，比如「视频会员」"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5), "登记订阅没打开")
+        name.tap()
+        name.typeText("音乐会员")
+        let amount = app.textFields["每次扣多少，比如 13,99"]
+        amount.tap()
+        amount.typeText("10,99")
+        app.buttons["保存"].tap()
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
+        XCTAssertTrue(find(app, "10,99 €").waitForExistence(timeout: 5), "每月合计没出来")
+        XCTAssertTrue(find(app, "音乐会员").exists, "订阅没出现在列表里")
+        app.buttons["音乐会员 的操作"].tap()
+        app.buttons["不续了"].tap()
+        XCTAssertTrue(find(app, "已经停了的 1 个").waitForExistence(timeout: 5), "停了以后没归到「已经停了的」")
     }
 
     /// 夏夏建议页：点一个例子写下目标。

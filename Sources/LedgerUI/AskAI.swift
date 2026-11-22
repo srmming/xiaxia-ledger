@@ -42,7 +42,8 @@ extension LedgerModel {
         case .plans:
             return [AIPrompt(kind: "目标", text: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够"),
                     AIPrompt(kind: "欠款", text: "帮我记一笔欠款：朋友借了我 300 €，下个月还"),
-                    AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣")]
+                    AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣"),
+                    AIPrompt(kind: "订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本")]
         case .spending:
             return [AIPrompt(kind: "问问题", text: "\(m)钱主要花在哪了？哪些可以省？"), record,
                     AIPrompt(kind: "整理", text: "帮我看看\(m)有没有分错类的流水")]
@@ -141,7 +142,7 @@ struct AskAIButton: View {
                 Button {
                     ask("", page: page)
                 } label: {
-                    Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
+                    Label { Text("问夏夏") } icon: { XiaGlyph.actAsk.image(size: 17) }.labelStyle(.titleAndIcon)
                 }
                 .tint(Color.ai)
                 .help("把这一页的情况复制好，打开 Claude，粘贴就能问夏夏（⌘K）")
@@ -150,7 +151,7 @@ struct AskAIButton: View {
                 Button {
                     ask("", page: page)
                 } label: {
-                    Label("问 AI", systemImage: "sparkles")
+                    Label { Text("问 AI") } icon: { XiaGlyph.actAsk.image(size: 16) }
                 }
                 .buttonStyle(AISolidButtonStyle())
                 .help("复制当前页面的上下文，打开 Claude（⌘K）")

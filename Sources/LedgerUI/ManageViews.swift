@@ -148,14 +148,14 @@ struct AccountManager: View {
                 ForEach(model.ledger.accounts) { a in
                     Button { editing = AccountDraft(a) } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: a.kind.symbol).foregroundStyle(Color.fg2).frame(width: 24)
+                            AccountIcon(kind: a.kind, isPrivate: a.isPrivate, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(a.name).foregroundStyle(.primary)
                                 Text([a.kind.label, a.institution == a.name ? nil : a.institution, a.isPrivate ? "私房钱" : nil].compactMap { $0 }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(Color.fg2)
                             }
                             Spacer()
-                            Text((balances[a.id] ?? .zero).balance).font(.kitAmount).foregroundStyle(Color.fg2)
+                            Text(model.balanceText(a.id)).font(.kitAmount).foregroundStyle(Color.fg2)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
                         }
                         .contentShape(Rectangle())
@@ -192,10 +192,12 @@ struct AccountDraft: Identifiable {
     var institution = ""
     var isPrivate = false
     var opening = ""
+    /// 空 = 主币种。
+    var currency = ""
 
     init() {}
     init(_ a: Account) {
-        original = a; name = a.name; kind = a.kind; institution = a.institution ?? ""; isPrivate = a.isPrivate
+        original = a; name = a.name; kind = a.kind; institution = a.institution ?? ""; isPrivate = a.isPrivate; currency = a.currency ?? ""
     }
 }
 
@@ -215,6 +217,11 @@ struct AccountEditor: View {
                 }
                 FormField("银行或机构", "可不填", text: $draft.institution)
                 Toggle("私房钱", isOn: $draft.isPrivate)
+                CurrencyPicker(title: "币种", selection: $draft.currency)
+            } footer: {
+                if !draft.currency.isEmpty && draft.currency != model.ledger.baseCurrency {
+                    Text("这个账户的流水按\(Currencies.info(draft.currency).name)记，看板上按当天汇率换成\(Currencies.info(model.ledger.baseCurrency).name)。")
+                }
             }
             if draft.original == nil {
                 Section {
@@ -249,6 +256,10 @@ struct AccountEditor: View {
             if var a = draft.original {
                 a.name = name; a.kind = draft.kind; a.institution = inst.isEmpty ? nil : inst; a.isPrivate = draft.isPrivate
                 if a != draft.original { try model.edit { try $0.updateAccount(a, author: model.author) } }
+                let newCode = draft.currency.isEmpty ? model.ledger.baseCurrency : draft.currency
+                if newCode != model.ledger.currency(ofAccount: a.id) {
+                    try model.edit { try $0.setAccountCurrency(a.id, newCode, author: model.author) }
+                }
             } else {
                 var opening: Money?
                 let text = draft.opening.replacingOccurrences(of: " ", with: "")
@@ -256,8 +267,9 @@ struct AccountEditor: View {
                     guard let m = Money(parsing: text) else { error = "余额看不懂，写成 1.250,00 这样。"; return }
                     opening = m
                 }
+                let code = draft.currency.isEmpty || draft.currency == model.ledger.baseCurrency ? nil : draft.currency
                 let a = Account(id: model.ledger.newAccountID(for: name), name: name, kind: draft.kind,
-                                institution: inst.isEmpty ? nil : inst, isPrivate: draft.isPrivate)
+                                institution: inst.isEmpty ? nil : inst, isPrivate: draft.isPrivate, currency: code)
                 try model.edit { try $0.createAccount(a, openingBalance: opening, author: model.author) }
             }
             dismiss()
@@ -281,8 +293,8 @@ struct CategoryManager: View {
     @Environment(\.dismiss) var dismiss
     @State var renaming: String?
     @State var renameText = ""
-    @State var newName = ""
-    @State var newIncome = false
+    @State var creating = false
+    @State var editingIcon: String?
     @State var error: String?
 
     private var counts: [(name: String, count: Int)] {
@@ -300,32 +312,33 @@ struct CategoryManager: View {
                     Text("还没有分类。记一笔或导入流水后，这里会列出用过的分类。").foregroundStyle(Color.fg2)
                 }
                 ForEach(list, id: \.name) { item in
-                    Button { renameText = item.name; renaming = item.name } label: {
-                        HStack(spacing: 12) {
-                            CategoryIcon(category: item.name, size: 26)
-                            Text(item.name).foregroundStyle(.primary)
-                            Spacer()
-                            Text("\(item.count) 笔").foregroundStyle(Color.fg2).monospacedDigit()
-                            Image(systemName: "pencil").font(.caption).foregroundStyle(Color.fg3)
+                    HStack(spacing: 12) {
+                        Button { editingIcon = item.name } label: {
+                            CategoryIcon(category: item.name, size: 30)
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel("给「\(item.name)」换图标")
+                        Button { renameText = item.name; renaming = item.name } label: {
+                            HStack(spacing: 12) {
+                                Text(item.name).foregroundStyle(.primary)
+                                Spacer()
+                                Text("\(item.count) 笔").foregroundStyle(Color.fg2).monospacedDigit()
+                                Image(systemName: "pencil").font(.caption).foregroundStyle(Color.fg3)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("改名或并进别的分类")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("改名或并进别的分类")
                 }
             } header: { Text("分类") } footer: {
-                Text("改成一个已有的名字，就是把两个分类并成一个。")
+                Text("点图标换图标，点名字改名。改成一个已有的名字，就是把两个分类并成一个。")
             }
             Section {
-                FormField("名字", "比如「宠物」「学费」", text: $newName)
-                    .onSubmit(add)
-                Picker("用在", selection: $newIncome) {
-                    Text("支出").tag(false)
-                    Text("收入").tag(true)
+                Button { creating = true } label: {
+                    Label { Text("新建分类…") } icon: { XiaGlyph.actAdd.image(size: 18) }
                 }
-                .pickerStyle(.segmented)
-                Button("新建", action: add).disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
-            } header: { Text("新建分类") } footer: { Text("记一笔时也能点「＋ 新分类」当场加。") }
+            } footer: { Text("先挑一个图标，再填名字。记一笔时也能点「＋ 新分类」当场加。") }
         }
         .formStyle(.grouped)
         .navigationTitle("管理分类")
@@ -342,12 +355,9 @@ struct CategoryManager: View {
             }
         } message: { Text("这个分类下的流水会一起改。") }
         .errorAlert($error)
-    }
-
-    private func add() {
-        do {
-            try model.edit { try $0.addCategory(newName, income: newIncome, author: model.author) }
-            newName = ""
-        } catch { self.error = error.localizedDescription }
+        .sheet(isPresented: $creating) { NavigationStack { CategoryCreator() } }
+        .sheet(isPresented: Binding(get: { editingIcon != nil }, set: { if !$0 { editingIcon = nil } })) {
+            if let name = editingIcon { NavigationStack { CategoryIconEditor(category: name) } }
+        }
     }
 }

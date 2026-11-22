@@ -52,7 +52,9 @@ public enum Persona: String, Codable, Sendable, CaseIterable, Identifiable {
 public struct CustomCategory: Codable, Hashable, Sendable {
     public var name: String
     public var income: Bool
-    public init(name: String, income: Bool) { self.name = name; self.income = income }
+    /// 用户挑的图标（CategoryIcons 里的名字，如 "coffee"）；nil = 按名字自动配。
+    public var icon: String?
+    public init(name: String, income: Bool, icon: String? = nil) { self.name = name; self.income = income; self.icon = icon }
 }
 
 /// 跟着账本走（经 iCloud 同步）的个人设置：夏夏的性格、你想让夏夏帮你做到什么、自己加的分类。
@@ -107,15 +109,41 @@ extension Ledger {
         return names
     }
 
-    /// 加一个新分类（还没有流水用它）。重名会提示。
+    /// 加一个新分类（还没有流水用它）。重名会提示。icon 是 CategoryIcons 里的图标名，不填就按名字自动配。
     @discardableResult
-    public mutating func addCategory(_ name: String, income: Bool, author: String) throws -> ChangeRecord {
+    public mutating func addCategory(_ name: String, income: Bool, icon: String? = nil, author: String) throws -> ChangeRecord {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { throw ManageError.emptyName }
         guard !allCategoryNames(income: income).contains(n) else { throw ManageError.duplicateName(n) }
+        if let icon { guard CategoryIcons.isValid(icon) else { throw ManageError.unknownIcon(icon) } }
         let old = profile
-        profile.categories.append(CustomCategory(name: n, income: income))
-        return appendProfileChange("加分类「\(n)」（\(income ? "收入" : "支出")）", before: old, author: author)
+        profile.categories.append(CustomCategory(name: n, income: income, icon: icon))
+        let iconNote = icon.flatMap(CategoryIcons.label).map { "，图标「\($0)」" } ?? ""
+        return appendProfileChange("加分类「\(n)」（\(income ? "收入" : "支出")\(iconNote)）", before: old, author: author)
+    }
+
+    /// 给一个分类换图标（已有流水的分类也行）。icon 传 nil = 改回按名字自动配。
+    @discardableResult
+    public mutating func setCategoryIcon(_ name: String, icon: String?, author: String) throws -> ChangeRecord {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { throw ManageError.emptyName }
+        if let icon { guard CategoryIcons.isValid(icon) else { throw ManageError.unknownIcon(icon) } }
+        let old = profile
+        if let i = profile.categories.firstIndex(where: { $0.name == n }) {
+            profile.categories[i].icon = icon
+        } else {
+            let income = transactions.first { $0.category == n }.map { $0.amount.isIncome } ?? false
+            profile.categories.append(CustomCategory(name: n, income: income, icon: icon))
+        }
+        let what = icon.flatMap(CategoryIcons.label).map { "换成「\($0)」" } ?? "改回自动配"
+        return appendProfileChange("分类「\(n)」的图标\(what)", before: old, author: author)
+    }
+
+    /// 用户给分类挑过的图标：分类名 → 图标名。
+    public var categoryIcons: [String: String] {
+        var m: [String: String] = [:]
+        for c in profile.categories { if let i = c.icon { m[c.name] = i } }
+        return m
     }
 
     mutating func appendProfileChange(_ summary: String, before: Profile, author: String) -> ChangeRecord {

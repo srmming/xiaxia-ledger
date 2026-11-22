@@ -69,8 +69,7 @@ struct XiaxiaHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 24, height: 24).background(Color.ai, in: Circle())
+            XiaxiaAvatar(persona: model.persona, size: 28)
                 .accessibilityHidden(true)
             Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
             Spacer()

@@ -7,6 +7,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case add
     /// 管理账本、账户、分类。
     case books, accounts, categories
+    /// 新建分类：先挑图标再填名字。
+    case newCategory
     /// 连上你的 AI（Mac 第一次打开、设置里）。
     case connectAI
     /// 计划页「新计划」：存钱目标、分期、借款。
@@ -27,7 +29,9 @@ public final class LedgerModel {
     }
 
     public let store: any LedgerStore
-    public private(set) var ledger: Ledger = .fresh
+    public private(set) var ledger: Ledger = .fresh {
+        didSet { CategoryStyle.customIcons = ledger.categoryIcons }
+    }
     public var selectedBookID: String? { didSet { publishView() } }       // nil = 全部
     public var showPrivate = false            // 私房钱默认藏起来
     public var loadError: String?
@@ -240,12 +244,19 @@ public final class LedgerModel {
         var showPrivate: Bool
         var balances: [String: Money]
         var suggester: Suggester
+        /// 金额换成主币种的流水（没有外币账户时就是原来的）。
+        var baseTxs: [FinanceCore.Transaction]
+        /// 账户自己币种的余额。
+        var nativeBalances: [String: Money]
     }
     @ObservationIgnored private var cache: Cache?
 
     private func cached() -> Cache {
         if let c = cache, c.showPrivate == showPrivate { return c }
-        let c = Cache(showPrivate: showPrivate, balances: Summaries.balances(ledger.transactions), suggester: Suggester(ledger.transactions))
+        let base = ledger.baseTransactions
+        let all = ledger.accountBalances()
+        let c = Cache(showPrivate: showPrivate, balances: all.mapValues(\.base), suggester: Suggester(ledger.transactions),
+                      baseTxs: base, nativeBalances: all.mapValues(\.native))
         cache = c
         return c
     }
@@ -261,7 +272,12 @@ public final class LedgerModel {
             .sorted { ($0.date, $0.description) > ($1.date, $1.description) }
     }
 
+    /// 每个账户的余额，换成主币种（外币按今天的汇率）。加起来算家底用它。
     public var balances: [String: Money] { cached().balances }
+    /// 每个账户自己币种的余额（美元卡就是美元）。
+    public var nativeBalances: [String: Money] { cached().nativeBalances }
+    /// 换成主币种的流水：所有「加起来」的统计都用它。
+    public var baseTransactions: [FinanceCore.Transaction] { cached().baseTxs }
     public var suggester: Suggester { cached().suggester }
 
     public var totalBalance: Money {
@@ -279,11 +295,11 @@ public final class LedgerModel {
     public var shownMonth: YearMonth { selectedMonth ?? currentMonth }
 
     public func summary(_ month: YearMonth) -> MonthlySummary {
-        Summaries.monthly(ledger.transactions, month: month, bookID: selectedBookID, hiddenAccounts: hiddenAccounts)
+        Summaries.monthly(baseTransactions, month: month, bookID: selectedBookID, hiddenAccounts: hiddenAccounts)
     }
 
     public func summaries(_ months: [YearMonth], bookID: String?) -> [MonthlySummary] {
-        Reports.summaries(ledger.transactions, months: months, bookID: bookID, hiddenAccounts: hiddenAccounts)
+        Reports.summaries(baseTransactions, months: months, bookID: bookID, hiddenAccounts: hiddenAccounts)
     }
 
     public func summaries(_ months: [YearMonth]) -> [MonthlySummary] { summaries(months, bookID: selectedBookID) }

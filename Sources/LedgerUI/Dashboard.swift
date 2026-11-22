@@ -65,7 +65,7 @@ extension LedgerModel {
     /// 和 Summaries.monthly 一样的范围：普通收支、没藏起来的账户、选中的账本（全部时不算账本间转账）。
     func scopedTransactions(_ month: YearMonth, bookID: String?) -> [Transaction] {
         let hidden = hiddenAccounts
-        return ledger.transactions.filter { tx in
+        return baseTransactions.filter { tx in
             guard tx.date.yearMonth == month, tx.countsAsIncomeOrExpense, !hidden.contains(tx.accountID) else { return false }
             if let bookID { return tx.bookID == bookID }
             return !tx.isTransfer
@@ -101,7 +101,7 @@ extension LedgerModel {
         let today = LocalDate.today
         let isCurrent = month == today.yearMonth
         let day = isCurrent ? today.day : month.dayCount
-        let summary = Summaries.monthly(ledger.transactions, month: month, bookID: book, hiddenAccounts: hiddenAccounts)
+        let summary = Summaries.monthly(baseTransactions, month: month, bookID: book, hiddenAccounts: hiddenAccounts)
         let prev = month.previous
         let prevDay = min(day, prev.dayCount)
         let pace = cumulative(month, bookID: book, upTo: day, series: "本月")
@@ -136,7 +136,7 @@ extension LedgerModel {
     /// 每个月底的家底（所有看得见的账户余额加起来，信用卡是负的）。
     func netWorthSeries(months: [YearMonth]) -> [NetWorthPoint] {
         let hidden = hiddenAccounts
-        let txs = ledger.transactions.filter { !hidden.contains($0.accountID) }.sorted { $0.date < $1.date }
+        let txs = baseTransactions.filter { !hidden.contains($0.accountID) }.sorted { $0.date < $1.date }
         var result: [NetWorthPoint] = []
         var i = 0
         var running = Money.zero

@@ -11,10 +11,17 @@ extension Money {
         if cents < 0 { return "\u{2212}" + magnitude.formatted }
         return formatted
     }
+    /// 按某个币种的界面写法（外币账户的流水：「−20,00 US$」）。nil = 主币种。
+    func display(in currency: String?) -> String {
+        guard let currency, currency != Money.defaultCurrency else { return display }
+        if cents > 0 { return "+" + formatted(in: currency) }
+        if cents < 0 { return "\u{2212}" + magnitude.formatted(in: currency) }
+        return formatted(in: currency)
+    }
     /// 不带小数的写法：「1.150 €」，给一句话里用。
     var rounded: String {
         let euros = (magnitude.cents + 50) / 100
-        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 €", with: " €")
+        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 ", with: " ")
         return (cents < 0 ? "\u{2212}" : "") + text
     }
     /// 余额：负数（信用卡欠款）带减号，正数不带。
@@ -26,9 +33,11 @@ struct AmountText: View {
     let money: Money
     var neutral = false
     var font: Font = .kitAmount
+    /// 外币账户的流水按它自己的币种显示；nil = 主币种。
+    var currency: String? = nil
 
     var body: some View {
-        Text(neutral ? money.magnitude.formatted : money.display)
+        Text(neutral ? money.magnitude.formatted(in: currency ?? Money.defaultCurrency) : money.display(in: currency))
             .font(font)
             .foregroundStyle(neutral ? Color.fg3 : (money.isIncome ? Color.income : Color.primary))
             .contentTransition(.numericText(value: Double(money.cents)))
@@ -139,40 +148,48 @@ struct FlowLayout: Layout {
 
 /// 分类的图标和常用分类表。
 enum CategoryStyle {
-    static let symbols: [String: String] = [
-        "餐饮": "fork.knife", "超市": "cart", "交通": "tram", "房租": "house", "店租": "storefront",
-        "水电": "bolt", "耗材": "paintbrush", "设备": "wrench.and.screwdriver", "员工工资": "person.crop.rectangle",
-        "工资": "briefcase", "收入": "arrow.down.circle", "营业收入": "sparkles", "其他": "tag",
-        "购物": "bag", "娱乐": "gamecontroller", "医疗": "cross.case", "通讯": "phone", "旅行": "airplane",
-        "衣服": "tshirt", "宝宝": "figure.and.child.holdinghands", "礼物": "gift", "咖啡": "cup.and.saucer",
-        "加油": "fuelpump", "宠物": "pawprint", "学习": "book", "美容": "scissors", "税费": "building.columns",
-        "社保": "shield", "营销": "megaphone", "手续费": "percent", "保险": "umbrella", "退款": "arrow.uturn.backward.circle",
-        "老板提款": "arrow.left.arrow.right", "转入": "arrow.left.arrow.right", "转出": "arrow.left.arrow.right",
-        "充值": "arrow.down.to.line", "订阅": "repeat", "未分类": "questionmark.circle",
+    /// 分类名 → 夏夏自己画的图标（design/icon-kit）。名字完全一样的优先；不然看开头，
+    /// 比如「交通出行」用「交通」的、「超市日用」用「超市」的。都对不上就用「其他」。
+    static let glyphs: [String: XiaGlyph] = [
+        "餐饮": .dining, "外卖": .dining, "吃饭": .dining, "超市": .grocery, "买菜": .grocery, "日用": .grocery,
+        "交通": .transport, "打车": .transport, "房租": .housing, "住房": .housing, "房贷": .housing,
+        "水电": .utilities, "购物": .shopping, "网购": .shopping, "娱乐": .entertainment, "游戏": .entertainment,
+        "医疗": .medical, "药": .medical, "通讯": .phone, "话费": .phone, "旅行": .travel, "酒店": .travel,
+        "宝宝": .baby, "孩子": .baby, "衣服": .clothing, "服饰": .clothing, "礼物": .gift, "红包": .gift,
+        "咖啡": .coffee, "加油": .fuel, "宠物": .pets, "学习": .education, "教育": .education, "书": .education,
+        "美容": .beauty, "护肤": .beauty, "美甲": .nails, "订阅": .subscription, "会员": .subscription,
+        "保险": .insurance, "税费": .tax, "税": .tax, "社保": .social, "手续费": .fee, "利息": .fee,
+        "退款": .refund, "工资": .salary, "奖金": .salary, "收入": .income, "营业收入": .revenue, "营业": .revenue,
+        "店租": .shoprent, "耗材": .supplies, "进货": .supplies, "设备": .equipment, "员工工资": .staff,
+        "营销": .marketing, "广告": .marketing, "充值": .topup, "转入": .transfer, "转出": .transfer, "转账": .transfer,
+        "老板提款": .withdraw, "储蓄": .savings, "存钱": .savings, "投资": .invest, "理财": .invest,
+        "借款": .loan, "借出": .loan, "还款": .repay, "运动": .sport, "健身": .sport, "家居": .home, "家具": .home,
+        "零食": .snacks, "甜品": .snacks, "数码": .digital, "电子": .digital, "未分类": .uncategorized, "其他": .other,
     ]
 
-    /// 名字完全一样的优先；不然看开头，比如「交通出行」用「交通」的图标、「超市日用」用「超市」的。
-    static func symbol(_ category: String?) -> String? {
-        guard let category else { return nil }
-        if let s = symbols[category] { return s }
-        return symbols.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { symbols[$0] }
+    /// 用户自己给分类挑的图标（账本里存着，LedgerModel 读账本时更新）：分类名 → 图标名。
+    nonisolated(unsafe) static var customIcons: [String: String] = [:]
+
+    static func glyph(_ category: String?) -> XiaGlyph {
+        guard let category, !category.isEmpty else { return .uncategorized }
+        if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked }
+        if let g = glyphs[category] { return g }
+        return glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { glyphs[$0] } ?? .other
     }
 
-    /// 分类颜色（设计稿那套）：图标底色、圆环、排行条。
-    static let colors: [String: UInt32] = [
-        "房租": 0xE8505B, "住房": 0xE8505B, "店租": 0xE8505B, "超市": 0x2E9E8F, "餐饮": 0xFF7A59, "美甲": 0xF472B6, "美容": 0xF472B6,
-        "耗材": 0xF472B6, "交通": 0x3B82F6, "宝宝": 0xFB7185, "购物": 0xEC4899, "衣服": 0xEC4899, "服饰": 0xEC4899,
-        "水电": 0xEAB308, "咖啡": 0xB7795A, "娱乐": 0xF97316, "工资": 0x16A34A, "收入": 0x16A34A, "营业收入": 0x16A34A,
-        "旅行": 0x0EA5E9, "医疗": 0xEF4444, "通讯": 0x6366F1, "礼物": 0xD946EF, "税费": 0x64748B, "社保": 0x64748B,
-        "员工工资": 0x8B5CF6, "设备": 0x0D9488, "订阅": 0x8B5CF6, "宠物": 0xA16207, "学习": 0x2563EB, "加油": 0xF59E0B,
-    ]
+    /// 分类颜色：图标、圆环、排行条都用这一个（就是图标自带的颜色）。
+    static func hex(_ category: String?) -> String? {
+        guard let category else { return nil }
+        if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked.tint }
+        let key = glyphs[category] != nil ? category : glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }
+        return key.flatMap { glyphs[$0]?.tint }
+    }
 
     static func color(_ category: String?) -> Color {
         guard let category else { return .fg3 }
-        let key = colors[category] != nil ? category : colors.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }
-        guard let key, let hex = colors[key] else {
-            // 没定颜色的分类：按名字算一个固定的颜色，同一个分类每次都一样。
-            let palette: [UInt32] = [0x0EA5E9, 0x8B5CF6, 0x14B8A6, 0xF59E0B, 0x6366F1, 0xA855F7]
+        guard let hex = hex(category).flatMap({ UInt32($0, radix: 16) }) else {
+            // 没定图标的分类：按名字算一个固定的颜色，同一个分类每次都一样。
+            let palette: [UInt32] = [0x24ABEB, 0x9C7CF4, 0x2FB7A4, 0xF7A21B, 0x7B7FF2, 0xC86EF0]
             let h = category.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
             return Color.kit(palette[h % palette.count], palette[h % palette.count])
         }

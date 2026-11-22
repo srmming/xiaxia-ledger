@@ -12,6 +12,7 @@ public enum ManageError: Error, LocalizedError, Equatable {
     case lastBook
     case sameBook
     case duplicateName(String)
+    case unknownIcon(String)
 
     public var errorDescription: String? {
         switch self {
@@ -23,6 +24,7 @@ public enum ManageError: Error, LocalizedError, Equatable {
         case .lastBook: "这是最后一个账本，至少要留一个。"
         case .sameBook: "不能挪到要删的这个账本里。"
         case .duplicateName(let name): "已经有叫「\(name)」的了，换个名字。"
+        case .unknownIcon(let name): "没有叫「\(name)」的图标，用 list_category_icons 看看有哪些。"
         }
     }
 }
@@ -116,8 +118,14 @@ extension Ledger {
         if custom {
             // 自己加的分类也跟着改名；改成已有的名字就是并进去，去掉重复的那个。
             for i in profile.categories.indices where profile.categories[i].name == old { profile.categories[i].name = name }
-            var seen = Set<CustomCategory>()
-            profile.categories = profile.categories.filter { seen.insert($0).inserted }
+            // 同名同方向只留一个；挑过的图标不丢（两边都挑过就留排在前面的）。
+            var merged: [CustomCategory] = []
+            for c in profile.categories {
+                if let i = merged.firstIndex(where: { $0.name == c.name && $0.income == c.income }) {
+                    if merged[i].icon == nil { merged[i].icon = c.icon }
+                } else { merged.append(c) }
+            }
+            profile.categories = merged
         }
         if ids.isEmpty {
             return appendProfileChange("分类「\(old)」改名为「\(name)」", before: oldProfile, author: author)
@@ -386,6 +394,12 @@ extension Ledger {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
         }
         if let p = s.profile { profile = p }
+        if let c = s.currency { currency = c; Money.defaultCurrency = c.base }
+        for x in s.subscriptions ?? [] {
+            if let i = subscriptions.firstIndex(where: { $0.id == x.id }) { subscriptions[i] = x } else { subscriptions.append(x) }
+        }
+        let addedSubs = Set(s.addedSubscriptionIDs ?? [])
+        if !addedSubs.isEmpty { subscriptions.removeAll { addedSubs.contains($0.id) } }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

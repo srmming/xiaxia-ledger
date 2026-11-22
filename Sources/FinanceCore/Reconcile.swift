@@ -93,7 +93,7 @@ public enum Reconcile {
 public enum MonthlyReport {
     public static func text(_ ledger: Ledger, month: YearMonth, bookID: String?, hiddenAccounts: Set<String> = [],
                             today: LocalDate = .today) -> String {
-        let txs = ledger.transactions
+        let txs = ledger.baseTransactions   // 外币换成主币种
         let now = Summaries.monthly(txs, month: month, bookID: bookID, hiddenAccounts: hiddenAccounts)
         let before = Summaries.monthly(txs, month: month.adding(months: -1), bookID: bookID, hiddenAccounts: hiddenAccounts)
         let bookName = bookID.flatMap { id in ledger.books.first { $0.id == id }?.name } ?? "全部账本"
@@ -161,6 +161,15 @@ public enum MonthlyReport {
         for i in Plans.installments(ledger) where i.remaining.cents > 0 {
             if let next = i.nextDate { todo.append("分期「\(i.name)」下次 \(next) 扣 \(i.perPayment.formatted)，还剩 \(i.remaining.formatted)。") }
         }
+        for s in Subscriptions.status(ledger, today: today) where s.cancelledOn == nil {
+            if s.priceChanged, let last = s.lastChargeAmount {
+                todo.append("订阅「\(s.name)」最近一次扣了 \(last.formatted(in: s.currency))，登记的是 \(s.amount.formatted(in: s.currency))：可能涨价了。")
+            } else if s.isDueSoon, let next = s.nextDate {
+                todo.append("订阅「\(s.name)」\(next) 要扣 \(s.amount.formatted(in: s.currency))。")
+            }
+        }
+        let missing = ledger.missingRateCurrencies
+        if !missing.isEmpty { todo.append("还没有 \(missing.joined(separator: "、")) 的汇率，外币先按 1:1 算了；联网后运行 fin fx update。") }
         for g in Plans.goals(ledger) where g.percent < 100 {
             todo.append("目标「\(g.name)」存了 \(g.saved.formatted) / \(g.target.formatted)（\(g.percent)%）。")
         }

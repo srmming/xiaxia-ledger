@@ -105,7 +105,7 @@ struct DemoBuilder {
     static let P = "personal"
     static let S = DemoData.shopBookID
     /// 有对账单、靠导入的账户；其余（现金、店里现金、私房钱）是手记的。
-    static let statementAccounts: Set<String> = ["daily", "credit", "wallet", "shop"]
+    static let statementAccounts: Set<String> = ["daily", "credit", "wallet", "shop", "usd"]
 
     let end: LocalDate
     var rng: DemoRandom
@@ -233,7 +233,9 @@ struct DemoBuilder {
         edits(hardware)
         untidy()
         closeBatches()
+        subscriptions()
         openingBalances()
+        l.fillMissingFX()
         insights()
     }
 
@@ -248,7 +250,18 @@ struct DemoBuilder {
             Account(id: "shop", name: "店里账户", kind: .bank, institution: "晴空银行"),
             Account(id: "till", name: "店里现金", kind: .cash),
             Account(id: "stash", name: "私房钱", kind: .cash, isPrivate: true),
+            Account(id: "usd", name: "美元账户", kind: .wallet, institution: "云付", currency: "USD"),
         ]
+        // 汇率写死在示例里（每月 1 号和 15 号各一个点，在 1,05–1,13 之间慢慢走），不联网。
+        var rates: [RatePoint] = []
+        var rate = 1.08
+        for ym in months {
+            for day in [1, 15] where demoDay(ym, day) <= end {
+                rate = min(1.13, max(1.05, rate + (rng.unit() - 0.5) * 0.02))
+                rates.append(RatePoint(date: demoDay(ym, day), perEUR: (rate * 10_000).rounded() / 10_000))
+            }
+        }
+        l.currency = CurrencySettings(base: "EUR", rates: ["USD": rates])
         l.profile = Profile(persona: .gentle, aim: "每个月存下 300 €", categories: [CustomCategory(name: "宠物", income: false)])
         l.changes.append(ChangeRecord(kind: .importBatch, summary: DemoData.marker, transactionIDs: [], author: "示例"))
         var shopBook = PlanSnapshot()
@@ -324,6 +337,9 @@ struct DemoBuilder {
         earn(d(27), eur(1380), "工资", "daily", P, "工资")
         if ym.month == 6 || ym.month == 12 { earn(d(27), eur(1380), ym.month == 6 ? "年中双薪" : "年终双薪", "daily", P, "工资") }
         if rng.chance(0.4) { earn(d(rng.int(8...24)), rng.euros(220, 620), "设计接单稿费", "daily", P, "副业") }
+        // 海外客户用美元付稿费，进美元账户；字体会员用美元扣。
+        if i % 3 == 1 { earn(d(rng.int(10...20)), rng.euros(300, 600), "海外客户稿费", "usd", P, "副业") }
+        if i >= 2 { spend(d(11), eur(14.99), "FONTHUB SUBSCRIPTION", "usd", P, "订阅") }
 
         // 日常花销。
         for _ in 0..<rng.int(7...10) {
@@ -434,6 +450,11 @@ struct DemoBuilder {
         spend(demoDay(past(3), 3), eur(168), "房屋保险年费", "daily", P, "保险")
         spend(demoDay(past(5), 9), eur(60), "妈妈生日礼物", "credit", P, "礼物")
         spend(demoDay(past(6), 17), eur(90), "Clínica Dental Sonrisa 洗牙", "credit", P, "医疗")
+        // 欧元信用卡在海外网店刷美元：金额记银行扣的欧元，原价 45 US$ 记作备注。
+        if let id = add(demoDay(past(4), 23), eur(-41.37), "海外网店 · 手工陶杯", "credit", book: P, cat: "购物"),
+           let k = l.transactions.firstIndex(where: { $0.id == id }) {
+            l.transactions[k].original = ForeignAmount(amount: eur(45), currency: "USD")
+        }
         // 暑假去海边城市玩几天。
         let aug = past(8)
         move(demoDay(aug, 9), eur(600), from: "daily", to: "wallet", "出门前给电子钱包充值", fromBook: P, toBook: P)
@@ -539,9 +560,41 @@ struct DemoBuilder {
         batchOrder = []
     }
 
+    /// 订阅：大部分登记了；视频会员登记的还是涨价前的价（app 会提示涨价）；健身 App 停了；
+    /// 语言课每月扣、故意没登记，留给「从流水认出疑似订阅」。
+    mutating func subscriptions() {
+        let P = Self.P, S = Self.S
+        func next(day: Int) -> LocalDate { end.day < day ? demoDay(end.yearMonth, day) : demoDay(demoShift(end.yearMonth, 1), day) }
+        let monthly: [(String, Double, String?, String, String, String, Int, String)] = [
+            ("StreamBox 视频会员", 11.99, nil, "credit", P, "streambox", 7, "你"),
+            ("Tuneo 音乐会员", 10.99, nil, "credit", P, "tuneo", 15, "Claude"),
+            ("云存储 50GB", 2.99, nil, "credit", P, "云存储", 3, "Claude"),
+            ("FontHub 字体会员", 14.99, "USD", "usd", P, "fonthub", 11, "Codex"),
+            ("收银系统月费", 29, nil, "shop", S, "收银系统", 5, "Claude"),
+        ]
+        for (k, m) in monthly.enumerated() {
+            let sub = Subscription(name: m.0, amount: eur(m.1), currency: m.2, cycle: .monthly, nextDate: next(day: m.6),
+                                   accountID: m.3, bookID: m.4, category: "订阅", match: m.5)
+            _ = try? l.addSubscription(sub, author: m.7)
+            stamp(demoDay(months[2], 4 + k))
+        }
+        let march = past(3)
+        let yearly = Subscription(name: "网站和域名年费", amount: eur(96), cycle: .yearly,
+                                  nextDate: demoDay(LocalDate(year: march.year, month: 3, day: 14) < end ? YearMonth(year: march.year + 1, month: 3) : march, 14),
+                                  accountID: "shop", bookID: S, category: "订阅", match: "网站和域名")
+        _ = try? l.addSubscription(yearly, author: "Claude")
+        stamp(demoDay(months[2], 10))
+        let fit = Subscription(name: "FitPlan 健身 App", amount: eur(7.99), cycle: .monthly, nextDate: demoDay(months[2], 20),
+                               accountID: "credit", bookID: P, category: "订阅", match: "fitplan")
+        _ = try? l.addSubscription(fit, author: "Claude")
+        stamp(demoDay(months[2], 11))
+        _ = try? l.cancelSubscription(fit.id, on: demoDay(months[8], 21), author: "你")
+        stamp(demoDay(months[8], 21))
+    }
+
     /// 期初余额：够这一年里每个账户都不透支（信用卡、储蓄罐除外）。
     mutating func openingBalances() {
-        let base: [(String, Double)] = [("daily", 2400), ("wallet", 120), ("cash", 80), ("shop", 3500), ("till", 150), ("stash", 200)]
+        let base: [(String, Double)] = [("daily", 2400), ("wallet", 120), ("cash", 80), ("shop", 3500), ("till", 150), ("stash", 200), ("usd", 150)]
         let sorted = l.transactions.enumerated().sorted { ($0.element.date, $0.offset) < ($1.element.date, $1.offset) }.map(\.element)
         for (account, amount) in base {
             var running: Int64 = 0, lowest: Int64 = 0
@@ -561,7 +614,7 @@ struct DemoBuilder {
     mutating func insights() {
         let hidden = l.privateAccountIDs
         let cur = end.yearMonth, prev = months[11]
-        let all = l.transactions
+        let all = l.baseTransactions
         // 上个月只看到同一天，比「同期」。
         let prevSame = all.filter { !($0.date.yearMonth == prev && $0.date.day > end.day) }
         func compare(_ diff: Money) -> String {

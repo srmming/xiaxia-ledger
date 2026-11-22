@@ -28,14 +28,15 @@
 | 1.14 | 币种：增删改 | 还没做（多币种排在第二步） |
 | 1.15 | 订阅：增删改 | 还没做（订阅排在第二步） |
 | 1.16 | 计划页「新计划」登记存钱目标、分期、借款；每行能改、删，借款能结清（2026-11-21 ming 要的） | 自动（iPhone 建目标）+ Mac |
-| 1.17 | 记一笔：支出 / 收入、名称提示带出分类、原地加新分类、任意日期 | 自动 |
+| 1.17 | 记一笔：支出 / 收入、名称提示带出分类、「＋ 新分类」弹出新建分类面板、建好直接选上、任意日期 | 自动 |
 | 1.18 | 管理分类里能新建分类（支出 / 收入），重名会提示 | 自动（单元测试）+ Mac |
+| 1.19 | 新建分类先挑图标再填名字：点图标名字跟着填、不一上来弹键盘、记一笔里不让改支出/收入、搜图标、先打名字就按名字自动配（虚线）、挑了的图标在流水 / 花销 / 记一笔里都换上；管理分类里点图标能换、能改回自动、能撤销 | 自动（截图）+ Mac |
 
 ## 2. fin / MCP 和 app 说的一样
 
 | # | 检查项 | 怎么查 |
 |---|---|---|
-| 2.1 | fin 和 MCP 能做 1.1–1.10 里同样的事（add_book、rename_book、remove_book、add_account、edit_account、remove_account、rename_category） | 自动（fin-smoke） |
+| 2.1 | fin 和 MCP 能做 1.1–1.10 里同样的事（add_book、rename_book、remove_book、add_account、edit_account、remove_account、rename_category、add_category 带 icon、set_category_icon、list_category_icons） | 自动（fin-smoke） |
 | 2.2 | 同一个示例账本，app 总览的收入 / 支出 / 净资产和 `fin summary`、`fin accounts` 一致（fin 那边用 `fin demo --out 临时文件` 生成同一天的示例账本，再 `XIAXIA_LEDGER_PATH=临时文件 fin summary`） | Mac |
 | 2.3 | AI 写的意见（add_insight，带 page）出现在对应页的「夏夏说」和「夏夏建议」页 | Mac |
 | 2.4 | 夏夏的性格和目标：app 里改了，`fin`/MCP 的 context 里能读到；set_profile 改了 app 里也变 | 自动（单元测试）+ Mac |

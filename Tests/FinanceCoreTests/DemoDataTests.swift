@@ -83,7 +83,7 @@ final class DemoDataTests: XCTestCase {
     func testChangeHistory() throws {
         let kinds = Set(l.changes.map(\.kind))
         for k: ChangeRecord.Kind in [.add, .importBatch, .categorize, .assignBook, .transfer, .debt, .repay, .installment,
-                                     .installmentPayment, .goal, .goalDeposit, .opening, .account, .edit] {
+                                     .installmentPayment, .goal, .goalDeposit, .opening, .account, .edit, .subscription] {
             XCTAssertTrue(kinds.contains(k), "改动记录里没有 \(k)")
         }
         XCTAssertTrue(l.changes.contains { $0.undone }, "要有一条撤销过的")
@@ -115,11 +115,12 @@ final class DemoDataTests: XCTestCase {
         let credit = Summaries.balances(l.transactions)["credit"] ?? .zero
         XCTAssertLessThan(credit.magnitude.cents, 120_000)
         let months = Set(l.transactions.map(\.date.yearMonth)).sorted().dropLast()
+        let base = l.baseTransactions
         var positive = 0
         for m in months {
-            let all = Summaries.monthly(l.transactions, month: m, bookID: nil, hiddenAccounts: l.privateAccountIDs)
-            let shop = Summaries.monthly(l.transactions, month: m, bookID: DemoData.shopBookID)
-            let me = Summaries.monthly(l.transactions, month: m, bookID: "personal")
+            let all = Summaries.monthly(base, month: m, bookID: nil, hiddenAccounts: l.privateAccountIDs)
+            let shop = Summaries.monthly(base, month: m, bookID: DemoData.shopBookID)
+            let me = Summaries.monthly(base, month: m, bookID: "personal")
             XCTAssertGreaterThan(shop.income.cents, 300_000, "\(m) 店里进账太少")
             XCTAssertGreaterThan(me.income.cents, 130_000, "\(m) 个人收入太少")
             XCTAssertTrue((150_000...900_000).contains(all.expense.magnitude.cents), "\(m) 花了 \(all.expense.formatted)")
@@ -128,6 +129,25 @@ final class DemoDataTests: XCTestCase {
             if all.net.cents > 0 { positive += 1 }
         }
         XCTAssertGreaterThanOrEqual(positive, 8, "大多数月份要有结余")
+    }
+
+    /// 多币种和订阅：一个美元账户（每笔都记了汇率），欧元卡刷外币记了原价；订阅有涨价的、停了的、年付的、美元的，还有一个没登记的等着被认出来。
+    func testCurrencyAndSubscriptions() {
+        XCTAssertEqual(l.baseCurrency, "EUR")
+        XCTAssertEqual(l.accounts.filter { $0.currency == "USD" }.count, 1)
+        let usd = l.transactions.filter { $0.accountID == "usd" }
+        XCTAssertGreaterThan(usd.count, 10)
+        XCTAssertTrue(usd.allSatisfy { $0.fx?.source == "ecb" }, "美元账户每笔都要有汇率")
+        XCTAssertTrue(l.missingRateCurrencies.isEmpty)
+        XCTAssertTrue(l.transactions.contains { $0.original?.currency == "USD" })
+        let subs = Subscriptions.status(l, today: end)
+        XCTAssertEqual(subs.count, 7)
+        XCTAssertEqual(subs.filter { $0.cancelledOn != nil }.count, 1)
+        XCTAssertTrue(subs.contains { $0.cycle == .yearly })
+        XCTAssertTrue(subs.contains { $0.currency == "USD" })
+        XCTAssertEqual(subs.filter(\.priceChanged).map(\.name), ["StreamBox 视频会员"])
+        XCTAssertTrue(subs.filter { $0.cancelledOn == nil }.allSatisfy { $0.chargeCount > 0 }, "登记的订阅在流水里都要有扣款")
+        XCTAssertTrue(Subscriptions.detect(l, today: end).contains { $0.key.hasPrefix("linguapal") }, "没登记的语言课要能被认出来")
     }
 
     /// app 和 fin 能存能读：SQLite 存一遍读回来一样。
