@@ -6,11 +6,11 @@
 |---|---|---|
 | 1. 拿到 app | 自己装 Xcode、下代码、编译 | 下载 dmg，把「夏夏账本」拖进「应用程序」 |
 | 2. 装 fin（AI 用来读写账本的程序） | 自己编译，跑 `scripts/install-global.sh` | 不用装：app 里自带（`夏夏账本.app/Contents/MacOS/fin`） |
-| 3. 让 AI 工具认识账本 | 手动改各家配置文件 | 第一次打开 app 自动弹「连上你的 AI」：认出这台 Mac 上的 Claude 桌面版、Claude Code、Codex、Cursor、Gemini CLI，默认勾好，点「连上」 |
+| 3. 让 AI 工具认识账本 | 手动改各家配置文件 | 第一次打开 app 自动弹「连上你的 AI」：认出这台 Mac 上的 Claude 桌面版、Claude Code、Codex、Hermes Agent、Cursor、Gemini CLI，默认勾好，点「连上」 |
 | 4. 重开 AI 工具 | — | 引导里写着每个工具要怎么重开（比如 Claude 要 ⌘Q 退出再开） |
 | 5. 试一句 | — | 引导里点「复制并打开 Claude」，粘贴发出去；AI 一连上账本，引导页就变绿，记下第一笔会显示出来 |
 
-没装任何 AI 工具：引导里给「下载 Claude 桌面版」；用 DeepSeek、通义千问、Kimi 的，装 Cherry Studio，再点「复制配置」粘进它的 MCP 设置。别的支持 MCP 的工具同样粘这段。
+没装任何 AI 工具：引导里给「下载 Claude 桌面版」；用 DeepSeek 的，装 Hermes Agent（能自动连）；用通义千问、Kimi 的，装 Cherry Studio，再点「复制配置」粘进它的 MCP 设置。别的支持 MCP 的工具同样粘这段。
 
 iPhone 不需要引导：AI 工具只能在 Mac 上接本地账本，手机上只看。（手机和 Mac 看同一本账要等 iCloud 同步做完，见下面「iPhone」。）
 
