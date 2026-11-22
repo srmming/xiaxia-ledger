@@ -68,7 +68,10 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件。
 新记：`fin transfer move 50 --from-account daily --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from shop --to personal --account daily`（MCP：`book_transfer`）。
 
 **导入对账单**（「把这个 Revolut 的 CSV 导进去」）
-1. 认格式：Revolut 导出会自动认出来；其他银行看表头，用通用 CSV 指定列（`--date-col --amount-col --desc-col`，收支分两列用 `--debit-col --credit-col`）。只支持 CSV，PDF 先说明需要转成 CSV。
+1. 认格式：Revolut 导出会自动认出来；其他银行看表头，用通用 CSV 指定列（`--date-col --amount-col --desc-col`，收支分两列用 `--debit-col --credit-col`）。
+   **Excel、PDF、支付宝 / 微信账单、别的记账 App（钱迹、随手记、iCost……）导出的文件**：你自己读懂文件，把每笔整理成「日期、金额（支出为负）、说明，可带分类」，用 MCP 的 `import_rows`（一次最多 500 行，多的分批；同样先 `dry_run`）。读不了的文件（比如扫描件太糊）就请用户换成 Excel / CSV 再导。
+   支付宝、微信账单里「不计收支」、退款、转给自己、充值提现、还信用卡这些先问用户，别算成花销；别的记账 App 导出里原来的分类可以照搬。
+   先问清楚导进哪个账户（支付宝、微信本身也可以是一个账户），没有就先建。
 2. 预演：`fin import 文件.csv --account revolut --format revolut --dry-run`，告诉用户「读到 N 笔，新的 M 笔，重复的 K 笔已跳过」，列前几笔。
 3.用户同意后去掉 `--dry-run` 正式导入（整批是一条改动，能一次撤销）。
 4. 导完接着整理：没分类、没分账本的按商户分组，一组一句话问用户（例：「Mercadona 3 笔共 −67,20 €，都算个人·餐饮？」），确认后用 `fin categorize` / `fin assign` 一次写。

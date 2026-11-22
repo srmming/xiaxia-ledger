@@ -8,10 +8,15 @@ struct OverviewPage: View {
     var body: some View {
         if model.ledger.transactions.isEmpty {
             VStack(spacing: Kit.gap) {
+                #if os(macOS)
+                // 还没有一笔：教用户把以前的账（银行、支付宝、微信、别的记账 App）交给电脑上的 AI 导进来。
+                ImportGuideCard().kitCard()
+                #else
                 KitEmptyState(title: "账本还是空的",
                               message: "把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」。哪家银行、什么格式都行，导好就会出现在这里。",
                               prompt: "这是我的银行对账单，帮我整理好导进夏夏账本", page: "总览")
                     .kitCard()
+                #endif
                 AskAICard(page: "总览", prompts: model.prompts(for: .overview))
             }
             .kitPage()

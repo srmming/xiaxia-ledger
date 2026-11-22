@@ -240,6 +240,7 @@ call() { mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInf
 for spec in \
   'context|{}' \
   'welcome|{}' \
+  'import_rows|{"account":"cash","rows":[{"date":"2026-11-03","amount":"-12,50","description":"烟测超市"},{"date":"bad","amount":"1","description":"x"}],"dry_run":true}' \
   'list_transactions|{"month":"2026-11","limit":3}' \
   'list_transactions|{"query":"mercadona"}' \
   'list_transactions|{"include_private":true,"account":"stash"}' \

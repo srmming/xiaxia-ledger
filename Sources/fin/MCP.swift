@@ -33,7 +33,7 @@ final class MCPServer {
     用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、谁欠我钱、还款、分期、存钱目标时用这些工具。
     1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天、统计口径、夏夏的说话方式（voice）和用户的目标（aim）都在里面。账户 id、账本 id 只用 context 里有的，别猜。
     2. 拿不准的（哪个账户、哪个账本、什么分类、是不是自己账户之间转钱）先在对话里问用户，确认后再写。
-    3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。
+    3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。用户发来银行 Excel / PDF、支付宝或微信账单、别的记账 App 导出的文件：你自己读懂，整理成 rows 用 import_rows 导入（标准 CSV 文件路径也可以用 import_statement）。
     4. 写完告诉用户记了什么和改动编号；写错用 undo 撤销。
     5. 不算收支的：借款和还款、存取目标、自己账户之间转钱、分期每期还款；分期买的那天按全额算支出；退款冲减原分类的支出。
     6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
@@ -306,7 +306,19 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "author": author, "dry_run": dryRun,
         ], required: ["ids", "book"], readOnly: false),
-        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给用户 看，确认后再正式导入。", [
+        tool("import_rows", "批量导入你自己从文件里读出来的流水：银行的 Excel / PDF 对账单、支付宝 / 微信账单、别的记账 App 导出的数据，或用户直接发给你的附件。你先读懂文件，把每一笔整理成 rows（支出写负数，收入写正数），一次最多 500 行，多的分批。自动去重，整批是一条改动、能一次撤销。先 dry_run 给用户看读到几笔、新的几笔，确认后再正式导入。转给自己的钱、还信用卡、支付宝的「不计收支」、充值提现先问用户或不要导。", [
+            "account": prop("string", "导进哪个账户（context 里的账户 id）"),
+            "rows": ["type": "array", "description": "每一笔：date（2026-11-03）、amount（-23,40 或 -23.40）、description（商户或说明），可选 category、book、note",
+                     "items": ["type": "object", "properties": [
+                        "date": prop("string", "日期 2026-11-03"), "amount": prop("string", "金额，支出是负数"),
+                        "description": prop("string", "商户或说明"), "category": prop("string", "分类（可不填）"),
+                        "book": prop("string", "账本 id（可不填，默认用外面的 book）"), "note": prop("string", "备注（可不填）"),
+                     ] as [String: Any], "required": ["date", "amount", "description"]] as [String: Any]] as [String: Any],
+            "book": prop("string", "这批默认归哪个账本"),
+            "source": prop("string", "数据从哪来，比如「支付宝账单 2026-10」，记进每笔流水的来源"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["account", "rows"], readOnly: false),
+        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给用户 看，确认后再正式导入。Excel、PDF、支付宝 / 微信账单这些不是标准 CSV 的，用 import_rows。", [
             "file": prop("string", "文件路径"),
             "account": prop("string", "导进哪个账户"),
             "format": ["type": "string", "enum": ["revolut", "csv"], "description": "格式"],
@@ -677,6 +689,39 @@ enum MCPTools {
                 change = try ledger.assignBook(txs, bookID: try req("book"), author: who)
             }
             return try commit(change)
+        case "import_rows":
+            guard let rows = a["rows"] as? [[String: Any]], !rows.isEmpty else { throw ToolError(message: "rows 要是非空的数组") }
+            guard rows.count <= 500 else { throw ToolError(message: "一次最多 500 行，这次有 \(rows.count) 行，请分批") }
+            let account = try req("account")
+            guard ledger.accounts.contains(where: { $0.id == account }) else {
+                throw ToolError(message: "找不到账户：\(account)。先用 context 看有哪些账户，没有就先 add_account")
+            }
+            let source = s("source") ?? "AI 整理导入"
+            var txs: [Transaction] = []
+            var skipped: [String] = []
+            for (i, r) in rows.enumerated() {
+                func field(_ k: String) -> String? {
+                    if let v = r[k] as? String { let t = v.trimmingCharacters(in: .whitespaces); return t.isEmpty ? nil : t }
+                    if let n = r[k] as? NSNumber { return n.stringValue }
+                    return nil
+                }
+                let n = i + 1
+                guard let d = field("date"), let day = LocalDate(String(d.prefix(10))) else { skipped.append("第 \(n) 行：日期看不懂（要 2026-11-03）"); continue }
+                guard let a = field("amount"), let amount = Money(parsing: a), amount.cents != 0 else { skipped.append("第 \(n) 行：金额看不懂或是 0"); continue }
+                guard let desc = field("description") else { skipped.append("第 \(n) 行：没有说明"); continue }
+                txs.append(Transaction(date: day, amount: amount, description: desc, accountID: account,
+                                       bookID: field("book") ?? s("book"), category: field("category"), source: source, note: field("note")))
+            }
+            let skippedText = skipped.isEmpty ? "" : "\n跳过：\n" + skipped.map { "  \($0)" }.joined(separator: "\n")
+            guard !txs.isEmpty else { return "一笔都没读进来。\(skippedText)" }
+            if flag("dry_run") {
+                let fresh = Dedup.newTransactions(txs, existing: ledger.transactions)
+                let preview = fresh.prefix(40).map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
+                return "预演（没有写入）：读到 \(txs.count) 笔，新的 \(fresh.count) 笔\n\(preview)\(skippedText)"
+            }
+            let (_, dupes, change) = try ledger.importTransactions(txs, accountID: account, source: source, author: who)
+            guard let change else { return "没有新流水（\(dupes) 笔都已经有了）。\(skippedText)" }
+            return try commit(change) + skippedText
         case "import_statement":
             let url = URL(fileURLWithPath: (try req("file") as NSString).expandingTildeInPath)
             let data = try Data(contentsOf: url)
