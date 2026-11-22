@@ -270,9 +270,11 @@ struct QuickAdd: View {
                 #endif
                 Text(Currencies.info(accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)).symbol).font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
             }
+            #if os(iOS)
+            // iPhone 上金额是一行字（键盘是自己的），合成一个元素读「金额 xx」。
+            // Mac 上里面是能打字的输入框，不合并，不然 VoiceOver 和辅助功能拿不到输入框。
             .accessibilityElement(children: .combine)
             .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
-            #if os(iOS)
             .accessibilityAction { focus = nil; keypadUp = true }
             .accessibilityHint(keypadUp ? "" : "点一下弹出计算器键盘")
             #endif
