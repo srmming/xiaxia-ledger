@@ -36,7 +36,7 @@
 | # | 检查项 | 怎么查 |
 |---|---|---|
 | 2.1 | fin 和 MCP 能做 1.1–1.10 里同样的事（add_book、rename_book、remove_book、add_account、edit_account、remove_account、rename_category） | 自动（fin-smoke） |
-| 2.2 | 同一个示例账本，app 总览的收入 / 支出 / 净资产和 `fin summary`、`fin accounts` 一致 | Mac |
+| 2.2 | 同一个示例账本，app 总览的收入 / 支出 / 净资产和 `fin summary`、`fin accounts` 一致（fin 那边用 `fin demo --out 临时文件` 生成同一天的示例账本，再 `XIAXIA_LEDGER_PATH=临时文件 fin summary`） | Mac |
 | 2.3 | AI 写的意见（add_insight，带 page）出现在对应页的「夏夏说」和「夏夏建议」页 | Mac |
 | 2.4 | 夏夏的性格和目标：app 里改了，`fin`/MCP 的 context 里能读到；set_profile 改了 app 里也变 | 自动（单元测试）+ Mac |
 

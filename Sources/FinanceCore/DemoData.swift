@@ -138,7 +138,7 @@ struct DemoBuilder {
     func moment(_ d: LocalDate, _ hour: Int, _ minute: Int) -> Date {
         var c = DateComponents()
         c.year = d.year; c.month = d.month; c.day = d.day
-        // 「今天」的改动放在凌晨，免得比现在还晚。
+        // 「今天」的改动从早上 7 点排起（stamp 里处理），这里只管别的日子。
         c.hour = d >= end ? 0 : hour
         c.minute = minute
         return Calendar(identifier: .gregorian).date(from: c) ?? Date(timeIntervalSince1970: 0)
@@ -149,7 +149,7 @@ struct DemoBuilder {
         let date = min(d, end)
         var at = moment(date, hour ?? rng.int(9...22), rng.int(0...59))
         if date >= end {
-            at = moment(end, 0, 0).addingTimeInterval(Double(todayTick) * 60)
+            at = moment(end, 0, 0).addingTimeInterval(Double(7 * 3600 + todayTick * 60))
             todayTick += 1
         }
         while stamped < l.changes.count {
@@ -436,6 +436,7 @@ struct DemoBuilder {
         spend(demoDay(past(6), 17), eur(90), "Clínica Dental Sonrisa 洗牙", "credit", P, "医疗")
         // 暑假去海边城市玩几天。
         let aug = past(8)
+        move(demoDay(aug, 9), eur(600), from: "daily", to: "wallet", "出门前给电子钱包充值", fromBook: P, toBook: P)
         spend(demoDay(aug, 2), eur(186), "Vuela Air 机票", "credit", P, "旅行")
         spend(demoDay(aug, 10), eur(420), "海边民宿", "wallet", P, "旅行")
         for k in 0..<4 { spend(demoDay(aug, 11 + k), rng.euros(14, 38), "旅行吃饭", "wallet", P, "旅行") }
