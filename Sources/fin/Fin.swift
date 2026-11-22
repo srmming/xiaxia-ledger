@@ -7,8 +7,8 @@ struct Fin: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
-        discussion: "账本默认在 iCloud 云盘「夏夏账本/ledger.sqlite」（没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/），可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
-        subcommands: [ContextCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
+        discussion: "账本在哪：跑 fin where。一般在 iCloud 云盘「夏夏账本/ledger.sqlite」；签名正式版搬家后在 app 的 iCloud 容器里；没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/。可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
+        subcommands: [ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, FXCommand.self, SubscriptionsCommand.self, SubscriptionCommand.self, CategorizeCommand.self,
                       AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, MCPCommand.self, ConnectCommand.self, DemoCommand.self]
     )
@@ -774,4 +774,9 @@ struct GoalCommand: ParsableCommand {
             try finish(ledger, change, w)
         }
     }
+}
+
+struct WhereCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "where", abstract: "账本文件在哪（fin、MCP 和 app 读的是这一份）。")
+    func run() throws { print(ledgerLocation(LedgerStores.defaultStore())) }
 }

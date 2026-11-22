@@ -29,6 +29,8 @@ expect_fail() {
 first_id() { "$FIN" tx "$@" --limit 1 | head -1 | cut -f1; }
 
 echo "临时账本：$XIAXIA_LEDGER_PATH"
+run where
+[ "$("$FIN" where)" = "$XIAXIA_LEDGER_PATH" ] || { echo "↳ fin where 和 XIAXIA_LEDGER_PATH 对不上"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 空账本：新用户只有「个人」，自己加账本 ====="
 run books
