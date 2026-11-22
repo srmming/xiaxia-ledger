@@ -236,8 +236,8 @@ struct QuickAdd: View {
 
     /// 最近常记的几笔：点一下全填好（金额、名称、分类、账户、账本），日期是今天。
     @ViewBuilder private var frequentRow: some View {
-        let list = model.ledger.frequentEntries(income: income, limit: 6)
-            .filter { model.visibleAccounts.contains(where: { a in a.id == $0.accountID }) }
+        let visible = Set(model.visibleAccounts.map(\.id))
+        let list = model.ledger.frequentEntries(income: income, limit: 6).filter { visible.contains($0.accountID) }
         if !list.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("常记的，点一下就填好").font(.caption).foregroundStyle(Color.fg3)
