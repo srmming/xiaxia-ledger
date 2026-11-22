@@ -3,7 +3,7 @@ import Foundation
 /// 把夏夏账本接到这台 Mac 上的 AI 工具：找出装了哪些，帮它们写好 MCP 配置。
 /// app 的「连 AI」引导和 fin 都只用这一份。只改配置里 xiaxia-ledger 这一项，别的不碰；第一次改之前在旁边留一份 .bak-xiaxia。
 public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
-    case claudeDesktop, claudeCode, codex, cursor, gemini
+    case claudeDesktop, claudeCode, codex, hermes, cursor, gemini
 
     public var id: String { rawValue }
 
@@ -12,6 +12,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         case .claudeDesktop: "Claude 桌面版"
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
+        case .hermes: "Hermes Agent"
         case .cursor: "Cursor"
         case .gemini: "Gemini CLI"
         }
@@ -23,6 +24,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         case .claudeDesktop: "claude-desktop"
         case .claudeCode: "claude-code"
         case .codex: "codex"
+        case .hermes: "hermes"
         case .cursor: "cursor"
         case .gemini: "gemini"
         }
@@ -30,12 +32,36 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
 
     public static func from(cliName: String) -> AIApp? { allCases.first { $0.cliName == cliName.lowercased() } }
 
+    /// 命令行程序名（没有就是 nil）。
+    public var cliBinary: String? {
+        switch self {
+        case .claudeCode: "claude"
+        case .codex: "codex"
+        case .hermes: "hermes"
+        case .gemini: "gemini"
+        case .claudeDesktop, .cursor: nil
+        }
+    }
+
+    /// 后台问一句、拿回答的参数（不开窗口）。app 内对话栏用：[可执行文件] + headlessArguments(问题)。
+    /// claude -p、codex exec、gemini -p 是各家文档里的写法；hermes -z 来自 Hermes 文档的命令参考，接入时再实测一次。
+    public func headlessArguments(_ prompt: String) -> [String]? {
+        switch self {
+        case .claudeCode: ["-p", prompt]
+        case .codex: ["exec", prompt]
+        case .hermes: ["-z", prompt]
+        case .gemini: ["-p", prompt]
+        case .claudeDesktop, .cursor: nil
+        }
+    }
+
     /// 写好配置之后要做什么才能用上。
     public var afterConnect: String {
         switch self {
         case .claudeDesktop: "完全退出 Claude（⌘Q）再打开"
         case .claudeCode: "新开一个 Claude Code 对话"
         case .codex: "重开 Codex"
+        case .hermes: "在 Hermes 里输入 /reload-mcp（或重开 Hermes）"
         case .cursor: "重开 Cursor"
         case .gemini: "新开一个 Gemini CLI"
         }
@@ -47,6 +73,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         case .claudeDesktop: ["Claude.app"]
         case .claudeCode: []
         case .codex: ["Codex.app"]
+        case .hermes: ["Hermes.app"]
         case .cursor: ["Cursor.app"]
         case .gemini: []
         }
@@ -58,6 +85,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         case .claudeDesktop: ["Library/Application Support/Claude"]
         case .claudeCode: [".claude.json", ".claude"]
         case .codex: [".codex"]
+        case .hermes: [".hermes"]
         case .cursor: [".cursor"]
         case .gemini: [".gemini"]
         }
@@ -69,6 +97,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         case .claudeDesktop: "Library/Application Support/Claude/claude_desktop_config.json"
         case .claudeCode: ".claude.json"
         case .codex: ".codex/config.toml"
+        case .hermes: ".hermes/config.yaml"
         case .cursor: ".cursor/mcp.json"
         case .gemini: ".gemini/settings.json"
         }
@@ -80,6 +109,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         if n.contains("claude-code") || n == "claude code" { return .claudeCode }
         if n.contains("claude") { return .claudeDesktop }
         if n.contains("codex") { return .codex }
+        if n.contains("hermes") { return .hermes }
         if n.contains("cursor") { return .cursor }
         if n.contains("gemini") { return .gemini }
         return nil
@@ -141,6 +171,16 @@ public struct AIConnector: Sendable {
 
     public func configURL(_ app: AIApp) -> URL { home.appendingPathComponent(app.configPath) }
 
+    /// 这个工具的命令行在哪（app 内对话栏要在后台调用它）。Claude 桌面版、Cursor 没有可以后台调的命令行，返回 nil。
+    /// GUI app 拿不到终端里的 PATH，所以按常见安装位置找。
+    public func cliExecutable(_ app: AIApp) -> String? {
+        guard let name = app.cliBinary else { return nil }
+        let dirs = [home.appendingPathComponent(".local/bin").path, "/opt/homebrew/bin", "/usr/local/bin",
+                    home.appendingPathComponent(".claude/local").path, home.appendingPathComponent(".npm-global/bin").path,
+                    home.appendingPathComponent(".bun/bin").path, "/usr/bin"]
+        return dirs.map { $0 + "/" + name }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
     /// 这台 Mac 上有没有这个工具。
     public func isInstalled(_ app: AIApp) -> Bool {
         let fm = FileManager.default
@@ -154,6 +194,9 @@ public struct AIConnector: Sendable {
         guard let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
         if app == .codex {
             return TOMLSection.command(in: String(decoding: data, as: UTF8.self), server: Self.serverName)
+        }
+        if app == .hermes {
+            return YAMLSection.command(in: String(decoding: data, as: UTF8.self), server: Self.serverName)
         }
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let servers = obj["mcpServers"] as? [String: Any],
@@ -183,6 +226,8 @@ public struct AIConnector: Sendable {
         let new: Data
         if app == .codex {
             new = Data(TOMLSection.upsert(String(decoding: old, as: UTF8.self), server: Self.serverName, command: fin).utf8)
+        } else if app == .hermes {
+            new = Data(YAMLSection.upsert(String(decoding: old, as: UTF8.self), server: Self.serverName, command: fin).utf8)
         } else {
             var obj: [String: Any] = [:]
             if !old.isEmpty, !String(decoding: old, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -214,6 +259,8 @@ public struct AIConnector: Sendable {
         let new: Data
         if app == .codex {
             new = Data(TOMLSection.remove(String(decoding: old, as: UTF8.self), server: Self.serverName).utf8)
+        } else if app == .hermes {
+            new = Data(YAMLSection.remove(String(decoding: old, as: UTF8.self), server: Self.serverName).utf8)
         } else {
             guard var obj = try? JSONSerialization.jsonObject(with: old) as? [String: Any] else { throw ConnectError.unreadableConfig(url.path) }
             guard var servers = obj["mcpServers"] as? [String: Any], servers[Self.serverName] != nil else { return }
@@ -280,6 +327,96 @@ enum TOMLSection {
             v.removeFirst()
             if let end = v.lastIndex(of: q) { v = String(v[..<end]) }
             return v.replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\\\", with: "\\")
+        }
+        return nil
+    }
+}
+
+/// Hermes Agent 的 ~/.hermes/config.yaml：只处理顶层 mcp_servers: 下面 xiaxia-ledger 这一项，其他原样留着。
+/// 不引入 YAML 库，按缩进逐行处理（Hermes 文档里的写法：两格缩进、command / args 各一行）。
+enum YAMLSection {
+    static func indent(_ line: Substring) -> Int { line.prefix { $0 == " " }.count }
+    static func isBlankOrComment(_ line: Substring) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces); return t.isEmpty || t.hasPrefix("#")
+    }
+    static func quoted(_ s: String) -> String {
+        "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// mcp_servers: 这一块的行号范围（不含标题行），以及子项的缩进。
+    static func block(_ lines: [Substring]) -> (header: Int, end: Int, childIndent: Int)? {
+        guard let h = lines.firstIndex(where: { indent($0) == 0 && $0.hasPrefix("mcp_servers:") }) else { return nil }
+        var end = h + 1
+        var child = 0
+        while end < lines.count {
+            let l = lines[end]
+            if !isBlankOrComment(l) {
+                if indent(l) == 0 { break }
+                if child == 0 { child = indent(l) }
+            }
+            end += 1
+        }
+        // 块末尾的空行留给下一节
+        while end > h + 1, isBlankOrComment(lines[end - 1]), lines[end - 1].trimmingCharacters(in: .whitespaces).isEmpty { end -= 1 }
+        return (h, end, child == 0 ? 2 : child)
+    }
+
+    /// 在块里找 xiaxia-ledger: 这一项的行号范围。
+    static func entry(_ lines: [Substring], _ b: (header: Int, end: Int, childIndent: Int), server: String) -> Range<Int>? {
+        guard let start = (b.header + 1 ..< b.end).first(where: {
+            indent(lines[$0]) == b.childIndent && lines[$0].trimmingCharacters(in: .whitespaces).hasPrefix("\(server):")
+        }) else { return nil }
+        var end = start + 1
+        // 属于这一项的：更深缩进的行和中间的空行（同级缩进的注释算下一项的，不带走）
+        while end < b.end, lines[end].trimmingCharacters(in: .whitespaces).isEmpty || indent(lines[end]) > b.childIndent { end += 1 }
+        while end > start + 1, lines[end - 1].trimmingCharacters(in: .whitespaces).isEmpty { end -= 1 }
+        return start ..< end
+    }
+
+    static func remove(_ text: String, server: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        guard let b = block(lines), let r = entry(lines, b, server: server) else { return text }
+        lines.removeSubrange(r)
+        return lines.joined(separator: "\n")
+    }
+
+    static func upsert(_ text: String, server: String, command: String) -> String {
+        let cleaned = remove(text, server: server)
+        var lines = cleaned.split(separator: "\n", omittingEmptySubsequences: false)
+        func entryLines(_ ind: Int) -> [Substring] {
+            let p = String(repeating: " ", count: ind)
+            return ["\(p)\(server):", "\(p)  command: \(quoted(command))", "\(p)  args: [\"mcp\"]"].map { Substring($0) }
+        }
+        if let b = block(lines) {
+            let header = lines[b.header].trimmingCharacters(in: .whitespaces)
+            if header != "mcp_servers:" {
+                // mcp_servers: {} 或 mcp_servers: null 这种写在一行的：换成块
+                guard header.replacingOccurrences(of: " ", with: "") == "mcp_servers:{}" || header.hasSuffix("null") || header.hasSuffix("~") else { return text }
+                lines[b.header] = "mcp_servers:"
+            }
+            lines.insert(contentsOf: entryLines(b.childIndent), at: b.header + 1)
+            return lines.joined(separator: "\n")
+        }
+        var out = cleaned
+        while out.hasSuffix("\n\n") { out.removeLast() }
+        if !out.isEmpty && !out.hasSuffix("\n") { out += "\n" }
+        if !out.isEmpty { out += "\n" }
+        return out + (["mcp_servers:"] + entryLines(2).map(String.init)).joined(separator: "\n") + "\n"
+    }
+
+    static func command(in text: String, server: String) -> String? {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        guard let b = block(lines), let r = entry(lines, b, server: server) else { return nil }
+        for l in lines[r].dropFirst() {
+            let t = l.trimmingCharacters(in: .whitespaces)
+            guard t.hasPrefix("command:") else { continue }
+            var v = t.dropFirst(8).trimmingCharacters(in: .whitespaces)
+            if let q = v.first, q == "\"" || q == "'" {
+                v.removeFirst()
+                if let e = v.lastIndex(of: q) { v = String(v[..<e]) }
+                if q == "\"" { v = v.replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\\\", with: "\\") }
+            }
+            return v
         }
         return nil
     }

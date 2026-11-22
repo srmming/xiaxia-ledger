@@ -37,6 +37,7 @@ final class MCPServer {
     4. 写完告诉用户记了什么和改动编号；写错用 undo 撤销。
     5. 不算收支的：借款和还款、存取目标、自己账户之间转钱、分期每期还款；分期买的那天按全额算支出；退款冲减原分类的支出。
     6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
+    7. 用户说「这笔」「这个月」「我在看的这个」时，先用 current_view 看用户在 app 里停在哪、选中了哪一笔。答完想让用户在 app 里看到，用 open_in_app 让 app 跳过去、圈出那几笔。
     """
     let protocolVersion = "2025-06-18"
 
@@ -345,6 +346,16 @@ enum MCPTools {
             "id": prop("string", "意见 id（前 8 位也行）"), "author": author,
         ], required: ["id"], readOnly: false),
         tool("ai_status", "最近谁写过账本：每个作者最后一次写入的时间和内容。", [:], readOnly: true),
+        tool("current_view", "用户现在在 app 里看什么：哪一页、哪个月、哪个账本、选中了哪一笔。用户说「这笔」「这个月」「这里」又没说清时先调这个，不用让用户复制粘贴。", [:], readOnly: true),
+        tool("open_in_app", "让夏夏账本 app 跳到某一页给用户看，可以圈出几笔流水。回答完想让用户在 app 里看到结果时用，比如「看看这 5 笔」「打开 10 月的花销」。", [
+            "page": prop("string", "overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划 / insights 夏夏建议 / changes 改动记录 / transactions 流水"),
+            "month": prop("string", "哪个月，如 2026-10；不填 = 不换月份"),
+            "book": prop("string", "账本 id；不填 = 不换"),
+            "ids": ["type": "array", "items": ["type": "string"], "description": "要圈出来的流水 id（前 8 位也行）；填了就打开流水页只列这几笔"],
+            "category": prop("string", "打开流水页并按这个分类筛选"),
+            "note": prop("string", "一句话，显示在 app 顶上，比如「这 3 笔可能重复了」"),
+            "author": author,
+        ], required: ["page"], readOnly: false),
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
@@ -382,6 +393,27 @@ enum MCPTools {
         }
 
         switch name {
+        case "current_view":
+            guard let view = AppBridge.readView() else { return "app 还没打开过，或者是旧版本，不知道用户在看什么。直接问用户。" }
+            return view.describe()
+        case "open_in_app":
+            guard let page = AppBridge.pageName(try req("page")) else { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / insights / changes / transactions") }
+            if let m = s("month"), YearMonth(m) == nil { throw ToolError(message: "月份要写成 2026-11") }
+            if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
+            let ids = try (a["ids"] as? [String]).map { try ledger.findTransactions($0).map(\.id) } ?? []
+            let request = AppBridge.OpenRequest(page: ids.isEmpty && s("category") == nil ? page : "流水", month: s("month"), bookID: s("book"),
+                                                transactionIDs: ids, category: s("category"), note: s("note"), author: who)
+            try AppBridge.requestOpen(request)
+            #if os(macOS)
+            // 把 app 叫到前面来（没开就打开）。自动检查里设了 XIAXIA_NO_OPEN 就不开。
+            if ProcessInfo.processInfo.environment["XIAXIA_NO_OPEN"] == nil {
+            let open = Process()
+            open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            open.arguments = ["-b", "com.srmming.xiaxia-ledger.mac"]
+            try? open.run()
+            }
+            #endif
+            return "已让 app 打开「\(request.page)」" + (ids.isEmpty ? "" : "，圈出 \(ids.count) 笔") + "。如果 app 没开，打开后 10 分钟内还会跳过去。"
         case "context":
             return try json(LedgerContext(ledger: ledger))
         case "list_transactions":

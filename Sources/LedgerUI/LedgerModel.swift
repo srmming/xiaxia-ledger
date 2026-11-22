@@ -22,11 +22,13 @@ public final class LedgerModel {
         public var text: String
         public var changeID: UUID?
         public var isError = false
+        /// 停留几秒；不填按有没有撤销决定（3 秒 / 10 秒）。
+        public var seconds: Double? = nil
     }
 
     public let store: any LedgerStore
     public private(set) var ledger: Ledger = .fresh
-    public var selectedBookID: String?        // nil = 全部
+    public var selectedBookID: String? { didSet { publishView() } }       // nil = 全部
     public var showPrivate = false            // 私房钱默认藏起来
     public var loadError: String?
     public var isLoading = true
@@ -47,7 +49,7 @@ public final class LedgerModel {
     @ObservationIgnored var authorCache: (count: Int, map: [UUID: String])?
 
     /// 现在在哪一页、弹着哪个窗口。
-    public var section: AppSection? = .overview
+    public var section: AppSection? = .overview { didSet { publishView() } }
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?
@@ -57,7 +59,7 @@ public final class LedgerModel {
     public private(set) var undoStack: [UUID] = []
 
     /// 总览看哪个月；nil = 最新有流水的月份。
-    public var selectedMonth: YearMonth? = nil
+    public var selectedMonth: YearMonth? = nil { didSet { publishView() } }
 
     public init(store: any LedgerStore) {
         self.store = store
@@ -73,11 +75,119 @@ public final class LedgerModel {
     }
 
     /// 回到 app 时看一眼账本有没有被别处改过（比如 AI 刚用 fin 记了几笔），有就换成新的。
+    /// 别人做的新改动记进 `activity`，界面弹「Claude 刚记了 12 笔」。
     public func refreshIfChanged() {
+        lastStamp = store.changeStamp()
         guard loadError == nil, let fresh = try? store.load(), fresh != ledger else { return }
+        let old = ledger
         ledger = fresh
         cache = nil; authorCache = nil
-        authorCache = nil
+        dropMissingSelection()
+        if let found = ExternalActivity.between(old, fresh, me: author) {
+            activity = activity.map { $0.merged(with: found) } ?? found
+        }
+    }
+
+    // MARK: 外面的 AI 刚做了什么
+
+    #if os(macOS)
+    /// 右边的「夏夏」对话栏。
+    public let chat = XiaxiaChatState()
+    #endif
+
+    /// 外面的 AI（经 fin / MCP）刚改了账本：还没看过的那一批。
+    public var activity: ExternalActivity?
+    /// 「看看」之后在流水页高亮的那几笔。
+    public var highlighted: Set<UUID> = []
+    @ObservationIgnored private var lastStamp: String?
+
+    /// 每隔两秒看一眼账本文件，变了（AI 刚写过）就重新读。弹着窗口时先不换，免得正在填的东西被打断。
+    public func watch() async {
+        publishView()
+        lastStamp = store.changeStamp()
+        // 账本文件还没建（新用户第一次打开）也一直看着：AI 先写，文件才出现。内存账本的指纹一直是 nil，不会触发。
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
+            guard sheet == nil else { continue }
+            if AppBridge.hasOpenRequest, let r = AppBridge.takeOpenRequest() { apply(r) }
+            let stamp = store.changeStamp()
+            guard stamp != nil, stamp != lastStamp else { continue }
+            refreshIfChanged()
+        }
+    }
+
+    /// 流水页选中的那一笔（给外面的 AI 看「用户在看哪一笔」）。
+    public var selectedTransactionID: UUID? { didSet { publishView() } }
+
+    /// 把「现在停在哪」写给外面的 AI（MCP current_view）。示例数据、空账本这类内存账本不写，免得 AI 以为是真账本。
+    public func publishView() {
+        guard !(store is InMemoryLedgerStore) else { return }
+        AppBridge.writeView(currentView)
+    }
+
+    /// 现在停在哪一页、哪个月、哪个账本、选中了哪一笔。
+    public var currentView: AppBridge.View {
+        let page = section ?? .overview
+        let sel = selectedTransactionID.flatMap { transaction($0) }.flatMap { t in
+            page == .transactions ? AppBridge.SelectedTransaction(
+                id: t.id, date: t.date.description, amount: t.amount.formatted, description: Merchant.display(t.description),
+                category: t.category, account: accountName(t.accountID), book: ledger.books.first { $0.id == t.bookID }?.name) : nil
+        }
+        return AppBridge.View(page: page.rawValue, month: page.usesMonth ? shownMonth.description : nil,
+                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? "全部账本",
+                              selected: sel)
+    }
+
+    /// 外面的 AI 让 app 跳过去（MCP open_in_app）。
+    func apply(_ r: AppBridge.OpenRequest) {
+        if let m = r.month.flatMap(YearMonth.init) { selectedMonth = m }
+        if let b = r.bookID, ledger.books.contains(where: { $0.id == b }) { selectedBookID = b }
+        if !r.transactionIDs.isEmpty {
+            highlighted = Set(r.transactionIDs)
+            if r.month == nil, let d = r.transactionIDs.compactMap({ transaction($0) }).map(\.date).max() { selectedMonth = d.yearMonth }
+            showTransactions(TransactionFilter(ids: Set(r.transactionIDs)))
+        } else if let c = r.category {
+            showTransactions(TransactionFilter(category: c))
+        } else if let s = AppSection(rawValue: r.page) {
+            section = s
+        }
+        let note = r.note.map { "\(r.author)：\($0)" } ?? "\(r.author) 让你看这里"
+        toast = Toast(text: note, changeID: nil, seconds: 8)
+    }
+
+    /// 「看看」：去流水页，只列这几笔并高亮。
+    public func showActivity() {
+        guard let a = activity else { return }
+        highlighted = Set(a.transactionIDs)
+        if let first = a.transactionIDs.compactMap({ transaction($0) }).map(\.date).max() { selectedMonth = first.yearMonth }
+        showTransactions(TransactionFilter(ids: Set(a.transactionIDs)))
+        activity = nil
+    }
+
+    /// 「全部撤销」：把这一批从新到旧撤掉，一次保存。
+    public func undoActivity() {
+        guard let a = activity else { return }
+        var copy = ledger
+        var done = 0
+        var failed = 0
+        for id in a.undoableIDs {
+            do { _ = try copy.undo(changeID: id, author: author); done += 1 } catch { failed += 1 }
+        }
+        activity = nil
+        guard done > 0 else {
+            toast = Toast(text: "这些改动撤不了，可以去「改动记录」一条条看", changeID: nil, isError: true)
+            return
+        }
+        do {
+            try store.save(copy)
+            ledger = copy
+            lastStamp = store.changeStamp()
+            cache = nil; authorCache = nil
+            dropMissingSelection()
+            toast = Toast(text: failed == 0 ? "撤销了 \(done) 处改动" : "撤销了 \(done) 处，另有 \(failed) 处撤不了", changeID: nil, isError: failed > 0)
+        } catch {
+            toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
+        }
     }
 
     /// 改一次账本：成功就保存并在底部给提示（能撤销），失败把错误抛给界面显示。
@@ -86,6 +196,7 @@ public final class LedgerModel {
         var copy = ledger
         let change = try body(&copy)
         try store.save(copy)
+        lastStamp = store.changeStamp()
         ledger = copy
         cache = nil; authorCache = nil
         dropMissingSelection()
@@ -105,6 +216,7 @@ public final class LedgerModel {
             var copy = ledger
             let change = try copy.undo(changeID: changeID, author: author)
             try store.save(copy)
+            lastStamp = store.changeStamp()
             ledger = copy
             cache = nil; authorCache = nil
             dropMissingSelection()

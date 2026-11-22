@@ -184,6 +184,12 @@ struct TxRow: View {
             AmountText(money: tx.amount, neutral: internalMove)
         }
         .padding(.vertical, 7)
+        .background {
+            // 外面的 AI 刚记的那几笔：淡紫底，一眼看出来。
+            if model.highlighted.contains(tx.id) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.aiSoft).padding(.horizontal, -6)
+            }
+        }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

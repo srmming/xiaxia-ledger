@@ -285,7 +285,7 @@ struct QuickAdd: View {
     private var nameField: some View {
         let suggestions = model.nameSuggestions(name, income: income)
         return VStack(alignment: .leading, spacing: 6) {
-            TextField(income ? "名称：比如「工资」「退款」" : "名称：买了什么、在哪花的，比如「超市」", text: $name)
+            TextField(income ? "名称，比如「工资」" : "名称，比如「超市」", text: $name)
                 .textFieldStyle(.plain)
                 .focused($focus, equals: .name)
                 .submitLabel(.done)
@@ -425,7 +425,7 @@ struct QuickAdd: View {
             detailRow("日期") { datePicker }
             Divider()
             detailRow("备注") {
-                TextField("可不填，比如「和小王 AA」", text: $note)
+                TextField("可不填", text: $note)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
                     .focused($focus, equals: .note)
                     .accessibilityLabel("备注")
@@ -496,7 +496,7 @@ struct QuickAdd: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("去掉标签 \(t)")
                 }
-                TextField(tags.isEmpty ? "可不填，比如「旅行」" : "再加", text: $tagDraft)
+                TextField(tags.isEmpty ? "可不填，如「旅行」" : "再加", text: $tagDraft)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
                     .focused($focus, equals: .tag)
                     .onSubmit(addDraftTag)
