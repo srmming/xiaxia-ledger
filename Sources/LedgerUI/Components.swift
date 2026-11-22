@@ -175,13 +175,17 @@ enum CategoryStyle {
         for (name, label) in CategoryIcons.all { if m[label] == nil, let g = XiaGlyph(rawValue: name) { m[label] = g } }
         return m.merging(synonyms) { _, syn in syn }
     }()
+    private static let generic: Set<String> = ["收入", "其他", "支出", "费用", "日用", "营业"]
+
     /// 名字里含着的最长那个；一样长取靠后的（中文的重点在后面：「美甲店收入」是收入，「住房水电」是水电）。
     private static func contained(in text: String) -> XiaGlyph? {
         var best: (len: Int, pos: Int, g: XiaGlyph)?
         for (key, g) in glyphs {
             guard let r = text.range(of: key, options: .backwards) else { continue }
             let pos = text.distance(from: text.startIndex, to: r.lowerBound)
-            if best == nil || key.count > best!.len || (key.count == best!.len && pos > best!.pos) { best = (key.count, pos, g) }
+            // 「收入」「其他」这种泛泛的词让给更具体的（「工资收入」是工资）。
+            let len = key.count * 2 - (generic.contains(key) ? 1 : 0)
+            if best == nil || len > best!.len || (len == best!.len && pos > best!.pos) { best = (len, pos, g) }
         }
         return best?.g
     }
@@ -213,8 +217,11 @@ enum CategoryStyle {
         for part in parts.reversed() {
             if let g = glyphs[part] ?? contained(in: part) { found = g; break }
         }
-        // 店里的房租、押金用店租，不用家里的房子。
-        if found == .housing, category.contains("店") { return .shoprent }
+        // 店里的房租、押金用店租，不用家里的房子；店里的收入（「美甲店·刷卡收入」）用营业收入。
+        if category.contains("店") {
+            if category.contains("收入") { return .revenue }
+            if found == .housing { return .shoprent }
+        }
         return found
     }
 

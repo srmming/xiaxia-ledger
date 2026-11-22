@@ -29,6 +29,45 @@ final class ManageFlowTests: XCTestCase {
         field.typeText(text)
     }
 
+    /// 新建分类先挑图标：点「奶茶」图标，名字跟着填成「奶茶」，建好后能在管理分类里看到。
+    func testNewCategoryIconFirst() {
+        let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "newCategory")
+        let field = app.textFields["分类名字"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15), "新建分类面板没出来")
+        XCTAssertFalse(app.buttons["建好了"].isEnabled, "没名字就能建")
+        let tea = app.buttons["奶茶"]
+        XCTAssertTrue(tea.waitForExistence(timeout: 5), "图标格子里没有「奶茶」按钮（VoiceOver 也点不到）")
+        tea.tap()
+        XCTAssertEqual(field.value as? String, "奶茶", "点了图标，名字没跟着填")
+        XCTAssertTrue(tea.isSelected, "点过的图标没标成选中")
+        // 搜图标
+        let search = app.textFields["按名字搜图标"]
+        search.tap()
+        search.typeText("火锅")
+        XCTAssertTrue(app.buttons["火锅"].waitForExistence(timeout: 5), "搜「火锅」没找到")
+        app.buttons["建好了"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "建好了面板没关")
+    }
+
+    /// 已有分类换图标 → 改回自动。
+    func testChangeCategoryIcon() {
+        let app = launch("-XiaxiaDemo", "-XiaxiaSheet", "categories")
+        let iconButton = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "给「")).firstMatch
+        XCTAssertTrue(iconButton.waitForExistence(timeout: 15), "分类前面的图标点不到")
+        iconButton.tap()
+        XCTAssertTrue(find(app, "现在是按名字自动配的").waitForExistence(timeout: 5), "换图标面板没出来")
+        let done = app.buttons["换好了"]
+        XCTAssertFalse(done.isEnabled, "没挑就能换")
+        app.buttons["火锅"].tap()
+        XCTAssertTrue(done.isEnabled)
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "换好了面板没关")
+        iconButton.tap()
+        XCTAssertTrue(find(app, "你挑过图标").waitForExistence(timeout: 5), "换过的图标没记住")
+        app.buttons["改回自动"].tap()
+        XCTAssertTrue(find(app, "你挑过图标").waitForNonExistence(timeout: 5), "改回自动后面板没关")
+    }
+
     /// 账本：新建 → 改名 → 删除（空账本直接删）。
     func testBookAddRenameDelete() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "books")

@@ -55,6 +55,8 @@ public struct RootView: View {
     public init() {}
 
     @AppStorage("xiaxia.appearance") var appearance = "auto"
+    /// 主窗口有多高（Mac 上弹出的面板不能比它高）。
+    @State private var windowHeight: CGFloat = 900
 
     public var body: some View {
         @Bindable var model = model
@@ -68,6 +70,13 @@ public struct RootView: View {
             }
         }
         .tint(Color.brand)
+        #if os(macOS)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { windowHeight = geo.size.height }
+                .onChange(of: geo.size.height) { _, h in windowHeight = h }
+        })
+        #endif
         .overlay(alignment: .bottom) {
             ZStack { toastLayer }.animation(.snappy, value: model.toast)
         }
@@ -101,8 +110,9 @@ public struct RootView: View {
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
+                // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : 520,
-                       height: sheet == .add ? nil : sheet == .connectAI ? 720 : 580)
+                       height: sheet == .add ? nil : min(sheet == .connectAI ? 720 : 580, max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
                 #endif

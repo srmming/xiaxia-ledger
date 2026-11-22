@@ -10,7 +10,7 @@ final class CategoryStyleTests: XCTestCase {
             ("店铺·房租押金", .shoprent), ("AI·软件·订阅", .subscription), ("转给亲友·汇款", .remit),
             ("取现金", .cash), ("店铺·服务与保险", .insurance), ("住房·水电燃气", .utilities),
             ("美甲店收入", .revenue), ("其他收入", .income), ("员工工资", .staff), ("个人·外卖", .delivery),
-            ("退税", .taxrefund), ("店租", .shoprent),
+            ("退税", .taxrefund), ("店租", .shoprent), ("美甲店·刷卡收入", .revenue), ("工资收入", .salary),
         ]
         for (name, want) in cases {
             XCTAssertEqual(CategoryStyle.glyph(name), want, name)
