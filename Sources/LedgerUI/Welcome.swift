@@ -144,13 +144,14 @@ struct WelcomeView: View {
                 if wide {
                     HStack(spacing: 0) {
                         let heroWidth = min(geo.size.width * 0.4, 560)
-                        hero(mascot: min(geo.size.height * 0.58, heroWidth * 0.82))
+                        hero(mascot: min(geo.size.height * 0.58, heroWidth * 0.72))
                             .frame(width: heroWidth)
+                            .clipped()
                         content(padding: 48, wide: true)
                     }
                 } else {
                     VStack(spacing: 0) {
-                        hero(mascot: 120).frame(height: min(250, geo.size.height * 0.32))
+                        hero(mascot: 120).frame(height: min(250, geo.size.height * 0.32)).clipped()
                         content(padding: 20, wide: false)
                     }
                 }
@@ -173,29 +174,34 @@ struct WelcomeView: View {
             VStack(spacing: 6) {
                 speechBubble
                 ZStack(alignment: .bottom) {
-                    // 脚下的水波
-                    ForEach(0..<3, id: \.self) { i in
-                        Ellipse().stroke(Color.white.opacity(0.55 - Double(i) * 0.15), lineWidth: 1.5)
-                            .frame(width: size * (0.9 + CGFloat(i) * 0.35), height: size * (0.16 + CGFloat(i) * 0.06))
-                            .offset(y: size * 0.03 * CGFloat(i))
-                    }
                     HStack(alignment: .bottom, spacing: 0) {
-                        MascotView(.xiaxia, pose: pose, size: size, talking: thinking)
+                        // 伙伴出来时夏夏让一点位置，两个加起来不超出这一栏
+                        MascotView(.xiaxia, pose: pose, size: partner == nil ? size : size * 0.8, talking: thinking)
                             .id(pose)
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                         if let partner {
                             // 选了哪家 AI，哪家的小伙伴就跳出来。
-                            MascotView(partner, pose: .idle, size: size * 0.62)
+                            MascotView(partner, pose: .idle, size: size * 0.46)
                                 .id(partner)
                                 .transition(.move(edge: .trailing).combined(with: .scale(scale: 0.6, anchor: .bottom)).combined(with: .opacity))
                         }
                     }
                     .padding(.bottom, size * 0.05)
+                    .background(alignment: .bottom) {
+                        // 脚下的水波：画在背景里，不撑大这一栏
+                        ZStack(alignment: .bottom) {
+                            ForEach(0..<3, id: \.self) { i in
+                                Ellipse().stroke(Color.white.opacity(0.6 - Double(i) * 0.15), lineWidth: 1.5)
+                                    .frame(width: size * (0.7 + CGFloat(i) * 0.22), height: size * (0.14 + CGFloat(i) * 0.05))
+                                    .offset(y: size * 0.025 * CGFloat(i))
+                            }
+                        }
+                    }
                 }
             }
             .padding(16)
         }
-        .clipped()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(speech.isEmpty ? "夏夏" : "夏夏说：\(speech)")
     }
@@ -234,7 +240,7 @@ struct WelcomeView: View {
 
     private func content(padding: CGFloat, wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 16) {
+            HStack(alignment: .center, spacing: 28) {
                 stepper(big: wide)
                 if step != .done {
                     Button("以后再说") { model.finishWelcome() }
