@@ -83,7 +83,7 @@ public struct AISetup: Sendable {
                     steps.append(Step(what: "\(app.name)：MCP", path: url.path, changed: before != (try? Data(contentsOf: url))))
                 } catch {
                     steps.append(Step(what: "\(app.name)：MCP", path: url.path, changed: false,
-                                      note: (error as? LocalizedError)?.errorDescription ?? "\(error)"))
+                                      note: Self.explain(error)))
                 }
             }
             guard let toolHome = toolHome(app), FileManager.default.fileExists(atPath: toolHome.path) else { continue }
@@ -113,7 +113,7 @@ public struct AISetup: Sendable {
             try? fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true)
             if isLink { try? fm.removeItem(at: link) }
             do { try fm.createSymbolicLink(atPath: link.path, withDestinationPath: fin) }
-            catch { return [Step(what: "命令行 fin", path: link.path, changed: false, note: error.localizedDescription)] }
+            catch { return [Step(what: "命令行 fin", path: link.path, changed: false, note: Self.explain(error))] }
         }
         return [Step(what: "命令行 fin", path: link.path, changed: true)]
     }
@@ -147,7 +147,7 @@ public struct AISetup: Sendable {
             try Data("夏夏账本 fin setup 装的。fin setup --remove 会拿掉这个目录。\n".utf8).write(to: dir.appendingPathComponent(Self.marker))
             return Step(what: what, path: dir.path, changed: true, note: note)
         } catch {
-            return Step(what: what, path: dir.path, changed: false, note: error.localizedDescription)
+            return Step(what: what, path: dir.path, changed: false, note: Self.explain(error))
         }
     }
 
@@ -168,7 +168,7 @@ public struct AISetup: Sendable {
             do {
                 try fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try fm.createSymbolicLink(atPath: link.path, withDestinationPath: skillFolder.path)
-            } catch { return Step(what: what, path: link.path, changed: false, note: error.localizedDescription) }
+            } catch { return Step(what: what, path: link.path, changed: false, note: Self.explain(error)) }
         }
         return Step(what: what, path: link.path, changed: true)
     }
@@ -183,7 +183,7 @@ public struct AISetup: Sendable {
                 try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
                 backupOnce(file)
                 try Data(new.utf8).write(to: file, options: .atomic)
-            } catch { return Step(what: what, path: file.path, changed: false, note: error.localizedDescription) }
+            } catch { return Step(what: what, path: file.path, changed: false, note: Self.explain(error)) }
         }
         return Step(what: what, path: file.path, changed: true)
     }
@@ -215,6 +215,15 @@ public struct AISetup: Sendable {
         return a.lowerBound ..< b.upperBound
     }
 
+    /// 写不进文件时说人话：多半是 AI 工具自己的沙盒挡住了（比如 Codex 只让写工作目录）。
+    static func explain(_ error: Error) -> String {
+        let ns = error as NSError
+        let denied = [NSFileWriteNoPermissionError, NSFileReadNoPermissionError].contains(ns.code)
+            || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map { $0.domain == NSPOSIXErrorDomain && [1, 13].contains($0.code) } == true
+        if denied { return "没有权限写这个文件（多半是 AI 工具的沙盒挡住了）。请自己在「终端」里运行 fin setup，或在夏夏账本 app 里点「连上」" }
+        return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+
     // MARK: 拿掉
 
     /// 从这些工具里拿掉；装的 skill 目录在最后一个工具也拿掉后删除（all 为 true 时）。
@@ -226,7 +235,7 @@ public struct AISetup: Sendable {
             if connector.configuredCommand(app) != nil {
                 if !dryRun {
                     do { try connector.disconnect(app) }
-                    catch { steps.append(Step(what: "\(app.name)：MCP", path: url.path, changed: false, note: error.localizedDescription)); continue }
+                    catch { steps.append(Step(what: "\(app.name)：MCP", path: url.path, changed: false, note: Self.explain(error))); continue }
                 }
                 steps.append(Step(what: "\(app.name)：MCP", path: url.path, changed: true))
             }
