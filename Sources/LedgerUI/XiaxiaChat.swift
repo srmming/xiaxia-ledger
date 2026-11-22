@@ -74,6 +74,30 @@ public final class XiaxiaChatState {
     }
 }
 
+/// 「夏夏在想…」。等了 15 秒还没回，提醒看一眼有没有系统弹窗：
+/// 第一次在 app 里叫 AI 时，macOS 可能问「“夏夏账本”想访问“文稿”文件夹」，不点它 AI 就一直等着（实测卡满 3 分钟）。
+private struct ThinkingRow: View {
+    @State private var long = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg2)
+            }
+            if long {
+                Text("等得有点久。看看屏幕上有没有系统问「“夏夏账本”想访问…」的小窗，点「允许」夏夏就能接着回答。")
+                    .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .task {
+            try? await Task.sleep(for: .seconds(15))
+            withAnimation { long = true }
+        }
+    }
+}
+
 struct XiaxiaChatPanel: View {
     @Environment(LedgerModel.self) var model
     @FocusState var inputFocused: Bool
@@ -149,12 +173,7 @@ struct XiaxiaChatPanel: View {
                     if chat.messages.isEmpty { starter(chat) }
                     ForEach(chat.messages) { m in bubble(m).id(m.id) }
                     if chat.busy {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg2)
-                        }
-                        .id("busy")
-                        .accessibilityLabel("夏夏在想")
+                        ThinkingRow().id("busy")
                     }
                 }
                 .padding(14)

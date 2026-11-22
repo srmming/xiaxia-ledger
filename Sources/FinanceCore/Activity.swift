@@ -43,6 +43,23 @@ public struct ExternalActivity: Hashable, Sendable {
         return ExternalActivity(changes: fresh, transactionIDs: ids)
     }
 
+    /// 按账本现在的样子重算：已经被撤销的改动、连同撤销它的那条，一起拿掉；不在账本里的流水也拿掉。
+    /// 比如 AI 记了一笔又自己撤了，提示就该消失，而不是还说「刚记了 1 笔」。全拿掉了返回 nil。
+    public func current(in ledger: Ledger) -> ExternalActivity? {
+        let latest = Dictionary(ledger.changes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let now = changes.compactMap { latest[$0.id] ?? $0 }
+        let undone = now.filter(\.undone)
+        let kept = now.filter { c in
+            if c.undone { return false }
+            // 撤销时记下的那条「撤销：……」（kind == .delete），撤的正是这一批里的：一起拿掉。
+            if c.kind == .delete, undone.contains(where: { c.summary == "撤销：\($0.summary)" }) { return false }
+            return true
+        }
+        guard !kept.isEmpty else { return nil }
+        let alive = Set(ledger.transactions.map(\.id))
+        return ExternalActivity(changes: kept, transactionIDs: transactionIDs.filter { alive.contains($0) })
+    }
+
     /// 合并两次（上一条提示还没看完，又来了新的）。
     public func merged(with other: ExternalActivity) -> ExternalActivity {
         var ids = transactionIDs

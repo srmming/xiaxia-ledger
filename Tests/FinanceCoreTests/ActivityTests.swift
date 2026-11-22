@@ -36,6 +36,18 @@ final class ActivityTests: XCTestCase {
         XCTAssertEqual(new.transactions.map(\.description), ["面包"])
     }
 
+    func testAddThenUndoByAIDisappears() throws {
+        let old = sample()
+        var mid = old
+        try mid.addTransaction(tx(-2340, "超市"), author: "Claude")
+        let first = try XCTUnwrap(ExternalActivity.between(old, mid, me: "我"))
+        var new = mid
+        try new.undo(changeID: first.undoableIDs[0], author: "AI")
+        let later = ExternalActivity.between(mid, new, me: "我")
+        let merged = later.map { first.merged(with: $0) } ?? first
+        XCTAssertNil(merged.current(in: new), "记了又撤了，不该再提示「刚记了 1 笔」")
+    }
+
     func testNonTransactionChangeAndMerge() throws {
         let old = sample()
         var mid = old

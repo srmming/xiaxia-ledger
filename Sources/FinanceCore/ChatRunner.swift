@@ -107,20 +107,39 @@ public enum ChatRunner {
                 let stopped = StopFlag()
                 let killer = DispatchWorkItem { if p.isRunning { stopped.set(); p.terminate() } }
                 DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
-                // 先读完输出再等退出，免得输出太长把管道塞满卡住。
+                // stdout 和 stderr 同时读：只读完一个再读另一个，另一个写满 64KB 管道时命令行就会卡住不动。
+                let started = Date()
+                let errBox = DataBox()
+                let errDone = DispatchSemaphore(value: 0)
+                DispatchQueue.global(qos: .utility).async {
+                    errBox.data = err.fileHandleForReading.readDataToEndOfFile()
+                    errDone.signal()
+                }
                 let data = out.fileHandleForReading.readDataToEndOfFile()
-                let errData = err.fileHandleForReading.readDataToEndOfFile()
+                errDone.wait()
+                let errData = errBox.data
                 p.waitUntilExit()
                 killer.cancel()
+                writeLog(dir: dir, engine: engine, args: args, seconds: Date().timeIntervalSince(started),
+                         status: p.terminationStatus, stopped: stopped.value, stderr: errData)
                 let text = String(decoding: data, as: UTF8.self)
                 let errText = String(decoding: errData, as: UTF8.self)
                 if stopped.value || p.terminationReason == .uncaughtSignal {
-                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。可以再发一次试试，或者在右上角换一个 AI。", sessionID: nil, isError: true))
+                    cont.resume(returning: ChatReply(text: "夏夏等了 \(Int(timeout / 60)) 分钟还没等到 \(engine.name) 的回答，先停下了。如果屏幕上有系统问「“夏夏账本”想访问…」的小窗，点「允许」后再发一次；也可以在右上角换一个 AI。", sessionID: nil, isError: true))
                     return
                 }
                 cont.resume(returning: parse(engine, stdout: text, stderr: errText, status: p.terminationStatus))
             }
         }
+    }
+
+    /// 每次调用记一份日志（chat/last-run.log，只留最近一次）：卡住、出错时能直接看到原因。不记提问内容。
+    static func writeLog(dir: URL, engine: ChatEngine, args: [String], seconds: TimeInterval, status: Int32, stopped: Bool, stderr: Data) {
+        let shown = args.enumerated().map { i, a in i > 0 && args[i - 1] == "-p" || (engine != .claude && i == args.count - 1) ? "<提问>" : a }
+        var log = "\(ISO8601DateFormatter().string(from: Date())) \(engine.rawValue) \(String(format: "%.1f", seconds)) 秒 退出码 \(status)\(stopped ? "（超时被停）" : "")\n"
+        log += "参数：\(shown.joined(separator: " "))\n--- stderr ---\n"
+        log += String(decoding: stderr.suffix(20_000), as: UTF8.self)
+        try? log.write(to: dir.appendingPathComponent("last-run.log"), atomically: true, encoding: .utf8)
     }
 
     /// 把命令行的输出变成一句回答。
@@ -160,6 +179,9 @@ public enum ChatRunner {
         return p
     }
 }
+/// 另一个线程读出来的 stderr，读完（信号量）之后才取。
+private final class DataBox: @unchecked Sendable { var data = Data() }
+
 /// 超时有没有被我们停掉：在两个线程之间传一个是/否。
 private final class StopFlag: @unchecked Sendable {
     private let lock = NSLock()
