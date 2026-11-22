@@ -154,7 +154,8 @@ public struct AIConnector: Sendable {
     }
 
     /// 开始引导里让用户去跟 AI 说的那一句（用户看得懂、自己也会这么说）。怎么带着记第一笔写在 welcomeGuide 里，由 MCP 的 welcome 工具交给 AI。
-    public static let welcomeSentence = "用夏夏账本带我记下第一笔"
+    /// 三句人话，自己就说得清要做什么：不靠 AI 那边有没有新版的 welcome 工具；连不到账本的 AI（网页版、手机版）也会照最后一句直说。
+    public static let welcomeSentence = "我刚装了夏夏账本，想让你以后帮我记账。先问我今天花了什么，帮我记下第一笔；再问我有没有想存钱达成的心愿。如果你连不到夏夏账本，直接告诉我。"
 
     /// 给 AI 看的：用户刚装好、第一次让它记账时怎么带。MCP 工具 welcome 返回这段。
     public static let welcomeGuide = """

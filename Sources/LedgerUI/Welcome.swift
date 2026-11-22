@@ -367,7 +367,8 @@ struct WelcomeView: View {
                     if !linked.isEmpty {
                         // 连着了：去 AI 里说这一句人话就行，怎么带着记第一笔由账本自己告诉 AI。
                         Text("「\(AIConnector.welcomeSentence)」")
-                            .font(.title2.weight(.semibold))
+                            .font(.title3.weight(.medium))
+                            .lineSpacing(4)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 22).padding(.vertical, 20)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -448,8 +449,8 @@ struct WelcomeView: View {
     private var trySubtitle: String {
         guard let f = family else { return "" }
         if let first = linked.first {
-            if let justConnected { return "先\(justConnected.afterConnect)，再跟它说下面这句话，它会带你记下第一笔。" }
-            return "去 \(first.name) 里说下面这句话，它会带你记下第一笔。"
+            if let justConnected { return "先\(justConnected.afterConnect)，再把下面这段话发给它。" }
+            return "把下面这段话发给 \(first.name)，它会带你记下第一笔。"
         }
         if !toConnect.isEmpty {
             return "这台 Mac 上有 \(toConnect.map(\.name).joined(separator: "、"))，点一下我就帮你连上。我只在它的设置里加上「夏夏账本」这一项，别的都不动。"

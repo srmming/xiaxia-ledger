@@ -199,7 +199,11 @@ final class AIConnectTests: XCTestCase {
 
     func testWelcomeSentenceAndGuide() {
         XCTAssertTrue(AIConnector.welcomeSentence.contains("夏夏账本"), "一句人话，点名夏夏账本，AI 才知道用哪个工具")
-        XCTAssertLessThan(AIConnector.welcomeSentence.count, 30, "给用户复制的要短，不能是一大段技术说明")
+        XCTAssertLessThan(AIConnector.welcomeSentence.count, 100, "给用户复制的要短，不能是一大段技术说明")
+        for word in ["MCP", "/", "fin ", "context", "add_"] {
+            XCTAssertFalse(AIConnector.welcomeSentence.contains(word), "给用户看的话里不出现技术词：\(word)")
+        }
+        XCTAssertTrue(AIConnector.welcomeSentence.contains("今天花了什么") && AIConnector.welcomeSentence.contains("连不到"))
         let g = AIConnector.welcomeGuide
         XCTAssertTrue(g.contains("今天花了什么"))
         XCTAssertTrue(g.contains("add_transaction") && g.contains("add_goal"))
