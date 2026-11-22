@@ -153,20 +153,34 @@ public struct AIConnector: Sendable {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// 「复制一段话给 AI，让它自己配好」：能在这台 Mac 上跑命令的 AI（Claude Code、Codex……）直接跑 fin connect；
-    /// 不能跑命令的，照着里面的配置自己加，或者告诉用户去哪儿粘。
+    /// 「一键复制配置提示词」：粘给任何 AI（Claude Code、Codex、Hermes、Gemini CLI、Cursor、Claude 桌面版……），
+    /// 它自己判断能不能跑命令：能就跑 fin setup 装好 MCP + skill + 提示词；不能就告诉用户粘哪段配置。最后调一次只读的 summary 确认。
     public static func setupPrompt(fin: String) -> String {
-        let names = AIApp.allCases.map(\.cliName).joined(separator: " / ")
+        let names = AIApp.allCases.map(\.name).joined(separator: "、")
         return """
-        请帮我把记账软件「夏夏账本」接到你身上（MCP），接好后我就能让你帮我记账、看账。
+        请帮我把记账软件「夏夏账本」接到你身上。接好后我就能直接跟你说「今天超市花了 23,40」「这个月花了多少」，你来记账、查账。
 
-        夏夏账本已经装在这台 Mac 上，它的 MCP 服务是：\(fin) mcp
+        夏夏账本已经装在这台 Mac 上，它自带一个命令行工具，完整路径是：
+        "\(fin)"
 
-        1. 如果你能在这台 Mac 上运行命令：先运行 "\(fin)" connect --list 看看状态，再运行 "\(fin)" connect 你自己的名字（\(names) 之一）。
-        2. 如果你不在上面这些里，或者不能运行命令：把下面这段加进你的 MCP 服务器设置（stdio 类型）；你自己改不了设置的话，告诉我该点哪里、粘到哪儿。
+        请按顺序做：
+
+        1. 你能在这台 Mac 上运行终端命令吗？
+           能（比如你是 Claude Code、Codex、Hermes、Gemini CLI，或 Cursor 的 Agent）：
+           a. 先运行 "\(fin)" setup --dry-run ，用一两句话告诉我它会改哪些文件。
+           b. 再运行 "\(fin)" setup 。它会找出这台 Mac 上装了的 AI 工具（\(names)），给每个接上 MCP 服务「xiaxia-ledger」、装好使用说明（skill）和提示词；每个文件改之前先留一份 .bak-xiaxia 备份，最后自己读一次账本确认能用。
+           c. 把它最后几行（✓ / ✗ 那几行）原样告诉我。有 ✗ 就照它说的处理，处理不了就告诉我卡在哪。
+           不能运行命令（比如你是 Claude 桌面版或网页版）：直接跳到第 2 步。
+
+        2. 如果上一步没把「你自己」配上（比如你不在上面那些工具里），请把下面这段加进你的 MCP 服务器设置（stdio 类型）；你自己改不了设置的话，一步一步告诉我该点哪里、粘到哪儿：
         \(configSnippet(fin: fin))
-        3. 配好后告诉我要不要重启你、怎么重启。重启后调用 xiaxia-ledger 的 context 工具，确认能读到账本，再跟我说一句「连好了」。
-        不要改这段以外的设置，也不要动账本文件。
+           Claude 桌面版也可以在夏夏账本 app 的「设置 → 连上你的 AI」里直接点「连上」。
+
+        3. 确认能用：配好后，如果要重开你（或新开一个对话）才能看到新工具，就告诉我怎么做，我做完会再找你。
+           能看到 xiaxia-ledger 的工具时，调用它的 summary 工具（只读），参数 month 填这个月（如 2026-11），把结果用一句话告诉我，再说「夏夏账本连好了」，并举两个以后可以怎么跟你说的例子。
+           暂时看不到工具时，运行 "\(fin)" setup --check 确认账本能读到。
+
+        规矩：只改上面说的这些设置；不要直接改账本文件；没有我同意不要往账本里写东西。
         """
     }
 

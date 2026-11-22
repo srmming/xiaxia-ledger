@@ -17,9 +17,9 @@ struct SettingsPage: View {
                 AIStatusRows()
                 Button {
                     Clipboard.copy(model.aiSetupPrompt)
-                    model.toast = .init(text: "已复制，粘贴给你的 AI，它会自己配好", changeID: nil)
+                    model.toast = .init(text: "已复制配置提示词，粘贴给你的 AI，它会自己配好", changeID: nil)
                 } label: {
-                    item(symbol: "text.bubble.fill", color: .ai, title: "复制一段话，让 AI 自己配好") {
+                    item(symbol: "text.bubble.fill", color: .ai, title: "一键复制配置提示词（粘给任何 AI，它自己配好）") {
                         Image(systemName: "doc.on.doc").font(.caption).foregroundStyle(Color.fg3)
                     }
                 }

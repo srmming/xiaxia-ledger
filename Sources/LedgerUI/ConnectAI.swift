@@ -39,7 +39,7 @@ extension LedgerModel {
         return AIConnector(home: fake, fin: fin, appFolders: [fake.appendingPathComponent("Applications")])
     }
 
-    /// 「复制一段话给 AI，让它自己配好」。
+    /// 「一键复制配置提示词」：粘给任何 AI，它自己配好。
     var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
 
     /// 有没有任何 AI 连过账本：写过账、握过手、或者配置里已经有了。
@@ -65,7 +65,7 @@ extension LedgerModel {
     func repairAIConnections() {
         #if os(macOS)
         guard !usesSampleData, let c = aiConnector else { return }
-        for app in AIApp.allCases where c.needsRepair(app) { try? c.connect(app) }
+        for app in AIApp.allCases where c.needsRepair(app) { try? AISetup(connector: c).connect(app) }
         #endif
     }
 }
@@ -230,15 +230,15 @@ struct ConnectAIView: View {
         Section {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("复制一段话发给你的 AI，它会自己把夏夏账本配好").font(.body)
-                    Text("适合 Claude Code、Codex 这类能在电脑上执行命令的 AI，也适合上面没列出来的工具：AI 会告诉你粘到哪儿。")
+                    Text("复制配置提示词，粘给任何一个 AI，它会自己把夏夏账本配好").font(.body)
+                    Text("Claude Code、Codex、Hermes 这类能执行命令的 AI 会一次把这台 Mac 上所有 AI 都配好（连同使用说明），最后自己读一次账本确认；不能执行命令的 AI 会告诉你粘到哪儿。")
                         .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Button {
                     Clipboard.copy(model.aiSetupPrompt)
-                    model.toast = .init(text: "已复制，粘贴给你的 AI 就行", changeID: nil)
-                } label: { Label("复制这段话", systemImage: "doc.on.doc") }
+                    model.toast = .init(text: "已复制配置提示词，粘贴给你的 AI 就行", changeID: nil)
+                } label: { Label("一键复制配置提示词", systemImage: "doc.on.doc") }
                     .buttonStyle(.softAI)
             }
         } header: {
@@ -384,7 +384,7 @@ struct ConnectAIView: View {
         guard let c = connector else { return }
         for app in AIApp.allCases where picked.contains(app) {
             do {
-                try c.connect(app)
+                try AISetup(connector: c).connect(app)
                 results[app] = app.afterConnect
                 errors[app] = nil
             } catch {
@@ -487,7 +487,7 @@ struct AIStatusRows: View {
     private func connect(_ app: AIApp) {
         guard let c = model.aiConnector else { return }
         do {
-            try c.connect(app)
+            try AISetup(connector: c).connect(app)
             model.toast = .init(text: "已连上 \(app.name)，\(app.afterConnect)就能用", changeID: nil)
         } catch {
             model.toast = .init(text: error.localizedDescription, changeID: nil, isError: true)

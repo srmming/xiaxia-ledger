@@ -34,7 +34,7 @@ Sources/
   XiaxiaLedgerApp/  Mac app（SwiftUI 外壳；页面按 design/ 的设计稿做）
 Tests/              单元测试（只用编造数据）
 design/             logo、界面设计稿
-skills/fin/         给 AI 的使用说明（skill + 通用提示词 PROMPT.md），scripts/install-global.sh 装到各 AI 工具全局
+skills/fin/         给 AI 的使用说明（skill + 通用提示词 PROMPT.md），打包进 fin，fin setup 装到各 AI 工具全局
 docs/               路线图和决定记录
 ```
 
