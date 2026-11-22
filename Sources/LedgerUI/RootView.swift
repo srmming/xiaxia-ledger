@@ -405,7 +405,7 @@ public struct XiaxiaScene: Scene {
         } else if args.contains("-XiaxiaEmpty") {
             model = LedgerModel.empty()
         } else {
-            model = LedgerModel(store: LedgerStores.defaultStore())
+            model = LedgerModel(store: LedgerStores.appStore())
         }
         Self.applyLaunchOptions(args, to: model)
         _model = State(initialValue: model)
