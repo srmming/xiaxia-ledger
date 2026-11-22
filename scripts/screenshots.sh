@@ -47,9 +47,10 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   snap() {
     local name="$1"; shift
-    # 用 open 启动：app 会被激活，主窗口才会出来（直接跑可执行文件时常常一个窗口都没有）
+    # 用 open 启动，让 app 被激活。系统参数（-AppleLanguages 这种成对的）放前面：
+    # 放在 -XiaxiaDemo 这类单个开关后面时会被错位读成别的键，结果一个窗口都不出来（只有开关个数凑成双数的那次截到了）。
     open -n -a "$MAC_APP" --stdout "$OUT/mac-$name.log" --stderr "$OUT/mac-$name.log" \
-      --args "$@" -XiaxiaSnapshot "$OUT/mac-$name.png" -AppleLanguages "(zh-Hans)" -AppleLocale es_ES
+      --args -AppleLanguages "(zh-Hans)" -AppleLocale es_ES -XiaxiaSnapshot "$OUT/mac-$name.png" "$@"
     for _ in $(seq 1 45); do [ -f "$OUT/mac-$name.png" ] && break; pgrep -f "$BIN" >/dev/null || break; sleep 1; done
     sleep 1
     pkill -9 -f "$BIN" 2>/dev/null
