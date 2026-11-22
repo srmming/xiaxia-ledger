@@ -81,6 +81,10 @@ ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.
 
 **分期**：`fin installment add 美甲灯 329,40 --count 6 --account caixa --book miora`；扣了一期 `fin installment pay 美甲灯`，对账单里已有的扣款用 `--tx <编号>` 认领。`fin installments` 看还剩几期。
 
+**多币种**：`fin fx` 看主币种和外币账户（原币余额 + 约合主币种）。外币账户 `fin account add wise 美元卡 --currency USD`（MCP：`add_account` 的 `currency`），已有账户 `fin fx account wise USD`。外币账户里的流水金额写那个币种的数（美元卡记美元），汇总自动按当天欧洲央行汇率换成主币种；`fin fx update`（MCP：`update_rates`）取汇率。银行实际扣了多少主币种以银行为准：`fin fx set-rate <id> --bank 46,12`。欧元卡在国外刷外币：金额记银行扣的欧元，`--original "50 USD"` 记原价。改主币种 `fin fx base USD`（已有金额不变）。
+
+**订阅**：`fin subscriptions`（MCP：`subscriptions`）看每月 / 一年合计、下次哪天扣、可能涨价的。用户问「我订了哪些」「每月固定扣多少」就用它。从流水里找：`fin subscription find`（MCP：`find_subscriptions`），只列不写；把列表给用户看，问哪些是真订阅，确认后 `fin subscription add 视频会员 13,99 --next 2026-12-03 --account revolut --match netflix [--cycle yearly]`。涨价 `fin subscription edit 视频会员 --amount 15,99`，不续了 `fin subscription cancel 视频会员`，登记错了 `fin subscription remove`。
+
 **存钱目标**：`fin goal add 应急金 6000 [--savings-account pot] [--locked]`；`fin goal deposit 应急金 300 --from caixa`；`fin goal withdraw 应急金 100 --to caixa`（MCP：`goal_withdraw`；锁定的不能取，也不要建议取）。`fin goals` 看进度。
 
 **出月报**（「出一份 11 月月报」）

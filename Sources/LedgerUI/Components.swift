@@ -11,10 +11,17 @@ extension Money {
         if cents < 0 { return "\u{2212}" + magnitude.formatted }
         return formatted
     }
+    /// 按某个币种的界面写法（外币账户的流水：「−20,00 US$」）。nil = 主币种。
+    func display(in currency: String?) -> String {
+        guard let currency, currency != Money.defaultCurrency else { return display }
+        if cents > 0 { return "+" + formatted(in: currency) }
+        if cents < 0 { return "\u{2212}" + magnitude.formatted(in: currency) }
+        return formatted(in: currency)
+    }
     /// 不带小数的写法：「1.150 €」，给一句话里用。
     var rounded: String {
         let euros = (magnitude.cents + 50) / 100
-        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 €", with: " €")
+        let text = Money(cents: euros * 100).formatted.replacingOccurrences(of: ",00 ", with: " ")
         return (cents < 0 ? "\u{2212}" : "") + text
     }
     /// 余额：负数（信用卡欠款）带减号，正数不带。
@@ -26,9 +33,11 @@ struct AmountText: View {
     let money: Money
     var neutral = false
     var font: Font = .kitAmount
+    /// 外币账户的流水按它自己的币种显示；nil = 主币种。
+    var currency: String? = nil
 
     var body: some View {
-        Text(neutral ? money.magnitude.formatted : money.display)
+        Text(neutral ? money.magnitude.formatted(in: currency ?? Money.defaultCurrency) : money.display(in: currency))
             .font(font)
             .foregroundStyle(neutral ? Color.fg3 : (money.isIncome ? Color.income : Color.primary))
             .contentTransition(.numericText(value: Double(money.cents)))

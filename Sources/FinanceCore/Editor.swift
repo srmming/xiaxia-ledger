@@ -53,8 +53,10 @@ extension Ledger {
     public mutating func addTransaction(_ tx: Transaction, author: String) throws -> ChangeRecord {
         try requireAccount(tx.accountID)
         if let b = tx.bookID { try requireBook(b) }
+        var tx = tx
+        if tx.fx == nil { tx.fx = fxNote(accountID: tx.accountID, date: tx.date) }   // 外币账户：记下当天汇率
         transactions.append(tx)
-        return record(.add, "记一笔 \(tx.amount.formatted) \(tx.description)", ids: [tx.id], author: author)
+        return record(.add, "记一笔 \(formatted(tx)) \(tx.description)", ids: [tx.id], author: author)
     }
 
     // MARK: 账户
@@ -276,7 +278,14 @@ extension Ledger {
         guard transactions.contains(where: { $0.id == updated.id }) else { throw EditError.unknownTransaction(updated.id.uuidString, 0) }
         try requireAccount(updated.accountID)
         if let b = updated.bookID { try requireBook(b) }
-        return modify([updated.id], kind: .edit, summary: "改了一笔：\(updated.description) \(updated.amount.formatted)", author: author) {
+        var updated = updated
+        // 换了账户或日期：外币汇率按新的重新记（手动 / 按银行改过的汇率，账户没换就留着）。
+        if let old = transactions.first(where: { $0.id == updated.id }),
+           old.accountID != updated.accountID || (old.date != updated.date && (updated.fx?.source ?? "ecb") == "ecb") {
+            updated.fx = fxNote(accountID: updated.accountID, date: updated.date)
+        }
+        let text = formatted(updated)
+        return modify([updated.id], kind: .edit, summary: "改了一笔：\(updated.description) \(text)", author: author) { [updated] in
             $0 = updated
         }
     }
@@ -397,7 +406,11 @@ extension Ledger {
     public mutating func importTransactions(_ incoming: [Transaction], accountID: String, source: String,
                                             author: String) throws -> (added: [Transaction], duplicates: Int, change: ChangeRecord?) {
         try requireAccount(accountID)
-        let fresh = Dedup.newTransactions(incoming, existing: transactions)
+        let fresh = Dedup.newTransactions(incoming, existing: transactions).map { t -> Transaction in
+            var c = t
+            if c.fx == nil { c.fx = fxNote(accountID: c.accountID, date: c.date) }   // 外币账户：记下当天汇率
+            return c
+        }
         let dupes = incoming.count - fresh.count
         guard !fresh.isEmpty else { return ([], dupes, nil) }
         transactions += fresh

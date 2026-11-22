@@ -111,6 +111,7 @@ public struct RootView: View {
         .task {
             // Mac：app 换过位置就把 AI 配置里的路径改过来；第一次打开、还没连过 AI 就弹「连上你的 AI」。
             model.repairAIConnections()
+            await model.refreshRatesIfNeeded()   // 有外币账户时，一天取一次欧洲央行汇率
             try? await Task.sleep(for: .seconds(0.6))
             model.showAISetupIfNeeded()
         }
