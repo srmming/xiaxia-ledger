@@ -90,9 +90,19 @@ struct XiaxiaHeader: View {
 /// 设置里「夏夏怎么跟你说话」：四种性格，各带一句例句。
 struct PersonaPicker: View {
     @Environment(LedgerModel.self) var model
+    @AppStorage(MascotLook.storageKey) private var lookRaw = MascotLook.girl.rawValue
 
     var body: some View {
         VStack(spacing: 8) {
+            // 夏夏和伙伴用女生版还是男生版（男生版的图到了才显示这个开关）
+            if MascotLook.boyAvailable {
+                Picker("形象", selection: $lookRaw.animation(.spring(duration: 0.45, bounce: 0.3))) {
+                    ForEach(MascotLook.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("夏夏和伙伴的形象")
+                .padding(.bottom, 4)
+            }
             ForEach(Persona.allCases) { p in
                 Button {
                     guard p != model.persona else { return }
