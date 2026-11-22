@@ -339,12 +339,6 @@ struct PhoneRoot: View {
             page(.plans, title: "计划") { PlansPage() }
             page(.insights, title: "夏夏") { InsightsPage() }
         }
-        .overlay(alignment: .bottomTrailing) {
-            AskAIButton(page: (model.section ?? .overview).rawValue)
-                .shadow(color: Color.aiSolid.opacity(0.35), radius: 10, y: 4)
-                .padding(.trailing, 16)
-                .padding(.bottom, 62)
-        }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SettingsPage()
@@ -367,6 +361,14 @@ struct PhoneRoot: View {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         if section != .insights {
                             BookSwitch()
+                            // 「问 AI」放进顶栏，不再浮在右下角挡住卡片上的按钮；「夏夏」页自己有问的入口，这里不重复。
+                            AskAIReader { ask in
+                                Button { ask("", page: (model.section ?? section).rawValue) } label: {
+                                    Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ai)
+                                }
+                                .accessibilityLabel("问 AI")
+                                .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
+                            }
                         }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
