@@ -56,7 +56,7 @@ public enum ChatEngine: String, CaseIterable, Identifiable, Codable, Sendable {
             return ["exec", "--skip-git-repo-check", prompt]
         case .hermes:
             // -z 默认不加载新加的 MCP 工具集，要用 -t 点名 xiaxia-ledger（2026-11-22 在 ming 的 Mac 上实测）。
-            return ["-t", "xiaxia-ledger", "-z", prompt]
+            return ["-z", prompt, "-t", "xiaxia-ledger"]
         }
     }
 

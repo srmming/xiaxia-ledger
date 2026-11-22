@@ -50,7 +50,7 @@ public enum AIApp: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .claudeCode: ["-p", prompt]
         case .codex: ["exec", prompt]
-        case .hermes: ["-t", "xiaxia-ledger", "-z", prompt]
+        case .hermes: ["-z", prompt, "-t", "xiaxia-ledger"]
         case .gemini: ["-p", prompt]
         case .claudeDesktop, .cursor: nil
         }
