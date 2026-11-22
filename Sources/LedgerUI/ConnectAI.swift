@@ -205,7 +205,7 @@ struct ConnectAIView: View {
     private func symbol(_ app: AIApp) -> String {
         switch app {
         case .claudeDesktop: "bubble.left.and.text.bubble.right.fill"
-        case .claudeCode, .codex, .gemini: "terminal.fill"
+        case .claudeCode, .codex, .gemini, .hermes: "terminal.fill"
         case .cursor: "chevron.left.forwardslash.chevron.right"
         }
     }
@@ -241,7 +241,9 @@ struct ConnectAIView: View {
                     .font(.callout)
             }
             linkRow("下载 Claude 桌面版", note: "最省事，装好登录就能用", url: "https://claude.ai/download", symbol: "arrow.down.circle.fill")
-            linkRow("用 DeepSeek、通义千问、Kimi？装 Cherry Studio", note: "在它的「MCP 服务器」设置里粘贴下面复制的配置",
+            linkRow("用 DeepSeek？装 Hermes Agent", note: "开源的 AI 助手，能接 DeepSeek，也能用 ChatGPT、Claude 的订阅登录；装好后回来点「连上」",
+                    url: "https://hermes-agent.nousresearch.com", symbol: "arrow.down.circle.fill")
+            linkRow("用通义千问、Kimi、豆包？装 Cherry Studio", note: "在它的「MCP 服务器」设置里粘贴下面复制的配置",
                     url: "https://www.cherry-ai.com", symbol: "arrow.down.circle.fill")
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
