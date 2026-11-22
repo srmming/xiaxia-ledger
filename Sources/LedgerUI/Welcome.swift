@@ -73,6 +73,8 @@ struct WelcomeView: View {
     @State private var installed: [AIApp] = []
     @State private var pickedAI: Set<AIApp> = []
     @State private var openConnectAfter = false
+    enum AIMode { case choose, agent, mcp }
+    @State private var aiMode: AIMode = .choose
     @FocusState private var customFocused: Bool
 
     var body: some View {
@@ -237,25 +239,56 @@ struct WelcomeView: View {
                 primary(pickedAccounts.isEmpty ? "先不加" : "选好了（\(pickedAccounts.count) 个）", id: "welcome.accounts.next") { Task { await confirmAccounts() } }
             }
         case .ai:
-            VStack(spacing: 12) {
-                if installed.isEmpty {
-                    HStack(spacing: 10) {
-                        secondary("以后再说") { Task { await confirmAI(connect: false) } }
-                        primary("看看怎么装", id: "welcome.ai.howto") { openConnectAfter = true; Task { await confirmAI(connect: false) } }
+            VStack(spacing: 10) {
+                switch aiMode {
+                case .choose:
+                    wayCard("连接 agent 工具", note: "Claude Code、Codex、Claude 桌面版这类，点一下就连好", symbol: "sparkles", id: "welcome.ai.agent") {
+                        Task { await chooseAgent() }
                     }
-                } else {
-                    FlowLayout(spacing: 8) {
-                        ForEach(installed) { app in
-                            chip(app.name, symbol: "sparkles", on: pickedAI.contains(app), tint: .ai) {
-                                if pickedAI.contains(app) { pickedAI.remove(app) } else { pickedAI.insert(app) }
+                    wayCard("配置 MCP", note: "用别的 AI 工具：复制一段配置，粘进它的 MCP 设置", symbol: "doc.on.doc", id: "welcome.ai.mcp") {
+                        Task { await chooseMCP() }
+                    }
+                    wayCard("接入 API", note: "填自己的 API 密钥，在 app 里直接聊。还在做，做好了这里就能点", symbol: "key", id: "welcome.ai.api", enabled: false) {}
+                    secondary("以后再说") { Task { await confirmAI(connect: false) } }
+                case .agent:
+                    if installed.isEmpty {
+                        HStack(spacing: 10) {
+                            secondary("换一种方式") { backToWays() }
+                            primary("看看怎么装", id: "welcome.ai.howto") { openConnectAfter = true; Task { await confirmAI(connect: false) } }
+                        }
+                    } else {
+                        FlowLayout(spacing: 8) {
+                            ForEach(installed) { app in
+                                chip(app.name, symbol: "sparkles", on: pickedAI.contains(app), tint: .ai) {
+                                    if pickedAI.contains(app) { pickedAI.remove(app) } else { pickedAI.insert(app) }
+                                }
                             }
                         }
+                        HStack(spacing: 10) {
+                            secondary("换一种方式") { backToWays() }
+                            primary("帮我连上（\(pickedAI.count) 个）", id: "welcome.ai.connect", tint: .aiSolid) {
+                                Task { await confirmAI(connect: true) }
+                            }
+                            .disabled(pickedAI.isEmpty)
+                        }
+                    }
+                case .mcp:
+                    HStack(spacing: 10) {
+                        Button {
+                            Clipboard.copy(model.mcpConfig)
+                            model.toast = .init(text: "MCP 配置已复制，粘进你的 AI 工具", changeID: nil)
+                        } label: { Label("复制 MCP 配置", systemImage: "doc.on.doc") }
+                            .buttonStyle(.softAI)
+                            .accessibilityIdentifier("welcome.ai.copyConfig")
+                        Button {
+                            Clipboard.copy(model.aiSetupPrompt)
+                            model.toast = .init(text: "已复制，粘给你的 AI，它会自己配好", changeID: nil)
+                        } label: { Label("让 AI 自己配：复制提示词", systemImage: "text.bubble") }
+                            .buttonStyle(.softAI)
                     }
                     HStack(spacing: 10) {
-                        secondary("以后再说") { Task { await confirmAI(connect: false) } }
-                        primary(pickedAI.isEmpty ? "先不连" : "帮我连上（\(pickedAI.count) 个）", id: "welcome.ai.connect", tint: .aiSolid) {
-                            Task { await confirmAI(connect: true) }
-                        }
+                        secondary("换一种方式") { backToWays() }
+                        primary("弄好了", id: "welcome.ai.mcpDone") { Task { await finishMCP() } }
                     }
                 }
             }
@@ -336,6 +369,41 @@ struct WelcomeView: View {
         .accessibilityIdentifier(id)
     }
 
+    /// 连 AI 的一种方式：一整行的大卡片，标题加一句说明。
+    private func wayCard(_ title: String, note: String, symbol: String, id: String, enabled: Bool = true,
+                         action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(enabled ? Color.ai : Color.fg3.opacity(0.5), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body.weight(.semibold)).foregroundStyle(enabled ? Color.primary : Color.fg2)
+                    Text(note).font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if enabled {
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
+                } else {
+                    Text("还在做").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color.sunken, in: Capsule())
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.fg3.opacity(0.2), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(enabled ? "\(title)，\(note)" : "\(title)，还在做，暂时不能用")
+        .accessibilityIdentifier(id)
+    }
+
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(.body.weight(.medium)).foregroundStyle(Color.primary)
@@ -408,25 +476,51 @@ struct WelcomeView: View {
         }
         if aiStepAvailable {
             refreshAI()
-            if installed.isEmpty, let c = model.aiConnector {
-                let linked = AIApp.allCases.filter { c.isConnected($0) }
-                if !linked.isEmpty {
-                    // 以前已经连过了：不用再问。
-                    await say("第三件事是连上你的 AI。我看了一下，这些已经连着了，不用再弄：", items: linked.map(\.name), pose: .cheer)
-                    await wrapUp()
-                    return
-                }
-            }
+            aiMode = .choose
             step = .ai
-            await say("最后一个问题：要不要现在连上你的 AI？", pose: .think)
-            if installed.isEmpty {
-                await say("连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。不过这台 Mac 上我还没找到能连的 AI 工具，比如 Claude、Codex。")
-            } else {
-                await say("连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。这台 Mac 上能连的我列在下面了，不想连的点一下取消。")
-            }
+            await say("最后一个问题：要不要连上你的 AI？连上以后，你跟 AI 说一句「今天买菜花了 23」它就帮你记。", pose: .think)
+            await say("有三种连法，挑一种你顺手的：")
         } else {
             await wrapUp()
         }
+    }
+
+    /// 连接 agent 工具：这台 Mac 上找到的列出来，点一下写好设置。
+    private func chooseAgent() async {
+        answer("连接 agent 工具")
+        refreshAI()
+        let linked = model.aiConnector.map { c in AIApp.allCases.filter { c.isConnected($0) } } ?? []
+        if installed.isEmpty, !linked.isEmpty {
+            await say("我看了一下，这些已经连着了，不用再弄：", items: linked.map(\.name), pose: .cheer)
+            await wrapUp()
+            return
+        }
+        withAnimation(.snappy) { aiMode = .agent }
+        if !linked.isEmpty { await say("这些已经连着了：", items: linked.map(\.name)) }
+        if installed.isEmpty {
+            await say("这台 Mac 上我还没找到能连的 AI 工具，比如 Claude、Codex。可以先装一个，或者换一种方式。", pose: .worried)
+        } else {
+            await say("这台 Mac 上能连的我列在下面了，不想连的点一下取消。", pose: .idle)
+        }
+    }
+
+    /// 配置 MCP：给别的 AI 工具用，复制一段配置自己粘。
+    private func chooseMCP() async {
+        answer("配置 MCP")
+        withAnimation(.snappy) { aiMode = .mcp }
+        await say("好。点下面的「复制 MCP 配置」，粘进你那个 AI 工具的 MCP 设置里，再重开它就行。", pose: .idle)
+        await say("如果你的 AI 能自己执行命令，也可以复制提示词粘给它，它会自己配好。")
+    }
+
+    private func backToWays() {
+        answer("换一种方式")
+        withAnimation(.snappy) { aiMode = .choose }
+    }
+
+    private func finishMCP() async {
+        answer("弄好了")
+        await say("好！以后想检查连没连上，去「设置」里的「连上你的 AI」看。", pose: .cheer)
+        await wrapUp()
     }
 
     private func confirmAI(connect: Bool) async {
