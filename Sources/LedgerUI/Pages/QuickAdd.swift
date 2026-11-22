@@ -218,6 +218,8 @@ struct QuickAdd: View {
                 #endif
                 Text("€").font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
             if Money.isExpression(amountText) {
                 Text(amount.map { "= \($0.formatted)" } ?? "算式还没写完")
                     .font(.callout.weight(.medium)).monospacedDigit()
@@ -226,8 +228,6 @@ struct QuickAdd: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
     }
 
     private var amountColor: Color { income ? .income : isTransfer ? .fg2 : .primary }
