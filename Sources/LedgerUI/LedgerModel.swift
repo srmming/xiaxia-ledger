@@ -57,6 +57,8 @@ public final class LedgerModel {
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?
+    /// 第一次打开的开始引导（夏夏带着建账本、账户、连 AI）正在显示。
+    public var showWelcome = false
     /// 做完一件事后底部的提示。
     public var toast: Toast?
     /// 这次打开 app 以来自己做的改动，⌥⌘Z 从最后一条往回撤。

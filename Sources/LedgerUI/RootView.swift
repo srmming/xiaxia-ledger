@@ -65,10 +65,13 @@ public struct RootView: View {
                 LoadErrorView(error: error)
             } else if model.isLoading && model.ledger.transactions.isEmpty {
                 ProgressView("正在读取账本…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.pageBackground)
+            } else if model.showWelcome {
+                WelcomeView().transition(.opacity)
             } else {
-                layout
+                layout.transition(.opacity)
             }
         }
+        .animation(.smooth, value: model.showWelcome)
         .tint(Color.brand)
         #if os(macOS)
         .background(GeometryReader { geo in
@@ -124,8 +127,9 @@ public struct RootView: View {
             // Mac：app 换过位置就把 AI 配置里的路径改过来；第一次打开、还没连过 AI 就弹「连上你的 AI」。
             model.repairAIConnections()
             await model.refreshRatesIfNeeded()   // 有外币账户时，一天取一次欧洲央行汇率
+            model.showWelcomeIfNeeded()          // 空账本第一次打开：夏夏带着走一遍
             try? await Task.sleep(for: .seconds(0.6))
-            model.showAISetupIfNeeded()
+            if !model.showWelcome { model.showAISetupIfNeeded() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }
