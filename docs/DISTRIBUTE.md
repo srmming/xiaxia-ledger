@@ -36,27 +36,37 @@ GitHub Actions 里的 **release** 流程（`.github/workflows/release.yml`）：
 
 ## 要 ming 本人做的（安全相关，Claude 不能代办）
 
-1. **注册 Apple Developer Program**（个人）：<https://developer.apple.com/programs/enroll/>，用自己的 Apple ID（要开双重认证），每年 99 €，审核一般一两天。
-2. **建 Developer ID Application 证书**：开发者网站 → Certificates → 「+」→ Developer ID Application（只有账号持有人能建）。在 Mac 的「钥匙串访问」里把证书连私钥导出成 .p12，设一个密码。
-3. **建公证用的 API 密钥**：App Store Connect → 用户和访问 → 集成 → App Store Connect API → 团队密钥，「开发者」权限就够。下载 .p8（只能下一次），记下 Key ID 和 Issuer ID。
-4. **把这 6 样放进 GitHub 仓库的 Secrets**（仓库 → Settings → Secrets and variables → Actions → New repository secret）：
+开发者账号已开通（团队 `U33A8DX2JT`）。推荐**在 ming 的 Mac 上本地打包**：证书和公证密码只留在这台 Mac 的钥匙串里，不用往 GitHub 放任何密钥。按顺序：
 
-   | 名字 | 填什么 |
-   |---|---|
-   | `DEVELOPER_ID_P12` | .p12 文件的 base64（终端里 `base64 -i 证书.p12 \| pbcopy` 后粘贴） |
-   | `DEVELOPER_ID_P12_PASSWORD` | 导出 .p12 时设的密码 |
-   | `APPLE_TEAM_ID` | 开发者网站右上角 Membership 里的 Team ID（10 位） |
-   | `NOTARY_KEY_P8` | .p8 文件的全部文字 |
-   | `NOTARY_KEY_ID` | API 密钥的 Key ID |
-   | `NOTARY_ISSUER_ID` | API 密钥页面上方的 Issuer ID |
+1. **Xcode 登录开发者账号**：Xcode → 设置（⌘,）→ Accounts → 「+」→ Apple ID，确认能看到团队 U33A8DX2JT。
+2. **建证书**：选中账号 → Manage Certificates… → 「+」→ **Developer ID Application**；再「+」一次 **Apple Development**。
+3. **公证密码**：<https://appleid.apple.com> → 登录与安全 → App 专用密码 → 生成（名字 xiaxia-notary），然后在终端：
+   `xcrun notarytool store-credentials xiaxia-notary --apple-id <Apple ID 邮箱> --team-id U33A8DX2JT --password <专用密码>`
+4. **iCloud 容器和 App ID**：通常不用手动，打包时 Xcode 自动注册。报错的话去 developer.apple.com → Certificates, IDs & Profiles → Identifiers：先建 iCloud Container `iCloud.com.srmming.xiaxia-ledger`，再建 App ID `com.srmming.xiaxia-ledger`（iPhone）和 `com.srmming.xiaxia-ledger.mac`（Mac），都勾 iCloud 并选这个容器。
+5. **iPhone 的 TestFlight**：<https://appstoreconnect.apple.com> → App → 「+」新建（iOS，套装 ID `com.srmming.xiaxia-ledger`，名字「夏夏账本」）→ TestFlight → 内部测试里加自己。给团队外的朋友测，第一个版本要过苹果的 Beta 审核。
+6. **第一次打包时的弹窗**：钥匙串问 codesign 能不能用密钥，点「始终允许」。
+7. **发布**：GitHub Release 草稿和 App Store 提交，都由 ming 点最后那一下。
 
-   放好以后 release 流程会自动签名、公证，不用再改代码。
-5. **iPhone 走 TestFlight 时**：在 App Store Connect 新建 app（套装 ID `com.srmming.xiaxia-ledger`），加测试的人。给外部测试（不在你团队里的朋友）发，第一个版本要过苹果的 Beta 审核。
-6. **发布**：Release 草稿和 App Store 提交，都由 ming 点最后那一下。
+做完以后，在 Mac 的仓库目录里：
 
-## iPhone 和同步（还没做完）
+```
+bash scripts/release-local.sh --install   # Mac：签名 + 公证 dmg 到 dist/，并装到 ~/Applications（旧版进废纸篓）
+bash scripts/release-local.sh --iphone    # iPhone：传到 App Store Connect，处理完在 TestFlight 里装
+```
 
-现在的 iPhone 版把账本存在手机本机，**还不会**和 Mac 同步。要「装上、用同一个 Apple ID 就能看到 Mac 上的账」，需要给 app 开 iCloud 容器（iCloud Documents），Mac 和 iPhone 都改用这个容器里的账本。这一步要在开发者账号里开 iCloud 能力，所以排在 ming 注册开发者账号之后做。做的时候 Mac 上已有的账本（iCloud 云盘「夏夏账本」文件夹）会自动搬过去，旧文件留作备份。
+### 想让 GitHub 自动打包（可选，不推荐先做）
+
+`.github/workflows/release.yml` 在仓库 Secrets 里有下面 6 样时会自动签名公证。要导出证书私钥、上传 API 密钥，安全上不如本地打包，需要时再放：`DEVELOPER_ID_P12`（.p12 的 base64）、`DEVELOPER_ID_P12_PASSWORD`、`APPLE_TEAM_ID`（U33A8DX2JT）、`NOTARY_KEY_P8`、`NOTARY_KEY_ID`、`NOTARY_ISSUER_ID`（App Store Connect → 用户和访问 → 集成 → 团队密钥）。
+
+## iPhone 和 Mac 同步
+
+代码已做好，**签了名的正式版才生效**（没签名的开发版和 CI 构建不带 iCloud 权限，仍用老位置）：
+
+- 账本放在 app 自己的 iCloud 容器里（iCloud 云盘里显示为「夏夏账本」app 文件夹），Mac 和 iPhone 用同一个 Apple ID 就看同一本账。
+- Mac 第一次开正式版：把老位置（iCloud 云盘根目录「夏夏账本」文件夹）的 ledger.sqlite **复制**进容器，老文件留着当备份，并放一个「已搬家-请看这里.txt」。容器里已经有账本就不再搬、不覆盖。
+- fin 也认容器：容器里有账本就读它，所以 AI 和 app 还是同一份。
+- iPhone 打开时，账本如果还只是 iCloud 占位文件，会先等它下载（最多 15 秒），免得把没下完的当空账本。
+- 同一时间两台设备都在改，iCloud 可能留下冲突副本；账本用 DELETE 日志模式（不用 WAL），不会出现只同步了一半的情况。
 
 ## 发版前
 
