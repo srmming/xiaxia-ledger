@@ -422,19 +422,6 @@ extension LocalDate {
         self.init(year: c.year ?? 1970, month: c.month ?? 1, day: c.day ?? 1)
     }
 
-    public func adding(days: Int) -> LocalDate {
-        LocalDate(utc: Self.gregorian.date(byAdding: .day, value: days, to: utcDate) ?? utcDate)
-    }
-
-    /// 加几个月；那个月没有这一天（31 号、2 月 29 号）就记在月底。
-    public func adding(months: Int) -> LocalDate {
-        let total = (year * 12 + (month - 1)) + months
-        let y = total / 12, m = total % 12 + 1
-        let first = LocalDate(year: y, month: m, day: 1)
-        let days = Self.gregorian.range(of: .day, in: .month, for: first.utcDate)?.count ?? 28
-        return LocalDate(year: y, month: m, day: min(day, days))
-    }
-
     /// 星期几：0 = 周一 … 6 = 周日。
     public var weekdayIndex: Int {
         let w = Self.gregorian.component(.weekday, from: utcDate)   // 1 = 周日
