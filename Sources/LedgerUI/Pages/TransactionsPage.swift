@@ -44,7 +44,9 @@ struct TransactionsPage: View {
                     }
                 }
                 .padding(Kit.side)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+                // 最小宽度别跟着「有没有右边详情」变：不然 Mac 上对话栏开着时，详情一出一收会让分栏反复重排，AppKit 直接 abort（实测点「看看」闪退）。
+                .clipped()
                 .background(Color.pageBackground)
                 .background { WidthReader(width: $width) }
                 #else

@@ -203,6 +203,8 @@ struct MacRoot: View {
                     .toolbar { MacToolbar(model: model, section: section) }
             }
             .id(section)
+            // 中间这栏的最小宽度固定死，不随页面内容变：换页、详情出现时分栏就不用重算最小宽度（不然对话栏开着会触发 AppKit 约束死循环闪退）。
+            .frame(minWidth: 520, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
         .inspector(isPresented: Binding(get: { model.chat.open }, set: { model.chat.open = $0 })) {
             XiaxiaChatPanel()
