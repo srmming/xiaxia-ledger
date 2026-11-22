@@ -472,7 +472,9 @@ struct WelcomeView: View {
             return "记账工具已经装在 \(first.name) 里了，不用你再配置。把下面这段话发给它，它会带你记下第一笔。"
         }
         if !toConnect.isEmpty {
-            return "这台 Mac 上有 \(toConnect.map(\.name).joined(separator: "、"))，点一下我就帮你连上。我只在它的设置里加上「夏夏账本」这一项，别的都不动。"
+            // 说清楚这几个是什么、点了会发生什么：新用户不一定认识 Codex、Hermes 这些名字。
+            let names = toConnect.map { "\($0.name)（\($0.plainWords)）" }.joined(separator: "、")
+            return "这台 Mac 上有 \(names)。点一下，我就把「夏夏账本」这个记账工具装进去，它才读得到账本。它别的设置我都不动，以后想拿掉，去「设置」里点一下就行。"
         }
         switch f {
         case .newbie: return "推荐从 Claude 桌面版开始，最省事。装好、登录，我会自己认出来，再帮你连上。"
@@ -855,6 +857,20 @@ struct WelcomeView: View {
         #else
         false
         #endif
+    }
+}
+
+private extension AIApp {
+    /// 一句大白话：这个工具是什么。
+    var plainWords: String {
+        switch self {
+        case .claudeDesktop: "电脑上的 Claude"
+        case .claudeCode: "Claude 的命令行版"
+        case .codex: "ChatGPT 装在电脑上的助手"
+        case .hermes: "能接 DeepSeek 等模型的助手"
+        case .cursor: "带 AI 的写代码软件"
+        case .gemini: "Gemini 的命令行版"
+        }
     }
 }
 
