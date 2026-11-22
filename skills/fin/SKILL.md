@@ -5,7 +5,7 @@ description: 夏夏账本：ming 的个人和 Miora 美甲店财务（西班牙�
 
 # 夏夏账本（fin / MCP）
 
-ming 的财务都在一份本地账本里（iCloud 云盘「夏夏账本/ledger.sqlite」），Mac app、`fin` 命令行和 MCP 服务读写同一份。两个账本：`personal`（个人）、`miora`（Miora 美甲店）。钱是欧元，显示成 `1.234,56 €`。
+ming 的财务都在一份本地账本里（具体在哪跑 `fin where` 看，一般是 iCloud 云盘「夏夏账本/ledger.sqlite」），Mac app、`fin` 命令行和 MCP 服务读写同一份。两个账本：`personal`（个人）、`miora`（Miora 美甲店）。钱是欧元，显示成 `1.234,56 €`。
 
 ## 用哪个入口
 
