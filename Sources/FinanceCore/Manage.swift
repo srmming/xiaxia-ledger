@@ -386,6 +386,11 @@ extension Ledger {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }
         }
         if let p = s.profile { profile = p }
+        for r in s.recurring ?? [] {
+            if let i = recurring.firstIndex(where: { $0.id == r.id }) { recurring[i] = r } else { recurring.append(r) }
+        }
+        let addedRecurring = Set(s.addedRecurringIDs ?? [])
+        if !addedRecurring.isEmpty { recurring.removeAll { addedRecurring.contains($0.id) } }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

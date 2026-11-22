@@ -28,12 +28,17 @@
 
 | 想做的事 | 命令行 | MCP |
 | --- | --- | --- |
-| 记一笔 | `fin add -12,50 超市 --account cash --book personal [--category 餐饮] [--date …]` | `add_transaction` |
+| 记一笔 | `fin add -12,50 超市 --account cash --book personal [--category 餐饮] [--date …] [--note …] [--tag 旅行] [--repeat monthly [--until …]]`（金额可写算式 `-12,50-3,20`） | `add_transaction`（`note`、`tags`、`repeat`） |
+| 拆开一笔 | `fin split <编号> 30:超市 18,30:日用品[:说明]` | `split_transaction` |
+| 复制一笔 | `fin copy <编号> [--date …]` | `duplicate_transaction` |
+| 记退款 | `fin refund <编号> [--amount 20]` | `add_refund` |
+| 标签 | `fin tag <编号…> --add 旅行 [--remove …]`；查：`fin tx --tag 旅行` 或 `--query "#旅行"` | `tag_transactions`；`list_transactions` 的 `tag` |
+| 重复记账 | `fin repeat list｜set <编号> monthly｜run｜pause｜resume｜rm <编号或说明>` | `list_recurring`、`set_recurring`、`update_recurring`、`run_recurring` |
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
 | 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |
 | 分账本 | `fin assign --book miora <编号…>` | `assign_book` |
-| 改一笔 | `fin edit <编号> [--amount=-12,50] [--text] [--date] [--account] [--book] [--category]` | `edit_transaction` |
+| 改一笔 | `fin edit <编号> [--amount=-12,50] [--text] [--date] [--account] [--book] [--category] [--note] [--tags a,b]` | `edit_transaction` |
 | 删流水 | `fin rm <编号…>`（先 `--dry-run`） | `delete_transactions` |
 | 自己账户间挪钱 | `fin transfer move 50 --from-account caixa --to-account cash` | `account_transfer` |
 | 已导入的标成互转 | `fin transfer mark <编号…> [--counter-account cash]` | `mark_account_transfer` |

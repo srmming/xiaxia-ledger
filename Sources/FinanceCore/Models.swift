@@ -66,18 +66,24 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
     /// 不算收支的流水：借出 / 借入 / 还款（往来）、存进目标（储蓄）、开账时的期初余额、
     /// 自己账户之间转钱（互转：转去 Revolut 充值、还信用卡、主账户转 imagin）。nil = 普通收支。
     public var flow: Flow?
+    /// 备注：名称之外想多写的话（「和小王 AA」）。单独存，能单独改、能搜。
+    public var note: String?
+    /// 标签：「旅行」「报销」……一笔可以有几个，不带 #。没有就是 nil。
+    public var tags: [String]?
 
     public enum Flow: String, Codable, Sendable { case debt, saving, opening, `internal` }
 
     public init(id: UUID = UUID(), date: LocalDate, amount: Money, description: String,
                 accountID: String, bookID: String? = nil, category: String? = nil,
-                transferID: UUID? = nil, source: String? = nil, flow: Flow? = nil) {
+                transferID: UUID? = nil, source: String? = nil, flow: Flow? = nil,
+                note: String? = nil, tags: [String]? = nil) {
         self.id = id; self.date = date; self.amount = amount; self.description = description
         self.accountID = accountID; self.bookID = bookID; self.category = category
         self.transferID = transferID; self.source = source; self.flow = flow
+        self.note = note; self.tags = tags
     }
 
-    enum CodingKeys: String, CodingKey { case id, date, amount, description, accountID, bookID, category, transferID, source, flow }
+    enum CodingKeys: String, CodingKey { case id, date, amount, description, accountID, bookID, category, transferID, source, flow, note, tags }
 
     /// 自己写解码：flow 遇到不认识的值（比如更新版本写的）不让整本账打不开，当成普通收支读进来。
     public init(from decoder: Decoder) throws {
@@ -93,6 +99,8 @@ public struct Transaction: Identifiable, Hashable, Codable, Sendable {
         source = try c.decodeIfPresent(String.self, forKey: .source)
         let raw = try c.decodeIfPresent(String.self, forKey: .flow)
         flow = raw.flatMap { Flow(rawValue: $0 == "move" ? "internal" : $0) }
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+        tags = try c.decodeIfPresent([String].self, forKey: .tags)
     }
 
     public var isTransfer: Bool { transferID != nil }
@@ -210,6 +218,9 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     public var addedBookIDs: [String]?
     /// 夏夏性格、目标、自己加的分类改之前的样子。
     public var profile: Profile?
+    /// 重复记账改之前的样子；这次新加的重复记账（撤销时删掉）。
+    public var recurring: [Recurring]?
+    public var addedRecurringIDs: [UUID]?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,
@@ -234,6 +245,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var insights: [Insight] = []
     /// 夏夏的性格、你的目标、自己加的分类。
     public var profile = Profile()
+    /// 重复记账：房租、话费这种固定的，到日子自动记上。
+    public var recurring: [Recurring] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -243,7 +256,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile
+        case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -260,6 +273,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
         insights = try c.decodeIfPresent([Insight].self, forKey: .insights) ?? []
         profile = try c.decodeIfPresent(Profile.self, forKey: .profile) ?? Profile()
+        recurring = try c.decodeIfPresent([Recurring].self, forKey: .recurring) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。
