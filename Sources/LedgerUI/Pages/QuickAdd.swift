@@ -138,7 +138,7 @@ struct QuickAdd: View {
         .sheet(isPresented: $addingCategory) {
             // 先挑图标再填名字；建好就直接选中。
             NavigationStack {
-                CategoryCreator(income: income, allowExisting: true) { name in customCategory = name; category = name }
+                CategoryCreator(income: income, showsDirection: false, allowExisting: true) { name in customCategory = name; category = name }
             }
         }
     }

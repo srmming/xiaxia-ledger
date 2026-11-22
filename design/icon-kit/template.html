@@ -172,7 +172,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--sunken);padding:1
   </section>
 
   <section id="creator">
-    <div class="sec-head"><h2>自己建分类</h2><p class="lead">记一笔里点「＋ 新分类」，或在设置 · 管理分类里点「新建分类…」，弹出这个面板：先挑图标，再填名字。没挑也行，按名字自动配一个（虚线圈出来的那个）。已有的分类点图标就能换。下面这个能直接点着试。</p></div>
+    <div class="sec-head"><h2>自己建分类</h2><p class="lead">记一笔里点「＋ 新分类」，或在设置 · 管理分类里点「新建分类…」，弹出这个面板：先点一个图标，名字跟着填好，再点「建好了」就行；想叫别的名字就改。先打名字也行，会按名字自动配一个图标（虚线圈出来的那个）。已有的分类点图标就能换。下面这个能直接点着试。</p></div>
     <div class="creator">
       <div class="sheet" aria-label="新建分类面板示意">
         <div class="sheet-bar"><span>取消</span><b>新建分类</b><span class="ok" id="cr-ok" aria-disabled="true">建好了</span></div>
@@ -321,14 +321,15 @@ function renderCreator() {
   $("cr-tile").innerHTML = tile(shown);
   $("cr-sicon").innerHTML = tmplSafe("act.search");
   $("cr-ok").setAttribute("aria-disabled", String(!name.trim()));
-  $("cr-hint").textContent = cr.icon ? `选了「${by[cr.icon].label}」。` : gs ? `按名字先配了「${by[gs].label}」，想换就在下面点一个。` : "挑一个图标，记一笔和花销页里都会用它。";
+  $("cr-hint").textContent = cr.icon ? (cr.auto ? `选了「${by[cr.icon].label}」，名字也先填上了，想改就改。` : `选了「${by[cr.icon].label}」。`) : gs ? `按名字先配了「${by[gs].label}」，想换就在下面点一个。` : "先在下面点一个图标，名字会跟着填好，想改再改。";
   const cell = n => `<button class="pcell ${cr.icon === n ? "on" : ""} ${!cr.icon && gs === n ? "sug" : ""}" data-n="${n}" aria-pressed="${cr.icon === n}">${tile(n)}${by[n].label}</button>`;
   const secs = q ? [["", (() => { const hits = group("category").filter(g => g.label.includes(q) || g.name.includes(q.toLowerCase())).map(g => g.name); return hits.length ? `找到 ${hits.length} 个` : `没有叫「${q}」的图标，换个说法试试`; })(),
       group("category").filter(g => g.label.includes(q) || g.name.includes(q.toLowerCase())).map(g => g.name)]] : SECS;
   $("cr-grid").innerHTML = secs.map(([k, label, names]) => `<div class="cat-sec"><h3>${label}</h3><div class="pgrid">${names.map(cell).join("")}</div></div>`).join("");
 }
-$("cr-grid").addEventListener("click", e => { const b = e.target.closest(".pcell"); if (!b) return; cr.icon = b.dataset.n; renderCreator(); });
-$("cr-name").addEventListener("input", renderCreator);
+$("cr-grid").addEventListener("click", e => { const b = e.target.closest(".pcell"); if (!b) return; cr.icon = b.dataset.n;
+  const nm = $("cr-name"); if (!nm.value.trim() || nm.value.trim() === cr.auto) { nm.value = cr.auto = by[cr.icon].label; } renderCreator(); });
+$("cr-name").addEventListener("input", () => { if ($("cr-name").value !== cr.auto) cr.auto = null; renderCreator(); });
 $("cr-search").addEventListener("input", renderCreator);
 function applyTheme(t) {
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
