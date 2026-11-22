@@ -105,9 +105,14 @@ final class ManualEntryTests: XCTestCase {
         let select = app.buttons["select-toggle"]
         XCTAssertTrue(select.waitForExistence(timeout: 5), "流水页没有「选择」")
         select.tap()
-        app.collectionViews.cells.element(boundBy: 1).tap()
-        app.collectionViews.cells.element(boundBy: 2).tap()
-        XCTAssertTrue(find(app, "选了 2 笔").waitForExistence(timeout: 5), "多选没选上")
+        // 选择模式下每一笔是一个按钮（前面带圆圈），挑两笔点。
+        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", " · "))
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5), "选择模式下没有可点的流水")
+        rows.element(boundBy: 0).tap()
+        rows.element(boundBy: 1).tap()
+        let picked = find(app, "选了 2 笔")
+        if !picked.waitForExistence(timeout: 5) { print(app.debugDescription) }
+        XCTAssertTrue(picked.exists, "多选没选上")
         app.buttons["一起改…"].tap()
         XCTAssertTrue(button(app, "改分类").waitForExistence(timeout: 5), "一起改面板没出来")
     }
