@@ -1,20 +1,21 @@
-"""生成夏夏图标的全部产物（改了 icons.py / mascot.py 后跑一次：python3 design/icon-kit/build.py）：
+"""生成夏夏图标的全部产物（改了 icons.py / illos.py 后跑一次：python3 design/icon-kit/build.py）：
 - design/icon-kit/svg/**.svg            每个图标一张浅色 SVG（给设计看、给别处用）
 - design/icon-kit/glyphs.json           全部图标数据
 - design/icon-kit/index.html            展示页（template.html + 图标数据）
 - Sources/LedgerUI/XiaGlyphData.swift   app 里画图标用的路径数据（自动生成，别手改）
+- Sources/FinanceCore/CategoryIcons.swift  分类图标目录（名字、中文名、分组），fin / MCP 查图标名用
 """
 import json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from icons import ICONS
-from mascot import MASCOTS, ILLOS
+from icons import ICONS, SECTIONS
+from illos import ILLOS
 from palette import TINTS, NAMED, SOFT_ALPHA, tint_hex
 from geom import fmt
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 ALL = {}
-for d in (ICONS, MASCOTS, ILLOS):
+for d in (ICONS, ILLOS):
     ALL.update(d)
 
 
@@ -71,11 +72,40 @@ def write_svgs():
             f.write(svg(g) + '\n')
 
 
+def check_sections():
+    cats = [n for n, g in ICONS.items() if g['group'] == 'category']
+    listed = set(n for _, _, s in SECTIONS for n in s.split())
+    missing = [n for n in cats if n not in listed]
+    unknown = [n for n in listed if n not in ICONS]
+    assert not missing and not unknown, f"分组没覆盖：{missing}，不存在：{unknown}"
+
+
+def write_core_catalog():
+    L = ['// 自动生成：design/icon-kit/build.py。别手改。', '',
+         '/// 分类能用的图标（夏夏账本自己画的）。app 画图，fin / MCP 用名字查。',
+         'public enum CategoryIcons {',
+         '    /// (名字, 中文名)',
+         '    public static let all: [(name: String, label: String)] = [']
+    for n, g in ICONS.items():
+        if g['group'] == 'category':
+            L.append(f'        ("{n}", "{g["label"]}"),')
+    L += ['    ]', '', '    /// 挑图标时的分组：(键, 中文名, 图标名)。一个图标可以在几个分组里。',
+          '    public static let sections: [(key: String, label: String, icons: [String])] = [']
+    for key, label, names in SECTIONS:
+        arr = ', '.join(f'"{n}"' for n in names.split())
+        L.append(f'        ("{key}", "{label}", [{arr}]),')
+    L += ['    ]', '', '    public static func isValid(_ name: String) -> Bool { all.contains { $0.name == name } }',
+          '', '    public static func label(_ name: String) -> String? { all.first { $0.name == name }?.label }', '}', '']
+    with open(os.path.join(ROOT, 'Sources', 'FinanceCore', 'CategoryIcons.swift'), 'w') as f:
+        f.write('\n'.join(L))
+
+
 def write_json():
     data = []
     for name, g in ALL.items():
         w, h = size_of(g)
         data.append(dict(name=name, label=g['label'], group=g['group'], tint=g.get('tint'), w=w, h=h,
+                         sections=[k for k, _, s in SECTIONS if name in s.split()],
                          light=svg(g), dark=svg(g, dark=True)))
     with open(os.path.join(HERE, 'glyphs.json'), 'w') as f:
         json.dump(data, f, ensure_ascii=False)
@@ -87,8 +117,9 @@ def write_page(data):
     with open(os.path.join(HERE, 'template.html')) as f:
         page = f.read()
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    secs = json.dumps([[k, l, n.split()] for k, l, n in SECTIONS], ensure_ascii=False, separators=(',', ':'))
     with open(os.path.join(HERE, 'index.html'), 'w') as f:
-        f.write(page.replace('__GLYPHS__', blob))
+        f.write(page.replace('__GLYPHS__', blob).replace('__SECTIONS__', secs))
 
 
 def swift_case(name):
@@ -99,7 +130,7 @@ def swift_case(name):
 
 def write_swift():
     lines = [
-        '// 自动生成：design/icon-kit/build.py。别手改，改 design/icon-kit/icons.py 或 mascot.py 再跑一次。',
+        '// 自动生成：design/icon-kit/build.py。别手改，改 design/icon-kit/icons.py 或 illos.py 再跑一次。',
         '// 夏夏账本自己画的图标（原创）：每个图标是几层路径，层的颜料见 XiaIcons.swift 里的 XiaRenderer。',
         'import CoreGraphics',
         '',
@@ -108,7 +139,7 @@ def write_swift():
     for name in ALL:
         lines.append(f'    case {swift_case(name)} = "{name}"')
     lines += ['}', '', 'extension XiaGlyph {',
-              '    /// 画布大小（图标 24×24，夏夏 64×64，插画 160×120）。',
+              '    /// 画布大小（图标 24×24，插画 160×120）。',
               '    var canvas: CGSize {', '        switch self {']
     sizes = {}
     for name, g in ALL.items():
@@ -163,6 +194,8 @@ def write_palette_swift():
 
 
 if __name__ == '__main__':
+    check_sections()
+    write_core_catalog()
     write_svgs()
     data = write_json()
     write_page(data)

@@ -93,6 +93,7 @@ public struct RootView: View {
                 case .books: BookManager()
                 case .accounts: AccountManager()
                 case .categories: CategoryManager()
+                case .newCategory: CategoryCreator()
                 case .connectAI: ConnectAIView()
                 case .plan: NewPlanSheet()
                 }

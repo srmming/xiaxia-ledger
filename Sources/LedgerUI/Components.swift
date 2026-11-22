@@ -158,8 +158,12 @@ enum CategoryStyle {
         "零食": .snacks, "甜品": .snacks, "数码": .digital, "电子": .digital, "未分类": .uncategorized, "其他": .other,
     ]
 
+    /// 用户自己给分类挑的图标（账本里存着，LedgerModel 读账本时更新）：分类名 → 图标名。
+    nonisolated(unsafe) static var customIcons: [String: String] = [:]
+
     static func glyph(_ category: String?) -> XiaGlyph {
         guard let category, !category.isEmpty else { return .uncategorized }
+        if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked }
         if let g = glyphs[category] { return g }
         return glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }.flatMap { glyphs[$0] } ?? .other
     }
@@ -167,6 +171,7 @@ enum CategoryStyle {
     /// 分类颜色：图标、圆环、排行条都用这一个（就是图标自带的颜色）。
     static func hex(_ category: String?) -> String? {
         guard let category else { return nil }
+        if let picked = customIcons[category].flatMap(XiaGlyph.init(rawValue:)) { return picked.tint }
         let key = glyphs[category] != nil ? category : glyphs.keys.filter { category.hasPrefix($0) }.max { $0.count < $1.count }
         return key.flatMap { glyphs[$0]?.tint }
     }

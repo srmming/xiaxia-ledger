@@ -8,8 +8,9 @@ import SwiftUI
 //   XiaIcon            单个图标，任意大小
 //   XiaTile            分类方块：浅色底 + 图标（流水行、花销排行、记一笔）
 //   AccountIcon        账户图标方块（家底、管理账户）
-//   XiaxiaAvatar       夏夏头像（按性格或心情换脸）
+//   XiaxiaAvatar       夏夏头像（现在是占位，正式形象另做）
 //   XiaxiaIllustration 空状态 / 出错 / 加载插画
+//   CategoryIconGrid / CategoryCreator / CategoryIconEditor  挑图标、新建分类、换图标（CategoryPicker.swift）
 //   XiaBadge           小徽章：图标 + 几个字（AI 记的、留意、每月扣…）
 //   XiaGlyph.image     做成 Image，给标签栏、侧栏、菜单这种只收 Image 的地方
 
@@ -183,16 +184,20 @@ struct XiaTile: View {
     }
 }
 
-/// 夏夏头像。按性格（设置里选的）或按心情（空状态、出错、庆祝）换脸。
+/// 夏夏头像。夏夏的正式形象由「用 ChatGPT 生成夏夏动态形象」那边做（design/xiaxia-mascot/），
+/// 出图前先画一个中性占位：靛蓝浅底圆 + 小星星。以后换图只改这里的 body，调用的地方不用动。
 struct XiaxiaAvatar: View {
-    var face: XiaGlyph = .xiaxiaGentle
+    var persona: Persona? = nil
     var size: CGFloat = 28
 
-    init(_ face: XiaGlyph = .xiaxiaGentle, size: CGFloat = 28) { self.face = face; self.size = size }
-    init(persona: Persona, size: CGFloat = 28) { self.face = persona.face; self.size = size }
+    init(persona: Persona? = nil, size: CGFloat = 28) { self.persona = persona; self.size = size }
 
     var body: some View {
-        XiaIcon(face, size: size)
+        XiaGlyph.actAsk.image(size: size * 0.56)
+            .foregroundStyle(Color.ai)
+            .frame(width: size, height: size)
+            .background(Color.aiSoft, in: Circle())
+            .overlay(Circle().strokeBorder(Color.aiLine, lineWidth: 1))
             .accessibilityLabel("夏夏")
     }
 }
@@ -233,18 +238,6 @@ struct XiaBadge: View {
 }
 
 // MARK: - 对应关系
-
-extension Persona {
-    /// 设置里选的性格 → 夏夏的脸。
-    var face: XiaGlyph {
-        switch self {
-        case .gentle: .xiaxiaGentle
-        case .sharp: .xiaxiaSharp
-        case .calm: .xiaxiaCalm
-        case .cheer: .xiaxiaCheer
-        }
-    }
-}
 
 extension AppSection {
     var glyph: XiaGlyph {

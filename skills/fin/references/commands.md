@@ -32,6 +32,7 @@
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
 | 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |
+| 新建分类 / 换图标 | 只有 MCP | `add_category`（可带 `icon`）、`set_category_icon`；图标名先用 `list_category_icons` 查 |
 | 分账本 | `fin assign --book miora <编号…>` | `assign_book` |
 | 改一笔 | `fin edit <编号> [--amount=-12,50] [--text] [--date] [--account] [--book] [--category]` | `edit_transaction` |
 | 删流水 | `fin rm <编号…>`（先 `--dry-run`） | `delete_transactions` |

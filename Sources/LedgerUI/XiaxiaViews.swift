@@ -90,14 +90,9 @@ struct PersonaPicker: View {
                     model.perform { try $0.setPersona(p, author: model.author) }
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
-                        XiaxiaAvatar(persona: p, size: 40)
-                            .overlay(alignment: .bottomTrailing) {
-                                if p == model.persona {
-                                    Image(systemName: "checkmark.circle.fill").font(.system(size: 14))
-                                        .foregroundStyle(.white, Color.ai)
-                                        .offset(x: 2, y: 2)
-                                }
-                            }
+                        Image(systemName: p == model.persona ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(p == model.persona ? Color.ai : Color.fg3)
+                            .font(.body)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.label + (p == .gentle ? "（默认）" : "")).font(.callout.weight(.medium)).foregroundStyle(.primary)
                             Text("「\(p.sample)」").font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
