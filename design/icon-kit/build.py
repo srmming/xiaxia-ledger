@@ -1,6 +1,7 @@
 """生成夏夏图标的全部产物（改了 icons.py / mascot.py 后跑一次：python3 design/icon-kit/build.py）：
 - design/icon-kit/svg/**.svg            每个图标一张浅色 SVG（给设计看、给别处用）
-- design/icon-kit/glyphs.json           全部图标数据（展示页用）
+- design/icon-kit/glyphs.json           全部图标数据
+- design/icon-kit/index.html            展示页（template.html + 图标数据）
 - Sources/LedgerUI/XiaGlyphData.swift   app 里画图标用的路径数据（自动生成，别手改）
 """
 import json, os, sys
@@ -81,6 +82,15 @@ def write_json():
     return data
 
 
+def write_page(data):
+    """展示页：把全部图标塞进 template.html，生成能直接打开的 index.html。"""
+    with open(os.path.join(HERE, 'template.html')) as f:
+        page = f.read()
+    blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    with open(os.path.join(HERE, 'index.html'), 'w') as f:
+        f.write(page.replace('__GLYPHS__', blob))
+
+
 def swift_case(name):
     parts = name.replace('-', '.').split('.')
     s = parts[0] + ''.join(p[:1].upper() + p[1:] for p in parts[1:])
@@ -155,6 +165,7 @@ def write_palette_swift():
 if __name__ == '__main__':
     write_svgs()
     data = write_json()
+    write_page(data)
     p = write_swift()
     write_palette_swift()
     print(f'{len(data)} 个图标 → {p}')

@@ -1,0 +1,298 @@
+<title>夏夏图标与组件</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* 布局：一条从上往下的长页，先见夏夏，再按「图标 → 组件 → 规范 → 放在哪」排；颜色沿用 app 的 UI 套件 */
+:root{
+  --bg:#F2F2F5; --card:#FFFFFF; --sunken:#EBEBEF; --fg:#1C1C1E; --fg2:#5A5A62; --fg3:#7A7A82; --line:rgba(0,0,0,.08);
+  --brand:#B4441F; --brand-soft:rgba(196,80,42,.11); --ai:#4644C4; --ai-soft:rgba(88,86,214,.09); --ai-line:rgba(88,86,214,.28);
+  --income:#0E6B40; --sun:#FFCF4D;
+  --round: ui-rounded, "SF Pro Rounded", "Nunito", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --text: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C0C0E; --card:#1C1C1F; --sunken:#232327; --fg:#F2F2F4; --fg2:#B0B0B7; --fg3:#8C8C93; --line:rgba(255,255,255,.09);
+  --brand:#FF8157; --brand-soft:rgba(255,129,87,.16); --ai:#8C89FF; --ai-soft:rgba(140,137,255,.14); --ai-line:rgba(140,137,255,.35);
+  --income:#36C77F; --sun:#FFC93C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C0C0E; --card:#1C1C1F; --sunken:#232327; --fg:#F2F2F4; --fg2:#B0B0B7; --fg3:#8C8C93; --line:rgba(255,255,255,.09);
+  --brand:#FF8157; --brand-soft:rgba(255,129,87,.16); --ai:#8C89FF; --ai-soft:rgba(140,137,255,.14); --ai-line:rgba(140,137,255,.35);
+  --income:#36C77F; --sun:#FFC93C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--round);text-wrap:balance;margin:0;line-height:1.25}
+h2{font-size:26px;font-weight:700}
+h3{font-size:16px;font-weight:650}
+p{margin:0}
+.lead{color:var(--fg2);max-width:62ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top-in{max-width:1120px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.top nav{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+.top nav a{color:var(--fg2);text-decoration:none;font-size:13px;padding:4px 9px;border-radius:7px}
+.top nav a:hover{background:var(--sunken);color:var(--fg)}
+.seg{display:flex;background:var(--sunken);border-radius:9px;padding:2px}
+.seg button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:13px;padding:4px 11px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg button:focus-visible,.top nav a:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding-top:28px}
+.hero h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:var(--brand)}
+.hero .stats{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
+.stat b{display:block;font-family:var(--round);font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--fg2)}
+.hero-art{width:220px;max-width:42vw}
+.hero-art svg{width:100%;height:auto;display:block;animation:bob 3.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.hero-art svg{animation:none}}
+
+.card{background:var(--card);border-radius:16px;padding:18px;box-shadow:0 1px 1px rgba(0,0,0,.04),0 8px 20px rgba(0,0,0,.04)}
+.grid{display:grid;gap:12px}
+.personas{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.persona{display:flex;gap:14px;align-items:flex-start}
+.persona svg{width:76px;height:76px;flex:none}
+.persona .say{font-size:13px;color:var(--fg2);margin-top:4px}
+.persona .say::before{content:"「"}.persona .say::after{content:"」"}
+.moods{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.mood{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.mood svg{width:84px;height:84px}
+.small{font-size:12.5px;color:var(--fg2);line-height:1.45}
+.illos{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.illo{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.illo svg{width:100%;max-width:200px;height:auto}
+
+.icons{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.ic{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 10px;border-radius:12px;text-align:center}
+.ic:hover{background:var(--sunken)}
+.tile{width:48px;height:48px;border-radius:14px;display:grid;place-items:center}
+.tile svg{width:32px;height:32px}
+.ic .nm{font-size:13px;font-weight:550}
+.ic .hx{font-family:var(--mono);font-size:10.5px;color:var(--fg3)}
+.icons.tmpl svg{width:34px;height:34px;color:var(--fg)}
+
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:3px 9px 3px 5px;border-radius:99px}
+.pill svg{width:15px;height:15px}
+
+/* 组件示例 */
+.demo{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .tile{width:34px;height:34px;border-radius:10px}.row .tile svg{width:22px;height:22px}
+.row .t{flex:1;min-width:0}.row .t b{font-weight:600;font-size:14.5px;display:block}.row .t span{font-size:12px;color:var(--fg2)}
+.amt{font-family:var(--round);font-weight:650;font-variant-numeric:tabular-nums}
+.tag{font-size:11px;font-weight:650;padding:0 5px;border-radius:5px;background:var(--ai-soft);color:var(--ai);margin-right:4px}
+.says{border:1px solid var(--ai-line);background:linear-gradient(135deg,var(--ai-soft),transparent 70%),var(--card)}
+.says-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.says-h svg{width:30px;height:30px}
+.says-h b{color:var(--ai);font-size:14px}.says-h span{margin-left:auto;font-size:12px;color:var(--fg2)}
+.btn{display:inline-flex;align-items:center;gap:5px;border:0;font:inherit;font-size:13.5px;font-weight:600;padding:6px 12px;border-radius:8px;background:var(--ai-soft);color:var(--ai)}
+.btn svg{width:16px;height:16px}
+.btn.solid{background:var(--ai);color:#fff}
+.pick{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--sunken) 60%,transparent);margin-bottom:6px}
+.pick.on{background:var(--ai-soft)}
+.pick svg{width:40px;height:40px;flex:none}
+.pick b{font-size:14px;font-weight:600}.pick .small{display:block}
+.empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:18px 8px}
+.empty > svg{width:150px;height:auto}
+.empty b{font-size:16px}
+.sizes{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.sizes svg{width:100%;height:100%;display:block}
+.sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--fg3);font-family:var(--mono)}
+
+/* 手机标签栏 / Mac 侧栏 */
+.tabbar{display:flex;justify-content:space-around;background:color-mix(in srgb,var(--card) 92%,transparent);border-radius:22px;padding:8px 4px 6px;border:1px solid var(--line)}
+.tabbar div{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--fg3)}
+.tabbar svg{width:26px;height:26px;color:var(--fg3)}
+.tabbar .on,.tabbar .on svg{color:var(--brand)}
+.sidebar{background:var(--sunken);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:2px;max-width:240px}
+.sidebar .grp{font-size:11px;color:var(--fg3);padding:8px 8px 2px}
+.sidebar div.it{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;font-size:13.5px}
+.sidebar svg{width:18px;height:18px;color:var(--fg)}
+.sidebar .on{background:var(--brand);color:#fff}.sidebar .on svg{color:#fff}
+
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.spec .card p{color:var(--fg2);font-size:14px;margin-top:6px}
+.anatomy{display:flex;gap:10px;align-items:center;margin-top:10px}
+.anatomy svg{width:56px;height:56px;border-radius:10px;background:var(--sunken)}
+.where{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12.5px;color:var(--fg2);font-weight:600}
+code{font-family:var(--mono);font-size:12.5px;background:var(--sunken);padding:1px 5px;border-radius:5px;word-break:break-all}
+.foot{color:var(--fg3);font-size:13px;text-align:center}
+@media (max-width:600px){.hero{grid-template-columns:1fr}.hero-art{order:-1;width:150px}}
+</style>
+
+<header class="top"><div class="top-in">
+  <nav aria-label="目录">
+    <a href="#xiaxia">夏夏</a><a href="#illos">插画</a><a href="#cats">分类</a><a href="#accounts">账户</a>
+    <a href="#nav">导航</a><a href="#actions">操作</a><a href="#badges">徽章</a><a href="#components">组件</a><a href="#spec">规范</a><a href="#where">放在哪</a>
+  </nav>
+  <div class="seg" role="group" aria-label="外观">
+    <button id="th-auto" data-t="" aria-pressed="true">自动</button><button id="th-light" data-t="light" aria-pressed="false">浅色</button><button id="th-dark" data-t="dark" aria-pressed="false">深色</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>夏夏账本的<em>图标和小组件</em></h1>
+      <p class="lead" style="margin-top:10px">全部原创，从同一份图形数据生成：app 里画的、这页上看的、仓库里的 SVG 是同一套。圆润的两层色加一道小反光，浅色深色各配一套颜色。夏夏是一颗头顶嫩叶的小太阳，按你在设置里选的性格换脸。</p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="hero-art" data-g="xiaxia.gentle"></div>
+  </section>
+
+  <section id="xiaxia">
+    <div class="sec-head"><h2>夏夏</h2><p class="lead">四种性格对应设置里「夏夏怎么跟你说话」，每页「夏夏说」的头像跟着换。另外五种心情给空状态、出错、加载和庆祝用。</p></div>
+    <div class="grid personas" id="personas"></div>
+    <div class="card"><div class="grid moods" id="moods"></div></div>
+  </section>
+
+  <section id="illos">
+    <div class="sec-head"><h2>空状态和提示插画</h2><p class="lead">没有数据的时候不留白：夏夏睡着、在想事情、冒汗，旁边放一个说明是哪一页的小道具，下面一句话加一个按钮告诉你下一步做什么。</p></div>
+    <div class="grid illos" id="illo-grid"></div>
+  </section>
+
+  <section id="cats">
+    <div class="sec-head"><h2>分类图标</h2><p class="lead">每个分类有自己的颜色，图标、花销圆环、排行条都用它。名字对不上的分类按开头找（「交通出行」用「交通」），都对不上用「其他」。</p></div>
+    <div class="card"><div class="grid icons" id="cat-grid"></div></div>
+  </section>
+
+  <section id="accounts">
+    <div class="sec-head"><h2>账户</h2><p class="lead">家底页和管理账户里用。标了「私房钱」的账户不管什么类型，都换成上锁的小罐子。</p></div>
+    <div class="card"><div class="grid icons" id="acc-grid"></div></div>
+  </section>
+
+  <section id="nav">
+    <div class="sec-head"><h2>导航</h2><p class="lead">跟着文字颜色走：没选中是灰的，选中是晨光橙（iPhone）或白色（Mac 侧栏选中那行）。下面是放进去的样子。</p></div>
+    <div class="demo">
+      <div class="card"><h3 style="margin-bottom:12px">iPhone 标签栏</h3><div class="tabbar" id="tabbar"></div></div>
+      <div class="card"><h3 style="margin-bottom:12px">Mac 侧栏</h3><div class="sidebar" id="sidebar"></div></div>
+    </div>
+    <div class="card"><div class="grid icons tmpl" id="nav-grid"></div></div>
+  </section>
+
+  <section id="actions">
+    <div class="sec-head"><h2>操作</h2><p class="lead">按钮和菜单里的小图标，同样跟着文字颜色。浅的那层是同色淡一点，不额外加颜色。</p></div>
+    <div class="card"><div class="grid icons tmpl" id="act-grid"></div></div>
+  </section>
+
+  <section id="badges">
+    <div class="sec-head"><h2>小徽章</h2><p class="lead">一个图标加几个字，颜色带意思：靛蓝是 AI，绿是好事，黄是留意，红只给真的要处理的事。花钱本身不用红。</p></div>
+    <div class="card"><div class="badges" id="badge-row"></div></div>
+  </section>
+
+  <section id="components">
+    <div class="sec-head"><h2>放进界面的样子</h2><p class="lead">几个常用组件放在一起看。金额、商户全是编的示例。</p></div>
+    <div class="demo">
+      <div class="card"><h3>流水行 · CategoryIcon</h3><div id="rows" style="margin-top:6px"></div></div>
+      <div class="card says" id="says"></div>
+      <div class="card"><h3 style="margin-bottom:10px">性格选择 · PersonaPicker</h3><div id="picker"></div></div>
+      <div class="card"><h3>空状态 · KitEmptyState</h3><div class="empty" id="empty"></div></div>
+      <div class="card"><h3 style="margin-bottom:12px">尺寸</h3><div class="sizes" id="sizes"></div>
+        <p class="small" style="margin-top:12px">分类方块：流水里 18 / 26（Mac 侧栏、改动记录）、记一笔 30、流水行 32、排行 28。夏夏：「夏夏说」28、性格选择 40、插画 150 宽。</p></div>
+    </div>
+  </section>
+
+  <section id="spec">
+    <div class="sec-head"><h2>画法规范</h2><p class="lead">以后加新图标照这几条画，就和现在这套一个样子。</p></div>
+    <div class="spec">
+      <div class="card"><h3>24 格，四周留 2 格</h3><p>图标画在 24×24 里，主体占 2 到 22。夏夏用 64 格，插画 160×120。</p></div>
+      <div class="card"><h3>两层色加一道光</h3><p>浅色主体（同色 34%，深色模式 42%）放后面，实色重点放前面，左上角一道白色小反光。</p><div class="anatomy" id="anatomy"></div></div>
+      <div class="card"><h3>处处是圆角</h3><p>没有尖角：多边形每个角都磨圆，线条圆头圆接，描边 1.2 到 2.4。</p></div>
+      <div class="card"><h3>一点小心思</h3><p>能放小爱心、小星星的地方放一个（房子的窗、衣服、袋子），但每个图标只放一处。</p></div>
+      <div class="card"><h3>颜色只从色板拿</h3><p>分类色固定一套，语义色（品牌橙、AI 靛蓝、好事绿、留意黄、要处理红）和 app 的 UI 套件一致。</p></div>
+      <div class="card"><h3>原创</h3><p>每个图形都是这里自己画的，没有用别家 app 或图标库的素材。</p></div>
+    </div>
+  </section>
+
+  <section id="where">
+    <div class="sec-head"><h2>放在哪</h2><p class="lead">图形只有一份源头，改了跑一次生成脚本，app、展示页、SVG 一起更新。</p></div>
+    <div class="card where"><table>
+      <thead><tr><th>东西</th><th>位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>图标源头</td><td><code>design/icon-kit/icons.py</code><br><code>design/icon-kit/mascot.py</code></td><td>每个图标几行，用圆角矩形、圆、磨圆多边形拼出来</td></tr>
+        <tr><td>生成脚本</td><td><code>design/icon-kit/build.py</code></td><td>改完跑 <code>python3 design/icon-kit/build.py</code></td></tr>
+        <tr><td>app 里的图形数据</td><td><code>Sources/LedgerUI/XiaGlyphData.swift</code><br><code>XiaPaletteData.swift</code></td><td>自动生成，别手改；Mac 和 iPhone 共用</td></tr>
+        <tr><td>app 里的组件</td><td><code>Sources/LedgerUI/XiaIcons.swift</code></td><td>XiaIcon、XiaTile、AccountIcon、XiaxiaAvatar、XiaxiaIllustration、XiaBadge</td></tr>
+        <tr><td>SVG 文件</td><td><code>design/icon-kit/svg/</code></td><td>按分组放，浅色版，给文档、网页、App Store 截图用</td></tr>
+        <tr><td>这个展示页</td><td><code>design/icon-kit/index.html</code></td><td>浏览器直接打开</td></tr>
+        <tr><td>App 图标</td><td><code>App/Resources/Assets.xcassets</code></td><td>还是 ming 选定的「晨光账本」，这次没动</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <p class="foot">页面里的金额、商户全是编的示例。夏夏和全部图标为夏夏账本原创。</p>
+</main>
+
+<script>
+const G = __GLYPHS__;
+const by = Object.fromEntries(G.map(g => [g.name, g]));
+const PERSONA = {gentle:"这个月外卖 210 €，比上个月多一半，可以留意一下。", sharp:"外卖 210 €？厨房是摆设吗。",
+  calm:"本月外卖支出 210 €，较上月增加 52%。", cheer:"这个月已经存下 300 € 啦！外卖再少点就更棒了。"};
+const MOOD_USE = {worried:"还没连上 AI、要留意的事", thinking:"加载中、趋势不够看、搜不到", sleeping:"账本空、这个月没流水",
+  oops:"读不出账本、出错", celebrate:"计划做到了、都处理好了"};
+const ILLO_USE = {ledger:"总览 · 流水", month:"总览（这个月）", spending:"花销", trends:"趋势", accounts:"家底", plans:"计划",
+  search:"流水搜索", connect:"设置 · 夏夏建议", error:"账本读不出来", done:"夏夏建议都看完", loading:"等 AI 写进来"};
+const TINT_HEX = {brand:["E8643A","FF8157"], ai:["5856D6","8C89FF"], income:["1E9E5A","36C77F"], warn:["E8A000","FFB72B"],
+  alert:["D33F35","FF6A5F"], fg2:["5A5A62","B0B0B7"], fg3:["8C8C93","8C8C93"]};
+let dark = false;
+const svg = n => { const g = by[n]; return (dark ? g.dark : g.light).replace(/ width="\d+" height="\d+"/, ""); };
+const tint = t => { if (!t) return null; const p = TINT_HEX[t]; return "#" + (p ? p[dark ? 1 : 0] : t); };
+const tile = (n, a) => { const c = tint(by[n].tint); return `<div class="tile" style="background:${c}${dark ? "33" : "24"}">${svg(n)}</div>`; };
+// 跟着文字颜色的图标：把预设的近黑换成 currentColor
+const tmplSafe = n => { const g = by[n]; return g.light.replace(/ width="\d+" height="\d+"/, "").replaceAll("#1C1C1E", "currentColor"); };
+const $ = id => document.getElementById(id);
+const group = k => G.filter(g => g.group === k);
+
+function render() {
+  $("stats").innerHTML = [["图标", G.filter(g => g.w === 24).length], ["夏夏的脸", group("persona").length + group("mood").length], ["插画", group("illustration").length], ["组件", 6]]
+    .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  document.querySelectorAll("[data-g]").forEach(el => el.innerHTML = svg(el.dataset.g));
+  $("personas").innerHTML = group("persona").map(g => `<div class="card persona">${svg(g.name)}<div><h3>${g.label}</h3><p class="say">${PERSONA[g.name.split(".")[1]]}</p></div></div>`).join("");
+  $("moods").innerHTML = group("mood").map(g => `<div class="mood">${svg(g.name)}<h3>${g.label}</h3><p class="small">${MOOD_USE[g.name.split(".")[1]]}</p></div>`).join("");
+  $("illo-grid").innerHTML = group("illustration").map(g => `<div class="card illo">${svg(g.name)}<h3>${g.label}</h3><p class="small">${ILLO_USE[g.name.split(".")[1]]}</p></div>`).join("");
+  $("cat-grid").innerHTML = group("category").map(g => `<div class="ic">${tile(g.name)}<span class="nm">${g.label}</span><span class="hx">#${g.tint}</span></div>`).join("");
+  $("acc-grid").innerHTML = group("account").map(g => `<div class="ic">${tile(g.name)}<span class="nm">${g.label}</span><span class="hx">#${g.tint}</span></div>`).join("");
+  $("nav-grid").innerHTML = group("nav").map(g => `<div class="ic">${tmplSafe(g.name)}<span class="nm">${g.label}</span><span class="hx">${g.name}</span></div>`).join("");
+  $("act-grid").innerHTML = group("action").map(g => `<div class="ic">${tmplSafe(g.name)}<span class="nm">${g.label}</span><span class="hx">${g.name}</span></div>`).join("");
+  $("badge-row").innerHTML = group("badge").map(g => { const c = tint(g.tint); const fg = (g.tint === "fg2" || g.tint === "fg3") ? "var(--fg2)" : c;
+    return `<span class="pill" style="background:${c}${dark ? "2E" : "1F"};color:${fg}">${svg(g.name)}${g.label}</span>`; }).join("");
+  const tabs = [["nav.overview", "总览", 1], ["nav.spending", "收支"], ["nav.wealth", "家底"], ["nav.plans", "计划"], ["nav.xiaxia", "夏夏"]];
+  $("tabbar").innerHTML = tabs.map(([n, l, on]) => `<div class="${on ? "on" : ""}">${tmplSafe(n)}${l}</div>`).join("");
+  const side = [["看"], ["nav.overview", "总览"], ["nav.spending", "花销", 1], ["nav.trends", "趋势"], ["nav.wealth", "家底"], ["nav.plans", "计划"],
+    ["夏夏"], ["nav.xiaxia", "夏夏建议"], ["nav.changes", "改动记录"], ["记录"], ["nav.transactions", "流水"], ["nav.settings", "设置"]];
+  $("sidebar").innerHTML = side.map(([n, l, on]) => l === undefined ? `<div class="grp">${n}</div>` : `<div class="it ${on ? "on" : ""}">${tmplSafe(n)}${l}</div>`).join("");
+  const rows = [["grocery", "Mercadona", "11 月 19 日 · 超市 · 个人", "−27,90 €", 1], ["dining", "小面馆", "11 月 18 日 · 餐饮 · 个人", "−18,60 €", 1],
+    ["coffee", "街角咖啡", "11 月 18 日 · 咖啡 · 个人", "−3,20 €"], ["salary", "工资", "11 月 1 日 · 工资 · 个人", "+2.900,00 €"],
+    ["subscription", "音乐会员", "11 月 3 日 · 订阅 · 每月扣", "−10,99 €"], ["supplies", "进货", "11 月 12 日 · 耗材 · 我的小店", "−142,00 €", 1]];
+  $("rows").innerHTML = rows.map(([n, t, s, a, ai]) => `<div class="row">${tile(n)}<div class="t"><b>${t}</b><span>${ai ? '<span class="tag">AI</span>' : ""}${s}</span></div><span class="amt" style="color:${a[0] === "+" ? "var(--income)" : "var(--fg)"}">${a}</span></div>`).join("");
+  $("says").innerHTML = `<div class="says-h">${svg("xiaxia.gentle")}<b>夏夏说</b><span>温和直说</span></div><p>超市比上月同期多花了 46 €，多的主要是周末那两次。可以留意一下。</p>
+    <div style="display:flex;gap:8px;margin-top:12px"><span class="btn">${tmplSafe("act.ask").replaceAll("#1C1C1E", "currentColor")}让夏夏细说</span><span class="btn" style="background:var(--sunken);color:var(--fg)">知道了</span></div>`;
+  $("picker").innerHTML = group("persona").map((g, i) => `<div class="pick ${i === 0 ? "on" : ""}">${svg(g.name)}<div><b>${g.label}${i === 0 ? "（默认）" : ""}</b><span class="small">「${PERSONA[g.name.split(".")[1]]}」</span></div></div>`).join("");
+  $("empty").innerHTML = `${svg("illo.month")}<b>11 月还没有流水</b><p class="small">把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」，导好就会出现在这里。</p><span class="btn solid">${tmplSafe("act.copy")}复制这句话</span>`;
+  $("sizes").innerHTML = [18, 28, 32, 48].map(s => `<figure><div class="tile" style="width:${s}px;height:${s}px;border-radius:${s * .3}px;background:${tint("FF7A59")}${dark ? "33" : "24"}"><div style="width:${s * .66}px;height:${s * .66}px">${svg("dining")}</div></div>${s}</figure>`).join("")
+    + [24, 28, 40, 64].map(s => `<figure><div style="width:${s}px;height:${s}px">${svg("xiaxia.cheer")}</div>${s}</figure>`).join("");
+  $("anatomy").innerHTML = ["shopping", "housing", "coffee"].map(n => `<div>${svg(n)}</div>`).join("");
+  document.querySelectorAll(".btn svg").forEach(s => s.style.color = "inherit");
+}
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  dark = t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === (t || ""))));
+  try { localStorage.setItem("xia-theme", t || ""); } catch (e) {}
+  render();
+}
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => applyTheme(b.dataset.t)));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) applyTheme(""); });
+let saved = ""; try { saved = localStorage.getItem("xia-theme") || ""; } catch (e) {}
+applyTheme(saved);
+</script>
