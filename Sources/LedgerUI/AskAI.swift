@@ -27,7 +27,10 @@ enum Clipboard {
 extension LedgerModel {
     /// 现在看的是哪儿：给 AI 的话前面带上，AI 就知道你在问哪个月、哪个账本。
     func contextLine(page: String) -> String {
-        "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
+        var line = "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
+        line += "请你当「夏夏」，用「\(ledger.profile.persona.label)」的口吻回答。"
+        if let aim = ledger.profile.aim { line += "我的目标是：\(aim)。" }
+        return line
     }
 
     /// 每页常用的几句话。说法通用，不写死具体银行、店名、人名。

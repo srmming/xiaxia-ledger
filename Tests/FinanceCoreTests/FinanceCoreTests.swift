@@ -964,3 +964,85 @@ final class BookManageTests: XCTestCase {
         XCTAssertFalse(b.isBusiness)
     }
 }
+
+/// 夏夏的性格、你的目标、自己加的分类、写给某一页的意见（2026-11-21 ming 要的）。
+final class ProfileTests: XCTestCase {
+    func testPersonaAndAimUndo() throws {
+        var l = Ledger.fresh
+        XCTAssertEqual(l.profile.persona, .gentle, "默认是温和直说")
+        let c1 = try l.setPersona(.sharp, author: "我")
+        XCTAssertEqual(l.profile.persona, .sharp)
+        XCTAssertThrowsError(try l.setPersona(.sharp, author: "我"))
+        let c2 = try l.setAim("  每个月存下 500 €  ", author: "我")
+        XCTAssertEqual(l.profile.aim, "每个月存下 500 €")
+        _ = try l.undo(changeID: c2.id, author: "我")
+        XCTAssertNil(l.profile.aim)
+        XCTAssertEqual(l.profile.persona, .sharp, "撤销目标不动性格")
+        _ = try l.undo(changeID: c1.id, author: "我")
+        XCTAssertEqual(l.profile.persona, .gentle)
+        _ = try l.setAim("少点外卖", author: "我")
+        _ = try l.setAim("", author: "我")
+        XCTAssertNil(l.profile.aim, "空字符串 = 清掉")
+    }
+
+    func testAddCategoryAndRename() throws {
+        var l = Ledger.fresh
+        l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]
+        let c = try l.addCategory("宠物", income: false, author: "我")
+        XCTAssertEqual(l.profile.categories, [CustomCategory(name: "宠物", income: false)])
+        XCTAssertThrowsError(try l.addCategory("宠物", income: false, author: "我"), "重名要提示")
+        XCTAssertNoThrow(try l.addCategory("宠物", income: true, author: "我"), "收入里可以有同名的")
+        _ = try l.renameCategory("宠物", to: "猫狗", author: "我")
+        XCTAssertTrue(l.profile.categories.contains(CustomCategory(name: "猫狗", income: false)))
+        XCTAssertFalse(l.profile.categories.contains { $0.name == "宠物" })
+        _ = try l.undo(changeID: c.id, author: "我")
+        XCTAssertFalse(l.profile.categories.contains { $0.name == "宠物" && !$0.income })
+    }
+
+    func testRenameCategoryWithTransactionsAlsoRenamesCustom() throws {
+        var l = Ledger.fresh
+        l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]
+        _ = try l.addCategory("咖啡", income: false, author: "我")
+        _ = try l.addTransaction(Transaction(date: .today, amount: Money(cents: -350), description: "咖啡", accountID: "bank",
+                                             bookID: "personal", category: "咖啡"), author: "我")
+        let r = try l.renameCategory("咖啡", to: "饮料", author: "我")
+        XCTAssertEqual(l.transactions[0].category, "饮料")
+        XCTAssertEqual(l.profile.categories.map(\.name), ["饮料"])
+        _ = try l.undo(changeID: r.id, author: "我")
+        XCTAssertEqual(l.transactions[0].category, "咖啡")
+        XCTAssertEqual(l.profile.categories.map(\.name), ["咖啡"])
+    }
+
+    func testInsightForPage() throws {
+        var l = Ledger.fresh
+        let m = LocalDate.today.yearMonth
+        _ = try l.addInsight(Insight(month: m, kind: .tip, title: "总览这条", body: "", author: "Claude"), author: "Claude")
+        _ = try l.addInsight(Insight(month: m, kind: .alert, title: "花销这条", body: "", page: "spending", author: "Claude"), author: "Claude")
+        XCTAssertEqual(l.insight(forPage: "overview", month: m, bookID: nil)?.title, "总览这条", "没写页面的算总览")
+        XCTAssertEqual(l.insight(forPage: "spending", month: m, bookID: nil)?.title, "花销这条")
+        XCTAssertNil(l.insight(forPage: "trends", month: m, bookID: nil))
+    }
+
+    func testContextCarriesVoiceAndAim() throws {
+        var l = Ledger.fresh
+        _ = try l.setPersona(.calm, author: "我")
+        _ = try l.setAim("先把信用卡还清", author: "我")
+        let ctx = LedgerContext(ledger: l)
+        XCTAssertEqual(ctx.persona, "文静")
+        XCTAssertEqual(ctx.voice, Persona.calm.instruction)
+        XCTAssertEqual(ctx.aim, "先把信用卡还清")
+    }
+
+    func testProfileSurvivesSQLiteAndUnknownPersona() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("profile-\(UUID()).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        var l = Ledger.fresh
+        _ = try l.setPersona(.cheer, author: "我")
+        _ = try l.addCategory("宠物", income: false, author: "我")
+        try SQLiteLedgerStore(url: url).save(l)
+        let back = try SQLiteLedgerStore(url: url).load()
+        XCTAssertEqual(back.profile, l.profile)
+        let odd = try JSONDecoder().decode(Profile.self, from: Data(#"{"persona":"pirate"}"#.utf8))
+        XCTAssertEqual(odd.persona, .gentle, "不认识的性格当默认")
+    }
+}

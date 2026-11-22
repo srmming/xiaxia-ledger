@@ -114,9 +114,9 @@ extension Ledger {
                     body: "少的主要是店里的耗材。房租和店租都已经付了，剩下的大头是 12 月 5 日的分期 54,90 €，余额够。超市这个月比上月多一点，可以留意。",
                     author: "Claude", createdAt: ago(2)),
             Insight(month: nov, kind: .alert, title: "超市比上月同期多花了一些", body: "多的主要是 Mercadona，去了 4 次。", metric: "category:超市",
-                    author: "Claude", createdAt: ago(2)),
-            Insight(month: nov, kind: .goodNews, title: "应急金已经存了一半", body: "照每月 300 € 存，明年 4 月前能存满。", author: "Codex", createdAt: ago(30)),
-            Insight(month: nov, kind: .action, title: "阿华的 300 € 过了约定日期还没还", body: "10 月 31 日就该还了，要不要提醒一下？", author: "Claude", createdAt: ago(50)),
+                    page: "spending", author: "Claude", createdAt: ago(2)),
+            Insight(month: nov, kind: .goodNews, title: "应急金已经存了一半", body: "照现在每月 300 € 的速度，明年 9 月左右存满；想在 4 月底前存满，每月要存 600 €。", page: "plans", author: "Codex", createdAt: ago(30)),
+            Insight(month: nov, kind: .action, title: "阿华的 300 € 过了约定日期还没还", body: "10 月 31 日就该还了，要不要提醒一下？", page: "wealth", author: "Claude", createdAt: ago(50)),
         ]
         return l
     }

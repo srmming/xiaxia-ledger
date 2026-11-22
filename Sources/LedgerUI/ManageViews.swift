@@ -275,17 +275,20 @@ struct AccountEditor: View {
 
 // MARK: - 分类
 
-/// 分类：看每个分类用了多少笔，改名或并进另一个分类。新分类在「记一笔」里直接加。
+/// 分类：看每个分类用了多少笔，改名或并进另一个分类，也能新建（记一笔里也能直接加）。
 struct CategoryManager: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.dismiss) var dismiss
     @State var renaming: String?
     @State var renameText = ""
+    @State var newName = ""
+    @State var newIncome = false
     @State var error: String?
 
     private var counts: [(name: String, count: Int)] {
         var c: [String: Int] = [:]
         for t in model.ledger.transactions where t.flow == nil { if let k = t.category { c[k, default: 0] += 1 } }
+        for x in model.ledger.profile.categories where c[x.name] == nil { c[x.name] = 0 }
         return c.map { ($0.key, $0.value) }.sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
     }
 
@@ -311,8 +314,18 @@ struct CategoryManager: View {
                     .accessibilityHint("改名或并进别的分类")
                 }
             } header: { Text("分类") } footer: {
-                Text("改成一个已有的名字，就是把两个分类并成一个。新分类在「记一笔」里点「＋ 新分类」加。")
+                Text("改成一个已有的名字，就是把两个分类并成一个。")
             }
+            Section {
+                TextField("名字，比如「宠物」「学费」", text: $newName)
+                    .onSubmit(add)
+                Picker("用在", selection: $newIncome) {
+                    Text("支出").tag(false)
+                    Text("收入").tag(true)
+                }
+                .pickerStyle(.segmented)
+                Button("新建", action: add).disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+            } header: { Text("新建分类") } footer: { Text("记一笔时也能点「＋ 新分类」当场加。") }
         }
         .formStyle(.grouped)
         .navigationTitle("管理分类")
@@ -329,5 +342,12 @@ struct CategoryManager: View {
             }
         } message: { Text("这个分类下的流水会一起改。") }
         .errorAlert($error)
+    }
+
+    private func add() {
+        do {
+            try model.edit { try $0.addCategory(newName, income: newIncome, author: model.author) }
+            newName = ""
+        } catch { self.error = error.localizedDescription }
     }
 }

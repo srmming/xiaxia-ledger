@@ -4,10 +4,10 @@ import SwiftUI
 import AppKit
 #endif
 
-/// 9 个页面，每页回答一个问题。前 5 页是「看」，AI 意见和改动记录是「AI 做了什么」，最后是流水和设置。
+/// 9 个页面，每页回答一个问题。前 5 页是「看」，夏夏建议和改动记录是「AI 做了什么」，最后是流水和设置。
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "计划"
-    case insights = "AI 意见", changes = "改动记录", transactions = "流水", settings = "设置"
+    case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
     public var id: String { rawValue }
 
     var symbol: String {
@@ -83,12 +83,13 @@ public struct RootView: View {
                 case .accounts: AccountManager()
                 case .categories: CategoryManager()
                 case .connectAI: ConnectAIView()
+                case .plan: NewPlanSheet()
                 }
             }
                 .environment(model)
                 .tint(Color.brand)
                 #if os(macOS)
-                .frame(width: sheet == .add ? 440 : sheet == .connectAI ? 600 : 520,
+                .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : 520,
                        height: sheet == .add ? nil : sheet == .connectAI ? 720 : 580)
                 #else
                 .presentationDetents([.large])
@@ -177,7 +178,7 @@ struct MacRoot: View {
         NavigationSplitView {
             List(selection: $model.section) {
                 Section("看") { ForEach(AppSection.look) { row($0) } }
-                Section("AI") { ForEach(AppSection.ai) { row($0) } }
+                Section("夏夏") { ForEach(AppSection.ai) { row($0) } }
                 Section("记录") { ForEach(AppSection.records) { row($0) } }
                 Section { row(.settings) }
             }
@@ -281,7 +282,7 @@ struct BookSwitch: View {
 // MARK: - iPhone
 
 #if os(iOS)
-/// iPhone 的 5 个标签：总览、收支（花销 + 趋势）、家底、计划、AI。
+/// iPhone 的 5 个标签：总览、收支（花销 + 趋势）、家底、计划、夏夏。
 struct PhoneRoot: View {
     @Environment(LedgerModel.self) var model
     @State var flowsTab = 0
@@ -315,7 +316,7 @@ struct PhoneRoot: View {
             }
             page(.wealth, title: "家底") { WealthPage() }
             page(.plans, title: "计划") { PlansPage() }
-            page(.insights, title: "AI") { InsightsPage() }
+            page(.insights, title: "夏夏") { InsightsPage() }
         }
         .overlay(alignment: .bottomTrailing) {
             AskAIButton(page: (model.section ?? .overview).rawValue)
@@ -374,7 +375,13 @@ public struct XiaxiaScene: Scene {
         // 截图和演示：启动参数带 -XiaxiaDemo 就用编造的示例账本，-XiaxiaEmpty 是空账本，都不碰真实数据。
         let args = ProcessInfo.processInfo.arguments
         let model: LedgerModel
-        if args.contains("-XiaxiaDemo") {
+        #if DEBUG
+        // 开发版（Debug）默认用示例账本，不去读 iCloud 里的真账本；真要读加 -XiaxiaReal。
+        let useDemo = args.contains("-XiaxiaDemo") || (!args.contains("-XiaxiaEmpty") && !args.contains("-XiaxiaReal"))
+        #else
+        let useDemo = args.contains("-XiaxiaDemo")
+        #endif
+        if useDemo {
             model = LedgerModel.demo()
         } else if args.contains("-XiaxiaEmpty") {
             model = LedgerModel.empty()

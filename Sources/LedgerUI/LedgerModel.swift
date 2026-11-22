@@ -9,6 +9,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case books, accounts, categories
     /// 连上你的 AI（Mac 第一次打开、设置里）。
     case connectAI
+    /// 计划页「新计划」：存钱目标、分期、借款。
+    case plan
     public var id: String { rawValue }
 }
 
@@ -204,11 +206,32 @@ public final class LedgerModel {
             guard let c = t.category, bookID == nil || t.bookID == bookID else { continue }
             count[c, default: 0] += 1
         }
-        let used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
+        var used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
+        // 自己加的分类（还没用过也算），排在常用的后面、默认的前面。
+        used += ledger.profile.categories.filter { $0.income == income && !used.contains($0.name) }.map(\.name)
         let defaults = CategoryStyle.defaults(book: ledger.books.first { $0.id == bookID }, income: income)
         // 账本里已经有「交通出行」，就不再另给一个「交通」，免得同一件事记成两个分类。
         let extra = defaults.filter { d in !used.contains { $0 == d || $0.hasPrefix(d) } }
         return Array((used + extra).prefix(limit))
+    }
+
+    /// 记一笔时「名称」下面的提示：以前用过的名字（整理过的商户名）和上次用的分类。
+    /// 没输入时给最常用的几个，输入了就给包含这几个字的。
+    public func nameSuggestions(_ query: String, income: Bool, limit: Int = 5) -> [(name: String, category: String?)] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        var stats: [String: (count: Int, category: String?, last: LocalDate)] = [:]
+        for t in ledger.transactions where t.flow == nil && !t.isTransfer && t.amount.isIncome == income {
+            let name = Merchant.display(t.description)
+            guard !name.isEmpty, name.count <= 30 else { continue }
+            var s = stats[name] ?? (0, t.category, t.date)
+            s.count += 1
+            if t.date >= s.last { s.last = t.date; if t.category != nil { s.category = t.category } }
+            stats[name] = s
+        }
+        return stats
+            .filter { q.isEmpty || ($0.key.lowercased().contains(q) && $0.key.lowercased() != q) }
+            .sorted { $0.value.count == $1.value.count ? $0.value.last > $1.value.last : $0.value.count > $1.value.count }
+            .prefix(limit).map { (name: $0.key, category: $0.value.category) }
     }
 
     // MARK: 记住上次用的账户和账本

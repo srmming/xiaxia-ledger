@@ -40,6 +40,8 @@ if [ -n "$IOS_APP" ]; then
   ios 12-categories -XiaxiaDemo -XiaxiaSheet categories
   ios 13-empty-wealth -XiaxiaEmpty -XiaxiaSection wealth
   ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
+  ios 15-new-plan -XiaxiaDemo -XiaxiaSheet plan
+  ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
 fi
 
 # GitHub 的机器上 screencapture 只有黑屏，改让 app 自己把窗口画成图（-XiaxiaSnapshot），不用屏幕录制权限。
@@ -100,5 +102,6 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   mac 12-books -XiaxiaDemo 1 -XiaxiaSheet books
   mac 13-accounts -XiaxiaDemo 1 -XiaxiaSheet accounts
   mac 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
+  mac 14-new-plan -XiaxiaDemo 1 -XiaxiaSheet plan
 fi
 ls -la "$OUT"
