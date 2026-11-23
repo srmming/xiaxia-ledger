@@ -274,15 +274,18 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <section class="center" id="cast" style="background:var(--bg2)">
   <div class="wrap">
     <p class="eyebrow">认识一下</p>
-    <h2>夏夏和她的 AI 伙伴们</h2>
-    <p class="sub">账本里的小角色会眨眼、会说话。你连的是哪个 AI，就由哪个伙伴来陪你。</p>
-    <div class="cast">
-      <div class="who-card lead"><img src="assets/xiaxia-cheer.webp" alt="夏夏" loading="lazy" width="300" height="300"><h3>夏夏</h3><span class="tag">主角</span><p>抱着小算盘的鲸鱼娘，帮你看账、给你出主意，偶尔毒舌一下。</p></div>
-      <div class="who-card"><img src="assets/orange-idle.webp" alt="小橘" loading="lazy" width="300" height="300"><h3>小橘</h3><span class="tag">Claude 的伙伴</span><p>温柔细心，帮你记账、整理分类。</p></div>
-      <div class="who-card"><img src="assets/lilac-idle.webp" alt="小紫" loading="lazy" width="300" height="300"><h3>小紫</h3><span class="tag">Codex 的伙伴</span><p>动作麻利，导入对账单、对账交给她。</p></div>
-      <div class="who-card"><img src="assets/star-idle.webp" alt="小星" loading="lazy" width="300" height="300"><h3>小星</h3><span class="tag">Gemini 和其它 AI</span><p>好奇心满满，什么 AI 来了都能接上。</p></div>
+    <h2>夏夏和 AI 伙伴们</h2>
+    <p class="sub">账本里的小角色会眨眼、会说话。你连的是哪个 AI，就由哪个伙伴来陪你。女生版、男生版各一套，在 app 设置里随时切换。</p>
+    <div class="tabs look" role="tablist" aria-label="选择角色造型">
+      <button role="tab" aria-selected="true" data-look="girl">女生版</button>
+      <button role="tab" aria-selected="false" data-look="boy">男生版</button>
     </div>
-    <p class="cast-note">也有男生版，在设置里「女生 / 男生」一键切换。</p>
+    <div class="cast" style="margin-top:8px">
+      <div class="who-card lead"><img src="assets/xiaxia-cheer.webp" data-girl="assets/xiaxia-cheer.webp" data-boy="assets/xiaxia-boy-cheer.webp" alt="夏夏" loading="lazy" width="300" height="300"><h3>夏夏</h3><span class="tag">主角</span><p data-girl="抱着小算盘的鲸鱼娘，帮你看账、给你出主意，偶尔毒舌一下。" data-boy="抱着小算盘的鲸鱼少年，帮你看账、给你出主意，偶尔毒舌一下。">抱着小算盘的鲸鱼娘，帮你看账、给你出主意，偶尔毒舌一下。</p></div>
+      <div class="who-card"><img src="assets/orange-idle.webp" data-girl="assets/orange-idle.webp" data-boy="assets/orange-boy-idle.webp" alt="小橘" loading="lazy" width="300" height="300"><h3>小橘</h3><span class="tag">Claude 的伙伴</span><p>温柔细心，帮你记账、整理分类。</p></div>
+      <div class="who-card"><img src="assets/lilac-idle.webp" data-girl="assets/lilac-idle.webp" data-boy="assets/lilac-boy-idle.webp" alt="小紫" loading="lazy" width="300" height="300"><h3>小紫</h3><span class="tag">Codex 的伙伴</span><p>动作麻利，导入对账单、对账都交给这位。</p></div>
+      <div class="who-card"><img src="assets/star-idle.webp" data-girl="assets/star-idle.webp" data-boy="assets/star-boy-idle.webp" alt="小星" loading="lazy" width="300" height="300"><h3>小星</h3><span class="tag">Gemini 和其它 AI</span><p>好奇心满满，什么 AI 来了都能接上。</p></div>
+    </div>
   </div>
 </section>
 
@@ -368,6 +371,17 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
   const n=new Image();n.onload=()=>{img.src=b.dataset.img;img.alt='夏夏账本「'+b.textContent+'」页截图（示例数据）';img.style.opacity=1};n.src=b.dataset.img;
   document.getElementById('tourCap').textContent=b.dataset.cap;
 }));
+// 女生版 / 男生版
+document.querySelectorAll('.look button').forEach(b=>b.addEventListener('click',()=>{
+  const look=b.dataset.look;
+  document.querySelectorAll('.look button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('#cast [data-'+look+']').forEach(el=>{
+    if(el.tagName==='IMG'){el.src=el.dataset[look];el.alt=el.alt.replace(/（男生版）$/,'')+(look==='boy'?'（男生版）':'')}
+    else el.textContent=el.dataset[look];
+  });
+}));
+// 预载男生版，切换时不闪
+window.addEventListener('load',()=>document.querySelectorAll('#cast img[data-boy]').forEach(i=>{new Image().src=i.dataset.boy}));
 // 从自动更新文件读最新版本号和大小，读不到就保持「免费下载」
 fetch('/appcast.xml',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
   const d=new DOMParser().parseFromString(t,'application/xml');
