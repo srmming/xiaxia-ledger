@@ -156,7 +156,8 @@ public enum Nudges {
         let names = soon.prefix(3).map { "「\($0.name)」" }.joined(separator: "、") + (soon.count > 3 ? " 等 \(soon.count) 个" : "")
         // 同一种币的才加起来；混着币种就不报总数。
         let currencies = Set(soon.map(\.currency))
-        var title = "\(dayWord(first.daysLeft ?? 0))\(soon.count > 1 && soon.contains { $0.daysLeft != first.daysLeft } ? "起" : "")扣\(names)"
+        let spread = soon.contains(where: { $0.daysLeft != first.daysLeft })
+        var title = dayWord(first.daysLeft ?? 0) + (spread ? "起" : "") + "扣\(names)"
         if currencies.count == 1, let c = currencies.first {
             title += "，一共 \(short(soon.reduce(Money.zero) { $0 + $1.amount }, c))。"
         } else {
