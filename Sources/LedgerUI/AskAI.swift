@@ -65,7 +65,7 @@ extension LedgerModel {
     /// 只有 Claude 桌面版的人（最常见的新用户）对话栏答不了，例句就复制去 Claude，别塞进一个用不了的对话栏里丢掉。
     var chatReady: Bool {
         #if os(macOS)
-        !chat.available.isEmpty && !(store is InMemoryLedgerStore)
+        chat.enabled && !chat.available.isEmpty && !(store is InMemoryLedgerStore)
         #else
         false
         #endif

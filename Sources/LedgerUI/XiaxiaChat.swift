@@ -15,6 +15,17 @@ public final class XiaxiaChatState {
     }
 
     public var open = false
+    /// 用不用内置夏夏（引导最后一步、设置里的开关）。关掉：右边不出对话栏，「问夏夏」改成复制好问题、打开 Claude。
+    /// 没选过算开着（旧用户照旧能用）。
+    public var enabled: Bool = UserDefaults.standard.object(forKey: XiaxiaChatState.enabledKey) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(enabled, forKey: Self.enabledKey)
+            if !enabled { open = false }
+        }
+    }
+    public static let enabledKey = "xiaxia.chatEnabled"
+    /// 明确选过「用」：一打开 app 就展开。
+    static var chosenOn: Bool { UserDefaults.standard.object(forKey: enabledKey) as? Bool == true }
     public var messages: [Message] = []
     public var busy = false
     public var draft = ""
@@ -128,6 +139,15 @@ public final class XiaxiaChatState {
 extension LedgerModel {
     /// ⌘K、菜单「和夏夏聊」、工具栏「问夏夏」共用：开着就收起，没开就 chat.show()。
     func toggleChat() {
+        guard chat.enabled else {
+            // 选了不用内置夏夏：和以前一样，把这一页的情况复制好，打开 Claude。
+            Clipboard.copy(contextLine(page: (section ?? .overview).rawValue))
+            toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
+            if let app = URL(string: "claude://"), !NSWorkspace.shared.open(app), let web = URL(string: "https://claude.ai/new") {
+                NSWorkspace.shared.open(web)
+            }
+            return
+        }
         if chat.open { withAnimation(.snappy) { chat.open = false } } else { chat.show() }
     }
 }

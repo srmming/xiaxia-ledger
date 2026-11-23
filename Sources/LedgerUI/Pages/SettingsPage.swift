@@ -9,8 +9,6 @@ struct SettingsPage: View {
     @FocusState var nameFocused: Bool
     @State var manage: AppSheet?
     @AppStorage("xiaxia.appearance") var appearance = "auto"
-    /// 引导最后一步问过的「内置夏夏」：一打开 app 就展开右边的对话栏。
-    @AppStorage(LedgerModel.chatOnLaunchKey) var chatOnLaunch = false
 
     var body: some View {
         Columns(sideWidth: 420, breakpoint: 820) {
@@ -33,12 +31,14 @@ struct SettingsPage: View {
                 }
                 .buttonStyle(.plain)
                 item(symbol: "bubble.left.and.text.bubble.right.fill", color: .ai,
-                     title: model.chat.available.isEmpty ? "内置夏夏（要先装 Claude Code、Codex 或 Hermes）" : "内置夏夏：一打开就在右边") {
-                    Toggle("内置夏夏", isOn: $chatOnLaunch).labelsHidden().toggleStyle(.switch)
-                        .disabled(model.chat.available.isEmpty)
-                        .onChange(of: chatOnLaunch) { _, on in
-                            if on { model.chat.show() } else { withAnimation(.snappy) { model.chat.open = false } }
-                        }
+                     title: model.chat.available.isEmpty ? "内置夏夏（要先装 Claude Code、Codex 或 Hermes）"
+                         : "内置夏夏：窗口右边直接聊（关掉后「问夏夏」会复制好问题打开 Claude）") {
+                    Toggle("内置夏夏", isOn: Binding(get: { model.chat.enabled }, set: { on in
+                        withAnimation(.snappy) { model.chat.enabled = on }
+                        if on { model.chat.show() }
+                    }))
+                    .labelsHidden().toggleStyle(.switch)
+                    .disabled(model.chat.available.isEmpty)
                 }
                 #else
                 ForEach(model.aiTools) { t in

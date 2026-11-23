@@ -11,8 +11,6 @@ import SwiftUI
 
 extension LedgerModel {
     static let welcomeDoneKey = "xiaxia.welcomeDone"
-    /// 引导最后一步选了「打开内置夏夏」：以后每次打开 app，右边的夏夏对话栏都展开着。
-    static let chatOnLaunchKey = "xiaxia.chatOnLaunch"
 
     /// 要不要出开始引导：真账本、还是空的、以前没走过。启动参数 -XiaxiaWelcome 强制出（截图、检查用）。
     func showWelcomeIfNeeded() {
@@ -551,32 +549,28 @@ struct WelcomeView: View {
     }
 
     #if os(macOS)
-    /// 最后一步：要不要打开内置夏夏（右边的对话栏）。
+    /// 最后一步：用不用内置夏夏。先说清它是什么，再放一段会动的演示（照真对话栏的样子）。
     private var chatPage: some View {
         let engines = model.chat.available
         let pick = chatPick.flatMap(ChatEngine.init(rawValue:)) ?? model.chat.engine ?? engines.first
-        return pageBody("要不要打开内置夏夏？",
-                        "打开后，窗口右边一直有夏夏：不用切到别的 app，直接打字问账、记账。她借你电脑上的 \(pick?.name ?? "AI") 来回答，用的是你自己的订阅，不另外收费。") {
+        let name = pick?.name ?? "AI"
+        return pageBody("要不要用内置夏夏？", "内置夏夏就是窗口右边的一个聊天栏。不用切到别的 app，打字就能记账、查账。") {
             if celebrated {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
                     Text(celebrationNote.map { "AI 连上了，第一笔记下了：\($0)" } ?? "AI 连上了！").font(.subheadline).foregroundStyle(Color.fg2)
                 }
             }
-            // 一小段对话，让人一眼看懂「内置夏夏」是什么。
-            VStack(alignment: .leading, spacing: 10) {
-                HStack { Spacer(minLength: 60); chatBubble("今天午饭 12 欧", mine: true) }
-                HStack(alignment: .bottom, spacing: 8) {
-                    MascotView(.xiaxia, size: 30, face: true, animated: false)
-                    chatBubble("记好了：午饭 -12,00 €，个人账本。这个月吃饭一共 86,40 €。", mine: false)
-                    Spacer(minLength: 40)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 28) {
+                    ChatDemo(engineName: name).frame(width: 340)
+                    chatFacts(name)
+                }
+                VStack(alignment: .leading, spacing: 20) {
+                    ChatDemo(engineName: name).frame(maxWidth: 340)
+                    chatFacts(name)
                 }
             }
-            .padding(18)
-            .frame(maxWidth: 520)
-            .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("例子：你说今天午饭 12 欧，夏夏回答记好了")
             if engines.count > 1 {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("用哪个 AI 来回答？").font(.headline).foregroundStyle(Color.fg2)
@@ -587,21 +581,34 @@ struct WelcomeView: View {
                     }
                 }
             }
-            Text("模型跟随 \(pick?.name ?? "AI") 自己的默认，想换以后在对话栏顶上换。以后也能随时点右上角「问夏夏」打开、收起。")
-                .font(.subheadline).foregroundStyle(Color.fg3)
-                .fixedSize(horizontal: false, vertical: true)
         } buttons: {
-            primary("打开内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
+            primary("用内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
             secondary("先不用") { Task { await chooseChat(false) } }
         }
     }
 
-    private func chatBubble(_ text: String, mine: Bool) -> some View {
-        Text(text).font(.callout)
-            .foregroundStyle(mine ? Color.white : Color.primary)
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .background(mine ? Color.aiSolid : Color.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .fixedSize(horizontal: false, vertical: true)
+    /// 内置夏夏能做什么、和别的 AI 什么关系、不用会怎样：三句话。
+    private func chatFacts(_ name: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            fact("text.bubble", "说一句就记账、查账", "「今天午饭 12 欧」「这个月吃饭花了多少」，记好的账马上出现在页面上，能撤销。")
+            fact("eye", "知道你在看哪一页", "停在花销页问「为什么这么多」，或者右键一笔问「这是什么」，她知道你说的是哪个。")
+            fact("cpu", "借你电脑上的 \(name) 来回答", "用你自己的订阅，不另外收费；模型跟随 \(name) 自己的默认，在聊天栏顶上能换。")
+            fact("hand.raised", "不用也没关系", "选「先不用」，右边就不出现。点右上角「问夏夏」会把问题复制好、打开 Claude。以后在「设置」里随时能开。")
+        }
+        .frame(maxWidth: 380, alignment: .leading)
+    }
+
+    private func fact(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol).font(.headline).foregroundStyle(Color.ai)
+                .frame(width: 32, height: 32)
+                .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
     #endif
 
@@ -963,10 +970,10 @@ struct WelcomeView: View {
         }
     }
 
-    /// 打不打开内置夏夏：记下来，以后一打开 app 右边就有对话栏（RootView 读 chatOnLaunchKey）。
+    /// 用不用内置夏夏：记下来（和设置里的开关是同一个）。用：以后一打开 app 右边就有对话栏；不用：右边不出，「问夏夏」去 Claude。
     private func chooseChat(_ on: Bool) async {
-        UserDefaults.standard.set(on, forKey: LedgerModel.chatOnLaunchKey)
         #if os(macOS)
+        model.chat.enabled = on
         if on, let e = chatPick.flatMap(ChatEngine.init(rawValue:)) { model.chat.engine = e }
         #endif
         go(.done)
@@ -1054,7 +1061,7 @@ struct WelcomeView: View {
         if openAdd { model.sheet = .add }
         #if os(macOS)
         // 选了打开内置夏夏：进账本时右边就展开。
-        if !openAdd, UserDefaults.standard.bool(forKey: LedgerModel.chatOnLaunchKey) { model.chat.show() }
+        if !openAdd, model.chat.enabled, XiaxiaChatState.chosenOn { model.chat.show() }
         #endif
     }
 
@@ -1178,3 +1185,94 @@ struct ConfettiView: View {
         .accessibilityHidden(true)
     }
 }
+
+#if os(macOS)
+/// 引导里的内置夏夏演示：照右边聊天栏的样子，一句一句冒出来，放完停一会儿再从头放。
+struct ChatDemo: View {
+    var engineName: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = 0
+    @State private var typing = false
+
+    private let lines: [(mine: Bool, text: String)] = [
+        (true, "今天午饭 12 欧"),
+        (false, "记好了：午饭 -12,00 €，个人账本 · 餐饮。"),
+        (true, "这个月吃饭花了多少？"),
+        (false, "86,40 €，比上个月少 12 €。照这样，月底还能剩 420 € 左右。"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                MascotView(.xiaxia, size: 24, face: true, animated: false)
+                Text("夏夏").font(.headline)
+                Spacer()
+                Text(engineName).font(.caption).foregroundStyle(Color.brand)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                Spacer(minLength: 0)
+                ForEach(Array(lines.prefix(shown).enumerated()), id: \.offset) { _, line in
+                    bubble(line.text, mine: line.mine)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                if typing {
+                    HStack(spacing: 6) {
+                        MascotView(.xiaxia, size: 22, face: true, animated: false)
+                        Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg3)
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .padding(14)
+            .frame(height: 270, alignment: .bottom)
+            .clipped()
+            Divider()
+            HStack {
+                Text("跟夏夏说，比如「午饭 12 欧」").font(.callout).foregroundStyle(Color.fg3)
+                Spacer()
+                Image(systemName: "arrow.up.circle.fill").font(.title3).foregroundStyle(Color.aiSolid)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+        }
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.fg3.opacity(0.25), lineWidth: 1))
+        .shadow(color: Color.ai.opacity(0.12), radius: 16, y: 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("演示：你说「今天午饭 12 欧」，夏夏回答记好了；你问这个月吃饭花了多少，夏夏回答 86,40 €")
+        .task { await play() }
+    }
+
+    private func bubble(_ text: String, mine: Bool) -> some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            if mine { Spacer(minLength: 40) } else { MascotView(.xiaxia, size: 22, face: true, animated: false) }
+            Text(text).font(.callout)
+                .foregroundStyle(mine ? Color.white : Color.primary)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(mine ? Color.aiSolid : Color.sunken, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .fixedSize(horizontal: false, vertical: true)
+            if !mine { Spacer(minLength: 24) }
+        }
+    }
+
+    private func play() async {
+        if reduceMotion { shown = lines.count; return }
+        while !Task.isCancelled {
+            withAnimation(.smooth) { shown = 0; typing = false }
+            try? await Task.sleep(for: .seconds(0.8))
+            for (i, line) in lines.enumerated() {
+                if !line.mine {
+                    withAnimation(.smooth) { typing = true }
+                    try? await Task.sleep(for: .seconds(1.1))
+                    withAnimation(.smooth) { typing = false }
+                }
+                guard !Task.isCancelled else { return }
+                withAnimation(.bouncy(duration: 0.45)) { shown = i + 1 }
+                try? await Task.sleep(for: .seconds(line.mine ? 0.9 : 1.6))
+            }
+            try? await Task.sleep(for: .seconds(3))
+        }
+    }
+}
+#endif
