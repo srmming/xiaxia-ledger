@@ -18,7 +18,7 @@ public struct SQLiteLedgerStore: LedgerStore {
         fileStamp([url, URL(fileURLWithPath: url.path + "-wal"), URL(fileURLWithPath: url.path + "-journal")])
     }
 
-    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories"]
+    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork"]
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
@@ -41,6 +41,12 @@ public struct SQLiteLedgerStore: LedgerStore {
         ledger.subscriptions = try rows("subscriptions", Subscription.self)
         // 夏夏的记忆（2026-11-23 加）：单独一张表，一条一行；旧版本不认识这张表，会原样留着。
         ledger.memories = try rows("memories", Memory.self)
+        // 待记录、小票发票和报销（2026-11-23 加）：各一张表；旧版本不认识，会原样留着。
+        ledger.captures = try rows("captures", Capture.self)
+        ledger.paperwork = try rows("paperwork", Paperwork.self)
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'appliedNotes'").first {
+            ledger.appliedNotes = (try? dec.decode([String].self, from: Data(v.utf8))) ?? []
+        }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'schemaVersion'").first, let n = Int(v) { ledger.schemaVersion = n }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'lastStatementDate'").first {
             ledger.lastStatementDate = try dec.decode([String: LocalDate].self, from: Data(v.utf8))
@@ -96,6 +102,15 @@ public struct SQLiteLedgerStore: LedgerStore {
                            [m.id.uuidString, i, m.kind.rawValue, m.title, m.notes.count,
                             ISO8601DateFormatter().string(from: m.updatedAt), js(m)])
             }
+            for (i, x) in ledger.captures.enumerated() {
+                try db.run("INSERT INTO captures (id, seq, status, created_at, text, json) VALUES (?, ?, ?, ?, ?, ?)",
+                           [x.id.uuidString, i, x.status.rawValue, ISO8601DateFormatter().string(from: x.createdAt), x.text, js(x)])
+            }
+            for (i, x) in ledger.paperwork.enumerated() {
+                try db.run("INSERT INTO paperwork (id, seq, reimburse, files, json) VALUES (?, ?, ?, ?, ?)",
+                           [x.id.uuidString, i, x.reimburse.rawValue, x.attachments.count, js(x)])
+            }
+            try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('appliedNotes', ?)", [js(ledger.appliedNotes)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('profile', ?)", [js(ledger.profile)])
@@ -117,7 +132,8 @@ public struct LedgerReadError: Error, LocalizedError {
 
     public var errorDescription: String? {
         let names = ["books": "账本", "accounts": "账户", "transactions": "流水", "changes": "改动记录",
-                     "debts": "借款", "installments": "分期", "goals": "存钱目标", "insights": "AI 意见", "subscriptions": "订阅", "memories": "夏夏的记忆"]
+                     "debts": "借款", "installments": "分期", "goals": "存钱目标", "insights": "AI 意见", "subscriptions": "订阅", "memories": "夏夏的记忆",
+                     "captures": "待记录", "paperwork": "小票发票和报销"]
         var detail = underlying.localizedDescription
         if let e = underlying as? DecodingError {
             switch e {
@@ -175,6 +191,10 @@ final class SQLiteDB {
             CREATE TABLE IF NOT EXISTS memories (
                 id TEXT PRIMARY KEY, seq INTEGER NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL,
                 lines INTEGER NOT NULL, updated_at TEXT NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS captures (
+                id TEXT PRIMARY KEY, seq INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, text TEXT NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS paperwork (
+                id TEXT PRIMARY KEY, seq INTEGER NOT NULL, reimburse TEXT NOT NULL, files INTEGER NOT NULL, json TEXT NOT NULL);
             """)
     }
 

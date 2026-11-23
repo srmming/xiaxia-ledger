@@ -10,7 +10,7 @@ struct Fin: ParsableCommand {
         discussion: "账本在哪：跑 fin where。一般在 iCloud 云盘「夏夏账本/ledger.sqlite」；签名正式版搬家后在 app 的 iCloud 容器里；没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/。可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
         subcommands: [ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, FXCommand.self, SubscriptionsCommand.self, SubscriptionCommand.self, CategorizeCommand.self,
-                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self, SetupCommand.self, DemoCommand.self, MemoryCommand.self, RegularsCommand.self]
+                      AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self, SetupCommand.self, DemoCommand.self, MemoryCommand.self, RegularsCommand.self, PhoneCommand.self, ReceiptCommand.self, ReimburseCommand.self]
     )
 
     /// 负数金额（-12,50）会被当成选项，报「缺少参数」。这里先把开头的减号换成全角减号「−」，金额解析认得它。

@@ -205,7 +205,9 @@ public enum LedgerStores {
     static func sqlite(_ url: URL) -> any LedgerStore {
         #if canImport(SQLite3)
         let legacy = JSONFileLedgerStore(url: appSupportFolder.appendingPathComponent("ledger.json"))
-        return MigratingStore(primary: SQLiteLedgerStore(url: url), legacy: legacy)
+        // 读账本时顺便收 iPhone 写的小纸条（见 PhoneSync.swift）。
+        return InboxApplyingStore(primary: MigratingStore(primary: SQLiteLedgerStore(url: url), legacy: legacy),
+                                  folder: url.deletingLastPathComponent())
         #else
         return JSONFileLedgerStore(url: url.deletingPathExtension().appendingPathExtension("json"))
         #endif
@@ -235,10 +237,7 @@ public struct MigratingStore: LedgerStore {
 
 /// 账本在哪（设置页、fin context 里显示）。
 public func ledgerLocation(_ store: any LedgerStore) -> String {
-    #if canImport(SQLite3)
-    if let s = store as? MigratingStore { return s.primary.url.path }
-    if let s = store as? SQLiteLedgerStore { return s.url.path }
-    #endif
-    if let s = store as? JSONFileLedgerStore { return s.url.path }
+    if let s = store as? PhoneSyncStore { return "iCloud 云盘 › \(s.folder.lastPathComponent)" }
+    if let url = ledgerFileURL(store) { return url.path }
     return "示例数据（不会保存）"
 }
