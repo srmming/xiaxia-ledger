@@ -59,16 +59,16 @@ struct InOutPair: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(income.display).font(.system(.title3, design: .rounded).weight(.semibold)).foregroundStyle(Color.income)
                     .monospacedDigit().contentTransition(.numericText(value: Double(income.cents)))
-                Text("进账").font(.caption).foregroundStyle(Color.fg2)
+                Text(tr("进账")).font(.caption).foregroundStyle(Color.fg2)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(expense.display).font(.system(.title3, design: .rounded).weight(.semibold))
                     .monospacedDigit().contentTransition(.numericText(value: Double(expense.cents)))
-                Text("花掉").font(.caption).foregroundStyle(Color.fg2)
+                Text(tr("花掉")).font(.caption).foregroundStyle(Color.fg2)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("进账 \(income.spoken)，花掉 \(expense.magnitude.spoken)")
+        .accessibilityLabel(tr("进账 \(income.spoken)，花掉 \(expense.magnitude.spoken)"))
     }
 }
 
@@ -158,7 +158,7 @@ struct Monogram: View {
         let lower = name.lowercased()
         let color: Color = isMe ? .fg3 : lower.contains("claude") ? Color.kit(0xD97757, 0xD97757)
             : lower.contains("codex") ? Color.kit(0x1D1D1F, 0x3A3A3F) : .ai
-        let label = isMe ? "你" : lower.contains("codex") ? "Cx" : name
+        let label = isMe ? tr("你") : lower.contains("codex") ? "Cx" : name
         return Monogram(text: label, color: color, size: size, circle: true, raw: isMe || lower.contains("codex"))
     }
 }
@@ -207,7 +207,7 @@ struct TxRow: View {
         .accessibilityElement(children: .combine)
         #if os(macOS)
         .contextMenu {
-            Button { model.askAbout(tx) } label: { Label(model.xia("问夏夏这一笔"), systemImage: "sparkles") }
+            Button { model.askAbout(tx) } label: { Label(model.xia(tr("问夏夏这一笔")), systemImage: "sparkles") }
         }
         .accessibilityAction(named: "问夏夏这一笔") { model.askAbout(tx) }
         #endif
@@ -217,12 +217,12 @@ struct TxRow: View {
         var parts: [String] = []
         if showDate { parts.append(tx.date.friendly) }
         switch tx.flow {
-        case .internal: parts.append("自己账户间 · 不算收支")
-        case .debt: parts.append("借款往来 · 不算收支")
-        case .saving: parts.append("存钱 · 不算收支")
-        case .opening: parts.append("期初余额")
+        case .internal: parts.append(tr("自己账户间 · 不算收支"))
+        case .debt: parts.append(tr("借款往来 · 不算收支"))
+        case .saving: parts.append(tr("存钱 · 不算收支"))
+        case .opening: parts.append(tr("期初余额"))
         case nil:
-            parts.append(tx.category ?? "未分类")
+            parts.append(tx.category ?? tr("未分类"))
             if let b = tx.bookID { parts.append(model.bookName(b)) }
         }
         parts.append(model.accountName(tx.accountID))
@@ -254,27 +254,27 @@ struct BookCard: View {
                         .frame(width: 110, height: 30)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(now.net.isExpense ? "本月超支" : "本月剩下").font(.caption).foregroundStyle(Color.fg2)
+                    Text(now.net.isExpense ? tr("本月超支") : tr("本月剩下")).font(.caption).foregroundStyle(Color.fg2)
                     Text(now.net.balance)
                         .font(.system(size: 26, weight: .bold, design: .rounded)).monospacedDigit()
                         .foregroundStyle(now.net.isExpense ? Color.alert : .primary)
                         .contentTransition(.numericText(value: Double(now.net.cents)))
                 }
                 HStack(spacing: 14) {
-                    (Text("进账 ").foregroundColor(.fg2) + Text(now.income.ui).fontWeight(.semibold))
-                    (Text("花掉 ").foregroundColor(.fg2) + Text(now.expense.magnitude.ui).fontWeight(.semibold))
+                    (Text(tr("进账 ")).foregroundColor(.fg2) + Text(now.income.ui).fontWeight(.semibold))
+                    (Text(tr("花掉 ")).foregroundColor(.fg2) + Text(now.expense.magnitude.ui).fontWeight(.semibold))
                 }
                 .font(.caption).monospacedDigit()
                 if now.betweenBooks.cents != 0 {
-                    Text("另外\(Reports.betweenBooksLabel(now.betweenBooks, bookID: book.id, books: model.ledger.books)) \(now.betweenBooks.magnitude.ui)，不算收支")
+                    Text(tr("另外\(Reports.betweenBooksLabel(now.betweenBooks, bookID: book.id, books: model.ledger.books)) \(now.betweenBooks.magnitude.ui)，不算收支"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
             }
             .kitCard()
         }
         .buttonStyle(.pressable)
-        .accessibilityLabel("\(book.name)：本月\(now.net.isExpense ? "超支" : "剩下") \(now.net.magnitude.spoken)")
-        .accessibilityHint("只看这个账本")
+        .accessibilityLabel(tr("\(book.name)：本月\(now.net.isExpense ? tr("超支") : tr("剩下")) \(now.net.magnitude.spoken)"))
+        .accessibilityHint(tr("只看这个账本"))
     }
 }
 
@@ -286,13 +286,13 @@ struct Sparkline: View {
     var body: some View {
         Chart {
             ForEach(Array(values.enumerated()), id: \.offset) { i, v in
-                LineMark(x: .value("月", i), y: .value("剩", v))
+                LineMark(x: .value(tr("月"), i), y: .value(tr("剩"), v))
                     .interpolationMethod(.monotone)
                     .foregroundStyle(color)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
             }
             if let last = values.last {
-                PointMark(x: .value("月", values.count - 1), y: .value("剩", last)).foregroundStyle(color).symbolSize(28)
+                PointMark(x: .value(tr("月"), values.count - 1), y: .value(tr("剩"), last)).foregroundStyle(color).symbolSize(28)
             }
         }
         .chartXAxis(.hidden)
@@ -308,7 +308,7 @@ struct GoalRing: View {
     let fraction: Double
     var color: Color = Color.kit(0xF4607A, 0xFF7A90)
     var lineWidth: CGFloat = 16
-    var caption = "已存"
+    var caption = tr("已存")
     @State var shown = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
@@ -342,7 +342,7 @@ struct SegmentedProgress: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("第 \(done) / \(total) 期")
+        .accessibilityLabel(tr("第 \(done) / \(total) 期"))
     }
 }
 
@@ -358,8 +358,8 @@ struct KitEmptyState: View {
     let title: String
     let message: String
     var prompt: String? = nil
-    var page = "总览"
-    var buttonTitle = "复制好去问 AI"
+    var page = tr("总览")
+    var buttonTitle = tr("复制好去问 AI")
 
     var body: some View {
         AskAIReader { ask in
@@ -375,7 +375,7 @@ struct KitEmptyState: View {
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
                 if let prompt {
-                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? model.xia("跟夏夏说") : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
+                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? model.xia(tr("跟夏夏说")) : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)
                 }

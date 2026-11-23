@@ -32,7 +32,7 @@ extension LedgerModel {
         let args = ProcessInfo.processInfo.arguments
         // -XiaxiaFreshAI：假装是一台还没连过 AI 的新电脑（看引导里「没配置好」的样子），同样只写假主目录。
         let fresh = args.contains("-XiaxiaFreshAI")
-        guard let fin = BundledFin.path ?? (usesSampleData ? "/Applications/夏夏账本.app/Contents/MacOS/fin" : nil) else { return nil }
+        guard let fin = BundledFin.path ?? (usesSampleData ? tr("/Applications/夏夏账本.app/Contents/MacOS/fin") : nil) else { return nil }
         guard usesSampleData || fresh else { return AIConnector(fin: fin) }
         let noTools = args.contains("-XiaxiaNoTools")
         let fake = FileManager.default.temporaryDirectory
@@ -55,7 +55,7 @@ extension LedgerModel {
                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
             }
             try? c.connect(.claudeDesktop)
-            try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+            try? AIConnector(home: fake, fin: tr("/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin"), appFolders: c.appFolders).connect(.hermes)
         }
         return c
     }
@@ -63,7 +63,7 @@ extension LedgerModel {
     nonisolated(unsafe) private static var freshHomeReset = false
 
     /// 「一键复制配置提示词」：粘给任何 AI，它自己配好。
-    var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
+    var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? tr("/Applications/夏夏账本.app/Contents/MacOS/fin")) }
 
     /// 有没有任何 AI 连过账本：写过账、握过手、或者配置里已经有了。
     var anyAIConnected: Bool {
@@ -116,10 +116,10 @@ struct ConnectAIView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Image(systemName: "sparkles").font(.system(size: 30, weight: .semibold)).foregroundStyle(Color.ai)
                         .accessibilityHidden(true)
-                    Text("连接你的 AI").font(.title2.weight(.bold))
-                    Text("夏夏账本靠 AI 记账：你跟 AI 说「今天买菜花了 23 €」，它就记进这本账，还能帮你导入对账单、写月报。连一次就好。")
+                    Text(tr("连接你的 AI")).font(.title2.weight(.bold))
+                    Text(tr("夏夏账本靠 AI 记账：你跟 AI 说「今天买菜花了 23 €」，它就记进这本账，还能帮你导入对账单、写月报。连一次就好。"))
                         .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
-                    Text("账本只在你自己的电脑和 iCloud 里，不经过我们的服务器。")
+                    Text(tr("账本只在你自己的电脑和 iCloud 里，不经过我们的服务器。"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
                 .padding(.vertical, 4)
@@ -127,7 +127,7 @@ struct ConnectAIView: View {
 
             if connector == nil {
                 Section {
-                    Label("这个版本没带记账服务（fin），连不了 AI。请下载正式版夏夏账本。", systemImage: "exclamationmark.triangle.fill")
+                    Label(tr("这个版本没带记账服务（fin），连不了 AI。请下载正式版夏夏账本。"), systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Color.alert)
                 }
             } else {
@@ -144,14 +144,14 @@ struct ConnectAIView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("连接你的 AI")
+        .navigationTitle(tr("连接你的 AI"))
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(anyGreen ? "关闭" : "以后再说") { dismiss() }
+                Button(anyGreen ? tr("关闭") : tr("以后再说")) { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("完成") { dismiss() }.disabled(!anyGreen)
+                Button(tr("完成")) { dismiss() }.disabled(!anyGreen)
             }
         }
         .task {
@@ -169,9 +169,9 @@ struct ConnectAIView: View {
         Section {
             AIHealthList(showMissing: true)
         } header: {
-            Text("① 点「连接」，夏夏账本帮你配好")
+            Text(tr("① 点「连接」，夏夏账本帮你配好"))
         } footer: {
-            footnote("点「连接」会在这个 AI 的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。写好后夏夏账本自己测一次能不能读到账本。")
+            footnote(tr("点「连接」会在这个 AI 的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。写好后夏夏账本自己测一次能不能读到账本。"))
         }
     }
 
@@ -183,19 +183,19 @@ struct ConnectAIView: View {
         Section {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("复制配置提示词，粘给任何一个 AI，它会自己把夏夏账本配好").font(.body)
-                    Text("它会自己配、自己测，测到能读到账本为止；要你点「允许」的地方，它会弹选项问你，不用你自己翻设置。接不了的 AI（比如网页版）会直接告诉你换哪个。")
+                    Text(tr("复制配置提示词，粘给任何一个 AI，它会自己把夏夏账本配好")).font(.body)
+                    Text(tr("它会自己配、自己测，测到能读到账本为止；要你点「允许」的地方，它会弹选项问你，不用你自己翻设置。接不了的 AI（比如网页版）会直接告诉你换哪个。"))
                         .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Button {
                     Clipboard.copy(model.aiSetupPrompt)
-                    model.toast = .init(text: "已复制配置提示词，粘贴给你的 AI 就行", changeID: nil)
-                } label: { Label("一键复制配置提示词", systemImage: "doc.on.doc") }
+                    model.toast = .init(text: tr("已复制配置提示词，粘贴给你的 AI 就行"), changeID: nil)
+                } label: { Label(tr("一键复制配置提示词"), systemImage: "doc.on.doc") }
                     .buttonStyle(.softAI)
             }
         } header: {
-            Text("或者：让 AI 自己配")
+            Text(tr("或者：让 AI 自己配"))
         }
     }
 
@@ -204,28 +204,28 @@ struct ConnectAIView: View {
     private var otherSection: some View {
         Section {
             if shownApps.isEmpty {
-                Text("这台 Mac 上还没有能连的 AI 工具。挑一个装上，这一页会自动认出来，再点「连上」就行：")
+                Text(tr("这台 Mac 上还没有能连的 AI 工具。挑一个装上，这一页会自动认出来，再点「连上」就行："))
                     .font(.callout)
             }
-            linkRow("下载 Claude 桌面版", note: "最省事，装好登录就能用", url: "https://claude.ai/download", symbol: "arrow.down.circle.fill")
-            linkRow("用 DeepSeek？装 Hermes Agent", note: "开源的 AI 助手，能接 DeepSeek，也能用 ChatGPT、Claude 的订阅登录；装好后回来点「连上」",
+            linkRow(tr("下载 Claude 桌面版"), note: tr("最省事，装好登录就能用"), url: "https://claude.ai/download", symbol: "arrow.down.circle.fill")
+            linkRow(tr("用 DeepSeek？装 Hermes Agent"), note: tr("开源的 AI 助手，能接 DeepSeek，也能用 ChatGPT、Claude 的订阅登录；装好后回来点「连上」"),
                     url: "https://hermes-agent.nousresearch.com", symbol: "arrow.down.circle.fill")
-            linkRow("用通义千问、Kimi、豆包？装 Cherry Studio", note: "在它的「MCP 服务器」设置里粘贴下面复制的配置",
+            linkRow(tr("用通义千问、Kimi、豆包？装 Cherry Studio"), note: tr("在它的「MCP 服务器」设置里粘贴下面复制的配置"),
                     url: "https://www.cherry-ai.com", symbol: "arrow.down.circle.fill")
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("别的 AI 工具（Trae、ChatWise、LM Studio…）").font(.body)
-                    Text("复制下面这段，粘进它的 MCP 设置").font(.caption).foregroundStyle(Color.fg2)
+                    Text(tr("别的 AI 工具（Trae、ChatWise、LM Studio…）")).font(.body)
+                    Text(tr("复制下面这段，粘进它的 MCP 设置")).font(.caption).foregroundStyle(Color.fg2)
                 }
                 Spacer(minLength: 8)
                 Button {
                     Clipboard.copy(model.mcpConfig)
-                    model.toast = .init(text: "MCP 配置已复制", changeID: nil)
-                } label: { Label("复制配置", systemImage: "doc.on.doc") }
+                    model.toast = .init(text: tr("MCP 配置已复制"), changeID: nil)
+                } label: { Label(tr("复制配置"), systemImage: "doc.on.doc") }
                     .buttonStyle(.softAI)
             }
         } header: {
-            Text(shownApps.isEmpty ? "① 先装一个 AI" : "② 没有这些 AI，或者用别的")
+            Text(shownApps.isEmpty ? tr("① 先装一个 AI") : tr("② 没有这些 AI，或者用别的"))
         }
     }
 
@@ -249,7 +249,7 @@ struct ConnectAIView: View {
     // MARK: ③ 试一句
 
     private var trySection: some View {
-        let sentence = "用夏夏账本帮我记一笔：今天买咖啡花了 3,50 €"
+        let sentence = tr("用夏夏账本帮我记一笔：今天买咖啡花了 3,50 €")
         return Section {
             AskAIReader { ask in
                 HStack(spacing: 10) {
@@ -258,37 +258,37 @@ struct ConnectAIView: View {
                     #if os(macOS)
                     if model.chatReady {
                         // 装了 Claude Code / Codex / Hermes：不用离开 app，放进夏夏对话栏，点发送就试。
-                        Button { dismiss(); model.chat.prefill(sentence) } label: { Label("在夏夏对话栏里试", systemImage: "sparkles") }
+                        Button { dismiss(); model.chat.prefill(sentence) } label: { Label(tr("在夏夏对话栏里试"), systemImage: "sparkles") }
                             .buttonStyle(.softAI)
                     } else {
-                        Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
+                        Button { ask(sentence) } label: { Label(tr("复制这句话"), systemImage: "doc.on.doc") }
                             .buttonStyle(.softAI)
                     }
                     #else
-                    Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
+                    Button { ask(sentence) } label: { Label(tr("复制这句话"), systemImage: "doc.on.doc") }
                         .buttonStyle(.softAI)
                     #endif
                 }
             }
             tryStatus
         } header: {
-            Text("③ 试一句")
+            Text(tr("③ 试一句"))
         } footer: {
-            footnote("用别的 AI 就把这句复制过去。AI 第一次用账本时可能会问你「允许使用夏夏账本吗」，选允许。记错了在「改动记录」里一键撤销。")
+            footnote(tr("用别的 AI 就把这句复制过去。AI 第一次用账本时可能会问你「允许使用夏夏账本吗」，选允许。记错了在「改动记录」里一键撤销。"))
         }
     }
 
     @ViewBuilder private var tryStatus: some View {
         if let change = newAIChange {
-            Label("连好了！\(change.author) 刚记下：\(change.summary)", systemImage: "checkmark.seal.fill")
+            Label(tr("连好了！\(change.author) 刚记下：\(change.summary)"), systemImage: "checkmark.seal.fill")
                 .foregroundStyle(Color.income).font(.callout.weight(.semibold))
         } else if let hello = newHandshake {
-            Label("\(AIApp.displayName(clientName: hello.0)) 已经连上账本，等它写进来…", systemImage: "checkmark.circle.fill")
+            Label(tr("\(AIApp.displayName(clientName: hello.0)) 已经连上账本，等它写进来…"), systemImage: "checkmark.circle.fill")
                 .foregroundStyle(Color.income).font(.callout)
         } else {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("等 AI 连上账本…（连上了这里会变绿）").font(.callout).foregroundStyle(Color.fg2)
+                Text(tr("等 AI 连上账本…（连上了这里会变绿）")).font(.callout).foregroundStyle(Color.fg2)
             }
         }
     }
@@ -325,7 +325,7 @@ struct ConnectAIView: View {
 /// iPhone 设置里：AI 在 Mac 上连。
 struct ConnectAIPhoneNote: View {
     var body: some View {
-        Text("AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，设置 →「连接你的 AI」。连好后 AI 记的账会同步到这里。")
+        Text(tr("AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，设置 →「连接你的 AI」。连好后 AI 记的账会同步到这里。"))
             .font(.caption).foregroundStyle(Color.fg2)
     }
 }
@@ -340,7 +340,7 @@ struct AIStatusRows: View {
             AIHealthList(showMissing: false)
             ForEach(otherClients, id: \.self) { name in
                 AIHealthRowLayout(mascot: .of(author: name), level: .good, title: name,
-                                  status: "连上了 · \(handshakes[name]!.friendly) 用过账本", fix: nil) { EmptyView() }
+                                  status: tr("连上了 · \(handshakes[name]!.friendly) 用过账本"), fix: nil) { EmptyView() }
             }
         }
         .task {
@@ -378,18 +378,18 @@ struct AIHealthList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if shown.isEmpty && unsupported.isEmpty {
-                AIHealthRowLayout(mascot: nil, level: .idle, title: "这台 Mac 上没找到能连的 AI",
-                                  status: "装一个 Claude 桌面版或 Codex，这里会自动认出来", fix: nil) { EmptyView() }
+                AIHealthRowLayout(mascot: nil, level: .idle, title: tr("这台 Mac 上没找到能连的 AI"),
+                                  status: tr("装一个 Claude 桌面版或 Codex，这里会自动认出来"), fix: nil) { EmptyView() }
             }
             ForEach(shown) { app in row(app) }
             ForEach(unsupported) { u in
-                AIHealthRowLayout(mascot: .star, level: .idle, title: u.name, status: "连不了电脑上的账本", fix: u.advice) {
+                AIHealthRowLayout(mascot: .star, level: .idle, title: u.name, status: tr("连不了电脑上的账本"), fix: u.advice) {
                     Button(u.alternativeTitle) { if let url = URL(string: u.alternativeURL) { openURL(url) } }
                         .buttonStyle(.softAI)
                 }
             }
             if showMissing, !missing.isEmpty, !(shown.isEmpty && unsupported.isEmpty) {
-                Text("没找到：" + missing.map(\.name).joined(separator: "、"))
+                Text(tr("没找到：") + missing.map(\.name).joined(separator: "、"))
                     .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
             }
         }
@@ -418,28 +418,28 @@ struct AIHealthList: View {
     @ViewBuilder private func row(_ app: AIApp) -> some View {
         let h = health(app)
         AIHealthRowLayout(mascot: .of(app), level: testing.contains(app) ? .waiting : h.level, title: app.name,
-                          status: testing.contains(app) ? "正在测能不能读到账本…" : h.title, fix: errors[app] ?? h.fix) {
+                          status: testing.contains(app) ? tr("正在测能不能读到账本…") : h.title, fix: errors[app] ?? h.fix) {
             if testing.contains(app) {
                 ProgressView().controlSize(.small)
             } else if !connected.contains(app) {
-                Button(repair.contains(app) ? "重新连接" : "连接") { connect(app) }
+                Button(repair.contains(app) ? tr("重新连接") : tr("连接")) { connect(app) }
                     .buttonStyle(AISolidButtonStyle())
                     .accessibilityIdentifier("connect.\(app.cliName)")
             } else if h.level == .problem {
-                Button("再连一次") { connect(app) }.buttonStyle(.softAI)
+                Button(tr("再连一次")) { connect(app) }.buttonStyle(.softAI)
             } else if h.level == .waiting, AIRelauncher.canRelaunch(app) {
-                Button("帮我重开 \(app == .claudeDesktop ? "Claude" : app.name)") { AIRelauncher.relaunch(app) }
+                Button(tr("帮我重开 \(app == .claudeDesktop ? "Claude" : app.name)")) { AIRelauncher.relaunch(app) }
                     .buttonStyle(.softAI)
-                    .help("先退出再打开，新设置才会生效。没发完的话会留在 \(app.name) 里")
+                    .help(tr("先退出再打开，新设置才会生效。没发完的话会留在 \(app.name) 里"))
             } else if h.level == .good {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income).font(.title3)
-                    .accessibilityLabel("已连上")
+                    .accessibilityLabel(tr("已连上"))
             }
         }
     }
 
     private func health(_ app: AIApp) -> AIHealth {
-        guard let c = connector else { return AIHealth(level: .problem, title: "这个版本没带记账服务") }
+        guard let c = connector else { return AIHealth(level: .problem, title: tr("这个版本没带记账服务")) }
         return c.health(app, selfTest: tests[app], lastSeen: lastSeen(app))
     }
 
@@ -476,7 +476,7 @@ struct AIHealthList: View {
     private func runTest(_ app: AIApp) {
         guard let c = connector, !testing.contains(app) else { return }
         if model.usesSampleData {
-            tests[app] = AISelfTestResult(ok: true, message: "示例数据，不测")
+            tests[app] = AISelfTestResult(ok: true, message: tr("示例数据，不测"))
             return
         }
         testing.insert(app)
@@ -484,12 +484,12 @@ struct AIHealthList: View {
             #if os(macOS)
             let r = await Task.detached(priority: .userInitiated) { c.selfTest(app) }.value
             #else
-            let r = AISelfTestResult(ok: false, message: "AI 在 Mac 上连")
+            let r = AISelfTestResult(ok: false, message: tr("AI 在 Mac 上连"))
             #endif
             tests[app] = r
             testing.remove(app)
-            model.toast = .init(text: r.ok ? "\(app.name) 写好了，自测能读到账本。\(app.afterConnect)就能用"
-                                           : "\(app.name) 写好了，但自测没过：\(r.message)",
+            model.toast = .init(text: r.ok ? tr("\(app.name) 写好了，自测能读到账本。\(app.afterConnect)就能用")
+                                           : tr("\(app.name) 写好了，但自测没过：\(r.message)"),
                                 changeID: nil, isError: !r.ok)
         }
     }
@@ -524,10 +524,10 @@ struct AIHealthRowLayout<Trailing: View>: View {
 
     private var spoken: String {
         switch level {
-        case .good: "已连上"
-        case .waiting: "等重开"
-        case .problem: "有问题"
-        case .idle: "还没连"
+        case .good: tr("已连上")
+        case .waiting: tr("等重开")
+        case .problem: tr("有问题")
+        case .idle: tr("还没连")
         }
     }
 

@@ -39,47 +39,47 @@ struct DebtPlanSheet: View {
         Form {
             if let d = debt, let st = status {
                 Section {
-                    LabeledContent(d.direction == .theyOweMe ? "\(d.counterparty)还欠我" : "我还欠\(d.counterparty)", value: st.outstanding.ui)
-                    Picker("怎么排", selection: $mode) {
+                    LabeledContent(d.direction == .theyOweMe ? tr("\(d.counterparty)还欠我") : tr("我还欠\(d.counterparty)"), value: st.outstanding.ui)
+                    Picker(tr("怎么排"), selection: $mode) {
                         ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     if mode == .perMonth {
-                        FormField("每月还多少", "比如 100", text: $perMonthText).decimalKeyboard()
+                        FormField(tr("每月还多少"), tr("比如 100"), text: $perMonthText).decimalKeyboard()
                     } else {
-                        Stepper(value: $count, in: 1...60) { Text("分 \(count) 期") }
+                        Stepper(value: $count, in: 1...60) { Text(tr("分 \(count) 期")) }
                     }
-                    DatePicker("第一期哪天", selection: $start, displayedComponents: .date)
+                    DatePicker(tr("第一期哪天"), selection: $start, displayedComponents: .date)
                 } footer: {
-                    if d.plan != nil { Text("已经还完的期会留着，从下一期开始重排。") }
+                    if d.plan != nil { Text(tr("已经还完的期会留着，从下一期开始重排。")) }
                 }
                 Section {
                     if draft.isEmpty {
-                        Text(mode == .perMonth ? "填上每月还多少，这里会排出每一期。" : "选好分几期，这里会排出每一期。")
+                        Text(mode == .perMonth ? tr("填上每月还多少，这里会排出每一期。") : tr("选好分几期，这里会排出每一期。"))
                             .foregroundStyle(Color.fg2)
                     }
                     ForEach(Array(draft.enumerated()), id: \.offset) { i, p in
                         periodRow(i, p)
                     }
                 } header: {
-                    Text(draft.isEmpty ? "每一期" : "每一期（\(draft.count) 期，\(draft.last!.date.year) 年 \(draft.last!.date.month) 月还清）")
+                    Text(draft.isEmpty ? tr("每一期") : tr("每一期（\(draft.count) 期，\(draft.last!.date.year) 年 \(draft.last!.date.month) 月还清）"))
                 } footer: {
-                    if !draft.isEmpty { Text("点某一期可以改金额，差出来的钱自动从最后几期找补。") }
+                    if !draft.isEmpty { Text(tr("点某一期可以改金额，差出来的钱自动从最后几期找补。")) }
                 }
                 if d.plan != nil {
                     Section {
-                        Button("不要计划了", role: .destructive) { confirmClear = true }
-                    } footer: { Text("还是一笔欠款，只是不分期了。可以撤销。") }
+                        Button(tr("不要计划了"), role: .destructive) { confirmClear = true }
+                    } footer: { Text(tr("还是一笔欠款，只是不分期了。可以撤销。")) }
                 }
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(debt?.plan == nil ? "排个还款计划" : "改还款计划")
+        .navigationTitle(debt?.plan == nil ? tr("排个还款计划") : tr("改还款计划"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("保存", action: save).disabled(draft.isEmpty).keyboardShortcut(.defaultAction)
+                Button(tr("保存"), action: save).disabled(draft.isEmpty).keyboardShortcut(.defaultAction)
             }
         }
         .onAppear(perform: load)
@@ -87,17 +87,17 @@ struct DebtPlanSheet: View {
         .onChange(of: perMonthText) { _, _ in recompute() }
         .onChange(of: count) { _, _ in recompute() }
         .onChange(of: start) { _, _ in recompute() }
-        .confirmationDialog("不要这个还款计划了？", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("不要了", role: .destructive) {
+        .confirmationDialog(tr("不要这个还款计划了？"), isPresented: $confirmClear, titleVisibility: .visible) {
+            Button(tr("不要了"), role: .destructive) {
                 do { try model.edit { try $0.clearDebtPlan(debtID, author: model.author) }; dismiss() }
                 catch { self.error = error.localizedDescription }
             }
         }
-        .alert("改这一期", isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
-            TextField("金额", text: $editText)
-            Button("好") { applyEdit() }
-            Button("取消", role: .cancel) { editing = nil }
-        } message: { Text("改完以后最后几期会跟着变，合计还是 \(outstanding.ui)。") }
+        .alert(tr("改这一期"), isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
+            TextField(tr("金额"), text: $editText)
+            Button(tr("好")) { applyEdit() }
+            Button(tr("取消"), role: .cancel) { editing = nil }
+        } message: { Text(tr("改完以后最后几期会跟着变，合计还是 \(outstanding.ui)。")) }
         .errorAlert($error)
     }
 
@@ -107,7 +107,7 @@ struct DebtPlanSheet: View {
             editText = p.amount.formatted.replacingOccurrences(of: " €", with: "")
         } label: {
             HStack {
-                Text("第 \(i + 1) 期").foregroundStyle(Color.fg2).frame(width: 64, alignment: .leading)
+                Text(tr("第 \(i + 1) 期")).foregroundStyle(Color.fg2).frame(width: 64, alignment: .leading)
                 Text(p.date.short)
                 Spacer()
                 Text(p.amount.ui).font(.kitAmount)
@@ -116,7 +116,7 @@ struct DebtPlanSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("第 \(i + 1) 期，\(p.date.short)，\(p.amount.spoken)，点一下改金额")
+        .accessibilityLabel(tr("第 \(i + 1) 期，\(p.date.short)，\(p.amount.spoken)，点一下改金额"))
     }
 
     private func load() {
@@ -155,17 +155,17 @@ struct DebtPlanSheet: View {
     private func applyEdit() {
         defer { editing = nil }
         guard let i = editing, let m = Money(parsing: editText.replacingOccurrences(of: " ", with: "")), m.cents > 0 else {
-            error = "金额看不懂，写成 120 或 120,50 这样。"; return
+            error = tr("金额看不懂，写成 120 或 120,50 这样。"); return
         }
         guard let p = DebtPlans.rebalanced(draft, index: i, amount: m.magnitude) else {
-            error = "这一期改成 \(m.magnitude.ui) 就超过还欠的 \(outstanding.ui) 了。"; return
+            error = tr("这一期改成 \(m.magnitude.ui) 就超过还欠的 \(outstanding.ui) 了。"); return
         }
         draft = p
         edited = true
     }
 
     private func save() {
-        guard draft.count <= 120 else { error = "期数太多了，多还一点或者少分几期。"; return }
+        guard draft.count <= 120 else { error = tr("期数太多了，多还一点或者少分几期。"); return }
         do {
             try model.edit { try $0.setDebtPlan(debtID, plan: draft, author: model.author) }
             dismiss()
@@ -199,29 +199,29 @@ struct DebtRepaySheet: View {
         Form {
             if let d = debt, let st = status {
                 Section {
-                    LabeledContent(d.direction == .theyOweMe ? "\(d.counterparty)还欠我" : "我还欠\(d.counterparty)", value: st.outstanding.ui)
+                    LabeledContent(d.direction == .theyOweMe ? tr("\(d.counterparty)还欠我") : tr("我还欠\(d.counterparty)"), value: st.outstanding.ui)
                     if let p = model.ledger.planProgress(debtID), let next = p.nextDate {
-                        LabeledContent("这一期（第 \(p.paidCount + 1) / \(p.count) 期）", value: "\(next.short) · \(p.nextAmount.ui)")
+                        LabeledContent(tr("这一期（第 \(p.paidCount + 1) / \(p.count) 期）"), value: "\(next.short) · \(p.nextAmount.ui)")
                     }
-                    FormField(d.direction == .theyOweMe ? "这次收回多少" : "这次还了多少", "比如 100", text: $amountText).decimalKeyboard()
-                    DatePicker("哪天", selection: $date, displayedComponents: .date)
-                    Picker(d.direction == .theyOweMe ? "钱进了哪个账户" : "从哪个账户还的", selection: $accountID) {
+                    FormField(d.direction == .theyOweMe ? tr("这次收回多少") : tr("这次还了多少"), tr("比如 100"), text: $amountText).decimalKeyboard()
+                    DatePicker(tr("哪天"), selection: $date, displayedComponents: .date)
+                    Picker(d.direction == .theyOweMe ? tr("钱进了哪个账户") : tr("从哪个账户还的"), selection: $accountID) {
                         ForEach(model.visibleAccounts) { Text($0.name).tag($0.id) }
                     }
                 }
                 if let p = preview {
                     if p.paysOff {
-                        Section { Label("这笔还完就还清啦 🎉", systemImage: "checkmark.seal.fill").foregroundStyle(Color.income) }
+                        Section { Label(tr("这笔还完就还清啦 🎉"), systemImage: "checkmark.seal.fill").foregroundStyle(Color.income) }
                     } else if !p.options.isEmpty {
                         Section {
                             ForEach(p.options, id: \.adjust) { o in optionRow(o.adjust, o.adjust.label, o.detail) }
-                            optionRow(nil, "计划先不动", "以后再说")
+                            optionRow(nil, tr("计划先不动"), tr("以后再说"))
                         } header: {
                             HStack(spacing: 6) {
                                 XiaxiaAvatar(persona: model.persona, size: 20).accessibilityHidden(true)
                                 Text(p.difference.cents > 0
-                                     ? "比这期多还了 \(p.difference.magnitude.ui)，多出来的怎么算？"
-                                     : "比这期少还了 \(p.difference.magnitude.ui)，差的怎么办？")
+                                     ? tr("比这期多还了 \(p.difference.magnitude.ui)，多出来的怎么算？")
+                                     : tr("比这期少还了 \(p.difference.magnitude.ui)，差的怎么办？"))
                             }
                         }
                     }
@@ -229,12 +229,12 @@ struct DebtRepaySheet: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("记一笔还款")
+        .navigationTitle(tr("记一笔还款"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("记上", action: save).disabled(amount == nil || accountID.isEmpty).keyboardShortcut(.defaultAction)
+                Button(tr("记上"), action: save).disabled(amount == nil || accountID.isEmpty).keyboardShortcut(.defaultAction)
             }
         }
         .onAppear {

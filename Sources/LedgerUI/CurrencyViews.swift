@@ -20,11 +20,11 @@ extension LedgerModel {
 
     /// 汇率一行的说明：「欧洲央行 · 11 月 21 日的」「还没取过」。
     var ratesStatus: String {
-        if ledger.foreignCurrencies.isEmpty { return "没有外币，用不到" }
+        if ledger.foreignCurrencies.isEmpty { return tr("没有外币，用不到") }
         if let d = ledger.currency.latestRateDate {
-            return "欧洲央行 · \(d.short)的" + (ledger.missingRateCurrencies.isEmpty ? "" : " · 缺 \(ledger.missingRateCurrencies.joined(separator: "、"))")
+            return tr("欧洲央行 · \(d.short)的") + (ledger.missingRateCurrencies.isEmpty ? "" : tr(" · 缺 \(ledger.missingRateCurrencies.joined(separator: "、"))"))
         }
-        return "还没取过"
+        return tr("还没取过")
     }
 
     /// 有外币、而且今天还没取过汇率：去欧洲央行取一次，存进账本（不算改账，不进改动记录）。
@@ -39,7 +39,7 @@ extension LedgerModel {
             fresh.applyRates(table)
             try store.save(fresh)
             reload()
-            if force { toast = Toast(text: "汇率已更新：\(ratesStatus)", changeID: nil) }
+            if force { toast = Toast(text: tr("汇率已更新：\(ratesStatus)"), changeID: nil) }
         } catch {
             if force { toast = Toast(text: error.localizedDescription, changeID: nil, isError: true) }
         }
@@ -54,7 +54,7 @@ struct CurrencyPicker: View {
 
     var body: some View {
         Picker(title, selection: $selection) {
-            Text("\(Currencies.info(model.ledger.baseCurrency).name)（主币种）").tag("")
+            Text(tr("\(Currencies.info(model.ledger.baseCurrency).name)（主币种）")).tag("")
             ForEach(Currencies.all.filter { $0.code != model.ledger.baseCurrency }, id: \.code) { c in
                 Text("\(c.name) \(c.code)").tag(c.code)
             }
@@ -72,17 +72,17 @@ struct CurrencySettingsRows: View {
         let base = model.ledger.baseCurrency
         let foreign = model.ledger.accounts.filter { model.ledger.currency(ofAccount: $0.id) != base }
         VStack(alignment: .leading, spacing: 0) {
-            row(symbol: "eurosign", title: "主币种") {
-                Picker("主币种", selection: Binding(get: { base }, set: { if $0 != base { pendingBase = $0 } })) {
+            row(symbol: "eurosign", title: tr("主币种")) {
+                Picker(tr("主币种"), selection: Binding(get: { base }, set: { if $0 != base { pendingBase = $0 } })) {
                     ForEach(Currencies.all, id: \.code) { c in Text("\(c.name) \(c.symbol)").tag(c.code) }
                 }
                 .labelsHidden().fixedSize()
                 .accessibilityIdentifier("baseCurrency")
             }
-            row(symbol: "textformat.123", title: "金额写法") {
+            row(symbol: "textformat.123", title: tr("金额写法")) {
                 Text(Money(cents: 123456).ui(in: base)).foregroundStyle(Color.fg2).monospacedDigit()
             }
-            row(symbol: "arrow.left.arrow.right", title: "汇率") {
+            row(symbol: "arrow.left.arrow.right", title: tr("汇率")) {
                 HStack(spacing: 8) {
                     Text(model.ratesStatus).foregroundStyle(Color.fg2).lineLimit(1)
                     if !model.ledger.foreignCurrencies.isEmpty {
@@ -94,19 +94,19 @@ struct CurrencySettingsRows: View {
                         }
                         .buttonStyle(.borderless)
                         .disabled(updating)
-                        .help("现在去欧洲央行取一次汇率")
-                        .accessibilityLabel("更新汇率")
+                        .help(tr("现在去欧洲央行取一次汇率"))
+                        .accessibilityLabel(tr("更新汇率"))
                     }
                 }
             }
-            row(symbol: "dollarsign", title: "外币账户") {
-                Text(foreign.isEmpty ? "没有" : "\(foreign.count) 个（\(Set(foreign.map { Currencies.info(model.ledger.currency(ofAccount: $0.id)).name }).sorted().joined(separator: "、"))）")
+            row(symbol: "dollarsign", title: tr("外币账户")) {
+                Text(foreign.isEmpty ? tr("没有") : tr("\(foreign.count) 个（\(Set(foreign.map { Currencies.info(model.ledger.currency(ofAccount: $0.id)).name }).sorted().joined(separator: "、"))）"))
                     .foregroundStyle(Color.fg2).lineLimit(1)
             }
         }
-        .confirmationDialog("主币种改成\(Currencies.label(pendingBase ?? base))？", isPresented: Binding(get: { pendingBase != nil }, set: { if !$0 { pendingBase = nil } }),
+        .confirmationDialog(tr("主币种改成\(Currencies.label(pendingBase ?? base))？"), isPresented: Binding(get: { pendingBase != nil }, set: { if !$0 { pendingBase = nil } }),
                             titleVisibility: .visible) {
-            Button("改成\(Currencies.info(pendingBase ?? base).name)") {
+            Button(tr("改成\(Currencies.info(pendingBase ?? base).name)")) {
                 if let code = pendingBase {
                     model.perform { try $0.setBaseCurrency(code, author: model.author) }
                     Task { await model.refreshRatesIfNeeded(force: true) }
@@ -114,7 +114,7 @@ struct CurrencySettingsRows: View {
                 pendingBase = nil
             }
         } message: {
-            Text("已经记的每一笔金额都不变，只是看板、月报里的总数换成\(Currencies.info(pendingBase ?? base).name)。原来的\(Currencies.info(base).name)账户会标成\(Currencies.info(base).name)账户。改错了可以撤销。")
+            Text(tr("已经记的每一笔金额都不变，只是看板、月报里的总数换成\(Currencies.info(pendingBase ?? base).name)。原来的\(Currencies.info(base).name)账户会标成\(Currencies.info(base).name)账户。改错了可以撤销。"))
         }
     }
 

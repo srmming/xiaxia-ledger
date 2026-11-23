@@ -19,7 +19,7 @@ struct CategoryIconGrid: View {
             var seen = Set<XiaGlyph>()
             let hits = CategoryIcons.all.filter { $0.label.contains(q) || $0.name.contains(q.lowercased()) }
                 .compactMap { XiaGlyph(rawValue: $0.name) }.filter { seen.insert($0).inserted }
-            return [("search", hits.isEmpty ? "没有叫「\(q)」的图标，换个说法试试" : "找到 \(hits.count) 个", hits)]
+            return [("search", hits.isEmpty ? tr("没有叫「\(q)」的图标，换个说法试试") : tr("找到 \(hits.count) 个"), hits)]
         }
         let all = CategoryIcons.sections.map { ($0.key, $0.label, $0.icons.compactMap(XiaGlyph.init(rawValue:))) }
         return incomeFirst ? all.filter { $0.0 == "income" } + all.filter { $0.0 != "income" } : all
@@ -29,12 +29,12 @@ struct CategoryIconGrid: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 XiaGlyph.actSearch.image(size: 15).foregroundStyle(Color.fg3)
-                TextField("搜图标，比如「咖啡」「房租」", text: $search)
+                TextField(tr("搜图标，比如「咖啡」「房租」"), text: $search)
                     .textFieldStyle(.plain)
-                    .accessibilityLabel("按名字搜图标")
+                    .accessibilityLabel(tr("按名字搜图标"))
                 if !search.isEmpty {
                     Button { search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.fg3) }
-                        .buttonStyle(.plain).accessibilityLabel("清掉搜索")
+                        .buttonStyle(.plain).accessibilityLabel(tr("清掉搜索"))
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 7)
@@ -109,21 +109,21 @@ struct CategoryCreator: View {
                     XiaTile(glyph: shown, size: 60)
                         .animation(.snappy, value: shown)
                     VStack(alignment: .leading, spacing: 6) {
-                        TextField("分类名字，比如「奶茶」", text: $name)
+                        TextField(tr("分类名字，比如「奶茶」"), text: $name)
                             .font(.title3.weight(.semibold))
                             .textFieldStyle(.plain)
                             .focused($nameFocused)
                             .onSubmit(save)
-                            .accessibilityLabel("分类名字")
+                            .accessibilityLabel(tr("分类名字"))
                         if showsDirection {
-                            Picker("用在", selection: $isIncome) {
-                                Text("支出").tag(false)
-                                Text("收入").tag(true)
+                            Picker(tr("用在"), selection: $isIncome) {
+                                Text(tr("支出")).tag(false)
+                                Text(tr("收入")).tag(true)
                             }
                             .pickerStyle(.segmented).labelsHidden()
                             .frame(maxWidth: 200)
                         } else {
-                            Text(isIncome ? "收入分类" : "支出分类").font(.subheadline).foregroundStyle(Color.fg2)
+                            Text(isIncome ? tr("收入分类") : tr("支出分类")).font(.subheadline).foregroundStyle(Color.fg2)
                         }
                     }
                 }
@@ -131,8 +131,8 @@ struct CategoryCreator: View {
                 .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
 
                 Text(icon == nil
-                     ? (guess == nil ? "先在下面点一个图标，名字会跟着填好，想改再改。" : "按名字先配了「\(guess!.label)」，想换就在下面点一个。")
-                     : (autoName == nil ? "选了「\(icon!.label)」。" : "选了「\(icon!.label)」，名字也先填上了，想改就改。"))
+                     ? (guess == nil ? tr("先在下面点一个图标，名字会跟着填好，想改再改。") : tr("按名字先配了「\(guess!.label)」，想换就在下面点一个。"))
+                     : (autoName == nil ? tr("选了「\(icon!.label)」。") : tr("选了「\(icon!.label)」，名字也先填上了，想改就改。")))
                     .font(.subheadline).foregroundStyle(Color.fg2)
 
                 CategoryIconGrid(selection: $icon, suggestion: guess, incomeFirst: isIncome)
@@ -140,12 +140,12 @@ struct CategoryCreator: View {
             .padding(Kit.side)
         }
         .background(Color.pageBackground)
-        .navigationTitle("新建分类")
+        .navigationTitle(tr("新建分类"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("建好了", action: save).disabled(trimmed.isEmpty)
+                Button(tr("建好了"), action: save).disabled(trimmed.isEmpty)
             }
         }
         .errorAlert($error)
@@ -196,11 +196,11 @@ struct CategoryIconEditor: View {
                     XiaTile(glyph: icon ?? CategoryStyle.glyph(category), size: 60)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(category).font(.title3.weight(.semibold))
-                        Text(custom ? "你挑过图标" : "现在是按名字自动配的").font(.subheadline).foregroundStyle(Color.fg2)
+                        Text(custom ? tr("你挑过图标") : tr("现在是按名字自动配的")).font(.subheadline).foregroundStyle(Color.fg2)
                     }
                     Spacer()
                     if custom {
-                        Button("改回自动") { set(nil) }.buttonStyle(.soft)
+                        Button(tr("改回自动")) { set(nil) }.buttonStyle(.soft)
                     }
                 }
                 .padding(14)
@@ -210,12 +210,12 @@ struct CategoryIconEditor: View {
             .padding(Kit.side)
         }
         .background(Color.pageBackground)
-        .navigationTitle("换图标")
+        .navigationTitle(tr("换图标"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("换好了") { set(icon?.rawValue) }.disabled(icon == nil)
+                Button(tr("换好了")) { set(icon?.rawValue) }.disabled(icon == nil)
             }
         }
         .errorAlert($error)

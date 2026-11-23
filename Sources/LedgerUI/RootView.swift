@@ -76,7 +76,7 @@ public struct RootView: View {
             if let error = model.loadError {
                 LoadErrorView(error: error)
             } else if model.isLoading && model.ledger.transactions.isEmpty {
-                ProgressView("正在读取账本…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.pageBackground)
+                ProgressView(tr("正在读取账本…")).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.pageBackground)
             } else if model.showWelcome {
                 WelcomeView().transition(.opacity)
             } else {
@@ -205,15 +205,15 @@ struct LoadErrorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("账本读不出来", systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Color.alert)
+            Label(tr("账本读不出来"), systemImage: "exclamationmark.triangle.fill").font(.headline).foregroundStyle(Color.alert)
             Text(error).font(.subheadline).textSelection(.enabled)
-            Text("账本在 iCloud 云盘的「夏夏账本」文件夹里。先确认 iCloud 云盘开着、文件已经下载到这台设备；如果是新版本写的账本，更新一下 app。")
+            Text(tr("账本在 iCloud 云盘的「夏夏账本」文件夹里。先确认 iCloud 云盘开着、文件已经下载到这台设备；如果是新版本写的账本，更新一下 app。"))
                 .font(.caption).foregroundStyle(Color.fg2)
             HStack(spacing: 8) {
-                Button("再试一次") { model.reload() }.buttonStyle(.borderedProminent).tint(.brand)
+                Button(tr("再试一次")) { model.reload() }.buttonStyle(.borderedProminent).tint(.brand)
                 AskAIReader { ask in
-                    Button { ask("夏夏账本打不开，提示：\(error)。帮我检查一下账本文件哪里有问题（只看不改）。") } label: {
-                        Label("让 AI 检查", systemImage: "sparkles")
+                    Button { ask(tr("夏夏账本打不开，提示：\(error)。帮我检查一下账本文件哪里有问题（只看不改）。")) } label: {
+                        Label(tr("让 AI 检查"), systemImage: "sparkles")
                     }
                     .buttonStyle(.softAI)
                 }
@@ -287,19 +287,19 @@ struct SidebarFooter: View {
         VStack(alignment: .leading, spacing: 4) {
             Divider().padding(.bottom, 6)
             StatusDot(color: model.loadError == nil ? .income : .alert,
-                      text: model.isTryingDemo ? "正在看演示数据" : model.loadError == nil ? "账本已读到" : "账本读不出来")
+                      text: model.isTryingDemo ? tr("正在看演示数据") : model.loadError == nil ? tr("账本已读到") : tr("账本读不出来"))
                 .foregroundStyle(Color.fg2)
             if model.isTryingDemo {
                 // 演示时不显示真账本「谁刚写过」，免得以为演示数据被写了。
-                Text("演示数据，不会保存").foregroundStyle(Color.ai)
+                Text(tr("演示数据，不会保存")).foregroundStyle(Color.ai)
             } else if let last = model.lastAIChange {
                 HStack(spacing: 4) {
                     Image(systemName: "sparkles")
-                    Text("\(last.author) \(last.createdAt.friendly) 写入").lineLimit(1)
+                    Text(tr("\(last.author) \(last.createdAt.friendly) 写入")).lineLimit(1)
                 }
                 .foregroundStyle(Color.ai)
             } else {
-                Text("AI 还没写过账本").foregroundStyle(Color.fg3)
+                Text(tr("AI 还没写过账本")).foregroundStyle(Color.fg3)
             }
         }
         .font(.caption)
@@ -333,12 +333,12 @@ struct MacToolbar: ToolbarContent {
             Button { model.sheet = .add } label: { Label { Text(tr("记一笔")) } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.brand)
-                .help("记一笔（⌘N）")
+                .help(tr("记一笔（⌘N）"))
             Button { model.toggleChat() } label: {
-                Label(model.xia("问夏夏"), systemImage: "sparkles").labelStyle(.titleAndIcon)
+                Label(model.xia(tr("问夏夏")), systemImage: "sparkles").labelStyle(.titleAndIcon)
             }
             .tint(Color.ai)
-            .help("打开右边的夏夏对话栏，说一句就记账、查账（⌘K）")
+            .help(tr("打开右边的夏夏对话栏，说一句就记账、查账（⌘K）"))
         }
     }
 }
@@ -350,24 +350,24 @@ struct BookSwitch: View {
     var body: some View {
         let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
         Menu {
-            Picker("看哪个账本", selection: selection) {
-                if model.ledger.books.count > 1 { Text("全部").tag(String?.none) }
+            Picker(tr("看哪个账本"), selection: selection) {
+                if model.ledger.books.count > 1 { Text(tr("全部")).tag(String?.none) }
                 ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
             }
             .pickerStyle(.inline)
             Divider()
-            Button { model.sheet = .books } label: { Label("管理账本…", systemImage: "books.vertical") }
+            Button { model.sheet = .books } label: { Label(tr("管理账本…"), systemImage: "books.vertical") }
         } label: {
             // iPhone 工具栏里的 Label 只显示图标，看不出现在是哪个账本，所以自己拼图标 + 名字。
             HStack(spacing: 4) {
                 Image(systemName: "books.vertical")
-                Text(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? "账本"))
+                Text(model.ledger.books.count > 1 ? model.bookName(model.selectedBookID) : (model.ledger.books.first?.name ?? tr("账本")))
                     .lineLimit(1)
             }
         }
         .fixedSize()
-        .help("切换账本，或新建、改名、删除账本")
-        .accessibilityLabel("账本：\(model.bookName(model.selectedBookID))")
+        .help(tr("切换账本，或新建、改名、删除账本"))
+        .accessibilityLabel(tr("账本：\(model.bookName(model.selectedBookID))"))
     }
 }
 
@@ -397,8 +397,8 @@ struct PhoneRoot: View {
             page(.overview, title: tr("总览")) { OverviewPage() }
             page(.spending, title: tr("收支")) {
                 VStack(spacing: 0) {
-                    Picker("看什么", selection: $flowsTab) {
-                        Text("花在哪").tag(0)
+                    Picker(tr("看什么"), selection: $flowsTab) {
+                        Text(tr("花在哪")).tag(0)
                         Text(tr("趋势")).tag(1)
                     }
                     .pickerStyle(.segmented)
@@ -409,7 +409,7 @@ struct PhoneRoot: View {
             }
             page(.wealth, title: tr("家底")) { WealthPage() }
             page(.plans, title: tr("计划")) { PlansPage() }
-            page(.insights, title: "夏夏") { InsightsPage() }
+            page(.insights, title: tr("夏夏")) { InsightsPage() }
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
@@ -446,20 +446,20 @@ struct PhoneRoot: View {
                                 Button { ask("", page: (model.section ?? section).rawValue) } label: {
                                     Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ai)
                                 }
-                                .accessibilityLabel("问 AI")
-                                .accessibilityHint("复制当前页面、月份和账本，打开 Claude")
+                                .accessibilityLabel(tr("问 AI"))
+                                .accessibilityHint(tr("复制当前页面、月份和账本，打开 Claude"))
                             }
                         }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
                                 .frame(width: 30, height: 30).background(Color.brand, in: Circle())
                         }
-                        .accessibilityLabel("记一笔")
+                        .accessibilityLabel(tr("记一笔"))
                         Button { showSettings = true } label: {
                             Text(String(model.author.prefix(1))).font(.system(size: 13, weight: .bold))
                                 .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
                         }
-                        .accessibilityLabel("设置")
+                        .accessibilityLabel(tr("设置"))
                     }
                 }
                 .navigationDestination(for: AppSection.self) { s in s.screen.navigationTitle(s.title) }
@@ -549,7 +549,7 @@ public struct XiaxiaScene: Scene {
     public var body: some Scene {
         #if os(macOS)
         // Mac 上只有一个主窗口，用 Window 而不是 WindowGroup：每次启动都一定会出主窗口，关掉窗口就退出。
-        Window("夏夏账本", id: "main") {
+        Window(tr("夏夏账本"), id: "main") {
             RootView()
                 .environment(model)
                 // 窗口最窄也要放得下：侧栏 190 + 页面 460 + 对话栏 340。宽度固定不变，开关对话栏时不改窗口最小宽度。
@@ -558,30 +558,30 @@ public struct XiaxiaScene: Scene {
         .defaultSize(width: 1240, height: 820)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("记一笔") { model.sheet = .add }.keyboardShortcut("n", modifiers: .command)
+                Button(tr("记一笔")) { model.sheet = .add }.keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .pasteboard) {
-                Button(model.chat.open ? "收起夏夏对话栏" : "和夏夏聊") { model.toggleChat() }
+                Button(model.chat.open ? tr("收起夏夏对话栏") : tr("和夏夏聊")) { model.toggleChat() }
                     .keyboardShortcut("k", modifiers: .command)
-                Button("复制这一页的情况，去 Claude 里问") {
+                Button(tr("复制这一页的情况，去 Claude 里问")) {
                     let page = (model.section ?? .overview).rawValue
                     Clipboard.copy(model.contextLine(page: page))
-                    model.toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
+                    model.toast = .init(text: tr("已复制，在 Claude 里粘贴就行"), changeID: nil)
                 }
-                Button("搜流水") { model.section = .transactions; model.focusSearch = true }.keyboardShortcut("f", modifiers: .command)
+                Button(tr("搜流水")) { model.section = .transactions; model.focusSearch = true }.keyboardShortcut("f", modifiers: .command)
             }
-            CommandMenu("账本") {
-                Button("撤销上一步改动") { model.undoLast() }
+            CommandMenu(tr("账本")) {
+                Button(tr("撤销上一步改动")) { model.undoLast() }
                     .keyboardShortcut("z", modifiers: [.command, .option])
                     .disabled(model.undoStack.isEmpty)
-                Button("上个月") { model.selectedMonth = model.shownMonth.adding(months: -1) }
+                Button(tr("上个月")) { model.selectedMonth = model.shownMonth.adding(months: -1) }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
-                Button("下个月") {
+                Button(tr("下个月")) {
                     let next = model.shownMonth.adding(months: 1)
                     if next <= LocalDate.today.yearMonth { model.selectedMonth = next }
                 }
                 .keyboardShortcut(.rightArrow, modifiers: .command)
-                Button("重新读取账本") { model.reload() }.keyboardShortcut("r", modifiers: .command)
+                Button(tr("重新读取账本")) { model.reload() }.keyboardShortcut("r", modifiers: .command)
                 Divider()
                 // ⌘1…⌘9：只有九个数字键，多出来的页（设置有 ⌘,）不给数字快捷键。
                 ForEach(Array(AppSection.allCases.prefix(9).enumerated()), id: \.element) { i, s in
@@ -590,14 +590,14 @@ public struct XiaxiaScene: Scene {
                 }
             }
             CommandGroup(replacing: .help) {
-                Button("反馈问题") {
+                Button(tr("反馈问题")) {
                     if let url = URL(string: "https://github.com/srmming/xiaxia-ledger/issues/new") { NSWorkspace.shared.open(url) }
                 }
                 .keyboardShortcut("b", modifiers: [.command, .option])
             }
         }
         #else
-        WindowGroup("夏夏账本") {
+        WindowGroup(tr("夏夏账本")) {
             RootView()
                 .environment(model)
         }

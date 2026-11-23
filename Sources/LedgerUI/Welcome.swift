@@ -48,12 +48,12 @@ struct WelcomeView: View {
     }
 
     static let aimOptions: [AimOption] = [
-        AimOption(id: "save", title: "每个月存下一笔钱", symbol: "banknote", aim: "", reply: "好目标！我每个月帮你盯着。"),
-        AimOption(id: "clarity", title: "搞清楚钱都花哪了", symbol: "chart.pie", aim: "搞清楚钱都花哪了", reply: "交给我，每一笔都给你分好类。"),
-        AimOption(id: "less", title: "少花冤枉钱", symbol: "cart.badge.minus", aim: "少花冤枉钱，比如外卖和冲动网购", reply: "好，花多了我会提醒你。"),
-        AimOption(id: "debt", title: "先把欠的钱还清", symbol: "creditcard", aim: "先把信用卡和欠的钱还清", reply: "一笔一笔来，我陪你还完。"),
-        AimOption(id: "wish", title: "攒钱实现一个心愿", symbol: "gift", aim: "攒够钱，实现一个心愿", reply: "真好！心愿是什么，待会儿可以告诉 AI。"),
-        AimOption(id: "shop", title: "把生意的账管清楚", symbol: "storefront", aim: "把生意的收入和支出管清楚", reply: "好，生意的账和生活的分开算。"),
+        AimOption(id: "save", title: tr("每个月存下一笔钱"), symbol: "banknote", aim: "", reply: tr("好目标！我每个月帮你盯着。")),
+        AimOption(id: "clarity", title: tr("搞清楚钱都花哪了"), symbol: "chart.pie", aim: tr("搞清楚钱都花哪了"), reply: tr("交给我，每一笔都给你分好类。")),
+        AimOption(id: "less", title: tr("少花冤枉钱"), symbol: "cart.badge.minus", aim: tr("少花冤枉钱，比如外卖和冲动网购"), reply: tr("好，花多了我会提醒你。")),
+        AimOption(id: "debt", title: tr("先把欠的钱还清"), symbol: "creditcard", aim: tr("先把信用卡和欠的钱还清"), reply: tr("一笔一笔来，我陪你还完。")),
+        AimOption(id: "wish", title: tr("攒钱实现一个心愿"), symbol: "gift", aim: tr("攒够钱，实现一个心愿"), reply: tr("真好！心愿是什么，待会儿可以告诉 AI。")),
+        AimOption(id: "shop", title: tr("把生意的账管清楚"), symbol: "storefront", aim: tr("把生意的收入和支出管清楚"), reply: tr("好，生意的账和生活的分开算。")),
     ]
     /// 第一页「你平时用哪种钱？」直接摆出来的币种；别的从「别的币种」菜单里挑。
     static let commonCurrencies = ["EUR", "CNY", "USD", "GBP", "HKD", "JPY"]
@@ -88,8 +88,8 @@ struct WelcomeView: View {
             case .claude: "Claude"
             case .chatgpt: "ChatGPT"
             case .gemini: "Gemini"
-            case .other: "DeepSeek 或别的"
-            case .newbie: "还没用过 AI"
+            case .other: tr("DeepSeek 或别的")
+            case .newbie: tr("还没用过 AI")
             }
         }
         /// 这一家在 Mac 上能接本机账本的工具。
@@ -112,7 +112,7 @@ struct WelcomeView: View {
         /// 没装的话装哪个、去哪下。
         var install: (name: String, url: String) {
             switch self {
-            case .claude, .newbie: ("Claude 桌面版", "https://claude.ai/download")
+            case .claude, .newbie: (tr("Claude 桌面版"), "https://claude.ai/download")
             case .chatgpt: ("Codex", "https://openai.com/codex/")
             case .gemini: ("Gemini CLI", "https://github.com/google-gemini/gemini-cli")
             case .other: ("Hermes Agent", "https://hermes-agent.nousresearch.com")
@@ -134,9 +134,9 @@ struct WelcomeView: View {
     @State private var thinking = false
 
     @State private var bookChoices: [Choice] = [
-        Choice(name: "家庭", symbol: "house"),
-        Choice(name: "我的小店", symbol: "storefront", bookKind: .business),
-        Choice(name: "旅行", symbol: "airplane"),
+        Choice(name: tr("家庭"), symbol: "house"),
+        Choice(name: tr("我的小店"), symbol: "storefront", bookKind: .business),
+        Choice(name: tr("旅行"), symbol: "airplane"),
     ]
     @State private var pickedBooks: Set<String> = []
     /// 第一步选的目标（现成的 id，或 "custom"）。
@@ -148,13 +148,13 @@ struct WelcomeView: View {
     @State private var pickedCurrency: String?
     @State private var customAim: String?
     @State private var accountChoices: [Choice] = [
-        Choice(name: "现金", glyph: AccountKind.cash.glyph, accountKind: .cash),
-        Choice(name: "银行卡", glyph: AccountKind.bank.glyph, accountKind: .bank),
-        Choice(name: "信用卡", glyph: AccountKind.credit.glyph, accountKind: .credit),
-        Choice(name: "支付宝", glyph: AccountKind.wallet.glyph, accountKind: .wallet),
-        Choice(name: "微信支付", glyph: AccountKind.wallet.glyph, accountKind: .wallet),
+        Choice(name: tr("现金"), glyph: AccountKind.cash.glyph, accountKind: .cash),
+        Choice(name: tr("银行卡"), glyph: AccountKind.bank.glyph, accountKind: .bank),
+        Choice(name: tr("信用卡"), glyph: AccountKind.credit.glyph, accountKind: .credit),
+        Choice(name: tr("支付宝"), glyph: AccountKind.wallet.glyph, accountKind: .wallet),
+        Choice(name: tr("微信支付"), glyph: AccountKind.wallet.glyph, accountKind: .wallet),
         Choice(name: "PayPal", glyph: AccountKind.wallet.glyph, accountKind: .wallet),
-        Choice(name: "存钱罐", glyph: AccountKind.savings.glyph, accountKind: .savings),
+        Choice(name: tr("存钱罐"), glyph: AccountKind.savings.glyph, accountKind: .savings),
     ]
     @State private var pickedAccounts: Set<String> = ["现金", "银行卡"]
     @State private var custom = ""
@@ -261,7 +261,7 @@ struct WelcomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(speech.isEmpty ? model.xiaName : "\(model.xiaName)说：\(speech)")
+        .accessibilityLabel(speech.isEmpty ? model.xiaName : tr("\(model.xiaName)说：\(speech)"))
     }
 
     private var speechBubble: some View {
@@ -306,7 +306,7 @@ struct WelcomeView: View {
                     stepper(big: false, allLabels: false)
                 }
                 if step != .done {
-                    Button("以后再说") { model.finishWelcome() }
+                    Button(tr("以后再说")) { model.finishWelcome() }
                         .buttonStyle(.borderless).foregroundStyle(Color.fg2)
                         .fixedSize()
                         .accessibilityIdentifier("welcome.skip")
@@ -329,7 +329,7 @@ struct WelcomeView: View {
                 .onGeometryChange(for: Bool.self) { $0.size.height < 520 } action: { tight = $0 }
             }
             if canGoBack {
-                Button { goBack() } label: { Label("返回", systemImage: "chevron.left") }
+                Button { goBack() } label: { Label(tr("返回"), systemImage: "chevron.left") }
                     .buttonStyle(.borderless).foregroundStyle(Color.fg2)
                     .padding(.top, 10)
                     .accessibilityIdentifier("welcome.back")
@@ -343,9 +343,9 @@ struct WelcomeView: View {
     private var pageKey: String { "\(step.rawValue)-\(aiMode == .choose ? "a" : "b")-\(celebrated)" }
 
     private var stepNames: [String] {
-        var names = ["目标", "账本", "账户"]
-        if aiStepAvailable { names.append("连接 AI") }
-        if chatStepAvailable { names.append("内置夏夏") }
+        var names = [tr("目标"), tr("账本"), tr("账户")]
+        if aiStepAvailable { names.append(tr("连接 AI")) }
+        if chatStepAvailable { names.append(tr("内置夏夏")) }
         return names
     }
 
@@ -377,7 +377,7 @@ struct WelcomeView: View {
                     }
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("第 \(number) 步，\(name)" + (done ? "，完成" : current ? "，正在这一步" : ""))
+                .accessibilityLabel(tr("第 \(number) 步，\(name)") + (done ? tr("，完成") : current ? tr("，正在这一步") : ""))
             }
         }
         .animation(.snappy, value: step)
@@ -388,15 +388,15 @@ struct WelcomeView: View {
     private var page: some View {
         switch step {
         case .hello:
-            pageBody("让我们开始记账吧", "我是\(typedName)，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
+            pageBody(tr("让我们开始记账吧"), tr("我是\(typedName)，以后陪你记账。先问你\(["", tr("一"), tr("两"), tr("三"), tr("四"), tr("五"), tr("六")][min(stepNames.count, 6)])个小问题，一分钟就好。")) {
                 currencyPicker
                 namesRow
                 if MascotLook.boyAvailable { lookPicker }
             } buttons: {
-                primary("开始", id: "welcome.start") { Task { await toAim() } }
+                primary(tr("开始"), id: "welcome.start") { Task { await toAim() } }
             }
         case .aim:
-            pageBody("你记账最想做到什么？", "选一个最重要的。以后\(model.xiaName)给你意见、AI 帮你记账，都会围着它说。") {
+            pageBody(tr("你记账最想做到什么？"), tr("选一个最重要的。以后\(model.xiaName)给你意见、AI 帮你记账，都会围着它说。")) {
                 FlowLayout(spacing: 8) {
                     ForEach(Self.aimOptions) { o in
                         chip(o.title, symbol: o.symbol, on: pickedAim == o.id) { pickAim(o.id) }
@@ -408,8 +408,8 @@ struct WelcomeView: View {
                 if pickedAim == "save" {
                     // 存钱要有个数才好盯：点一个，夏夏按这个数每月看你存没存到。
                     HStack(spacing: 10) {
-                        Text("每个月想存").font(.title3).foregroundStyle(Color.fg2)
-                        TextField("比如 300", text: $saveAmountText)
+                        Text(tr("每个月想存")).font(.title3).foregroundStyle(Color.fg2)
+                        TextField(tr("比如 300"), text: $saveAmountText)
                             .textFieldStyle(.plain)
                             .font(.title3.weight(.semibold))
                             .multilineTextAlignment(.trailing)
@@ -419,23 +419,23 @@ struct WelcomeView: View {
                             .background(Color.pageBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .strokeBorder(amountFocused ? Color.aiLine : Color.fg3.opacity(0.22), lineWidth: amountFocused ? 2 : 1))
-                            .accessibilityLabel("每个月想存多少")
+                            .accessibilityLabel(tr("每个月想存多少"))
                             .accessibilityIdentifier("welcome.aim.amount")
                         Text(Currencies.info(model.ledger.baseCurrency).symbol).font(.title3.weight(.semibold))
                         if !saveAmountText.isEmpty && Self.parseAmount(saveAmountText) == nil {
-                            Text("填个数字就行").font(.callout).foregroundStyle(Color.alert)
+                            Text(tr("填个数字就行")).font(.callout).foregroundStyle(Color.alert)
                         }
                     }
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                customField("自己写一个，比如「明年攒够房子首付」") { text in
+                customField(tr("自己写一个，比如「明年攒够房子首付」")) { text in
                     customAim = text
-                    if pickedAim == "custom" { Task { await say("好，我记住了！", pose: .cheer) } } else { pickAim("custom") }
+                    if pickedAim == "custom" { Task { await say(tr("好，我记住了！"), pose: .cheer) } } else { pickAim("custom") }
                 }
                 if let aimText, !tight {
                     HStack(spacing: 10) {
                         Image(systemName: "flag.checkered").foregroundStyle(Color.ai)
-                        Text("我的目标：").foregroundStyle(Color.fg2)
+                        Text(tr("我的目标：")).foregroundStyle(Color.fg2)
                         Text(aimText).fontWeight(.semibold)
                     }
                     .font(.title3)
@@ -447,44 +447,44 @@ struct WelcomeView: View {
                     .accessibilityIdentifier("welcome.aim.summary")
                 }
             } buttons: {
-                primary(aimText == nil ? "先不定，下一步" : "就定这个", id: "welcome.aim.next") { Task { await toBooks() } }
+                primary(aimText == nil ? tr("先不定，下一步") : tr("就定这个"), id: "welcome.aim.next") { Task { await toBooks() } }
             }
         case .books:
-            pageBody("你需要几个账本？", "一个账本就是一摊分开算的钱。生活和开店的钱不想混在一起，就开两个。") {
+            pageBody(tr("你需要几个账本？"), tr("一个账本就是一摊分开算的钱。生活和开店的钱不想混在一起，就开两个。")) {
                 FlowLayout(spacing: 8) {
-                    chip("个人", symbol: "person", on: true, locked: true) {}
+                    chip(tr("个人"), symbol: "person", on: true, locked: true) {}
                     ForEach(bookChoices) { c in
                         let made = model.ledger.books.contains { $0.name == c.name }
                         chip(c.name, symbol: c.symbol, on: made || pickedBooks.contains(c.name), locked: made) { toggle(&pickedBooks, c.name) }
                     }
                 }
-                customField("自己加一个账本，比如「副业」") { name in
+                customField(tr("自己加一个账本，比如「副业」")) { name in
                     if !bookChoices.contains(where: { $0.name == name }) { bookChoices.append(Choice(name: name, symbol: "book.closed")) }
                     pickedBooks.insert(name)
                 }
             } buttons: {
-                primary("下一步", id: "welcome.books.next") { Task { await toAccounts() } }
+                primary(tr("下一步"), id: "welcome.books.next") { Task { await toAccounts() } }
             }
         case .accounts:
-            pageBody("钱平时放在哪？", "有的就点一下，没有的可以自己加。余额以后随时能填。") {
+            pageBody(tr("钱平时放在哪？"), tr("有的就点一下，没有的可以自己加。余额以后随时能填。")) {
                 FlowLayout(spacing: 8) {
                     ForEach(accountChoices) { c in
                         let made = model.ledger.accounts.contains { $0.name == c.name }
                         chip(c.name, glyph: c.glyph, on: made || pickedAccounts.contains(c.name), locked: made) { toggle(&pickedAccounts, c.name) }
                     }
                 }
-                customField("自己加一个，比如某家银行的名字") { name in
+                customField(tr("自己加一个，比如某家银行的名字")) { name in
                     if !accountChoices.contains(where: { $0.name == name }) {
                         accountChoices.append(Choice(name: name, glyph: AccountKind.bank.glyph, accountKind: .bank))
                     }
                     pickedAccounts.insert(name)
                 }
             } buttons: {
-                primary("下一步", id: "welcome.accounts.next") { Task { await toAI() } }
+                primary(tr("下一步"), id: "welcome.accounts.next") { Task { await toAI() } }
             }
         case .ai:
             if aiMode == .choose {
-                pageBody("连接你的 AI", "连接后，用一句话就能记账、查账。你平时用哪个？") {
+                pageBody(tr("连接你的 AI"), tr("连接后，用一句话就能记账、查账。你平时用哪个？")) {
                     FlowLayout(spacing: 8) {
                         ForEach(AIFamily.allCases) { f in
                             chip(f.title, symbol: f == .newbie ? "questionmark.circle" : "sparkles", on: checking == f) { Task { await choose(f) } }
@@ -496,7 +496,7 @@ struct WelcomeView: View {
                         // 点下去马上有回应：选中的那个变色，下面转圈说在干什么。
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text(checking == .newbie ? "正在看这台 Mac 上有没有装 AI…" : "正在看这台 Mac 上的 \(checking.title) 连上没有…")
+                            Text(checking == .newbie ? tr("正在看这台 Mac 上有没有装 AI…") : tr("正在看这台 Mac 上的 \(checking.title) 连上没有…"))
                                 .font(.subheadline).foregroundStyle(Color.fg2)
                         }
                         .transition(.opacity)
@@ -504,7 +504,7 @@ struct WelcomeView: View {
                         .accessibilityIdentifier("welcome.ai.checking")
                     }
                 } buttons: {
-                    secondary("先跳过") { Task { await skipAI() } }
+                    secondary(tr("先跳过")) { Task { await skipAI() } }
                 }
             } else {
                 pageBody(tryTitle, trySubtitle) {
@@ -522,48 +522,48 @@ struct WelcomeView: View {
                         HStack(spacing: 8) {
                             if handshakeSeen {
                                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
-                                Text("已经读到账本，等它帮你记第一笔").font(.subheadline).foregroundStyle(Color.fg2)
+                                Text(tr("已经读到账本，等它帮你记第一笔")).font(.subheadline).foregroundStyle(Color.fg2)
                             } else {
                                 ProgressView().controlSize(.small)
-                                Text("等待你的 AI 读取账本").font(.subheadline).foregroundStyle(Color.fg2)
+                                Text(tr("等待你的 AI 读取账本")).font(.subheadline).foregroundStyle(Color.fg2)
                             }
                         }
                     } else if toConnect.isEmpty {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text("装好以后我会自己认出来").font(.subheadline).foregroundStyle(Color.fg2)
+                            Text(tr("装好以后我会自己认出来")).font(.subheadline).foregroundStyle(Color.fg2)
                         }
                     }
                 } buttons: {
                     if !linked.isEmpty {
-                        primary("复制指令", symbol: "doc.on.doc", id: "welcome.ai.copyPrompt") {
+                        primary(tr("复制指令"), symbol: "doc.on.doc", id: "welcome.ai.copyPrompt") {
                             Clipboard.copy(AIConnector.welcomeSentence)
                             copiedSentence = true
                             waitTicks = 0
-                            model.toast = .init(text: "已复制，去你的 AI 里粘贴发出去", changeID: nil)
+                            model.toast = .init(text: tr("已复制，去你的 AI 里粘贴发出去"), changeID: nil)
                         }
                     } else if !toConnect.isEmpty {
-                        primary("帮我连上", symbol: "link", id: "welcome.ai.connect") { Task { await connectFound() } }
+                        primary(tr("帮我连上"), symbol: "link", id: "welcome.ai.connect") { Task { await connectFound() } }
                     } else if let f = family {
-                        primary("去下载 \(f.install.name)", symbol: "arrow.down.circle", id: "welcome.ai.download") {
+                        primary(tr("去下载 \(f.install.name)"), symbol: "arrow.down.circle", id: "welcome.ai.download") {
                             if let u = URL(string: f.install.url) { openURL(u) }
                         }
                     }
                     if handshakeSeen {
-                        secondary("好了，进账本") { Task { await celebrate(who: nil, note: nil, goal: nil) } }
+                        secondary(tr("好了，进账本")) { Task { await celebrate(who: nil, note: nil, goal: nil) } }
                     } else {
-                        secondary("先跳过") { Task { await skipAI() } }
+                        secondary(tr("先跳过")) { Task { await skipAI() } }
                     }
                 } extras: {
                     if linked.isEmpty {
                         // 用的是别的 AI 工具：让它照着配置指令自己连。
-                        link("用的是别的 AI？复制配置指令粘给它", symbol: "doc.on.doc") {
+                        link(tr("用的是别的 AI？复制配置指令粘给它"), symbol: "doc.on.doc") {
                             Clipboard.copy(model.aiSetupPrompt)
-                            model.toast = .init(text: "已复制配置指令，粘给你的 AI，它会自己连上", changeID: nil)
+                            model.toast = .init(text: tr("已复制配置指令，粘给你的 AI，它会自己连上"), changeID: nil)
                         }
                     } else if isPretend {
-                        link("演示：假装 AI 记了一笔", symbol: "wand.and.stars") {
-                            Task { await celebrate(who: family?.title ?? "AI", note: "咖啡 -3,50 €", goal: nil) }
+                        link(tr("演示：假装 AI 记了一笔"), symbol: "wand.and.stars") {
+                            Task { await celebrate(who: family?.title ?? "AI", note: tr("咖啡 -3,50 €"), goal: nil) }
                         }
                     }
                 }
@@ -576,17 +576,17 @@ struct WelcomeView: View {
             #endif
         case .done:
             if celebrated {
-                pageBody("🎉 恭喜，连接成功！", celebrationText) {
+                pageBody(tr("🎉 恭喜，连接成功！"), celebrationText) {
                     EmptyView()
                 } buttons: {
-                    primary("进入夏夏账本", id: "welcome.done.enter") { finish(openAdd: false) }
+                    primary(tr("进入夏夏账本"), id: "welcome.done.enter") { finish(openAdd: false) }
                 }
             } else {
-                pageBody("都准备好了！", "现在记第一笔试试？\(aiStepAvailable ? "想连 AI 的时候，去「设置」里点「连接你的 AI」。" : "")") {
+                pageBody(tr("都准备好了！"), tr("现在记第一笔试试？\(aiStepAvailable ? tr("想连 AI 的时候，去「设置」里点「连接你的 AI」。") : "")")) {
                     EmptyView()
                 } buttons: {
-                    primary("记第一笔", id: "welcome.done.add") { finish(openAdd: true) }
-                    secondary("先逛逛") { finish(openAdd: false) }
+                    primary(tr("记第一笔"), id: "welcome.done.add") { finish(openAdd: true) }
+                    secondary(tr("先逛逛")) { finish(openAdd: false) }
                 }
             }
         }
@@ -598,11 +598,11 @@ struct WelcomeView: View {
         let engines = model.chat.available
         let pick = chatPick.flatMap(ChatEngine.init(rawValue:)) ?? model.chat.engine ?? engines.first
         let name = pick?.name ?? "AI"
-        return pageBody("要不要用内置夏夏？", "内置夏夏就是窗口右边的一个聊天栏。不用切到别的 app，打字就能记账、查账。") {
+        return pageBody(tr("要不要用内置夏夏？"), tr("内置夏夏就是窗口右边的一个聊天栏。不用切到别的 app，打字就能记账、查账。")) {
             if celebrated {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
-                    Text(celebrationNote.map { "AI 连上了，第一笔记下了：\($0)" } ?? "AI 连上了！").font(.subheadline).foregroundStyle(Color.fg2)
+                    Text(celebrationNote.map { tr("AI 连上了，第一笔记下了：\($0)") } ?? tr("AI 连上了！")).font(.subheadline).foregroundStyle(Color.fg2)
                 }
             }
             // 演示和说明并排放，一屏看完不用往下滚（ming：「不要让我下拉」）。窗口窄就把演示收窄，再窄只留演示。
@@ -618,11 +618,11 @@ struct WelcomeView: View {
                 ChatDemo(engineName: name, height: tight ? 120 : 196).frame(width: 300)
             }
         } buttons: {
-            primary("用内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
-            secondary("先不用") { Task { await chooseChat(false) } }
+            primary(tr("用内置夏夏"), symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
+            secondary(tr("先不用")) { Task { await chooseChat(false) } }
         } extras: {
             if !tight {
-            Text("选「先不用」右边就不出现，「问夏夏」会把问题复制好打开 Claude。以后在「设置」里随时能开。")
+            Text(tr("选「先不用」右边就不出现，「问夏夏」会把问题复制好打开 Claude。以后在「设置」里随时能开。"))
                 .font(.callout).foregroundStyle(Color.fg3)
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -635,8 +635,8 @@ struct WelcomeView: View {
             chatFacts(name)
             if engines.count > 1 {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("用哪个 AI 来回答").font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
-                    Picker("用哪个 AI 来回答", selection: Binding(get: { pick?.rawValue ?? "" }, set: { chatPick = $0 })) {
+                    Text(tr("用哪个 AI 来回答")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                    Picker(tr("用哪个 AI 来回答"), selection: Binding(get: { pick?.rawValue ?? "" }, set: { chatPick = $0 })) {
                         ForEach(engines) { e in Text(e.name).tag(e.rawValue) }
                     }
                     .pickerStyle(.segmented).labelsHidden().fixedSize()
@@ -648,9 +648,9 @@ struct WelcomeView: View {
     /// 内置夏夏能做什么、和别的 AI 什么关系、不用会怎样：三句话。
     private func chatFacts(_ name: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            fact("text.bubble", "说一句就记账、查账", "记好的账马上出现在页面上，能撤销。")
-            fact("eye", "知道你在看哪一页", "停在花销页问「为什么这么多」，她知道你说的是哪些。")
-            fact("cpu", "借你电脑上的 \(name) 回答", "用你自己的订阅，不另外收费。")
+            fact("text.bubble", tr("说一句就记账、查账"), tr("记好的账马上出现在页面上，能撤销。"))
+            fact("eye", tr("知道你在看哪一页"), tr("停在花销页问「为什么这么多」，她知道你说的是哪些。"))
+            fact("cpu", tr("借你电脑上的 \(name) 回答"), tr("用你自己的订阅，不另外收费。"))
         }
     }
 
@@ -672,27 +672,27 @@ struct WelcomeView: View {
     #endif
 
     private var tryTitle: String {
-        guard let f = family else { return "连接你的 AI" }
-        if !linked.isEmpty { return "\(f == .newbie ? "Claude" : f.title) 连接上了" }
-        return f == .newbie ? "先装一个 AI" : "还没有连接上"
+        guard let f = family else { return tr("连接你的 AI") }
+        if !linked.isEmpty { return tr("\(f == .newbie ? "Claude" : f.title) 连接上了") }
+        return f == .newbie ? tr("先装一个 AI") : tr("还没有连接上")
     }
 
     private var trySubtitle: String {
         guard let f = family else { return "" }
         if let first = linked.first {
-            if let justConnected { return "记账工具我已经装进 \(justConnected.name) 了，不用你再配置。先\(justConnected.afterConnect)，再把下面这段话发给它。" }
-            return "记账工具已经装在 \(first.name) 里了，不用你再配置。把下面这段话发给它，它会带你记下第一笔。"
+            if let justConnected { return tr("记账工具我已经装进 \(justConnected.name) 了，不用你再配置。先\(justConnected.afterConnect)，再把下面这段话发给它。") }
+            return tr("记账工具已经装在 \(first.name) 里了，不用你再配置。把下面这段话发给它，它会带你记下第一笔。")
         }
         if !toConnect.isEmpty {
             // 说清楚这几个是什么、点了会发生什么：新用户不一定认识 Codex、Hermes 这些名字。
             let names = toConnect.map { "\($0.name)（\($0.plainWords)）" }.joined(separator: "、")
-            return "这台 Mac 上有 \(names)。点一下，我就把「夏夏账本」这个记账工具装进去，它才读得到账本。它别的设置我都不动，以后想拿掉，去「设置」里点一下就行。"
+            return tr("这台 Mac 上有 \(names)。点一下，我就把「夏夏账本」这个记账工具装进去，它才读得到账本。它别的设置我都不动，以后想拿掉，去「设置」里点一下就行。")
         }
         switch f {
-        case .newbie: return "推荐从 Claude 桌面版开始，最省事。装好、登录，我会自己认出来，再帮你连上。"
-        case .chatgpt: return "ChatGPT 要通过它家的 Codex 才能读到这台电脑上的账本，用的还是你的 ChatGPT 账号。装好以后我再帮你连上。"
-        case .other: return "DeepSeek 这些要通过 Hermes Agent 这样的助手才能读到这台电脑上的账本。装好以后我再帮你连上。"
-        case .claude, .gemini: return "这台 Mac 上没找到 \(f.install.name)。装好以后我再帮你连上。"
+        case .newbie: return tr("推荐从 Claude 桌面版开始，最省事。装好、登录，我会自己认出来，再帮你连上。")
+        case .chatgpt: return tr("ChatGPT 要通过它家的 Codex 才能读到这台电脑上的账本，用的还是你的 ChatGPT 账号。装好以后我再帮你连上。")
+        case .other: return tr("DeepSeek 这些要通过 Hermes Agent 这样的助手才能读到这台电脑上的账本。装好以后我再帮你连上。")
+        case .claude, .gemini: return tr("这台 Mac 上没找到 \(f.install.name)。装好以后我再帮你连上。")
         }
     }
 
@@ -717,8 +717,8 @@ struct WelcomeView: View {
     /// 第一页：给助手起名字、它怎么称呼你（ming 2026-11-23：「引导的时候可以改夏夏称呼，比如我想叫我什么，怎么称呼用户」）。
     private var namesRow: some View {
         HStack(alignment: .top, spacing: 16) {
-            nameField("叫我", placeholder: model.xiaName, text: $assistantNameText, id: "welcome.name.assistant")
-            nameField("我怎么叫你", placeholder: "比如 小明，不填就叫「你」", text: $callUserText, id: "welcome.name.user")
+            nameField(tr("叫我"), placeholder: model.xiaName, text: $assistantNameText, id: "welcome.name.assistant")
+            nameField(tr("我怎么叫你"), placeholder: tr("比如 小明，不填就叫「你」"), text: $callUserText, id: "welcome.name.user")
         }
         .frame(maxWidth: 560, alignment: .leading)
     }
@@ -741,13 +741,13 @@ struct WelcomeView: View {
     /// 第一页：夏夏想要女生还是男生的样子（ming 2026-11-23：「界面男女角色也要加上」）。左边的夏夏马上跟着换。
     private var lookPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("夏夏想要什么样子？").font(.headline).foregroundStyle(Color.fg2)
+            Text(tr("夏夏想要什么样子？")).font(.headline).foregroundStyle(Color.fg2)
             HStack(spacing: 8) {
                 ForEach(MascotLook.allCases) { l in
                     chip(l.label, symbol: l == .girl ? "face.smiling" : "face.smiling.inverse", on: lookRaw == l.rawValue) {
                         guard lookRaw != l.rawValue else { return }
                         withAnimation(.spring(duration: 0.45, bounce: 0.3)) { lookRaw = l.rawValue }
-                        Task { await say(l == .girl ? "好呀，就这样陪你记账～" : "好，换个样子陪你记账！", pose: .cheer) }
+                        Task { await say(l == .girl ? tr("好呀，就这样陪你记账～") : tr("好，换个样子陪你记账！"), pose: .cheer) }
                     }
                 }
             }
@@ -761,7 +761,7 @@ struct WelcomeView: View {
         var codes = Self.commonCurrencies
         if !codes.contains(choice) { codes.insert(choice, at: 0) }
         return VStack(alignment: .leading, spacing: 10) {
-            Text("你平时用哪种钱？").font(.headline).foregroundStyle(Color.fg2)
+            Text(tr("你平时用哪种钱？")).font(.headline).foregroundStyle(Color.fg2)
             FlowLayout(spacing: 8) {
                 ForEach(codes, id: \.self) { code in
                     let i = Currencies.info(code)
@@ -772,14 +772,14 @@ struct WelcomeView: View {
                         Button("\(c.name) \(c.symbol)") { withAnimation(.snappy) { pickedCurrency = c.code } }
                     }
                 } label: {
-                    Text("别的币种").font(.title3.weight(.medium))
+                    Text(tr("别的币种")).font(.title3.weight(.medium))
                 }
                 .menuStyle(.button).buttonStyle(.borderless)
                 .fixedSize()
                 .padding(.horizontal, 12).padding(.vertical, 11)
                 .accessibilityIdentifier("welcome.currency.more")
             }
-            Text("账上的总数都按它算。有外币卡也没关系，加账户时能单独设，以后在「设置」里也能改。")
+            Text(tr("账上的总数都按它算。有外币卡也没关系，加账户时能单独设，以后在「设置」里也能改。"))
                 .font(.callout).foregroundStyle(Color.fg3)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -790,23 +790,23 @@ struct WelcomeView: View {
         guard let pickedAim else { return nil }
         if pickedAim == "custom" { return customAim }
         if pickedAim == "save" {
-            guard let m = Self.parseAmount(saveAmountText) else { return "每个月存下一笔钱" }
-            return "每个月存下 \(Self.goalAmount(m, model.ledger.baseCurrency))"
+            guard let m = Self.parseAmount(saveAmountText) else { return tr("每个月存下一笔钱") }
+            return tr("每个月存下 \(Self.goalAmount(m, model.ledger.baseCurrency))")
         }
         return Self.aimOptions.first { $0.id == pickedAim }?.aim
     }
 
     private var celebrationText: String {
         var parts: [String] = []
-        if let celebrationNote { parts.append("第一笔记下了：\(celebrationNote)。") }
+        if let celebrationNote { parts.append(tr("第一笔记下了：\(celebrationNote)。")) }
         if let celebrationGoal {
-            parts.append("祝你早日达成「\(celebrationGoal)」！")
+            parts.append(tr("祝你早日达成「\(celebrationGoal)」！"))
         } else if let aim = model.ledger.profile.aim {
-            parts.append("祝你早日做到「\(aim)」！")
+            parts.append(tr("祝你早日做到「\(aim)」！"))
         } else {
-            parts.append("祝你想存的钱都存到，心愿一个个达成。")
+            parts.append(tr("祝你想存的钱都存到，心愿一个个达成。"))
         }
-        parts.append("让我们一起努力吧！")
+        parts.append(tr("让我们一起努力吧！"))
         return parts.joined(separator: "\n")
     }
 
@@ -875,7 +875,7 @@ struct WelcomeView: View {
         .buttonStyle(.plain)
         .allowsHitTesting(!locked)   // 已经有的：不能取消，但不变灰
         .accessibilityLabel(title)
-        .accessibilityValue(locked ? "已经有了" : on ? "已选" : "没选")
+        .accessibilityValue(locked ? tr("已经有了") : on ? tr("已选") : tr("没选"))
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("welcome.chip.\(title)")
     }
@@ -896,7 +896,7 @@ struct WelcomeView: View {
                 .background(Color.pageBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.fg3.opacity(0.22), lineWidth: 1))
                 .accessibilityIdentifier("welcome.custom")
-            Button(action: submit) { Label("加上", systemImage: "plus") }
+            Button(action: submit) { Label(tr("加上"), systemImage: "plus") }
                 .buttonStyle(.softAI)
                 .disabled(custom.trimmingCharacters(in: .whitespaces).isEmpty)
         }
@@ -963,22 +963,22 @@ struct WelcomeView: View {
         case .aim: go(.hello)
         case .books:
             go(.aim)
-            Task { await say("你记账最想做到什么？", pose: .think) }
+            Task { await say(tr("你记账最想做到什么？"), pose: .think) }
         case .accounts:
             go(.books)
-            Task { await say("要几个账本？", pose: .idle) }
+            Task { await say(tr("要几个账本？"), pose: .idle) }
         case .ai:
             if aiMode == .trying {
                 withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; partner = nil; family = nil; checking = nil }
-                Task { await say("换一个也行，你平时用哪个？", pose: .think) }
+                Task { await say(tr("换一个也行，你平时用哪个？"), pose: .think) }
             } else {
                 checking = nil
                 go(.accounts)
-                Task { await say("钱平时放在哪？", pose: .write) }
+                Task { await say(tr("钱平时放在哪？"), pose: .write) }
             }
         case .chat:
             go(.ai)
-            Task { await say(aiMode == .trying ? "连接 AI 这一步还在这儿。" : "你平时用哪个 AI？", pose: .think) }
+            Task { await say(aiMode == .trying ? tr("连接 AI 这一步还在这儿。") : tr("你平时用哪个 AI？"), pose: .think) }
         case .hello, .done: break
         }
     }
@@ -990,7 +990,7 @@ struct WelcomeView: View {
             model.welcomeAtAI = false
             aiMode = .choose
             step = .ai
-            await say("你平时用哪个 AI？", pose: .think)
+            await say(tr("你平时用哪个 AI？"), pose: .think)
             return
         }
         model.welcomeAtAI = false
@@ -999,10 +999,10 @@ struct WelcomeView: View {
         if let name = UserDefaults.standard.string(forKey: "XiaxiaWelcomeStep"), let target = jump[name] {
             if target == .aim { pickedAim = "save" }
             step = target
-            await say("（检查用：直接到这一页）", pose: .idle)
+            await say(tr("（检查用：直接到这一页）"), pose: .idle)
             return
         }
-        await say("嗨，我是\(model.xiaName)！", pose: .hello)
+        await say(tr("嗨，我是\(model.xiaName)！"), pose: .hello)
     }
 
     private func toAim() async {
@@ -1027,7 +1027,7 @@ struct WelcomeView: View {
                 pickedAim = o.id
             } else if old.hasPrefix("每个月存下") {
                 pickedAim = "save"
-                let digits = old.dropFirst("每个月存下".count).filter { $0.isNumber || $0 == "," || $0 == "." }
+                let digits = old.dropFirst(tr("每个月存下").count).filter { $0.isNumber || $0 == "," || $0 == "." }
                 saveAmountText = String(digits)
             } else {
                 customAim = old; pickedAim = "custom"
@@ -1035,15 +1035,15 @@ struct WelcomeView: View {
         }
         go(.aim)
         let call = model.ledger.profile.userCallName.map { "\($0)，" } ?? ""
-        await say("\(call)先说说，你记账最想做到什么？", pose: .think)
+        await say(tr("\(call)先说说，你记账最想做到什么？"), pose: .think)
     }
 
     private func pickAim(_ id: String) {
         withAnimation(.snappy) { pickedAim = pickedAim == id ? nil : id }
         guard pickedAim == id else { return }
         if id == "save" { DispatchQueue.main.async { amountFocused = true } }
-        let reply = id == "save" ? "好目标！每个月想存多少？填个数，我每个月帮你盯着。"
-            : id == "custom" ? "好，我记住了！" : Self.aimOptions.first { $0.id == id }?.reply ?? "好！"
+        let reply = id == "save" ? tr("好目标！每个月想存多少？填个数，我每个月帮你盯着。")
+            : id == "custom" ? tr("好，我记住了！") : Self.aimOptions.first { $0.id == id }?.reply ?? tr("好！")
         Task { await say(reply, pose: .cheer) }
     }
 
@@ -1053,12 +1053,12 @@ struct WelcomeView: View {
             _ = try? model.edit(quiet: true) { try $0.setAim(aimText, author: model.author) }
         }
         go(.books)
-        await say(aimText == nil ? "目标以后想好再定也行。「个人」账本我已经帮你建好了。" : "记住了！「个人」账本我已经帮你建好了。", pose: .idle)
+        await say(aimText == nil ? tr("目标以后想好再定也行。「个人」账本我已经帮你建好了。") : tr("记住了！「个人」账本我已经帮你建好了。"), pose: .idle)
     }
 
     private func toAccounts() async {
         go(.accounts)
-        await say(pickedBooks.isEmpty ? "好，一个账本最清爽。" : "好，\(pickedBooks.count + 1) 个账本。", pose: .write)
+        await say(pickedBooks.isEmpty ? tr("好，一个账本最清爽。") : tr("好，\(pickedBooks.count + 1) 个账本。"), pose: .write)
     }
 
     /// 把选好的账本、账户写进账本（已经有的不重复建）。
@@ -1082,11 +1082,11 @@ struct WelcomeView: View {
         if aiStepAvailable {
             withAnimation(.smooth(duration: 0.35)) { aiMode = .choose }
             go(.ai)
-            let tail = chatStepAvailable ? "快好啦！" : "最后一步啦！"
-            await say(count == 0 ? "账户以后再加也行。\(tail)" : "记下了，\(count) 个放钱的地方。\(tail)", pose: .think)
+            let tail = chatStepAvailable ? tr("快好啦！") : tr("最后一步啦！")
+            await say(count == 0 ? tr("账户以后再加也行。\(tail)") : tr("记下了，\(count) 个放钱的地方。\(tail)"), pose: .think)
         } else {
             go(.done)
-            await say("都准备好了！", pose: .celebrate)
+            await say(tr("都准备好了！"), pose: .celebrate)
         }
     }
 
@@ -1095,7 +1095,7 @@ struct WelcomeView: View {
         guard let c = model.aiConnector else { await skipAI(); return }
         family = f
         withAnimation(.snappy(duration: 0.2)) { checking = f }
-        await say(f == .newbie ? "没关系，我来带你。" : "那我们看看吧。", pose: .think)
+        await say(f == .newbie ? tr("没关系，我来带你。") : tr("那我们看看吧。"), pose: .think)
         try? await Task.sleep(for: .seconds(reduceMotion ? 0.1 : 0.3))
         // 这一小会儿里点了「返回」或「先跳过」：不再往下走。
         guard step == .ai, aiMode == .choose, checking == f else { return }
@@ -1114,13 +1114,13 @@ struct WelcomeView: View {
             if !linked.isEmpty || !toConnect.isEmpty { partner = f.partner }
         }
         if !linked.isEmpty {
-            await say("连接上了！", pose: .cheer)
+            await say(tr("连接上了！"), pose: .cheer)
         } else if !toConnect.isEmpty {
-            await say("还没有连接上，不过我找到它了。", pose: .idle)
+            await say(tr("还没有连接上，不过我找到它了。"), pose: .idle)
         } else if f == .newbie {
-            await say("先装一个，我在这儿等你。", pose: .idle)
+            await say(tr("先装一个，我在这儿等你。"), pose: .idle)
         } else {
-            await say("还没有连接上。", pose: .worried)
+            await say(tr("还没有连接上。"), pose: .worried)
         }
     }
 
@@ -1139,9 +1139,9 @@ struct WelcomeView: View {
         }
         waitTicks = 0
         if done.first != nil {
-            await say("连接上了！", pose: .cheer)
+            await say(tr("连接上了！"), pose: .cheer)
         } else if !failed.isEmpty {
-            await say("\(failed.joined(separator: "、")) 没连上，等下去「设置」里再试试。", pose: .worried)
+            await say(tr("\(failed.joined(separator: "、")) 没连上，等下去「设置」里再试试。"), pose: .worried)
         }
     }
 
@@ -1149,10 +1149,10 @@ struct WelcomeView: View {
         checking = nil
         if chatStepAvailable {
             go(.chat)
-            await say("好，以后再连也行。最后一个问题！", pose: .calm)
+            await say(tr("好，以后再连也行。最后一个问题！"), pose: .calm)
         } else {
             go(.done)
-            await say("好，以后再连也行。", pose: .calm)
+            await say(tr("好，以后再连也行。"), pose: .calm)
         }
     }
 
@@ -1164,7 +1164,7 @@ struct WelcomeView: View {
         #endif
         go(.done)
         if celebrated { withAnimation(.smooth) { confetti = true } }
-        await say(on ? "好！以后我就在右边陪着你。" : "好，想聊的时候点右上角「问夏夏」。", pose: on ? .cheer : .calm)
+        await say(on ? tr("好！以后我就在右边陪着你。") : tr("好，想聊的时候点右上角「问夏夏」。"), pose: on ? .cheer : .calm)
         if celebrated {
             try? await Task.sleep(for: .seconds(4))
             withAnimation(.smooth) { confetti = false }
@@ -1181,7 +1181,7 @@ struct WelcomeView: View {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
                     withAnimation(.bouncy) { toConnect = found; partner = f.partner }
-                    await say("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。", pose: .cheer)
+                    await say(tr("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。"), pose: .cheer)
                     continue
                 }
             }
@@ -1193,7 +1193,7 @@ struct WelcomeView: View {
                     toConnect.removeAll { nowLinked.contains($0) }
                     partner = f.partner
                 }
-                await say("连接上了！", pose: .cheer)
+                await say(tr("连接上了！"), pose: .cheer)
                 continue
             }
             guard !model.usesSampleData else { continue }
@@ -1201,15 +1201,15 @@ struct WelcomeView: View {
             let who = fresh.max(by: { $0.value < $1.value }).map { AIApp.displayName(clientName: $0.key) }
             if !handshakeSeen, let who {
                 withAnimation(.snappy) { handshakeSeen = true }
-                await say("我看到 \(who) 来读账本了！跟它说说今天花了什么吧。", pose: .cheer)
+                await say(tr("我看到 \(who) 来读账本了！跟它说说今天花了什么吧。"), pose: .cheer)
                 continue
             }
             if !handshakeSeen, !linked.isEmpty, copiedSentence {
                 waitTicks += 1
                 if waitTicks == 45 {
                     // 复制后等了一分半还没动静：可能还没发、粘到了网页版 / 手机版，或者还没重开 AI。只提醒一次，不吓人。
-                    let reopen = justConnected.map { "先\($0.afterConnect)，再发一次。" } ?? "要发给装在这台电脑上的那个，网页版和手机版连不过来。"
-                    await say("还没看到 AI 来读账本。\(reopen)", pose: .think)
+                    let reopen = justConnected.map { tr("先\($0.afterConnect)，再发一次。") } ?? tr("要发给装在这台电脑上的那个，网页版和手机版连不过来。")
+                    await say(tr("还没看到 AI 来读账本。\(reopen)"), pose: .think)
                     continue
                 }
             }
@@ -1237,7 +1237,7 @@ struct WelcomeView: View {
             step = chatStepAvailable ? .chat : .done
             confetti = true
         }
-        await say(who.map { "\($0) 连上啦！" } ?? "连上啦！", pose: .celebrate)
+        await say(who.map { tr("\($0) 连上啦！") } ?? tr("连上啦！"), pose: .celebrate)
         try? await Task.sleep(for: .seconds(4.5))
         withAnimation(.smooth) { confetti = false }
     }
@@ -1278,12 +1278,12 @@ private extension AIApp {
     /// 一句大白话：这个工具是什么。
     var plainWords: String {
         switch self {
-        case .claudeDesktop: "电脑上的 Claude"
-        case .claudeCode: "Claude 的命令行版"
-        case .codex: "ChatGPT 装在电脑上的助手"
-        case .hermes: "能接 DeepSeek 等模型的助手"
-        case .cursor: "带 AI 的写代码软件"
-        case .gemini: "Gemini 的命令行版"
+        case .claudeDesktop: tr("电脑上的 Claude")
+        case .claudeCode: tr("Claude 的命令行版")
+        case .codex: tr("ChatGPT 装在电脑上的助手")
+        case .hermes: tr("能接 DeepSeek 等模型的助手")
+        case .cursor: tr("带 AI 的写代码软件")
+        case .gemini: tr("Gemini 的命令行版")
         }
     }
 }
@@ -1383,17 +1383,17 @@ struct ChatDemo: View {
     @State private var typing = false
 
     private let lines: [(mine: Bool, text: String)] = [
-        (true, "今天午饭 12 欧"),
-        (false, "记好了：午饭 -12,00 €，个人账本 · 餐饮。"),
-        (true, "这个月吃饭花了多少？"),
-        (false, "86,40 €，比上个月少 12 €。照这样，月底还能剩 420 € 左右。"),
+        (true, tr("今天午饭 12 欧")),
+        (false, tr("记好了：午饭 -12,00 €，个人账本 · 餐饮。")),
+        (true, tr("这个月吃饭花了多少？")),
+        (false, tr("86,40 €，比上个月少 12 €。照这样，月底还能剩 420 € 左右。")),
     ]
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 MascotView(.xiaxia, size: 24, face: true, animated: false)
-                Text("夏夏").font(.headline)
+                Text(tr("夏夏")).font(.headline)
                 Spacer()
                 Text(engineName).font(.caption).foregroundStyle(Color.brand)
             }
@@ -1408,7 +1408,7 @@ struct ChatDemo: View {
                 if typing {
                     HStack(spacing: 6) {
                         MascotView(.xiaxia, size: 22, face: true, animated: false)
-                        Text("夏夏在想…").font(.caption).foregroundStyle(Color.fg3)
+                        Text(tr("夏夏在想…")).font(.caption).foregroundStyle(Color.fg3)
                     }
                     .transition(.opacity)
                 }
@@ -1418,7 +1418,7 @@ struct ChatDemo: View {
             .clipped()
             Divider()
             HStack {
-                Text("跟夏夏说，比如「午饭 12 欧」").font(.callout).foregroundStyle(Color.fg3)
+                Text(tr("跟夏夏说，比如「午饭 12 欧」")).font(.callout).foregroundStyle(Color.fg3)
                 Spacer()
                 Image(systemName: "arrow.up.circle.fill").font(.title3).foregroundStyle(Color.aiSolid)
             }
@@ -1428,7 +1428,7 @@ struct ChatDemo: View {
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.fg3.opacity(0.25), lineWidth: 1))
         .shadow(color: Color.ai.opacity(0.12), radius: 16, y: 6)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("演示：你说「今天午饭 12 欧」，夏夏回答记好了；你问这个月吃饭花了多少，夏夏回答 86,40 €")
+        .accessibilityLabel(tr("演示：你说「今天午饭 12 欧」，夏夏回答记好了；你问这个月吃饭花了多少，夏夏回答 86,40 €"))
         .task { await play() }
     }
 

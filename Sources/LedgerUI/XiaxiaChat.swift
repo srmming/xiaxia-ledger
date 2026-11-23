@@ -64,7 +64,7 @@ public final class XiaxiaChatState {
 
     /// 顶上显示的名字：「Claude Code」或「Claude Code · Sonnet」。
     var label: String {
-        guard let engine else { return "选 AI" }
+        guard let engine else { return tr("选 AI") }
         guard let model else { return engine.name }
         return "\(engine.name) · \(engine.models().first { $0.id == model }?.name ?? model)"
     }
@@ -86,7 +86,7 @@ public final class XiaxiaChatState {
     @ObservationIgnored var focusRequest: (() -> Void)?
     func ask(about tx: Transaction, model: LedgerModel) {
         model.selectedTransactionID = tx.id
-        draft = "这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，"
+        draft = tr("这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，")
         show()
     }
 
@@ -165,15 +165,15 @@ private struct ThinkingRow: View {
                     MascotView(MascotCharacter.of(engine), pose: .think, size: 56, animated: false)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.xia("夏夏在想…")).font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
+                    Text(model.xia(tr("夏夏在想…"))).font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
                     if let engine {
-                        Text("\(MascotCharacter.of(engine).name)（\(engine.name)）在帮她查账").font(.caption2).foregroundStyle(Color.fg3)
+                        Text(tr("\(MascotCharacter.of(engine).name)（\(engine.name)）在帮她查账")).font(.caption2).foregroundStyle(Color.fg3)
                     }
                 }
                 .padding(.bottom, 8)
             }
             if long {
-                Text("等得有点久。看看屏幕上有没有系统问「“夏夏账本”想访问…」的小窗，点「允许」夏夏就能接着回答。")
+                Text(tr("等得有点久。看看屏幕上有没有系统问「“夏夏账本”想访问…」的小窗，点「允许」夏夏就能接着回答。"))
                     .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .transition(.opacity)
             }
@@ -196,21 +196,21 @@ struct XiaxiaChatPanel: View {
             header(chat)
             Divider()
             if model.store is InMemoryLedgerStore {
-                notice(symbol: "eye", title: "示例数据不连 AI",
-                       text: "现在看的是编出来的示例账本。AI 连的是你自己的账本，两边对不上，所以这里先不聊。")
+                notice(symbol: "eye", title: tr("示例数据不连 AI"),
+                       text: tr("现在看的是编出来的示例账本。AI 连的是你自己的账本，两边对不上，所以这里先不聊。"))
                 Spacer()
             } else if chat.available.isEmpty {
-                notice(symbol: "sparkles", title: "这台 Mac 上还没有能用的 AI",
-                       text: "装好并登录 Claude Code、Codex 或 Hermes 其中一个，夏夏就能在这里直接回答，用的是你自己的订阅。也可以先复制这一页的情况去 Claude 里问。")
+                notice(symbol: "sparkles", title: tr("这台 Mac 上还没有能用的 AI"),
+                       text: tr("装好并登录 Claude Code、Codex 或 Hermes 其中一个，夏夏就能在这里直接回答，用的是你自己的订阅。也可以先复制这一页的情况去 Claude 里问。"))
                 Button {
                     // 夏夏带着连：直接到引导的「连接你的 AI」那一步。
                     model.welcomeAtAI = true
                     model.showWelcome = true
-                } label: { Label("去连接 AI", systemImage: "link") }
+                } label: { Label(tr("去连接 AI"), systemImage: "link") }
                     .buttonStyle(AISolidButtonStyle()).padding(.top, 4)
                     .accessibilityIdentifier("chat.connectAI")
                 AskAIReader { ask in
-                    Button { ask("", page: (model.section ?? .overview).rawValue) } label: { Label("复制并打开 Claude", systemImage: "doc.on.doc") }
+                    Button { ask("", page: (model.section ?? .overview).rawValue) } label: { Label(tr("复制并打开 Claude"), systemImage: "doc.on.doc") }
                         .buttonStyle(.soft).padding(.top, 4)
                 }
                 Spacer()
@@ -239,7 +239,7 @@ struct XiaxiaChatPanel: View {
             if !chat.available.isEmpty {
                 // 每个 AI 一组：第一项「跟随默认」= 用户在那个 AI 里自己设的模型（不加参数），下面是可以手动换的。
                 Menu {
-                    Picker("用哪个 AI 和模型", selection: Binding(get: { chat.choiceKey }, set: { chat.choose($0) })) {
+                    Picker(tr("用哪个 AI 和模型"), selection: Binding(get: { chat.choiceKey }, set: { chat.choose($0) })) {
                         ForEach(chat.available) { e in
                             Section(e.name) {
                                 Text(defaultTitle(e)).tag("\(e.rawValue)|")
@@ -253,11 +253,11 @@ struct XiaxiaChatPanel: View {
                 } label: { Text(chat.label).font(.caption).lineLimit(1) }
                     .menuStyle(.button).buttonStyle(.borderless)
                     .frame(width: 160, alignment: .trailing)  // 宽度固定，不随选中的名字变（AppKit 菜单按钮的尺寸一变就会重排整个分栏）
-                    .accessibilityLabel("用哪个 AI 和模型：\(chat.label)")
+                    .accessibilityLabel(tr("用哪个 AI 和模型：\(chat.label)"))
                     .accessibilityIdentifier("chat.modelMenu")
             }
             Button { chat.newConversation() } label: { Image(systemName: "square.and.pencil") }
-                .buttonStyle(.borderless).help("新对话").accessibilityLabel("新对话")
+                .buttonStyle(.borderless).help(tr("新对话")).accessibilityLabel(tr("新对话"))
                 .disabled(chat.messages.isEmpty || chat.busy)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
@@ -265,8 +265,8 @@ struct XiaxiaChatPanel: View {
 
     /// 「跟随默认（Opus）」：读得到那个 AI 自己设的模型就写出来。
     private func defaultTitle(_ e: ChatEngine) -> String {
-        if let m = e.defaultModel() { return "跟随 \(e.name) 的默认（\(m)）" }
-        return "跟随 \(e.name) 的默认"
+        if let m = e.defaultModel() { return tr("跟随 \(e.name) 的默认（\(m)）") }
+        return tr("跟随 \(e.name) 的默认")
     }
 
     private func notice(symbol: String, title: String, text: String) -> some View {
@@ -307,14 +307,14 @@ struct XiaxiaChatPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
                 MascotView(.xiaxia, pose: .hello, size: 96, animated: false)
-                Text("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。")
+                Text(tr("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 10)
             }
             ForEach(model.prompts(for: model.section ?? .overview).prefix(3)) { p in
                 Button { chat.prefill(p.text) } label: { PromptRow(prompt: p) }
                     .buttonStyle(.pressable)
-                    .accessibilityLabel("问夏夏：\(p.text)")
+                    .accessibilityLabel(tr("问夏夏：\(p.text)"))
             }
         }
     }
@@ -335,20 +335,20 @@ struct XiaxiaChatPanel: View {
             if !m.fromUser { Spacer(minLength: 40) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel((m.fromUser ? "你：" : "\(model.xiaName)：") + m.text)
+        .accessibilityLabel((m.fromUser ? tr("你：") : "\(model.xiaName)：") + m.text)
     }
 
     private func input(_ chat: XiaxiaChatState) -> some View {
         @Bindable var chat = chat
         return HStack(alignment: .bottom, spacing: 8) {
-            TextField(model.xia("跟夏夏说，比如「午饭 12 欧」"), text: $chat.draft, axis: .vertical)
+            TextField(model.xia(tr("跟夏夏说，比如「午饭 12 欧」")), text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .focused($inputFocused)
                 .onSubmit { chat.send(chat.draft, model: model) }
                 .padding(.horizontal, 10).padding(.vertical, 8)
                 .background(Color.sunken, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityLabel(model.xia("跟夏夏说"))
+                .accessibilityLabel(model.xia(tr("跟夏夏说")))
             Button { chat.send(chat.draft, model: model) } label: {
                 Image(systemName: "arrow.up").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
                     .frame(width: 30, height: 30)
@@ -357,7 +357,7 @@ struct XiaxiaChatPanel: View {
             .buttonStyle(.plain)
             .disabled(chat.draft.trimmingCharacters(in: .whitespaces).isEmpty || chat.busy)
             .keyboardShortcut(.return, modifiers: .command)
-            .accessibilityLabel("发送")
+            .accessibilityLabel(tr("发送"))
         }
         .padding(12)
     }

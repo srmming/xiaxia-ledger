@@ -24,13 +24,13 @@ struct DebtsPage: View {
         if installments.isEmpty && debts.isEmpty {
             VStack(spacing: Kit.gap) {
                 VStack(spacing: 12) {
-                    KitEmptyState(symbol: "arrow.left.arrow.right", title: "没有欠款，也没有分期",
-                                  message: "借钱给别人、跟别人借钱、分期买东西，登记一下就会算进家底。欠款还能排成每月还多少的计划，还到哪一期、哪个月还清都看得清。",
+                    KitEmptyState(symbol: "arrow.left.arrow.right", title: tr("没有欠款，也没有分期"),
+                                  message: tr("借钱给别人、跟别人借钱、分期买东西，登记一下就会算进家底。欠款还能排成每月还多少的计划，还到哪一期、哪个月还清都看得清。"),
                                   prompt: "帮我记一笔欠款：朋友借了我 300 €，下个月还", page: "欠款与分期")
                     addButtons
                 }
                 .kitCard()
-                AskAICard(title: "跟夏夏说一句也能记", note: nil, page: "欠款与分期", prompts: model.prompts(for: .debts))
+                AskAICard(title: tr("跟夏夏说一句也能记"), note: nil, page: "欠款与分期", prompts: model.prompts(for: .debts))
             }
         } else {
             let lines = debtLines(installments: installments, debts: debts)
@@ -98,19 +98,19 @@ struct DebtsPage: View {
     }
 
     @ViewBuilder private func figures(_ o: DebtPlans.Overview, _ ob: Obligations, small: Bool = false, tiny: Bool = false) -> some View {
-        figure("我欠的", o.iOwe, note: oweNote(ob), color: o.iOwe.cents > 0 ? .primary : .fg2, small: small, tiny: tiny)
-        figure("欠我的", o.owedToMe, note: o.incomingThisMonth.cents > 0 ? "这个月该收回 \(o.incomingThisMonth.rounded)" : "借出去还没收回",
+        figure(tr("我欠的"), o.iOwe, note: oweNote(ob), color: o.iOwe.cents > 0 ? .primary : .fg2, small: small, tiny: tiny)
+        figure(tr("欠我的"), o.owedToMe, note: o.incomingThisMonth.cents > 0 ? tr("这个月该收回 \(o.incomingThisMonth.rounded)") : tr("借出去还没收回"),
                color: o.owedToMe.cents > 0 ? .income : .fg2, small: small, tiny: tiny)
-        figure("本月要还", o.dueThisMonth, note: o.dueThisMonth.cents > 0 ? "到 \(LocalDate.today.month) 月底" : "这个月没有要还的",
+        figure(tr("本月要还"), o.dueThisMonth, note: o.dueThisMonth.cents > 0 ? tr("到 \(LocalDate.today.month) 月底") : tr("这个月没有要还的"),
                color: o.dueThisMonth.cents > 0 ? .warn : .fg2, small: small, tiny: tiny)
     }
 
     /// 「分期 989 € + 借款 250 €」：我还欠的是哪几块。
     private func oweNote(_ o: Obligations) -> String {
         var parts: [String] = []
-        if o.installments.cents > 0 { parts.append("分期 \(o.installments.rounded)") }
-        if o.borrowed.cents > 0 { parts.append("借款 \(o.borrowed.rounded)") }
-        return parts.isEmpty ? "什么都不欠" : parts.joined(separator: " + ")
+        if o.installments.cents > 0 { parts.append(tr("分期 \(o.installments.rounded)")) }
+        if o.borrowed.cents > 0 { parts.append(tr("借款 \(o.borrowed.rounded)")) }
+        return parts.isEmpty ? tr("什么都不欠") : parts.joined(separator: " + ")
     }
 
     private func figure(_ label: String, _ money: Money, note: String, color: Color, small: Bool, tiny: Bool = false) -> some View {
@@ -133,8 +133,8 @@ struct DebtsPage: View {
     /// 先说别人欠我的（过期的优先），再说我自己快到的分期 / 借款，都没有就说一句已经算进家底。
     private func xiaxiaCard(installments: [InstallmentStatus], debts: [DebtStatus]) -> some View {
         let t = xiaxia(installments: installments, debts: debts)
-        return XiaxiaSays(page: "debts", pageName: "欠款与分期", sentence: t.sentence, question: t.question,
-                          action: t.action ?? "让夏夏细说", asksInsight: t.action == nil)
+        return XiaxiaSays(page: "debts", pageName: tr("欠款与分期"), sentence: t.sentence, question: t.question,
+                          action: t.action ?? tr("让夏夏细说"), asksInsight: t.action == nil)
     }
 
     private func xiaxia(installments: [InstallmentStatus], debts: [DebtStatus]) -> (sentence: String, question: String, action: String?) {
@@ -147,42 +147,42 @@ struct DebtsPage: View {
             }
         if let d = theirs.first {
             let who = d.counterparty, amt = d.outstanding.rounded
-            let others = theirs.count > 1 ? "（还有 \(theirs.count - 1) 笔别人欠你的）" : ""
+            let others = theirs.count > 1 ? tr("（还有 \(theirs.count - 1) 笔别人欠你的）") : ""
             let sentence: String
             if d.overdue, let due = d.dueDate {
                 let late = max(1, due.days(until: today))
                 sentence = switch p {
-                case .gentle: "\(who)的 \(amt) 本该 \(due.short) 还，已经过了 \(late) 天。要不要我帮你想句不尴尬的话提醒一下？"
-                case .sharp: "\(who)欠你 \(amt)，拖了 \(late) 天了。人家忘了，你也忘了？我来写句催款的，客气但扎心。"
-                case .calm: "\(who)的 \(amt) 已逾期 \(late) 天（约定 \(due.short) 归还）。可以发一条提醒。"
-                case .cheer: "\(who)还欠你 \(amt)，都过了 \(late) 天啦～要不要我们想个办法把钱要回来，嘻嘻😁"
+                case .gentle: tr("\(who)的 \(amt) 本该 \(due.short) 还，已经过了 \(late) 天。要不要我帮你想句不尴尬的话提醒一下？")
+                case .sharp: tr("\(who)欠你 \(amt)，拖了 \(late) 天了。人家忘了，你也忘了？我来写句催款的，客气但扎心。")
+                case .calm: tr("\(who)的 \(amt) 已逾期 \(late) 天（约定 \(due.short) 归还）。可以发一条提醒。")
+                case .cheer: tr("\(who)还欠你 \(amt)，都过了 \(late) 天啦～要不要我们想个办法把钱要回来，嘻嘻😁")
                 }
             } else if let due = d.dueDate {
                 sentence = switch p {
-                case .gentle: "\(who)说好 \(due.short) 前还你 \(amt)。快到了我再提醒你。"
-                case .sharp: "\(who)欠你 \(amt)，\(due.short) 前还。到时候不还，我替你记仇。"
-                case .calm: "\(who)应于 \(due.short) 前归还 \(amt)。"
-                case .cheer: "\(who)\(due.short) 前会还你 \(amt)，钱钱快回家啦🥰"
+                case .gentle: tr("\(who)说好 \(due.short) 前还你 \(amt)。快到了我再提醒你。")
+                case .sharp: tr("\(who)欠你 \(amt)，\(due.short) 前还。到时候不还，我替你记仇。")
+                case .calm: tr("\(who)应于 \(due.short) 前归还 \(amt)。")
+                case .cheer: tr("\(who)\(due.short) 前会还你 \(amt)，钱钱快回家啦🥰")
                 }
             } else {
                 sentence = switch p {
-                case .gentle: "\(who)还欠你 \(amt)，没约哪天还。要不要我帮你问问什么时候方便？"
-                case .sharp: "\(who)欠你 \(amt)，连哪天还都没说。借钱的时候倒挺快。"
-                case .calm: "\(who)尚欠 \(amt)，未约定还款日期。"
-                case .cheer: "\(who)还欠你 \(amt) 哦～要不要我们想个办法把钱要回来，嘻嘻😁"
+                case .gentle: tr("\(who)还欠你 \(amt)，没约哪天还。要不要我帮你问问什么时候方便？")
+                case .sharp: tr("\(who)欠你 \(amt)，连哪天还都没说。借钱的时候倒挺快。")
+                case .calm: tr("\(who)尚欠 \(amt)，未约定还款日期。")
+                case .cheer: tr("\(who)还欠你 \(amt) 哦～要不要我们想个办法把钱要回来，嘻嘻😁")
                 }
             }
-            let due = d.dueDate.map { d.overdue ? "，本该 \($0.short) 还，已经过了" : "，说好 \($0.short) 前还" } ?? "，没约还款日期"
+            let due = d.dueDate.map { d.overdue ? tr("，本该 \($0.short) 还，已经过了") : tr("，说好 \($0.short) 前还") } ?? tr("，没约还款日期")
             return (sentence + others,
-                    "\(who)欠我 \(amt)\(due)。帮我写一条发给\(who)的提醒消息：短一点、自然、不伤感情，按我平时聊天的语气，直接给我能复制的那句话。",
-                    "帮我写句提醒")
+                    tr("\(who)欠我 \(amt)\(due)。帮我写一条发给\(who)的提醒消息：短一点、自然、不伤感情，按我平时聊天的语气，直接给我能复制的那句话。"),
+                    tr("帮我写句提醒"))
         }
         // 我自己快到的：过期没还的借款 → 7 天内的分期 → 最早到期的借款
         let mine = debts.filter { $0.direction == .iOweThem }
-        let plan = "我还欠的分期和借款都在这页上。帮我排一下接下来几个月怎么还比较轻松，每个月大概要准备多少。"
+        let plan = tr("我还欠的分期和借款都在这页上。帮我排一下接下来几个月怎么还比较轻松，每个月大概要准备多少。")
         if let late = mine.first(where: \.overdue), let due = late.dueDate {
-            let s = "欠\(late.counterparty)的 \(late.outstanding.rounded) 本该 \(due.short) 还。"
-            return (s + (p == .sharp ? "别让人家来催你。" : p == .cheer ? "还上就轻松啦，加油！" : p == .calm ? "" : "记得还上。"), plan, nil)
+            let s = tr("欠\(late.counterparty)的 \(late.outstanding.rounded) 本该 \(due.short) 还。")
+            return (s + (p == .sharp ? tr("别让人家来催你。") : p == .cheer ? tr("还上就轻松啦，加油！") : p == .calm ? "" : tr("记得还上。")), plan, nil)
         }
         // 排了计划的借款：这期过了没还，或者 7 天内要还。
         if let hit = mine.compactMap({ d in model.ledger.planProgress(d.id).map { (d, $0) } })
@@ -191,30 +191,30 @@ struct DebtsPage: View {
             let d = hit.0, pr = hit.1
             let days = today.days(until: n)
             let s = pr.overdue
-                ? "还\(d.counterparty)的第 \(pr.paidCount + 1) 期 \(pr.nextAmount.rounded) 过了 \(max(1, -days)) 天。还了点「⋯ → 记一笔还款」，晚点还也可以选顺延。"
-                : "还\(d.counterparty)的第 \(pr.paidCount + 1) 期 \(pr.nextAmount.rounded) \(days <= 2 ? Nudges.dayWord(days) : n.short)要还，还剩 \(pr.remainingCount) 期。"
-            return (s + (p == .cheer ? "加油～" : ""), plan, nil)
+                ? tr("还\(d.counterparty)的第 \(pr.paidCount + 1) 期 \(pr.nextAmount.rounded) 过了 \(max(1, -days)) 天。还了点「⋯ → 记一笔还款」，晚点还也可以选顺延。")
+                : tr("还\(d.counterparty)的第 \(pr.paidCount + 1) 期 \(pr.nextAmount.rounded) \(days <= 2 ? Nudges.dayWord(days) : n.short)要还，还剩 \(pr.remainingCount) 期。")
+            return (s + (p == .cheer ? tr("加油～") : ""), plan, nil)
         }
         if let next = installments.compactMap({ i in i.nextDate.map { (i, $0) } }).min(by: { $0.1 < $1.1 }), today.days(until: next.1) <= 7 {
             let days = today.days(until: next.1)
             let when = days >= 0 && days <= 2 ? Nudges.dayWord(days) : next.1.short
-            let s = "「\(next.0.name)」\(when)扣 \(next.0.perPayment.rounded)，还剩 \(next.0.count - next.0.paidCount) 期。"
-            return (s + (p == .sharp ? "账户里留够钱，别透支。" : p == .cheer ? "快还完啦，坚持住！" : p == .calm ? "" : "账户里留够就好。"), plan, nil)
+            let s = tr("「\(next.0.name)」\(when)扣 \(next.0.perPayment.rounded)，还剩 \(next.0.count - next.0.paidCount) 期。")
+            return (s + (p == .sharp ? tr("账户里留够钱，别透支。") : p == .cheer ? tr("快还完啦，坚持住！") : p == .calm ? "" : tr("账户里留够就好。")), plan, nil)
         }
         if let soon = mine.filter({ $0.dueDate != nil }).min(by: { $0.dueDate! < $1.dueDate! }), let due = soon.dueDate {
-            return ("欠\(soon.counterparty)的 \(soon.outstanding.rounded) 要在 \(due.short) 前还。" + (p == .calm ? "" : "到时候我提醒你。"), plan, nil)
+            return (tr("欠\(soon.counterparty)的 \(soon.outstanding.rounded) 要在 \(due.short) 前还。") + (p == .calm ? "" : tr("到时候我提醒你。")), plan, nil)
         }
-        return (model.voiced("这些都已经算进家底了。", .neutral), plan, nil)
+        return (model.voiced(tr("这些都已经算进家底了。"), .neutral), plan, nil)
     }
 
     private var addButtons: some View {
         HStack(spacing: 8) {
-            Button { model.sheet = .newInstallment } label: { Label("记分期", systemImage: "plus") }
+            Button { model.sheet = .newInstallment } label: { Label(tr("记分期"), systemImage: "plus") }
                 .buttonStyle(.soft)
-                .help("登记一笔分期：手机、家电、店里的设备")
-            Button { model.sheet = .newDebt } label: { Label("记借款", systemImage: "plus") }
+                .help(tr("登记一笔分期：手机、家电、店里的设备"))
+            Button { model.sheet = .newDebt } label: { Label(tr("记借款"), systemImage: "plus") }
                 .buttonStyle(.soft)
-                .help("登记谁欠谁：借给别人或跟别人借")
+                .help(tr("登记谁欠谁：借给别人或跟别人借"))
         }
     }
 
@@ -224,9 +224,9 @@ struct DebtsPage: View {
         let total = lines.reduce(Money.zero) { $0 + $1.outstanding }
         let maxRows = short ? 3 : 6
         return VStack(alignment: .leading, spacing: 2) {
-            header("我欠的", total, hint: lines.isEmpty ? nil : "本月要还的在前")
+            header(tr("我欠的"), total, hint: lines.isEmpty ? nil : tr("本月要还的在前"))
             if lines.isEmpty {
-                Text("什么都不欠。分期买东西点「记分期」，跟别人借钱点「记借款」。")
+                Text(tr("什么都不欠。分期买东西点「记分期」，跟别人借钱点「记借款」。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(lines.prefix(maxRows)) { l in
@@ -234,7 +234,7 @@ struct DebtsPage: View {
                 if l.id != lines.prefix(maxRows).last?.id { Divider().padding(.leading, 44) }
             }
             if lines.count > maxRows {
-                Text("还有 \(lines.count - maxRows) 笔，跟夏夏说「列出我所有的欠款和分期」。").font(.caption).foregroundStyle(Color.fg2).padding(.top, 4)
+                Text(tr("还有 \(lines.count - maxRows) 笔，跟夏夏说「列出我所有的欠款和分期」。")).font(.caption).foregroundStyle(Color.fg2).padding(.top, 4)
             }
             if !short, let tip = repayTip(installments: installments, borrowed: borrowed) {
                 repayFooter(tip)
@@ -255,25 +255,25 @@ struct DebtsPage: View {
         var s: String
         let planned = borrowed.filter { model.ledger.planProgress($0.id) != nil }
         if let d = borrowed.first(where: \.overdue), model.ledger.planProgress(d.id) == nil {
-            s = "欠\(d.counterparty)的 \(d.outstanding.rounded) 已经过了约定的日子。点「⋯」可以排个每月还一点的计划。"
+            s = tr("欠\(d.counterparty)的 \(d.outstanding.rounded) 已经过了约定的日子。点「⋯」可以排个每月还一点的计划。")
         } else if let d = borrowed.first(where: { model.ledger.planProgress($0.id) == nil && $0.dueDate == nil }) {
-            s = "欠\(d.counterparty)的 \(d.outstanding.rounded) 还没约哪天还。点「⋯ → 排个还款计划」，分几个月还就不吃力。"
+            s = tr("欠\(d.counterparty)的 \(d.outstanding.rounded) 还没约哪天还。点「⋯ → 排个还款计划」，分几个月还就不吃力。")
         } else if let d = borrowed.compactMap({ d in Plans.repaymentPlan(d, today: today).map { (d, $0) } })
                     .filter({ x in !planned.contains { $0.id == x.0.id } }).min(by: { $0.0.dueDate! < $1.0.dueDate! }) {
             s = d.1.months == 1
-                ? "欠\(d.0.counterparty)的 \(d.0.outstanding.rounded) 这个月要还清。"
-                : "欠\(d.0.counterparty)的 \(d.0.outstanding.rounded)，每月还 \(d.1.perMonth.rounded)，\(d.1.months) 个月就清了。"
+                ? tr("欠\(d.0.counterparty)的 \(d.0.outstanding.rounded) 这个月要还清。")
+                : tr("欠\(d.0.counterparty)的 \(d.0.outstanding.rounded)，每月还 \(d.1.perMonth.rounded)，\(d.1.months) 个月就清了。")
         } else {
-            s = "都排好了，按时还就行。"
+            s = tr("都排好了，按时还就行。")
         }
         if joke {
-            s += p == .sharp ? "要不……我们想个法子赖掉吧？😏" : "要不然我们想个法子赖掉吧！😜"
+            s += p == .sharp ? tr("要不……我们想个法子赖掉吧？😏") : tr("要不然我们想个法子赖掉吧！😜")
         } else {
             let tail: String = switch p {
-            case .gentle: "我帮你看看哪里能省出来。"
-            case .sharp: "从外卖里抠一点，够了。"
+            case .gentle: tr("我帮你看看哪里能省出来。")
+            case .sharp: tr("从外卖里抠一点，够了。")
             case .calm: ""
-            case .cheer: "省一点点就能早点还完，一起加油！"
+            case .cheer: tr("省一点点就能早点还完，一起加油！")
             }
             s += tail
         }
@@ -289,9 +289,9 @@ struct DebtsPage: View {
                     Text(tip).font(.callout).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     Button {
-                        ask("我还欠的分期和借款都在「欠款与分期」页上。看看我这个月哪些分类花多了、能省出多少，帮我排一个还钱计划：每月还多少、哪个月能还清；"
-                            + "我同意的话用 plan_debt 写进去。（你要是开玩笑说赖掉、我也附和，记得说是逗我的，拉回还钱计划。）", page: "欠款与分期")
-                    } label: { Label("帮我排还钱计划", systemImage: "sparkles") }
+                        ask(tr("我还欠的分期和借款都在「欠款与分期」页上。看看我这个月哪些分类花多了、能省出多少，帮我排一个还钱计划：每月还多少、哪个月能还清；")
+                            + tr("我同意的话用 plan_debt 写进去。（你要是开玩笑说赖掉、我也附和，记得说是逗我的，拉回还钱计划。）"), page: "欠款与分期")
+                    } label: { Label(tr("帮我排还钱计划"), systemImage: "sparkles") }
                         .buttonStyle(.softAI)
                 }
             }
@@ -304,9 +304,9 @@ struct DebtsPage: View {
 
     private func owedToMeCard(_ lines: [DebtLine]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            header("欠我的", lines.reduce(Money.zero) { $0 + $1.outstanding }, hint: nil)
+            header(tr("欠我的"), lines.reduce(Money.zero) { $0 + $1.outstanding }, hint: nil)
             if lines.isEmpty {
-                Text("没有借出去还没收回的钱。借给别人时点「记借款」。")
+                Text(tr("没有借出去还没收回的钱。借给别人时点「记借款」。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(lines.prefix(short ? 3 : 6)) { l in
@@ -346,7 +346,7 @@ struct DebtsPage: View {
             let p = model.ledger.planProgress(d.id)
             let plan = model.ledger.debts.first { $0.id == d.id }?.plan
             out.append(DebtLine(id: d.id, kind: p == nil ? .debt : .plannedDebt,
-                                name: d.direction == .theyOweMe ? "\(d.counterparty)欠我" : "欠\(d.counterparty)",
+                                name: d.direction == .theyOweMe ? tr("\(d.counterparty)欠我") : tr("欠\(d.counterparty)"),
                                 theyOweMe: d.direction == .theyOweMe, outstanding: d.outstanding,
                                 paidCount: p?.paidCount ?? 0, count: p?.count ?? 0,
                                 nextDate: p?.nextDate ?? d.dueDate, nextAmount: p?.nextAmount ?? d.outstanding,
@@ -432,8 +432,8 @@ struct DebtLineRow: View {
 
     private var tagText: String? {
         switch line.kind {
-        case .installment: "分期"
-        case .plannedDebt: "计划"
+        case .installment: tr("分期")
+        case .plannedDebt: tr("计划")
         case .debt: nil
         }
     }
@@ -451,15 +451,15 @@ struct DebtLineRow: View {
         let l = line
         let today = LocalDate.today
         var parts: [String] = []
-        if l.count > 0 { parts.append("第 \(l.paidCount) / \(l.count) 期，还剩 \(l.count - l.paidCount) 期") }
-        else if l.repaid.cents > 0 { parts.append("已还 \(l.repaid.rounded)") }
+        if l.count > 0 { parts.append(tr("第 \(l.paidCount) / \(l.count) 期，还剩 \(l.count - l.paidCount) 期")) }
+        else if l.repaid.cents > 0 { parts.append(tr("已还 \(l.repaid.rounded)")) }
         if let n = l.nextDate {
             let days = today.days(until: n)
-            if l.overdue { parts.append("\(l.count > 0 ? "这期" : "")过期 \(max(1, -days)) 天") }
-            else if l.count > 0 { parts.append((days <= 2 ? Nudges.dayWord(days) : "下一期 \(n.short)") + " \(l.nextAmount.rounded)") }
-            else { parts.append(days <= 2 ? "\(Nudges.dayWord(days))到期" : "\(n.short) 前还") }
+            if l.overdue { parts.append(tr("\(l.count > 0 ? tr("这期") : "")过期 \(max(1, -days)) 天")) }
+            else if l.count > 0 { parts.append((days <= 2 ? Nudges.dayWord(days) : tr("下一期 \(n.short)")) + " \(l.nextAmount.rounded)") }
+            else { parts.append(days <= 2 ? tr("\(Nudges.dayWord(days))到期") : tr("\(n.short) 前还")) }
         } else if l.kind == .debt {
-            parts.append("没约日子")
+            parts.append(tr("没约日子"))
         }
         if let b = l.bookName { parts.append(b) }
         return parts.joined(separator: " · ")
@@ -483,9 +483,9 @@ struct PayoffTimeline: View {
                 Image(systemName: "flag.checkered").foregroundStyle(Color.brand)
                 Group {
                     if let all = o.allClear {
-                        Text("照现在的还法，") + em("\(all.year) 年 \(all.month) 月") + Text(" 全部还清")
+                        Text(tr("照现在的还法，")) + em(tr("\(all.year) 年 \(all.month) 月")) + Text(tr(" 全部还清"))
                     } else {
-                        Text("有 \(o.undatedCount) 笔没约日子，排个计划就能算出哪个月全部还清")
+                        Text(tr("有 \(o.undatedCount) 笔没约日子，排个计划就能算出哪个月全部还清"))
                     }
                 }
                 .font(.callout)
@@ -516,7 +516,7 @@ struct PayoffTimeline: View {
             }
             .frame(height: dated.count > 1 ? 44 : 30)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(dated.map { "\($0.name) \($0.finish!.year) 年 \($0.finish!.month) 月还清" }.joined(separator: "，"))
+            .accessibilityLabel(dated.map { tr("\($0.name) \($0.finish!.year) 年 \($0.finish!.month) 月还清") }.joined(separator: "，"))
             }
         }
     }

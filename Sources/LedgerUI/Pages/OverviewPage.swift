@@ -14,8 +14,8 @@ struct OverviewPage: View {
             StartLedgerView().kitPage()
             #else
             VStack(spacing: Kit.gap) {
-                KitEmptyState(title: "账本还是空的",
-                              message: "把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」。哪家银行、什么格式都行，导好就会出现在这里。",
+                KitEmptyState(title: tr("账本还是空的"),
+                              message: tr("把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」。哪家银行、什么格式都行，导好就会出现在这里。"),
                               prompt: "这是我的银行对账单，帮我整理好导进夏夏账本", page: "总览")
                     .kitCard()
                 AskAICard(page: "总览", prompts: model.prompts(for: .overview))
@@ -40,7 +40,7 @@ struct OverviewPage: View {
             let others = model.ledger.insights(month: model.shownMonth, bookID: book).filter { $0.id != main?.id }
             let insights = Array(([main].compactMap { $0 } + others).prefix(max(0, 6 - nudges.count)))
             if nudges.isEmpty && insights.isEmpty {
-                XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
+                XiaxiaSays(page: "overview", pageName: tr("总览"), sentence: xiaxia(status),
                            question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
             } else {
                 XiaxiaCards(nudges: nudges, insights: insights)
@@ -61,14 +61,14 @@ struct OverviewPage: View {
     private func xiaxia(_ s: MonthStatus) -> String {
         let m = s.month.month
         if s.summary.income.cents == 0 && s.summary.expense.cents == 0 {
-            return model.voiced("\(m) 月还没有流水，导进来我再帮你看。", .neutral)
+            return model.voiced(tr("\(m) 月还没有流水，导进来我再帮你看。"), .neutral)
         }
         if s.isCurrent, let end = s.projectedEnd {
-            return end.isExpense ? model.voiced("照这样下去，\(m) 月底大概会超支 \(end.magnitude.rounded)。", .bad)
-                : model.voiced("照这样下去，\(m) 月底大概能剩 \(end.rounded)。", .good)
+            return end.isExpense ? model.voiced(tr("照这样下去，\(m) 月底大概会超支 \(end.magnitude.rounded)。"), .bad)
+                : model.voiced(tr("照这样下去，\(m) 月底大概能剩 \(end.rounded)。"), .good)
         }
-        return s.net.isExpense ? model.voiced("\(m) 月花得比挣得多，超支了 \(s.net.magnitude.rounded)。", .bad)
-            : model.voiced("\(m) 月剩下了 \(s.net.rounded)。", .good)
+        return s.net.isExpense ? model.voiced(tr("\(m) 月花得比挣得多，超支了 \(s.net.magnitude.rounded)。"), .bad)
+            : model.voiced(tr("\(m) 月剩下了 \(s.net.rounded)。"), .good)
     }
 
     // MARK: 结论大数字
@@ -76,11 +76,11 @@ struct OverviewPage: View {
     private func heroCard(_ s: MonthStatus) -> some View {
         let m = s.month.month
         let over = s.net.isExpense
-        let label = s.isCurrent ? "\(m) 月\(over ? "超支" : "还剩") · 截至 \(s.dayOfMonth) 日" : "\(m) 月\(over ? "超支了" : "剩了")"
+        let label = s.isCurrent ? tr("\(m) 月\(over ? tr("超支") : tr("还剩")) · 截至 \(s.dayOfMonth) 日") : tr("\(m) 月\(over ? tr("超支了") : tr("剩了"))")
         return VStack(alignment: .leading, spacing: short ? 8 : 14) {
             if s.summary.income.cents == 0 && s.summary.expense.cents == 0 {
-                KitEmptyState(symbol: "calendar", title: "\(m) 月还没有流水",
-                              message: "新的流水导进来后，这里会画出花钱速度。跟 AI 说一句就能导。",
+                KitEmptyState(symbol: "calendar", title: tr("\(m) 月还没有流水"),
+                              message: tr("新的流水导进来后，这里会画出花钱速度。跟 AI 说一句就能导。"),
                               prompt: "这是我 \(m) 月的银行对账单，帮我整理好导进夏夏账本", page: "总览")
             } else {
                 KeyFigure(label: label, money: s.net.magnitude, color: over ? .alert : .primary,
@@ -95,25 +95,25 @@ struct OverviewPage: View {
 
     private func sentence(_ s: MonthStatus) -> Text {
         let delta = s.deltaVsLastMonth
-        let lastName = "\(s.month.previous.month) 月"
+        let lastName = tr("\(s.month.previous.month) 月")
         var t: Text
         if delta.cents == 0 {
-            t = Text("和\(s.isCurrent ? "上月同期" : lastName)剩得一样。")
+            t = Text(tr("和\(s.isCurrent ? tr("上月同期") : lastName)剩得一样。"))
         } else if delta.isIncome {
-            t = Text("比\(s.isCurrent ? "上月同期" : lastName)多剩 ") + em(delta.rounded, .good) + Text("。")
+            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)多剩 ")) + em(delta.rounded, .good) + Text("。")
         } else {
-            t = Text("比\(s.isCurrent ? "上月同期" : lastName)少剩 ") + em(delta.magnitude.rounded, .bad) + Text("。")
+            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)少剩 ")) + em(delta.magnitude.rounded, .bad) + Text("。")
         }
         if s.isCurrent {
-            t = t + Text("花钱速度\(s.paceWord)")
+            t = t + Text(tr("花钱速度\(s.paceWord)"))
             if let end = s.projectedEnd {
-                t = t + Text(end.isExpense ? "，照这样月底约超支 " : "，照这样月底约剩 ") + em(end.magnitude.rounded, end.isExpense ? .bad : .plain) + Text("。")
+                t = t + Text(end.isExpense ? tr("，照这样月底约超支 ") : tr("，照这样月底约剩 ")) + em(end.magnitude.rounded, end.isExpense ? .bad : .plain) + Text("。")
             } else {
                 t = t + Text("。")
             }
         }
         if s.summary.betweenBooks.cents != 0, let book = model.selectedBookID {
-            t = t + Text("另外\(Reports.betweenBooksLabel(s.summary.betweenBooks, bookID: book, books: model.ledger.books)) \(s.summary.betweenBooks.magnitude.rounded)，不算收支。")
+            t = t + Text(tr("另外\(Reports.betweenBooksLabel(s.summary.betweenBooks, bookID: book, books: model.ledger.books)) \(s.summary.betweenBooks.magnitude.rounded)，不算收支。"))
                 .foregroundColor(.fg2)
         }
         return t
@@ -121,7 +121,7 @@ struct OverviewPage: View {
 
     private func spoken(_ s: MonthStatus, label: String) -> String {
         let delta = s.deltaVsLastMonth
-        return "\(label) \(s.net.magnitude.spoken)，比上月同期\(delta.isExpense ? "少" : "多") \(delta.magnitude.rounded)。"
+        return tr("\(label) \(s.net.magnitude.spoken)，比上月同期\(delta.isExpense ? tr("少") : tr("多")) \(delta.magnitude.rounded)。")
     }
 
     // MARK: 最近流水
@@ -130,8 +130,8 @@ struct OverviewPage: View {
         // 开账余额、自己账户之间互转不算收支，不占「最近流水」的位置（流水页里都还在）。
         let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(short ? 3 : 4))
         return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader(title: "最近流水") {
-                MoreLink(title: "全部", section: .transactions)
+            SectionHeader(title: tr("最近流水")) {
+                MoreLink(title: tr("全部"), section: .transactions)
             }
             .padding(.bottom, 4)
             ForEach(recent) { t in
@@ -148,7 +148,7 @@ struct OverviewPage: View {
     private var booksCard: some View {
         let months = Reports.months(endingAt: model.shownMonth, count: 6)
         return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader("各个账本").padding(.bottom, 4)
+            SectionHeader(tr("各个账本")).padding(.bottom, 4)
             ForEach(model.ledger.books) { book in
                 let list = Reports.summaries(model.baseTransactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
                 let now = list.last ?? Summaries.monthly(model.baseTransactions, month: model.shownMonth, bookID: book.id)
@@ -163,15 +163,15 @@ struct OverviewPage: View {
                             .frame(width: 60, height: 22)
                         VStack(alignment: .trailing, spacing: 0) {
                             Text(now.net.balance).font(.kitAmount).foregroundStyle(now.net.isExpense ? Color.alert : .primary)
-                            Text(now.net.isExpense ? "本月超支" : "本月剩下").font(.caption2).foregroundStyle(Color.fg2)
+                            Text(now.net.isExpense ? tr("本月超支") : tr("本月剩下")).font(.caption2).foregroundStyle(Color.fg2)
                         }
                     }
                     .padding(.vertical, 5)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(book.name)：本月\(now.net.isExpense ? "超支" : "剩下") \(now.net.magnitude.spoken)")
-                .accessibilityHint("只看这个账本")
+                .accessibilityLabel(tr("\(book.name)：本月\(now.net.isExpense ? tr("超支") : tr("剩下")) \(now.net.magnitude.spoken)"))
+                .accessibilityHint(tr("只看这个账本"))
                 if book.id != model.ledger.books.last?.id { Divider().padding(.leading, 34) }
             }
         }

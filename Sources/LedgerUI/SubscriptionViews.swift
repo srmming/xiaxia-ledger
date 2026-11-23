@@ -24,7 +24,7 @@ struct SubscriptionsPage: View {
             } side: {
                 if !soon.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader("分期也快扣了")
+                        SectionHeader(tr("分期也快扣了"))
                         ForEach(soon) { s in
                             HStack(spacing: 10) {
                                 CategoryIcon(category: "分期", size: 26)
@@ -41,7 +41,7 @@ struct SubscriptionsPage: View {
                 if !found.isEmpty { SubscriptionsCard(part: .found, maxFound: short ? 3 : 6) }
                 // 窗口矮又有「流水里像订阅的」时，问夏夏那张先不放（夏夏卡上已经有按钮），一屏放下。
                 if !(short && !found.isEmpty) {
-                AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: Array(model.prompts(for: .subscriptions).prefix(found.isEmpty ? 3 : 2)))
+                AskAICard(title: tr("让夏夏帮你看订阅"), note: nil, page: "订阅", prompts: Array(model.prompts(for: .subscriptions).prefix(found.isEmpty ? 3 : 2)))
                 }
             }
         }
@@ -57,36 +57,36 @@ struct SubscriptionsXiaxia: View {
     var body: some View {
         let book = model.selectedBookID
         let list = model.subscriptionStatus.filter { book == nil || $0.bookID == nil || $0.bookID == book }
-        XiaxiaSays(page: "subscriptions", pageName: "订阅", sentence: sentence(list),
+        XiaxiaSays(page: "subscriptions", pageName: tr("订阅"), sentence: sentence(list),
                    question: "帮我看看我的订阅：哪些涨价了、哪些可能很久没用、退掉哪个最划算？一个一个问我常不常用，我说很少用的用 edit_subscription 标 rarely_used=true。")
     }
 
     private func sentence(_ list: [SubscriptionStatus]) -> String {
         let active = list.filter { $0.cancelledOn == nil }
         let base = model.ledger.baseCurrency
-        guard !active.isEmpty else { return model.voiced("还没有登记订阅。让我从流水里找找？", .neutral) }
+        guard !active.isEmpty else { return model.voiced(tr("还没有登记订阅。让我从流水里找找？"), .neutral) }
         let review = active.filter(\.worthReviewing)
         let p = model.persona
         if !review.isEmpty {
             let names = review.prefix(2).map { s -> String in
-                s.priceUp ? "「\(s.name)」刚涨价" : "「\(s.name)」你说很少用"
+                s.priceUp ? tr("「\(s.name)」刚涨价") : tr("「\(s.name)」你说很少用")
             }.joined(separator: "，")
             let monthly = review.reduce(Money.zero) { $0 + $1.monthlyBase }
-            let more = review.count > 2 ? "，还有 \(review.count - 2) 个" : ""
+            let more = review.count > 2 ? tr("，还有 \(review.count - 2) 个") : ""
             // 一句话说完（每月多少顶上那条有），夏夏卡矮一点，一屏放得下。
-            let s = "\(names)\(more)，一年加起来 \(Money(cents: monthly.cents * 12).rounded)，可以考虑退。"
+            let s = tr("\(names)\(more)，一年加起来 \(Money(cents: monthly.cents * 12).rounded)，可以考虑退。")
             return switch p {
-            case .sharp: s + "不用还交钱，图什么？"
-            case .cheer: s + "退掉的钱拿去存目标吧～"
-            case .gentle: s + "要我帮你一个个看看吗？"
+            case .sharp: s + tr("不用还交钱，图什么？")
+            case .cheer: s + tr("退掉的钱拿去存目标吧～")
+            case .gentle: s + tr("要我帮你一个个看看吗？")
             case .calm: s
             }
         }
         if let next = active.first(where: \.isDueVerySoon), let d = next.daysLeft {
-            return model.voiced("「\(next.name)」\(Nudges.dayWord(d))扣 \(next.amount.ui(in: next.currency))，账户里留够钱。", .neutral)
+            return model.voiced(tr("「\(next.name)」\(Nudges.dayWord(d))扣 \(next.amount.ui(in: next.currency))，账户里留够钱。"), .neutral)
         }
         let t = Subscriptions.totals(active)
-        return model.voiced("每月固定扣 \(t.monthly.ui(in: base))，一年约 \(t.yearly.rounded)。暂时没看到白花的。", .good)
+        return model.voiced(tr("每月固定扣 \(t.monthly.ui(in: base))，一年约 \(t.yearly.rounded)。暂时没看到白花的。"), .good)
     }
 }
 
@@ -109,9 +109,9 @@ struct SubscriptionTotalsStrip: View {
                 VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
             }
             Spacer(minLength: 12)
-            Button { adding = SubscriptionDraft(model: model) } label: { Label("登记订阅", systemImage: "plus") }
+            Button { adding = SubscriptionDraft(model: model) } label: { Label(tr("登记订阅"), systemImage: "plus") }
                 .buttonStyle(.soft)
-                .help("登记一个订阅")
+                .help(tr("登记一个订阅"))
         }
         .kitCard(padding: compact ? 14 : 18)
         .accessibilityElement(children: .contain)
@@ -125,11 +125,11 @@ struct SubscriptionTotalsStrip: View {
     }
 
     @ViewBuilder private func figures(_ t: SubscriptionTotals, _ base: String, size: CGFloat) -> some View {
-        figure("每月共", t.monthly.ui(in: base), note: "\(t.activeCount) 个在续", color: .primary, size: size)
-        figure("一年共", Money(cents: (t.yearly.cents + 50) / 100 * 100).rounded, note: "年付的也摊进来了", color: .primary, size: size)
-        figure("这周要扣", "\(t.weekCount) 笔", note: t.weekCount > 0 ? "共 \(t.weekAmount.ui(in: base))" : "这周没有", color: t.weekCount > 0 ? .warn : .fg2, size: size)
+        figure(tr("每月共"), t.monthly.ui(in: base), note: tr("\(t.activeCount) 个在续"), color: .primary, size: size)
+        figure(tr("一年共"), Money(cents: (t.yearly.cents + 50) / 100 * 100).rounded, note: tr("年付的也摊进来了"), color: .primary, size: size)
+        figure(tr("这周要扣"), tr("\(t.weekCount) 笔"), note: t.weekCount > 0 ? tr("共 \(t.weekAmount.ui(in: base))") : tr("这周没有"), color: t.weekCount > 0 ? .warn : .fg2, size: size)
         if t.reviewCount > 0 {
-            figure("可以考虑退", "\(t.reviewCount) 个", note: "每月 \(t.reviewMonthly.ui(in: base))", color: .alert, size: size)
+            figure(tr("可以考虑退"), tr("\(t.reviewCount) 个"), note: tr("每月 \(t.reviewMonthly.ui(in: base))"), color: .alert, size: size)
         }
     }
 
@@ -174,20 +174,20 @@ struct SubscriptionsCard: View {
 
         VStack(alignment: .leading, spacing: 10) {
             if part != .found {
-            SectionHeader(title: "订阅") {
+            SectionHeader(title: tr("订阅")) {
                 HStack(spacing: 10) {
-                    if !active.isEmpty { Text("按下次扣款排").font(.caption).foregroundStyle(Color.fg2) }
+                    if !active.isEmpty { Text(tr("按下次扣款排")).font(.caption).foregroundStyle(Color.fg2) }
                     Button { editing = SubscriptionDraft(model: model) } label: { Image(systemName: "plus") }
                         .buttonStyle(.borderless)
-                        .help("登记一个订阅")
-                        .accessibilityLabel("登记订阅")
+                        .help(tr("登记一个订阅"))
+                        .accessibilityLabel(tr("登记订阅"))
                         .accessibilityIdentifier("addSubscription")
                 }
             }
 
             if active.isEmpty {
-                Text(found.isEmpty ? "会员、软件、健身房、云盘……每月或每年固定扣的钱，登记在这里，就知道一个月一共在扣多少。"
-                                   : "还没有登记订阅。下面是流水里看着像订阅的，点「加上」确认一下。")
+                Text(found.isEmpty ? tr("会员、软件、健身房、云盘……每月或每年固定扣的钱，登记在这里，就知道一个月一共在扣多少。")
+                                   : tr("还没有登记订阅。下面是流水里看着像订阅的，点「加上」确认一下。"))
                     .font(.subheadline).foregroundStyle(Color.fg2)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -211,7 +211,7 @@ struct SubscriptionsCard: View {
                                 }
                             }
                         } label: {
-                            Text("还有 \(ordered.count - cut) 个，往后扣的").font(.caption).foregroundStyle(Color.fg2)
+                            Text(tr("还有 \(ordered.count - cut) 个，往后扣的")).font(.caption).foregroundStyle(Color.fg2)
                         }
                     }
                 } else {
@@ -231,9 +231,9 @@ struct SubscriptionsCard: View {
                                 HStack {
                                     Text(g.title).font(.subheadline.weight(.semibold))
                                         .foregroundStyle(g.kind == .review ? Color.alert : Color.primary)
-                                    Text("\(g.items.count) 个").font(.caption).foregroundStyle(Color.fg2)
+                                    Text(tr("\(g.items.count) 个")).font(.caption).foregroundStyle(Color.fg2)
                                     Spacer()
-                                    Text(g.items.reduce(Money.zero) { $0 + $1.monthlyBase }.ui(in: base) + "/月")
+                                    Text(g.items.reduce(Money.zero) { $0 + $1.monthlyBase }.ui(in: base) + tr("/月"))
                                         .font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
                                 }
                             }
@@ -245,11 +245,11 @@ struct SubscriptionsCard: View {
             }
             if !found.isEmpty && part != .list {
                 if part == .all { Divider().padding(.vertical, 2) }
-                Label("流水里像订阅的 \(found.count) 个", systemImage: "sparkle.magnifyingglass")
+                Label(tr("流水里像订阅的 \(found.count) 个"), systemImage: "sparkle.magnifyingglass")
                     .font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
                 ForEach(found.prefix(maxFound)) { c in candidateRow(c) }
                 if found.count > maxFound {
-                    Text("还有 \(found.count - maxFound) 个，跟夏夏说「帮我把流水里的订阅都找出来」一起处理。")
+                    Text(tr("还有 \(found.count - maxFound) 个，跟夏夏说「帮我把流水里的订阅都找出来」一起处理。"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
             }
@@ -258,7 +258,7 @@ struct SubscriptionsCard: View {
                 DisclosureGroup(isExpanded: $showCancelled) {
                     VStack(spacing: 0) { ForEach(stopped) { row($0) } }
                 } label: {
-                    Text("已经停了的 \(stopped.count) 个").font(.caption).foregroundStyle(Color.fg2)
+                    Text(tr("已经停了的 \(stopped.count) 个")).font(.caption).foregroundStyle(Color.fg2)
                 }
             }
         }
@@ -270,13 +270,13 @@ struct SubscriptionsCard: View {
                 .frame(width: 480, height: 520)
                 #endif
         }
-        .confirmationDialog("删除订阅「\(confirmDelete?.name ?? "")」？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+        .confirmationDialog(tr("删除订阅「\(confirmDelete?.name ?? "")」？"), isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                             titleVisibility: .visible) {
-            Button("删除", role: .destructive) {
+            Button(tr("删除"), role: .destructive) {
                 if let s = confirmDelete { model.perform { try $0.removeSubscription(s.id, author: model.author) } }
                 confirmDelete = nil
             }
-        } message: { Text("只删登记，不动流水。不再续费请用「不续了」，能留着记录。删错了可以撤销。") }
+        } message: { Text(tr("只删登记，不动流水。不再续费请用「不续了」，能留着记录。删错了可以撤销。")) }
     }
 
     /// 一行一个，行矮（一屏放 10 来个）：图标、名字、金额、几天后扣；3 天内要扣的、可以考虑退的标出来。
@@ -290,7 +290,7 @@ struct SubscriptionsCard: View {
                         .foregroundStyle(stopped ? Color.fg3 : Color.primary)
                     if s.reviewReason != nil {
                         // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
-                        Text("可以考虑退").font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
+                        Text(tr("可以考虑退")).font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.alertSoft, in: Capsule())
                             .lineLimit(1).fixedSize()
@@ -300,7 +300,7 @@ struct SubscriptionsCard: View {
             }
             Spacer(minLength: 6)
             if !stopped, let d = s.daysLeft {
-                Text(d == 0 ? "今天扣" : d <= 2 ? Nudges.dayWord(d) + "扣" : "\(d) 天后")
+                Text(d == 0 ? tr("今天扣") : d <= 2 ? Nudges.dayWord(d) + tr("扣") : tr("\(d) 天后"))
                     .font(.caption.weight(s.isDueVerySoon ? .semibold : .regular))
                     .foregroundStyle(s.isDueVerySoon ? Color.warn : Color.fg2)
                     .padding(.horizontal, s.isDueVerySoon ? 6 : 0).padding(.vertical, s.isDueVerySoon ? 1 : 0)
@@ -321,15 +321,15 @@ struct SubscriptionsCard: View {
     private func detail(_ s: SubscriptionStatus) -> String {
         var parts = [s.cycle.label]
         if let why = s.reviewReason { parts.insert(why, at: 0) }
-        if let c = s.cancelledOn { parts.append("\(c.short)停了") }
+        if let c = s.cancelledOn { parts.append(tr("\(c.short)停了")) }
         else {
-            if s.cycle != .monthly { parts.append("折合每月 \(s.monthlyAmount.ui(in: s.currency))") }
+            if s.cycle != .monthly { parts.append(tr("折合每月 \(s.monthlyAmount.ui(in: s.currency))")) }
             else if let n = s.nextDate { parts.append(n.short) }
             if s.currency != model.ledger.baseCurrency {
                 parts.append("≈ " + model.ledger.toBase(s.amount, currency: s.currency, on: .today).ui(in: model.ledger.baseCurrency))
             }
         }
-        if s.priceChanged, let last = s.lastChargeAmount { parts.append("最近扣了 \(last.ui(in: s.currency))") }
+        if s.priceChanged, let last = s.lastChargeAmount { parts.append(tr("最近扣了 \(last.ui(in: s.currency))")) }
         if let a = s.accountID, model.ledger.accounts.count > 1 { parts.append(model.accountName(a)) }
         return parts.joined(separator: " · ")
     }
@@ -337,37 +337,37 @@ struct SubscriptionsCard: View {
     private func menu(_ s: SubscriptionStatus) -> some View {
         Menu {
             if let sub = model.ledger.subscriptions.first(where: { $0.id == s.id }) {
-                Button { editing = SubscriptionDraft(sub, model: model) } label: { Label("改…", systemImage: "pencil") }
+                Button { editing = SubscriptionDraft(sub, model: model) } label: { Label(tr("改…"), systemImage: "pencil") }
                 if s.priceChanged, let last = s.lastChargeAmount {
                     Button {
                         var u = sub; u.amount = last
                         model.perform { try $0.editSubscription(u, author: model.author) }
-                    } label: { Label("按最近一次改成 \(last.ui(in: s.currency))", systemImage: "arrow.up.circle") }
+                    } label: { Label(tr("按最近一次改成 \(last.ui(in: s.currency))"), systemImage: "arrow.up.circle") }
                 }
                 if sub.isActive {
                     Button {
                         var u = sub; u.rarelyUsed = sub.rarelyUsed == true ? nil : true
                         model.perform { try $0.editSubscription(u, author: model.author) }
                     } label: {
-                        sub.rarelyUsed == true ? Label("其实常用（取消「可以考虑退」）", systemImage: "hand.thumbsup")
-                                               : Label("最近很少用（标「可以考虑退」）", systemImage: "hand.thumbsdown")
+                        sub.rarelyUsed == true ? Label(tr("其实常用（取消「可以考虑退」）"), systemImage: "hand.thumbsup")
+                                               : Label(tr("最近很少用（标「可以考虑退」）"), systemImage: "hand.thumbsdown")
                     }
                     Button { model.perform { try $0.cancelSubscription(sub.id, author: model.author) } } label: {
-                        Label("不续了", systemImage: "stop.circle")
+                        Label(tr("不续了"), systemImage: "stop.circle")
                     }
                 } else {
                     Button {
                         var u = sub; u.cancelledOn = nil
                         model.perform { try $0.editSubscription(u, author: model.author) }
-                    } label: { Label("又续上了", systemImage: "arrow.clockwise.circle") }
+                    } label: { Label(tr("又续上了"), systemImage: "arrow.clockwise.circle") }
                 }
-                Button(role: .destructive) { confirmDelete = sub } label: { Label("删除…", systemImage: "trash") }
+                Button(role: .destructive) { confirmDelete = sub } label: { Label(tr("删除…"), systemImage: "trash") }
             }
         } label: {
             Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
         }
         .menuStyle(.button).buttonStyle(.borderless).fixedSize()
-        .accessibilityLabel("\(s.name) 的操作")
+        .accessibilityLabel(tr("\(s.name) 的操作"))
     }
 
     private func candidateRow(_ c: SubscriptionCandidate) -> some View {
@@ -375,13 +375,13 @@ struct SubscriptionsCard: View {
             CategoryIcon(category: subscriptionIcon(c.name, category: c.category), size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.name).font(.callout).lineLimit(1)
-                Text("\(c.cycle.label) \(c.amount.ui(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)")
+                Text(tr("\(c.cycle.label) \(c.amount.ui(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)"))
                     .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
             }
             Spacer(minLength: 8)
-            Button("加上") { editing = SubscriptionDraft(candidate: c, model: model) }
+            Button(tr("加上")) { editing = SubscriptionDraft(candidate: c, model: model) }
                 .buttonStyle(.bordered).controlSize(.small)
-                .accessibilityLabel("把 \(c.name) 登记成订阅")
+                .accessibilityLabel(tr("把 \(c.name) 登记成订阅"))
         }
         .padding(.vertical, 4)
     }
@@ -451,49 +451,49 @@ struct SubscriptionEditor: View {
     var body: some View {
         Form {
             Section {
-                FormField("名字", "比如「视频会员」", text: $draft.name)
+                FormField(tr("名字"), tr("比如「视频会员」"), text: $draft.name)
                 HStack {
-                    FormField("每次扣多少", "比如 13,99", text: $draft.amountText).decimalKeyboard()
-                    Picker("币种", selection: $draft.currency) {
+                    FormField(tr("每次扣多少"), tr("比如 13,99"), text: $draft.amountText).decimalKeyboard()
+                    Picker(tr("币种"), selection: $draft.currency) {
                         ForEach(currencyChoices, id: \.self) { Text(Currencies.info($0).symbol + " " + Currencies.info($0).name).tag($0) }
                     }
                     .labelsHidden().fixedSize()
-                    .accessibilityLabel("币种")
+                    .accessibilityLabel(tr("币种"))
                 }
-                Picker("多久扣一次", selection: $draft.cycle) {
+                Picker(tr("多久扣一次"), selection: $draft.cycle) {
                     ForEach(Subscription.Cycle.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
-                DatePicker("下次哪天扣", selection: $draft.nextDate, displayedComponents: .date)
+                DatePicker(tr("下次哪天扣"), selection: $draft.nextDate, displayedComponents: .date)
             } footer: {
                 if let amount { Text(verbatim: footer(amount)) }
             }
             Section {
-                Picker("从哪个账户扣", selection: $draft.accountID) {
-                    Text("不指定").tag("")
+                Picker(tr("从哪个账户扣"), selection: $draft.accountID) {
+                    Text(tr("不指定")).tag("")
                     ForEach(model.visibleAccounts) { Text($0.name).tag($0.id) }
                 }
                 if model.ledger.books.count > 1 {
-                    Picker("账本", selection: $draft.bookID) {
-                        Text("不指定").tag("")
+                    Picker(tr("账本"), selection: $draft.bookID) {
+                        Text(tr("不指定")).tag("")
                         ForEach(model.ledger.books) { Text($0.name).tag($0.id) }
                     }
                 }
-                FormField("分类", "比如「娱乐」", text: $draft.category)
-                FormField("流水里怎么认它", "商户名，比如 netflix", text: $draft.match)
+                FormField(tr("分类"), tr("比如「娱乐」"), text: $draft.category)
+                FormField(tr("流水里怎么认它"), tr("商户名，比如 netflix"), text: $draft.match)
             } footer: {
-                Text("写上商户名，app 会在流水里找它最近一次扣了多少；和登记的不一样会提醒你可能涨价了。")
+                Text(tr("写上商户名，app 会在流水里找它最近一次扣了多少；和登记的不一样会提醒你可能涨价了。"))
             }
             if draft.existing != nil {
-                Section { FormField("备注", "可以不填", text: $draft.note) }
+                Section { FormField(tr("备注"), tr("可以不填"), text: $draft.note) }
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(draft.existing == nil ? "登记订阅" : "改订阅")
+        .navigationTitle(draft.existing == nil ? tr("登记订阅") : tr("改订阅"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("保存", action: save)
+                Button(tr("保存"), action: save)
                     .disabled(amount == nil || draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
                     .keyboardShortcut(.defaultAction)
             }
@@ -516,9 +516,9 @@ struct SubscriptionEditor: View {
         let base = model.ledger.baseCurrency
         let monthly = perMonth(amount)
         var text = "\(draft.cycle.label) \(amount.ui(in: draft.currency))"
-        if draft.cycle != .monthly { text += "，摊到每月约 \(monthly.ui(in: draft.currency))" }
+        if draft.cycle != .monthly { text += tr("，摊到每月约 \(monthly.ui(in: draft.currency))") }
         if draft.currency != base {
-            text += "，约合 \(model.ledger.toBase(amount, currency: draft.currency, on: .today).ui(in: base))"
+            text += tr("，约合 \(model.ledger.toBase(amount, currency: draft.currency, on: .today).ui(in: base))")
         }
         return text + "。"
     }
@@ -575,19 +575,19 @@ func subscriptionIcon(_ name: String, category: String?) -> String {
     if let c = category, !c.isEmpty, c != "订阅" { return c }
     let n = name.lowercased()
     let rules: [([String], String)] = [
-        (["视频", "影视", "video", "stream", "netflix", "disney", "hbo", "youtube", "爱奇艺", "腾讯视频", "优酷", "bilibili", "b站"], "电影"),
-        (["音乐", "music", "spotify", "tune", "网易云", "qq音乐"], "音乐"),
-        (["健身", "gym", "fit", "瑜伽", "yoga"], "健身房"),
-        (["网站", "域名", "domain", "hosting", "服务器"], "网站"),
-        (["手机", "话费", "流量", "电话", "sim"], "通讯"),
-        (["宽带", "网费", "fibra", "internet"], "网费"),
-        (["保险", "seguro", "insurance"], "保险"),
-        (["读书", "书", "kindle", "阅读", "杂志", "报"], "书"),
-        (["云", "cloud", "icloud", "drive", "网盘", "存储"], "数码"),
-        (["收银", "pos", "刷卡"], "设备"),
-        (["字体", "font", "设计", "canva", "figma"], "文具"),
-        (["软件", "app", "系统", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
+        ([tr("视频"), tr("影视"), "video", "stream", "netflix", "disney", "hbo", "youtube", tr("爱奇艺"), tr("腾讯视频"), tr("优酷"), "bilibili", tr("b站")], tr("电影")),
+        ([tr("音乐"), "music", "spotify", "tune", tr("网易云"), tr("qq音乐")], tr("音乐")),
+        ([tr("健身"), "gym", "fit", tr("瑜伽"), "yoga"], tr("健身房")),
+        ([tr("网站"), tr("域名"), "domain", "hosting", tr("服务器")], tr("网站")),
+        ([tr("手机"), tr("话费"), tr("流量"), tr("电话"), "sim"], tr("通讯")),
+        ([tr("宽带"), tr("网费"), "fibra", "internet"], tr("网费")),
+        ([tr("保险"), "seguro", "insurance"], tr("保险")),
+        ([tr("读书"), tr("书"), "kindle", tr("阅读"), tr("杂志"), tr("报")], tr("书")),
+        ([tr("云"), "cloud", "icloud", "drive", tr("网盘"), tr("存储")], tr("数码")),
+        ([tr("收银"), "pos", tr("刷卡")], tr("设备")),
+        ([tr("字体"), "font", tr("设计"), "canva", "figma"], tr("文具")),
+        ([tr("软件"), "app", tr("系统"), "adobe", "office", "chatgpt", "claude", "ai "], tr("软件")),
     ]
     for (words, icon) in rules where words.contains(where: { n.contains($0) }) { return icon }
-    return "订阅"
+    return tr("订阅")
 }

@@ -18,7 +18,7 @@ struct DataSettingsPane: View {
 
     private var scope: WipeScope { bookID.map { .book($0) } ?? .everything }
     private var count: WipeCount { model.ledger.wipeCount(scope) }
-    private var scopeName: String { bookID.map { "「\(model.bookName($0))」账本" } ?? "全部数据" }
+    private var scopeName: String { bookID.map { tr("「\(model.bookName($0))」账本") } ?? tr("全部数据") }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -30,46 +30,46 @@ struct DataSettingsPane: View {
         .frame(maxWidth: .infinity)
         .kitPage()
         .onAppear { backups = model.backups }
-        .alert("要删掉\(scopeName)吗？", isPresented: $askFirst) {
-            Button("取消", role: .cancel) {}
-            Button("继续", role: .destructive) { typed = ""; askSecond = true }
+        .alert(tr("要删掉\(scopeName)吗？"), isPresented: $askFirst) {
+            Button(tr("取消"), role: .cancel) {}
+            Button(tr("继续"), role: .destructive) { typed = ""; askSecond = true }
         } message: {
-            Text("会删掉：\(count.text)。\(keepNote)\n\n删之前自动备份，删错了能在这一页恢复。")
+            Text(tr("会删掉：\(count.text)。\(keepNote)\n\n删之前自动备份，删错了能在这一页恢复。"))
         }
-        .alert("最后确认一次", isPresented: $askSecond) {
-            TextField("输入「删除」两个字", text: $typed)
+        .alert(tr("最后确认一次"), isPresented: $askSecond) {
+            TextField(tr("输入「删除」两个字"), text: $typed)
                 .accessibilityIdentifier("data.wipe.confirmText")
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) { wipe() }
+            Button(tr("取消"), role: .cancel) {}
+            Button(tr("删除"), role: .destructive) { wipe() }
         } message: {
-            Text("在下面输入「删除」两个字，再点删除。")
+            Text(tr("在下面输入「删除」两个字，再点删除。"))
         }
-        .alert("恢复这份备份吗？", isPresented: Binding(get: { restoring != nil }, set: { if !$0 { restoring = nil } })) {
-            Button("取消", role: .cancel) { restoring = nil }
-            Button("恢复") { restore() }
+        .alert(tr("恢复这份备份吗？"), isPresented: Binding(get: { restoring != nil }, set: { if !$0 { restoring = nil } })) {
+            Button(tr("取消"), role: .cancel) { restoring = nil }
+            Button(tr("恢复")) { restore() }
         } message: {
-            Text("这份备份是 \(restoring.map { when($0) } ?? "") 留的\(restoringCount.map { "，里面有 \($0)" } ?? "")。\n\n现在的账本也会先备份一份，不会丢。")
+            Text(tr("这份备份是 \(restoring.map { when($0) } ?? "") 留的\(restoringCount.map { tr("，里面有 \($0)") } ?? "")。\n\n现在的账本也会先备份一份，不会丢。"))
         }
     }
 
     // MARK: 演示数据
 
     private var demoGroup: some View {
-        group("演示数据", note: "演示数据是编出来的：一个人加一家小花店，一年多的账。看的时候随便点、随便改，都不会进你自己的账本；退出，或者关掉 app 再打开，就回到你自己的账本。") {
+        group(tr("演示数据"), note: tr("演示数据是编出来的：一个人加一家小花店，一年多的账。看的时候随便点、随便改，都不会进你自己的账本；退出，或者关掉 app 再打开，就回到你自己的账本。")) {
             HStack(spacing: 12) {
                 icon("sparkles.rectangle.stack.fill", .ai)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.isTryingDemo ? "正在看演示数据" : "看看演示数据").font(.callout)
-                    Text(model.isTryingDemo ? "你自己的账本没动，好好地放着" : "先看看每一页有数据时长什么样")
+                    Text(model.isTryingDemo ? tr("正在看演示数据") : tr("看看演示数据")).font(.callout)
+                    Text(model.isTryingDemo ? tr("你自己的账本没动，好好地放着") : tr("先看看每一页有数据时长什么样"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
                 Spacer(minLength: 12)
                 if model.isTryingDemo {
-                    Button("退出演示") { withAnimation(.snappy) { model.exitDemo() } }
+                    Button(tr("退出演示")) { withAnimation(.snappy) { model.exitDemo() } }
                         .buttonStyle(.borderedProminent).tint(.brand)
                         .accessibilityIdentifier("data.demo.exit")
                 } else {
-                    Button("看看") { withAnimation(.snappy) { model.enterDemo() } }
+                    Button(tr("看看")) { withAnimation(.snappy) { model.enterDemo() } }
                         .buttonStyle(.soft)
                         .accessibilityIdentifier("data.demo.enter")
                 }
@@ -81,17 +81,17 @@ struct DataSettingsPane: View {
     // MARK: 删除数据
 
     private var wipeGroup: some View {
-        group("删除数据", note: model.isTryingDemo
-              ? "现在看的是演示数据，不用删，退出演示就没了。"
-              : "删之前会自动把账本复制一份，放在账本旁边的「\(LedgerBackup.folderName)」文件夹里。\(model.xiaName)的名字、性格、主币种这些设置不会删。") {
+        group(tr("删除数据"), note: model.isTryingDemo
+              ? tr("现在看的是演示数据，不用删，退出演示就没了。")
+              : tr("删之前会自动把账本复制一份，放在账本旁边的「\(LedgerBackup.folderName)」文件夹里。\(model.xiaName)的名字、性格、主币种这些设置不会删。")) {
             if model.ledger.books.count > 1 {
                 HStack(spacing: 12) {
                     icon("line.3.horizontal.decrease", .fg3)
-                    Text("删哪些").font(.callout)
+                    Text(tr("删哪些")).font(.callout)
                     Spacer(minLength: 12)
-                    Picker("删哪些", selection: $bookID) {
-                        Text("全部数据").tag(String?.none)
-                        ForEach(model.ledger.books) { b in Text("只删「\(b.name)」账本").tag(Optional(b.id)) }
+                    Picker(tr("删哪些"), selection: $bookID) {
+                        Text(tr("全部数据")).tag(String?.none)
+                        ForEach(model.ledger.books) { b in Text(tr("只删「\(b.name)」账本")).tag(Optional(b.id)) }
                     }
                     .labelsHidden().fixedSize()
                     .accessibilityIdentifier("data.wipe.scope")
@@ -102,12 +102,12 @@ struct DataSettingsPane: View {
             HStack(spacing: 12) {
                 icon("trash.fill", .alert)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("删除\(scopeName)").font(.callout)
-                    Text(count.isEmpty ? "这里面现在没有东西" : "会删掉：\(count.text)")
+                    Text(tr("删除\(scopeName)")).font(.callout)
+                    Text(count.isEmpty ? tr("这里面现在没有东西") : tr("会删掉：\(count.text)"))
                         .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
-                Button("删除…", role: .destructive) { askFirst = true }
+                Button(tr("删除…"), role: .destructive) { askFirst = true }
                     .buttonStyle(.softAlert)
                     .disabled(count.isEmpty || model.isTryingDemo)
                     .accessibilityIdentifier("data.wipe.start")
@@ -120,20 +120,20 @@ struct DataSettingsPane: View {
     }
 
     private var keepNote: String {
-        bookID == nil ? "" : "账本和账户留着，余额会跟着变。"
+        bookID == nil ? "" : tr("账本和账户留着，余额会跟着变。")
     }
 
     // MARK: 从备份恢复
 
     private var restoreGroup: some View {
-        group("从备份恢复", note: "每次删除前、恢复前自动留的备份，只留最近 10 份。") {
+        group(tr("从备份恢复"), note: tr("每次删除前、恢复前自动留的备份，只留最近 10 份。")) {
             ForEach(Array(backups.prefix(3).enumerated()), id: \.element.id) { i, b in
                 if i > 0 { Divider() }
                 HStack(spacing: 12) {
                     icon("clock.arrow.circlepath", .income)
                     Text(label(b)).font(.callout)
                     Spacer(minLength: 12)
-                    Button("恢复") {
+                    Button(tr("恢复")) {
                         // 先看一眼备份里有多少东西，确认框里说出来，好判断是不是要的那份。
                         restoringCount = (try? LedgerBackup.load(b.url)).map { $0.wipeCount(.everything).text }
                         restoring = b
@@ -156,14 +156,14 @@ struct DataSettingsPane: View {
 
     /// 「11 月 23 日 14:05 · 删除前」
     private func label(_ b: LedgerBackup.Item) -> String {
-        "\(when(b)) · \(b.url.lastPathComponent.contains("恢复前") ? "恢复前" : "删除前")"
+        "\(when(b)) · \(b.url.lastPathComponent.contains("恢复前") ? tr("恢复前") : tr("删除前"))"
     }
 
     // MARK: 动作
 
     private func wipe() {
         guard typed.trimmingCharacters(in: .whitespacesAndNewlines) == "删除" else {
-            model.toast = .init(text: "没有删：要输入「删除」两个字才行", changeID: nil, isError: true)
+            model.toast = .init(text: tr("没有删：要输入「删除」两个字才行"), changeID: nil, isError: true)
             return
         }
         let name = scopeName
@@ -171,10 +171,10 @@ struct DataSettingsPane: View {
             let backup = try model.wipe(scope)
             backups = model.backups
             bookID = nil
-            model.toast = .init(text: backup == nil ? "已删除\(name)" : "已删除\(name)。删之前的备份留好了，可以在这一页恢复",
+            model.toast = .init(text: backup == nil ? tr("已删除\(name)") : tr("已删除\(name)。删之前的备份留好了，可以在这一页恢复"),
                                 changeID: nil, seconds: 6)
         } catch {
-            model.toast = .init(text: "没有删：\(error.localizedDescription)", changeID: nil, isError: true)
+            model.toast = .init(text: tr("没有删：\(error.localizedDescription)"), changeID: nil, isError: true)
         }
     }
 
@@ -184,9 +184,9 @@ struct DataSettingsPane: View {
         do {
             try model.restore(b)
             backups = model.backups
-            model.toast = .init(text: "已恢复成 \(when(b)) 那份备份", changeID: nil, seconds: 5)
+            model.toast = .init(text: tr("已恢复成 \(when(b)) 那份备份"), changeID: nil, seconds: 5)
         } catch {
-            model.toast = .init(text: "没有恢复：\(error.localizedDescription)", changeID: nil, isError: true)
+            model.toast = .init(text: tr("没有恢复：\(error.localizedDescription)"), changeID: nil, isError: true)
         }
     }
 
@@ -220,10 +220,10 @@ struct DemoBanner: View {
         if model.isTryingDemo {
             HStack(spacing: 10) {
                 Image(systemName: "sparkles.rectangle.stack.fill").foregroundStyle(Color.ai)
-                Text("正在看演示数据，都是编的。你自己的账本没动。")
+                Text(tr("正在看演示数据，都是编的。你自己的账本没动。"))
                     .font(.callout).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Button("退出演示") { withAnimation(.snappy) { model.exitDemo() } }
+                Button(tr("退出演示")) { withAnimation(.snappy) { model.exitDemo() } }
                     .buttonStyle(.borderedProminent).tint(.brand).controlSize(.small)
                     .accessibilityIdentifier("demo.banner.exit")
             }
