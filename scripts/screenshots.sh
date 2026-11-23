@@ -46,6 +46,8 @@ if [ -n "$IOS_APP" ]; then
   ios 13-empty-wealth -XiaxiaEmpty -XiaxiaSection wealth
   ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
   ios 15-new-plan -XiaxiaDemo -XiaxiaSheet plan
+  ios 15b-new-plan-when -XiaxiaDemo -XiaxiaSheet plan -XiaxiaGoalStep when
+  ios 15c-new-plan-stash -XiaxiaDemo -XiaxiaSheet plan -XiaxiaGoalStep stash
   ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
   ios 17-new-category -XiaxiaDemo -XiaxiaSheet newCategory
   ios 30-memory -XiaxiaDemo -XiaxiaSheet memory
@@ -54,6 +56,7 @@ if [ -n "$IOS_APP" ]; then
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
   ios 18-categories-dark -XiaxiaDemo -XiaxiaSheet categories
   ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
+  ios 5d-plans-dark -XiaxiaDemo -XiaxiaSection plans
   ios 33-memory-dark -XiaxiaDemo -XiaxiaSheet memory
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
 fi
@@ -102,6 +105,14 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 47-plans-dark -XiaxiaDemo 1 -XiaxiaSection plans -xiaxia.appearance dark
   snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
   snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
+  # 目标页小金猪（2026-11-23）：设目标一步一页、空账本
+  snap 50-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
+  snap 50b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
+  snap 51-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
+  snap 52-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
+  snap 53-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
+  snap 54-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
+  snap 55-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

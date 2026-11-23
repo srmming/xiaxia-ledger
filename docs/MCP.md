@@ -41,7 +41,7 @@ args = ["mcp"]
 
 只读：`context`、`accounts`、`list_transactions`、`summary`、`monthly_report`、`reconcile`、`debts`、`installments`、`goals`、`history`、`currency`、`subscriptions`、`find_subscriptions`、`memory`、`regulars`。
 
-写入（都能 `dry_run`）：`add_account`、`set_opening_balance`、`add_transaction`、`edit_transaction`、`delete_transactions`、`account_transfer`、`book_transfer`、`goal_withdraw`、`mark_account_transfer`、`add_debt`、`repay_debt`、`plan_debt`、`edit_debt_plan`、`skip_debt_payment`、`categorize`、`assign_book`、`import_statement`、`add_installment`、`pay_installment`、`add_goal`、`goal_deposit`、`split_transaction`、`duplicate_transaction`、`add_refund`、`tag_transactions`、`set_recurring`、`update_recurring`、`run_recurring`、`set_base_currency`、`set_account_currency`、`set_rate`、`update_rates`、`add_subscription`、`edit_subscription`、`remove_subscription`、`remember`、`update_memory`、`forget_memory`、`tidy_memory`、`undo`。只读另有 `list_recurring`。
+写入（都能 `dry_run`）：`add_account`、`set_opening_balance`、`add_transaction`、`edit_transaction`、`delete_transactions`、`account_transfer`、`book_transfer`、`goal_withdraw`、`mark_account_transfer`、`add_debt`、`repay_debt`、`plan_debt`、`edit_debt_plan`、`skip_debt_payment`、`categorize`、`assign_book`、`import_statement`、`add_installment`、`pay_installment`、`add_goal`、`goal_deposit`、`set_main_goal`、`goal_check`、`set_goal_stash`、`remove_goal`、`split_transaction`、`duplicate_transaction`、`add_refund`、`tag_transactions`、`set_recurring`、`update_recurring`、`run_recurring`、`set_base_currency`、`set_account_currency`、`set_rate`、`update_rates`、`add_subscription`、`edit_subscription`、`remove_subscription`、`remember`、`update_memory`、`forget_memory`、`tidy_memory`、`undo`。只读另有 `list_recurring`、`plan_goal`（建目标前算每天存多少、超不超出每月剩的）。
 
 ### 夏夏的记忆
 

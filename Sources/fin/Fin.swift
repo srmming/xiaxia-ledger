@@ -361,12 +361,21 @@ struct GoalsCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "goals", abstract: "目标和储蓄进度。")
     @OptionGroup var options: GlobalOptions
     func run() throws {
-        let list = Plans.goals(try loadLedger())
-        if options.json { return try Output.json(list) }
-        if list.isEmpty { print("还没有目标。") }
-        for g in list {
-            print("\(g.name)\t\(g.saved.formatted) / \(g.target.formatted)（\(g.percent)%）\(g.deadline.map { "\t目标日 \($0)" } ?? "")")
+        let ledger = try loadLedger()
+        let r = GoalText.report(ledger)
+        if options.json { return try Output.json(r) }
+        let lines = (r.main.map { [$0] } ?? []) + r.small + r.over_limit + r.done
+        if lines.isEmpty { print("还没有目标。\(Plans.goalLimitSentence)") }
+        for g in lines {
+            var row = "[\(g.role)] \(g.name)\t\(g.saved) / \(g.target)（\(g.percent)%）"
+            if let a = g.arrival { row += "\t\(a) 到手" }
+            if let p = g.per_day { row += "\t每天 \(p)" }
+            if let s = g.stash { row += "\t存在\(s)" }
+            if g.ask_still_important { row += "\t\(g.idle_days) 天没存了" }
+            print(row)
         }
+        if let room = r.monthly_room { print("每月大约剩 \(room) 可以存") }
+        for a in r.ask { print("要问：\(a)") }
     }
 }
 
@@ -775,7 +784,7 @@ struct InstallmentCommand: ParsableCommand {
 
 struct GoalCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "goal", abstract: "目标和储蓄：建目标、存钱、取钱。存取都不算收支。",
-                                                    subcommands: [Add.self, Deposit.self, Withdraw.self])
+                                                    subcommands: [Add.self, Deposit.self, Withdraw.self, Plan.self, Main.self, Check.self, Remove.self])
 
     static func find(_ ledger: Ledger, _ name: String) throws -> Goal {
         let hits = ledger.findGoals(named: name)
@@ -792,13 +801,25 @@ struct GoalCommand: ParsableCommand {
         @Option(help: "截止日期。") var deadline: String?
         @Option(help: "专门的储蓄账户 id（如 Revolut 储蓄罐）；不填就在现有账户里划出。") var savingsAccount: String?
         @Flag(help: "锁定：存进去到期前不能取。") var locked = false
+        @Flag(help: "设成大目标（只有一个；还没有目标时默认就是）。") var main = false
+        @Option(help: "钱真的存在哪：jar 储蓄罐 / card 一张银行卡 / spot 一个固定的地方。") var stash: String?
+        @Option(help: "具体在哪，如「书桌上的小猪储蓄罐」。") var stashNote: String?
 
         func run() throws {
             var ledger = try loadLedger()
-            let (_, change) = try ledger.addGoal(name: name, bookID: book, target: try parseMoney(target).magnitude,
-                                                 deadline: try deadline.map { try parseDate($0) }, savingsAccountID: savingsAccount,
-                                                 locked: locked, author: w.who)
+            let where_ = try stash.map { v -> GoalStash in
+                guard let x = GoalStash(loose: v) else { throw ValidationError("--stash 只能是 jar、card 或 spot") }
+                return x
+            }
+            let t = try parseMoney(target).magnitude
+            let due = try deadline.map { try parseDate($0) }
+            let advice = Plans.goalAdvice(ledger, target: t, deadline: due)
+            let isMain = main || ledger.activeGoalIDs().isEmpty
+            let (_, change) = try ledger.addGoal(name: name, bookID: book, target: t, deadline: due, savingsAccountID: savingsAccount,
+                                                 locked: locked, main: isMain,
+                                                 stash: where_, stashNote: stashNote, author: w.who)
             try finish(ledger, change, w)
+            if !w.json { print(GoalText.advice(advice, target: t)) }
         }
     }
 
@@ -808,14 +829,18 @@ struct GoalCommand: ParsableCommand {
         @Argument(help: "目标名称。") var name: String
         @Argument(help: "金额。") var amount: String
         @Option(help: "钱从哪个账户来。") var from: String
+        @Option(help: "忍住没买的东西（如「咖啡」），算一次「忍住了」。") var heldBack: String?
         @Option(help: "日期，默认今天。") var date: String?
 
         func run() throws {
             var ledger = try loadLedger()
             let g = try GoalCommand.find(ledger, name)
-            let change = try ledger.deposit(goalID: g.id, amount: try parseMoney(amount).magnitude, fromAccount: from,
-                                            date: try parseDate(date), author: w.who)
+            let m = try parseMoney(amount).magnitude
+            let early = Plans.daysEarlier(ledger, goalID: g.id, amount: m)
+            let change = try ledger.deposit(goalID: g.id, amount: m, fromAccount: from,
+                                            date: try parseDate(date), heldBack: heldBack, author: w.who)
             try finish(ledger, change, w)
+            if !w.json { print(GoalText.afterDeposit(early, ledger, goalID: g.id)) }
         }
     }
 
@@ -830,9 +855,12 @@ struct GoalCommand: ParsableCommand {
         func run() throws {
             var ledger = try loadLedger()
             let g = try GoalCommand.find(ledger, name)
-            let change = try ledger.withdraw(goalID: g.id, amount: try parseMoney(amount).magnitude, toAccount: to,
+            let m = try parseMoney(amount).magnitude
+            let later = Plans.daysEarlier(ledger, goalID: g.id, amount: m)
+            let change = try ledger.withdraw(goalID: g.id, amount: m, toAccount: to,
                                              date: try parseDate(date), author: w.who)
             try finish(ledger, change, w)
+            if !w.json { print(GoalText.afterWithdraw(later, ledger, goalID: g.id)) }
         }
     }
 }

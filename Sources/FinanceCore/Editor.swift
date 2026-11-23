@@ -15,6 +15,8 @@ public enum EditError: Error, LocalizedError, Equatable {
     case unknownInstallment
     case unknownGoal
     case repayTooMuch(String)
+    /// 已经有 1 个大目标、3 个小目标了（带上现在这几个的名字）。
+    case tooManyGoals([String])
 
     public var errorDescription: String? {
         switch self {
@@ -31,6 +33,8 @@ public enum EditError: Error, LocalizedError, Equatable {
         case .unknownInstallment: "找不到这个分期"
         case .unknownGoal: "找不到这个目标"
         case .repayTooMuch(let left): "还得比欠的多了，这笔只剩 \(left) 没还"
+        case .tooManyGoals(let names):
+            "已经有 1 个大目标、3 个小目标了（\(names.map { "「\($0)」" }.joined(separator: "、"))）。目标不在多，在于坚持：先完成或删掉一个再加新的。"
         }
     }
 }
@@ -209,15 +213,30 @@ extension Ledger {
     /// 没有就在现有账户里「划出」，进度 = 每笔存入累加（2026-11-21 ming 定：两种都支持）。
     /// locked = 锁定储蓄，存进去到期前不能取（宝宝存钱小游戏用）。
     @discardableResult
+    /// 同时最多 1 个大目标 + 3 个小目标（存够了的不算），满了抛 tooManyGoals。main = 设成大目标（原来的大目标变小目标）；
+    /// 没钉大目标时，目标页把排第一的当大目标（app 引导和 MCP 建第一个目标时会传 main = true）。
     public mutating func addGoal(name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
-                                 savingsAccountID: String? = nil, locked: Bool = false, author: String) throws -> (Goal, ChangeRecord) {
+                                 savingsAccountID: String? = nil, locked: Bool = false, main: Bool = false,
+                                 icon: String? = nil, stash: GoalStash? = nil, stashNote: String? = nil,
+                                 today: LocalDate = .today, author: String) throws -> (Goal, ChangeRecord) {
         guard target.cents > 0 else { throw EditError.amountMustBePositive }
         try requireBook(bookID)
         if let savingsAccountID { try requireAccount(savingsAccountID) }
-        let goal = Goal(name: name, bookID: bookID, target: target, deadline: deadline, savingsAccountID: savingsAccountID, locked: locked)
+        let active = activeGoalIDs()
+        guard active.count < Plans.maxActiveGoals else {
+            throw EditError.tooManyGoals(goals.filter { active.contains($0.id) }.map(\.name))
+        }
+        let isMain = main
+        // 原来的大目标变小目标；撤销时放回去。
+        let unpinned = isMain ? goals.filter(\.pinned) : []
+        if isMain { for i in goals.indices { goals[i].pinned = false } }
+        let goal = Goal(name: name, bookID: bookID, target: target, deadline: deadline, savingsAccountID: savingsAccountID, locked: locked,
+                        pinned: isMain, icon: icon, stash: stash,
+                        stashNote: stashNote.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }, startedOn: today)
         goals.append(goal)
         var change = ChangeRecord(kind: .goal, summary: "建目标「\(name)」\(target.formatted)\(locked ? "（锁定）" : "")",
                                   transactionIDs: [], author: author)
+        if !unpinned.isEmpty { change.before = PlanSnapshot(goals: unpinned) }
         change.goalID = goal.id
         changes.append(change)
         return (goal, change)
@@ -226,19 +245,24 @@ extension Ledger {
     /// 往目标里存钱。挂了储蓄账户：从 fromAccount 转进储蓄账户（两笔，转进储蓄，不算支出）。
     /// 没挂：在 fromAccount 里划出（一出一进两笔，账户余额不变，存入那笔记进进度）。
     @discardableResult
-    public mutating func deposit(goalID: UUID, amount: Money, fromAccount: String, date: LocalDate, author: String) throws -> ChangeRecord {
+    /// heldBack = 「忍住了」没买的东西（如「咖啡」）：写进说明和备注，存入那笔带「忍住了」标签，月底数得出来。
+    public mutating func deposit(goalID: UUID, amount: Money, fromAccount: String, date: LocalDate, heldBack: String? = nil,
+                                 author: String) throws -> ChangeRecord {
         guard amount.cents > 0 else { throw EditError.amountMustBePositive }
         guard let i = goals.firstIndex(where: { $0.id == goalID }) else { throw EditError.unknownGoal }
         try requireAccount(fromAccount)
         let g = goals[i]
         let target = g.savingsAccountID ?? fromAccount
-        let out = Transaction(date: date, amount: -amount, description: "存进「\(g.name)」", accountID: fromAccount, bookID: g.bookID,
+        let held = heldBack.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0.trimmingCharacters(in: .whitespaces) }
+        let text = held.map { "忍住了「\($0)」，存进「\(g.name)」" } ?? "存进「\(g.name)」"
+        let out = Transaction(date: date, amount: -amount, description: text, accountID: fromAccount, bookID: g.bookID,
                               category: "储蓄", source: "手记", flow: .saving)
-        let inn = Transaction(date: date, amount: amount, description: "存进「\(g.name)」", accountID: target, bookID: g.bookID,
-                              category: "储蓄", source: "手记", flow: .saving)
+        let inn = Transaction(date: date, amount: amount, description: text, accountID: target, bookID: g.bookID,
+                              category: "储蓄", source: "手记", flow: .saving, tags: held == nil ? nil : [Plans.heldBackTag])
         transactions += [out, inn]
         goals[i].contributionIDs.append(inn.id)
-        var change = ChangeRecord(kind: .goalDeposit, summary: "往「\(g.name)」存 \(amount.formatted)", transactionIDs: [out.id, inn.id], author: author)
+        var change = ChangeRecord(kind: .goalDeposit, summary: held.map { "忍住了「\($0)」，往「\(g.name)」存 \(amount.formatted)" } ?? "往「\(g.name)」存 \(amount.formatted)",
+                                  transactionIDs: [out.id, inn.id], author: author)
         change.goalID = goalID
         changes.append(change)
         return change

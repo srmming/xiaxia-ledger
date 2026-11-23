@@ -107,7 +107,14 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 
 **订阅**：`fin subscriptions`（MCP：`subscriptions`）看每月 / 一年合计、下次哪天扣、可能涨价的。用户问「我订了哪些」「每月固定扣多少」就用它。从流水里找：`fin subscription find`（MCP：`find_subscriptions`），只列不写；把列表给用户看，问哪些是真订阅，确认后 `fin subscription add 视频会员 13,99 --next 2026-12-03 --account revolut --match netflix [--cycle yearly]`。涨价 `fin subscription edit 视频会员 --amount 15,99`，不续了 `fin subscription cancel 视频会员`，登记错了 `fin subscription remove`。
 
-**存钱目标**：`fin goal add 应急金 6000 [--savings-account pot] [--locked]`；`fin goal deposit 应急金 300 --from daily`；`fin goal withdraw 应急金 100 --to daily`（MCP：`goal_withdraw`；锁定的不能取，也不要建议取）。`fin goals` 看进度。
+**存钱目标（小金猪）**：目标是把「想要的东西」变成「哪天能到手」。规矩和 app 一样：同时最多 **1 个大目标 + 3 个小目标**，目标不在多，在于坚持。
+- 先跑 `fin goals`（MCP：`goals`）：看大目标、小目标、每月大约剩多少、还能加几个（`slots_left`），以及 `ask` 里要问用户的事。
+- **设目标一律用选项框（提问框）问，一次只问一个**，按这个顺序：① 想要什么（给几个常见的：换新电脑、旅行、应急金、给家人的礼物，也能自己写）→ ② 要多少钱 → ③ 哪天要（3 个月 / 半年 / 一年 / 不定）→ 先 `fin goal plan 金额 --deadline …`（MCP：`plan_goal`）算一下，把「每天存 2,30 €，差不多每 2 天少一杯咖啡」这句原样告诉用户；超出每月剩的钱时，选项给「晚一点更轻松（改到 X 月）」和「就按原来的」→ ④ 钱真的存在哪（储蓄罐 / 一张银行卡 / 一个固定的地方）→ ⑤ 是大目标还是小目标（已经有大目标时说清楚原来的会变成小目标）。问完再 `fin goal add 换新电脑 1400 --deadline 2027-05-31 --stash jar --stash-note 书桌上的小猪 [--main]`（MCP：`add_goal`）。
+- 已经有 4 个在存（满了）：别硬建，用选项框问「先完成或删掉哪一个？」把现有的列出来，再加一个选项「先不加了」。
+- 建好后提醒一句：每次真的存了钱都记一笔，小小的一步也能实现大大的目标。
+- 存钱：`fin goal deposit 换新电脑 20 --from daily`（MCP：`goal_deposit`），忍住没买咖啡这类把钱存起来的加 `--held-back 咖啡`（MCP：`held_back`）。返回里的「提前了 N 天到手」原样告诉用户，app 里小猪显示的是同一个数。
+- 取钱：`fin goal withdraw 换新电脑 100 --to daily`（MCP：`goal_withdraw`）。用钱很正常，不责怪；锁定的不能取，也不要建议取。
+- `ask` 里有「很久没存了」的目标：用选项框问「这个目标你很久没动了，它对你还重要吗？」选项「还重要，继续」「先放一放」「删掉」，选了再 `fin goal check 名字 keep|pause`（MCP：`goal_check`）或删掉 `fin goal rm 名字`（MCP：`remove_goal`）。换大目标：`fin goal main 名字`（MCP：`set_main_goal`）。
 
 **出月报**（「出一份 11 月月报」）
 先跑 `fin report --month 2026-11 [--book shop]`（MCP：`monthly_report`），它已经写好了收支、花在哪、和上月比、要留意什么，默认不含私房钱。在它的基础上用大白话整理给用户；需要更细时再按账本分别跑 `fin summary --month 2026-11 --book personal` / `--book shop` 和不加 `--book` 的合计，再跑上个月做对比；加上 `fin debts`、`fin installments`、`fin goals`。写成：一句话结论 → 收入/支出/结余（和上月比）→ 支出前 5 类 → 店里单独一段 → 借款、分期、目标 → 需要用户处理的事（没分类的笔数、过期的借款）。给店里或会计的版本不含私房钱。
