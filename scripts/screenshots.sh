@@ -55,6 +55,7 @@ if [ -n "$IOS_APP" ]; then
   ios 18-categories-dark -XiaxiaDemo -XiaxiaSheet categories
   ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
   ios 33-memory-dark -XiaxiaDemo -XiaxiaSheet memory
+  ios 34-trends-dark -XiaxiaDemo -XiaxiaSection trends
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
 fi
 
@@ -102,6 +103,11 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 47-plans-dark -XiaxiaDemo 1 -XiaxiaSection plans -xiaxia.appearance dark
   snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
   snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
+  # 趋势页「照这样花下去，月底和年底剩多少」（2026-11-23）
+  snap 50-trends -XiaxiaDemo 1 -XiaxiaSection trends
+  snap 51-trends-small -XiaxiaDemo 1 -XiaxiaSection trends -XiaxiaWindowSize 1000x612
+  snap 52-trends-dark -XiaxiaDemo 1 -XiaxiaSection trends -xiaxia.appearance dark
+  snap 53-trends-empty -XiaxiaEmpty 1 -XiaxiaSection trends
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。
