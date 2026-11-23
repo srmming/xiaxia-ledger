@@ -48,7 +48,7 @@ final class NudgesTests: XCTestCase {
         txs.append(spend(today.adding(days: -1), 100_00, "FLORES SOL", "花材"))
         let n = run(txs).first { $0.kind == .unusual }!
         XCTAssertTrue(n.title.contains("「花材」比平时多 60%"), n.title)
-        XCTAssertTrue(n.advice.contains("FLORES SOL") || n.advice.contains("Flores Sol"), n.advice)
+        XCTAssertTrue(n.advice.lowercased().contains("flores sol") && n.advice.contains("11 月 19 日"), n.advice)
     }
 
     func testUpcomingAndShortBalance() {
