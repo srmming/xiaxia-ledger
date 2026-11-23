@@ -124,6 +124,8 @@ struct WelcomeView: View {
 
     @State private var step: Step = .hello
     @State private var pose: MascotPose = .hello
+    /// 夏夏和伙伴用女生版还是男生版（第一页选，设置里也能改）。
+    @AppStorage(MascotLook.storageKey) private var lookRaw = MascotLook.girl.rawValue
     /// 夏夏头上的气泡。
     @State private var speech = ""
     @State private var thinking = false
@@ -385,6 +387,7 @@ struct WelcomeView: View {
         case .hello:
             pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
                 currencyPicker
+                if MascotLook.boyAvailable { lookPicker }
             } buttons: {
                 primary("开始", id: "welcome.start") { Task { await toAim() } }
             }
@@ -701,6 +704,24 @@ struct WelcomeView: View {
     private var currencyChoice: String { pickedCurrency ?? suggestedCurrency }
 
     /// 第一页：你平时用哪种钱？常用的直接摆出来，别的在菜单里。
+    /// 第一页：夏夏想要女生还是男生的样子（ming 2026-11-23：「界面男女角色也要加上」）。左边的夏夏马上跟着换。
+    private var lookPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("夏夏想要什么样子？").font(.headline).foregroundStyle(Color.fg2)
+            HStack(spacing: 8) {
+                ForEach(MascotLook.allCases) { l in
+                    chip(l.label, symbol: l == .girl ? "face.smiling" : "face.smiling.inverse", on: lookRaw == l.rawValue) {
+                        guard lookRaw != l.rawValue else { return }
+                        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { lookRaw = l.rawValue }
+                        Task { await say(l == .girl ? "好呀，就这样陪你记账～" : "好，换个样子陪你记账！", pose: .cheer) }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("welcome.look")
+    }
+
     private var currencyPicker: some View {
         let choice = currencyChoice
         var codes = Self.commonCurrencies
