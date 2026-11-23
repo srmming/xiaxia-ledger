@@ -111,6 +111,10 @@ run goal add 旅行 1000 --savings-account pot --locked
 run goal deposit 应急金 300 --from caixa --date 2026-11-15
 run goal withdraw 应急金 100 --to caixa --date 2026-11-16
 run goal deposit 旅行 50 --from caixa
+run goal deposit 应急金 3,20 --from caixa --held-back 咖啡
+run goal plan 1200 --deadline 2027-06-30
+run goal main 旅行
+run goal check 应急金 keep
 expect_fail goal withdraw 旅行 10 --to caixa
 run goals
 run goals --json
@@ -290,6 +294,10 @@ for spec in \
   'repay_debt|{"counterparty":"阿华","amount":"50","account":"cash","dry_run":true}' \
   'plan_debt|{"counterparty":"阿华","count":3,"start":"2026-12-20","dry_run":true}' \
   'goal_deposit|{"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}' \
+  'goal_deposit|{"name":"应急金","amount":"3,20","from_account":"caixa","held_back":"咖啡"}' \
+  'plan_goal|{"target":"1500","deadline":"2027-06-30"}' \
+  'goal_check|{"name":"应急金","choice":"pause","dry_run":true}' \
+  'set_goal_stash|{"name":"应急金","stash":"jar","stash_note":"书桌上的小猪"}' \
   "import_statement|{\"file\":\"$WORK/revolut.csv\",\"account\":\"revolut\",\"format\":\"revolut\",\"dry_run\":true}" \
   'add_book|{"name":"家庭","kind":"personal"}' \
   'add_transaction|{"amount":"-2,20*3","description":"MCP 咖啡","account":"cash","book":"personal","category":"餐饮","note":"三杯","tags":["上班"]}' \

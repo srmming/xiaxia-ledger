@@ -35,8 +35,9 @@ struct NewPlanSheet: View {
     var body: some View {
         Form {
             Section {
+                // 存钱目标走一步一页的引导（GoalWizard），这里只登记分期和借款。
                 Picker("要登记的是", selection: $kind) {
-                    ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Kind.allCases.filter { $0 != .goal || kind == .goal }) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("planKind")
@@ -164,7 +165,7 @@ struct NewPlanSheet: View {
     }
 }
 
-/// 改一个目标：名字、金额、截止日期。也能删。
+/// 改一个目标：名字、金额、截止日期、钱存在哪。也能删。
 struct GoalEditor: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.dismiss) var dismiss
@@ -173,6 +174,8 @@ struct GoalEditor: View {
     @State var amountText = ""
     @State var hasDeadline = false
     @State var deadline = Date()
+    @State var stash: GoalStash?
+    @State var stashNote = ""
     @State var confirmDelete = false
     @State var error: String?
 
@@ -184,6 +187,13 @@ struct GoalEditor: View {
                 Toggle("有截止日期", isOn: $hasDeadline)
                 if hasDeadline { DatePicker("哪天前存够", selection: $deadline, displayedComponents: .date) }
             }
+            Section {
+                Picker("钱真的存在哪", selection: $stash) {
+                    Text("还没定").tag(GoalStash?.none)
+                    ForEach(GoalStash.allCases) { Text($0.label).tag(GoalStash?.some($0)) }
+                }
+                FormField("具体在哪", "比如「书桌上的小猪储蓄罐」", text: $stashNote)
+            } footer: { Text("每次真的存了钱，都回来点小猪记一笔。") }
             Section {
                 Button("删除这个目标", role: .destructive) { confirmDelete = true }
             } footer: { Text("在现有账户里划出的存钱记录一起删，账户余额不变。删错了可以撤销。") }
@@ -200,6 +210,8 @@ struct GoalEditor: View {
             amountText = goal.target.formatted.replacingOccurrences(of: " €", with: "")
             hasDeadline = goal.deadline != nil
             deadline = goal.deadline?.asDate ?? Date()
+            stash = goal.stash
+            stashNote = goal.stashNote ?? ""
         }
         .confirmationDialog("删除目标「\(goal.name)」？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("删除", role: .destructive) {
@@ -216,6 +228,9 @@ struct GoalEditor: View {
         g.name = name.trimmingCharacters(in: .whitespaces)
         g.target = m.magnitude
         g.deadline = hasDeadline ? LocalDate(deadline) : nil
+        g.stash = stash
+        let note = stashNote.trimmingCharacters(in: .whitespaces)
+        g.stashNote = note.isEmpty ? nil : note
         do {
             if g != goal { try model.edit { try $0.updateGoal(g, author: model.author) } }
             dismiss()
@@ -286,7 +301,7 @@ struct PlanRowMenu: View {
             NavigationStack { GoalEditor(goal: g) }
                 .environment(model)
                 #if os(macOS)
-                .frame(width: 460, height: 360)
+                .frame(width: 460, height: 480)
                 #endif
         }
     }

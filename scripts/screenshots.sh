@@ -46,6 +46,8 @@ if [ -n "$IOS_APP" ]; then
   ios 13-empty-wealth -XiaxiaEmpty -XiaxiaSection wealth
   ios 14-empty-add -XiaxiaEmpty -XiaxiaSheet add
   ios 15-new-plan -XiaxiaDemo -XiaxiaSheet plan
+  ios 15b-new-plan-when -XiaxiaDemo -XiaxiaSheet plan -XiaxiaGoalStep when
+  ios 15c-new-plan-stash -XiaxiaDemo -XiaxiaSheet plan -XiaxiaGoalStep stash
   ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
   ios 17-new-category -XiaxiaDemo -XiaxiaSheet newCategory
   ios 30-memory -XiaxiaDemo -XiaxiaSheet memory
@@ -54,6 +56,7 @@ if [ -n "$IOS_APP" ]; then
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
   ios 18-categories-dark -XiaxiaDemo -XiaxiaSheet categories
   ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
+  ios 5d-plans-dark -XiaxiaDemo -XiaxiaSection plans
   ios 33-memory-dark -XiaxiaDemo -XiaxiaSheet memory
   ios 34-trends-dark -XiaxiaDemo -XiaxiaSection trends
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
@@ -117,10 +120,18 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 61-trends-small -XiaxiaDemo 1 -XiaxiaSection trends -XiaxiaWindowSize 1000x612
   snap 62-trends-dark -XiaxiaDemo 1 -XiaxiaSection trends -xiaxia.appearance dark
   snap 63-trends-empty -XiaxiaEmpty 1 -XiaxiaSection trends
+  # 目标页小金猪（2026-11-23）：设目标一步一页、空账本
+  snap 70-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
+  snap 70b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
+  snap 71-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
+  snap 72-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
+  snap 73-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
+  snap 74-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
+  snap 75-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
   # 英文、西班牙语（2026-11-23）：每页一张 + 两张最小窗口，看有没有露中文、字挤掉、一屏放不下
   n=80
   for lang in en es; do
-    for page in overview spending trends wealth transactions subscriptions debts insights settings; do
+    for page in overview spending trends wealth transactions plans subscriptions debts insights settings; do
       snap $n-$lang-$page -XiaxiaDemo 1 -XiaxiaSection $page -xiaxia.language $lang; n=$((n + 1))
     done
     snap $n-$lang-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI -xiaxia.language $lang; n=$((n + 1))

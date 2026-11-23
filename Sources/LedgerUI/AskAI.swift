@@ -72,9 +72,9 @@ extension LedgerModel {
         let importer = AIPrompt(kind: tr("导入"), text: tr("这是我的银行对账单，帮我整理好导进夏夏账本"))
         switch section {
         case .plans:
-            return [AIPrompt(kind: tr("目标"), text: tr("帮我建一个 2.000 € 的存钱目标，明年 6 月前存够")),
-                    AIPrompt(kind: tr("存钱"), text: tr("往我的存钱目标里存 100 €")),
-                    AIPrompt(kind: tr("问问题"), text: tr("照现在的速度，我的存钱目标来得及吗？"))]
+            return [AIPrompt(kind: tr("目标"), text: tr("带我定一个存钱目标，用选项一步一步问我")),
+                    AIPrompt(kind: tr("存钱"), text: tr("我今天忍住没买咖啡，把这 3 € 存进大目标")),
+                    AIPrompt(kind: tr("问问题"), text: tr("我的存钱目标哪天能到手？哪个很久没存了？"))]
         case .debts:
             return [AIPrompt(kind: tr("欠款"), text: tr("帮我记一笔欠款：朋友借了我 300 €，下个月还")),
                     AIPrompt(kind: tr("分期"), text: tr("帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣")),

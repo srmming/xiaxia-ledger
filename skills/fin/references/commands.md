@@ -19,7 +19,7 @@
 | 收支和分类汇总 | `fin summary --month 2026-11｜--year 2026｜--from 2026-01 --to 2026-06 [--book personal] [--include-private]`（JSON 字段：period book income expense net byCategory months） | `summary`（month 或 year 或 from+to） |
 | 谁欠我、我欠谁 | `fin debts [--all]` | `debts` |
 | 分期 | `fin installments` | `installments` |
-| 目标和储蓄 | `fin goals` | `goals` |
+| 目标（1 大 3 小、哪天到手、要问的事） | `fin goals` | `goals` |
 | 月报（直接能读） | `fin report [--month 2026-11] [--book shop] [--include-private]` | `monthly_report` |
 | 对账（只看不改） | `fin reconcile --account revolut --balance 105,84 [--date …]` | `reconcile` |
 | 改动记录 | `fin history [--limit 20]` | `history` |
@@ -56,7 +56,7 @@
 | 加账户 | `fin account add stash 私房钱 --kind bank｜credit｜cash｜wallet｜savings [--private]` | `add_account`（可带 `opening_balance`） |
 | 开账余额 | `fin account opening daily 382,64 [--date …]`（信用卡欠款写负数） | `set_opening_balance` |
 | 分期 | `fin installment add 名称 总额 --count 6 --account … --book … [--first] [--fee] [--category]`；`fin installment pay 名称 [--tx 编号] [--amount]` | `add_installment`、`pay_installment` |
-| 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
+| 目标 | `fin goal plan 金额 [--deadline]`；`fin goal add 名称 金额 [--deadline] [--main] [--stash jar\|card\|spot] [--stash-note] [--savings-account] [--locked]`；`fin goal deposit 名称 金额 --from 账户 [--held-back 咖啡]`；`fin goal withdraw 名称 金额 --to 账户`；`fin goal main 名称`；`fin goal check 名称 keep\|pause`；`fin goal rm 名称` | `plan_goal`、`add_goal`、`goal_deposit`、`goal_withdraw`、`set_main_goal`、`goal_check`、`set_goal_stash`、`remove_goal` |
 | 多币种 | `fin fx`；`fin fx update`；`fin fx account 账户 USD`；`fin fx set-rate <编号> --bank 46,12｜--rate 0,925`；`fin fx base USD`；记一笔带原价 `fin add … --original "50 USD"`；外币账户 `fin account add … --currency USD` | `currency`、`update_rates`、`set_account_currency`、`set_rate`、`set_base_currency`、`add_transaction` 的 `original`、`add_account` 的 `currency` |
 | 订阅 | `fin subscriptions [--all]`；`fin subscription find`；`fin subscription add 名称 金额 --next 日期 [--cycle weekly｜monthly｜quarterly｜yearly] [--account] [--book] [--category] [--match 关键词] [--currency]`；`fin subscription edit 名称 [--amount …]`；`fin subscription cancel 名称`；`fin subscription remove 名称` | `subscriptions`、`find_subscriptions`、`add_subscription`、`edit_subscription`、`remove_subscription` |
 | 记住一件事 | `fin memory add 话题 "一句话" [--kind rule｜topic｜lesson] [--source said｜corrected｜confirmed｜observed] [--quote 原话] [--story 经过] [--review-on 2027-03-31] [--link category:工资 account:daily] [--new-topic]`（时间写具体，不写「明年」「下个月」） | `remember` |
