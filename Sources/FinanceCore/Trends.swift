@@ -137,9 +137,9 @@ public struct WealthBreakdown: Equatable, Sendable {
         liquid -= earmarked; saved += earmarked
         if earmarked > 0 {
             if earmarked == wanted {
-                for g in loose { src.saved.append(Source(id: "goal-\(g.goal.id)", name: "卡里划给「\(g.goal.name)」的", amount: g.saved)) }
+                for g in loose { src.saved.append(Source(id: "goal-\(g.goal.id)", name: "给「\(g.goal.name)」留的", amount: g.saved)) }
             } else {
-                src.saved.append(Source(id: "goal-earmarked", name: "卡里划给存钱目标的", amount: Money(cents: earmarked)))
+                src.saved.append(Source(id: "goal-earmarked", name: "给存钱目标留的", amount: Money(cents: earmarked)))
             }
         }
         // 借的钱、分期：给了明细而且加起来对得上就一笔一行，否则只写一行合计。

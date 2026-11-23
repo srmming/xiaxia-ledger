@@ -77,7 +77,7 @@ final class TrendsTests: XCTestCase {
         XCTAssertEqual(sum(w.sources.saved), w.saved)
         XCTAssertEqual(sum(w.sources.owed), w.owed)
         XCTAssertEqual(w.sources.shop.map(\.name), ["店里的卡"])
-        XCTAssertEqual(w.sources.saved.map(\.name), ["储蓄罐", "卡里划给「电脑」的", "旅行钱包"])
+        XCTAssertEqual(w.sources.saved.map(\.name), ["储蓄罐", "给「电脑」留的", "旅行钱包"])
         XCTAssertEqual(w.sources.owed.map(\.name), ["信用卡（已刷）", "借的钱和分期"], "没给明细时借款和分期合成一行")
         XCTAssertEqual(WealthBreakdown.monthsText(2.5), "2,5")
         XCTAssertEqual(WealthBreakdown.monthsText(3.0), "3")
