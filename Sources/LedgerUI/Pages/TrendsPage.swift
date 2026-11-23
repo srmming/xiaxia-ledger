@@ -4,6 +4,7 @@ import SwiftUI
 /// 趋势：比以前好还是差？视觉重心是近 12 个月进账 / 花掉柱状图上面的「平均每月剩多少」。
 struct TrendsPage: View {
     @Environment(LedgerModel.self) var model
+    @State private var viewport = CGSize(width: 1000, height: 800)
 
     var body: some View {
         let months = Reports.months(endingAt: model.shownMonth, count: 12)
@@ -19,6 +20,7 @@ struct TrendsPage: View {
             }
         }
         .kitPage()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
     private func content(_ list: [MonthlySummary]) -> some View {
@@ -33,33 +35,39 @@ struct TrendsPage: View {
         let losingNames = losing.prefix(3).map { "\($0.month.month) 月" }.joined(separator: "和")
         let sentence = Text("\(list.count) 个月里有 ") + em("\(positive) 个月") + Text("是剩钱的。")
             + Text(losing.isEmpty ? "没有哪个月花得比挣得多。" : "花得比挣得多的是 \(losingNames)。")
-        return VStack(alignment: .leading, spacing: Kit.gap) {
+        let stats = [
+            Stat(title: "剩得最多", value: best.map { "\($0.month.month) 月 · \($0.net.display.replacingOccurrences(of: ",00", with: ""))" } ?? "—"),
+            Stat(title: "花得最多", value: worst.map { "\($0.month.month) 月 · \($0.expense.magnitude.rounded)" } ?? "—"),
+            Stat(title: "\(year) 年一共\(thisYear.isExpense ? "超支" : "剩下")", value: thisYear.isExpense ? thisYear.magnitude.rounded : "+" + thisYear.rounded,
+                 tone: thisYear.isExpense ? .bad : .good),
+        ]
+        // ming 2026-11-23「尽量不要上下拉动」：左边大数字 + 柱状图（视觉重心），右边夏夏一句话 + 三个小数合成一张卡。
+        return Columns(sideWidth: 320) {
             VStack(alignment: .leading, spacing: 16) {
                 KeyFigure(label: "近 \(list.count) 个月，平均每月\(avg.isExpense ? "超支" : "剩下")", money: avg.magnitude,
                           color: avg.isExpense ? .alert : .primary, sentence: sentence,
                           spoken: "近 \(list.count) 个月平均每月\(avg.isExpense ? "超支" : "剩下") \(avg.magnitude.spoken)")
-                MonthBars(summaries: list)
+                MonthBars(summaries: list, height: Viewport.isShort(viewport) ? 190 : 260)
             }
             .kitCard(padding: 20)
-
+        } side: {
             XiaxiaSays(page: "trends", pageName: "趋势", sentence: xiaxia(list),
                        question: "最近 \(list.count) 个月我花钱的趋势怎么样？是在变好还是变差？")
-
-            CardRow(items: [
-                Stat(title: "剩得最多", value: best.map { "\($0.month.month) 月 · \($0.net.display.replacingOccurrences(of: ",00", with: ""))" } ?? "—"),
-                Stat(title: "花得最多", value: worst.map { "\($0.month.month) 月 · \($0.expense.magnitude.rounded)" } ?? "—"),
-                Stat(title: "\(year) 年一共\(thisYear.isExpense ? "超支" : "剩下")", value: thisYear.isExpense ? thisYear.magnitude.rounded : "+" + thisYear.rounded,
-                     tone: thisYear.isExpense ? .bad : .good),
-            ], minWidth: 200) { stat in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(stat.title).font(.caption).foregroundStyle(Color.fg2)
-                    Text(stat.value).font(.system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
-                        .foregroundStyle(stat.tone == .good ? Color.income : stat.tone == .bad ? Color.alert : .primary)
-                        .lineLimit(1).minimumScaleFactor(0.7)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(stats) { stat in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(stat.title).font(.callout).foregroundStyle(Color.fg2)
+                        Spacer(minLength: 8)
+                        Text(stat.value).font(.system(.title3, design: .rounded).weight(.bold)).monospacedDigit()
+                            .foregroundStyle(stat.tone == .good ? Color.income : stat.tone == .bad ? Color.alert : .primary)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    .padding(.vertical, 10)
+                    .accessibilityElement(children: .combine)
+                    if stat.id != stats.last?.id { Divider() }
                 }
-                .kitCard()
-                .accessibilityElement(children: .combine)
             }
+            .kitCard()
         }
     }
 }

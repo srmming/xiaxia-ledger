@@ -1,9 +1,12 @@
-# 每次推送：编译、跑测试、编译 Mac 和 iPhone 两个 app，用示例数据（全是编的）截图。
+# 合并前检查：编译、跑测试、编译 Mac 和 iPhone 两个 app，用示例数据（全是编的）截图。
+# 仓库私有后 Mac 机器按 10 倍扣免费额度，所以平时推送不跑（Mac 上本地 swift build && swift test 代替），
+# 只在 PR 标成「可以审了」（不是草稿）和之后再推送时跑，也可以在 Actions 页手动点 Run workflow。
 # 截图和日志推到 ci-output 分支，方便不在 Mac 前也能看到 app 的样子。
 name: build
 on:
-  push:
-    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +18,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:

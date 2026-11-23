@@ -298,9 +298,16 @@ public enum Subscriptions {
                                  "社保", "交通卡", "月票", "alquiler", "nomina", "nómina", "iva", "hacienda",
                                  "seguridad social", "abono transporte", "rent", "salary", "payroll"]
 
+    /// 进货、买菜、吃饭这些是「买东西」，再规律也不是订阅（比如每周去花市进一次货）。
+    static let purchaseCategories: Set<String> = [
+        "花材", "原料", "包装耗材", "进货", "supplies", "超市", "grocery", "餐饮", "dining", "买菜", "veggies",
+        "水果", "fruit", "外卖", "delivery", "咖啡", "coffee", "加油", "fuel", "购物", "shopping",
+    ]
+
     static func isFixedCost(_ tx: Transaction) -> Bool {
         if let c = tx.category?.trimmingCharacters(in: .whitespaces), !c.isEmpty {
             return fixedCostCategories.contains(c) || fixedCostCategories.contains(c.lowercased())
+                || purchaseCategories.contains(c) || purchaseCategories.contains(c.lowercased())
         }
         let text = tx.description.lowercased()
         return fixedCostWords.contains { w in

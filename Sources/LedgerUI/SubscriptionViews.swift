@@ -1,11 +1,59 @@
 import FinanceCore
 import SwiftUI
 
-// 订阅（计划页）：每月固定在扣多少、下次哪天扣、快到的和涨价的标出来；流水里像订阅的列在下面，点「加上」确认后登记。
+// 订阅（Mac 侧栏单独一页「订阅」，iPhone 在计划页「订阅」那一格）：每月固定在扣多少、下次哪天扣、快到的和涨价的标出来；流水里像订阅的列在下面，点「加上」确认后登记。
 
-/// 订阅卡片。Mac 在计划页右栏，iPhone 在计划页「订阅」那一格。
+/// 订阅页（Mac）。ming 2026-11-23：「订阅要单独拆解出来」「放在一个导航页上面」。
+/// 左边是订阅清单（大字是每月一共在扣多少），右边是 7 天内要扣的和问夏夏。
+struct SubscriptionsPage: View {
+    @Environment(LedgerModel.self) var model
+
+    var body: some View {
+        let book = model.selectedBookID
+        // 7 天内要扣的订阅，加上分期的下一期（ming 2026-11-23：分期快扣了也在这里提一句）。
+        let subs = model.subscriptionStatus
+            .filter { $0.cancelledOn == nil && $0.isDueSoon && (book == nil || $0.bookID == nil || $0.bookID == book) }
+            .map { UpcomingCharge(id: $0.id, name: $0.name, amount: $0.amount, currency: $0.currency, daysLeft: $0.daysLeft ?? 0,
+                                  accountID: $0.accountID, bookID: $0.bookID, isInstallment: false) }
+        let categories = Dictionary(model.subscriptionStatus.map { ($0.id, $0.category) }, uniquingKeysWith: { a, _ in a })
+        let soon = (subs + Plans.installmentsDue(model.ledger, today: .today, within: 7).filter { book == nil || $0.bookID == book })
+            .sorted { $0.daysLeft < $1.daysLeft }
+        let found = model.subscriptionCandidates.filter { book == nil || $0.bookID == nil || $0.bookID == book }
+        // ming 2026-11-23「尽量不要上下拉动」：左边是清单（大字是每月一共在扣多少，视觉重心），右边是快要扣的和流水里像订阅的。
+        Columns(sideWidth: 360) {
+            SubscriptionsCard(part: .list)
+        } side: {
+            if !soon.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader("7 天内要扣")
+                    ForEach(soon) { s in
+                        HStack(spacing: 10) {
+                            CategoryIcon(category: s.isInstallment ? "分期" : subscriptionIcon(s.name, category: categories[s.id] ?? nil))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
+                                Text(Nudges.dayWord(s.daysLeft) + "扣" + (s.isInstallment ? " · 分期" : "")).font(.caption).foregroundStyle(Color.fg2)
+                            }
+                            Spacer(minLength: 8)
+                            Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .kitCard()
+            }
+            if !found.isEmpty { SubscriptionsCard(part: .found) }
+            AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: Array(model.prompts(for: .subscriptions).prefix(found.isEmpty ? 3 : 2)))
+        }
+        .kitPage()
+    }
+}
+
+/// 订阅卡片。Mac 在「订阅」页，iPhone 在计划页「订阅」那一格。
 struct SubscriptionsCard: View {
     @Environment(LedgerModel.self) var model
+    /// Mac 订阅页把「流水里像订阅的」放到右栏，左边只放清单（一屏放下）；iPhone 一张卡全放。
+    enum Part { case all, list, found }
+    var part: Part = .all
     @State private var editing: SubscriptionDraft?
     @State private var confirmDelete: Subscription?
     @State private var showCancelled = false
@@ -21,6 +69,7 @@ struct SubscriptionsCard: View {
         let base = model.ledger.baseCurrency
 
         VStack(alignment: .leading, spacing: 10) {
+            if part != .found {
             SectionHeader(title: "订阅") {
                 HStack(spacing: 10) {
                     if !active.isEmpty { Text("按下次扣款排").font(.caption).foregroundStyle(Color.fg2) }
@@ -51,8 +100,9 @@ struct SubscriptionsCard: View {
                 }
             }
 
-            if !found.isEmpty {
-                Divider().padding(.vertical, 2)
+            }
+            if !found.isEmpty && part != .list {
+                if part == .all { Divider().padding(.vertical, 2) }
                 Label("流水里像订阅的 \(found.count) 个", systemImage: "sparkle.magnifyingglass")
                     .font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
                 ForEach(found.prefix(6)) { c in candidateRow(c) }
@@ -62,7 +112,7 @@ struct SubscriptionsCard: View {
                 }
             }
 
-            if !stopped.isEmpty {
+            if !stopped.isEmpty && part != .found {
                 DisclosureGroup(isExpanded: $showCancelled) {
                     VStack(spacing: 0) { ForEach(stopped) { row($0) } }
                 } label: {
@@ -89,7 +139,7 @@ struct SubscriptionsCard: View {
 
     @ViewBuilder private func totalsText(_ t: SubscriptionTotals, base: String) -> some View {
         Text(t.monthly.ui(in: base))
-            .font(.system(.title, design: .rounded).weight(.bold)).monospacedDigit()
+            .font(part == .list ? .system(size: 40, weight: .bold, design: .rounded) : .system(.title, design: .rounded).weight(.bold)).monospacedDigit()
             .contentTransition(.numericText(value: Double(t.monthly.cents)))
         Text("每月固定在扣 · 一年约 \(roundedText(t.yearly, base))")
             .font(.subheadline).foregroundStyle(Color.fg2)
@@ -101,7 +151,7 @@ struct SubscriptionsCard: View {
 
     private func row(_ s: SubscriptionStatus) -> some View {
         HStack(spacing: 12) {
-            CategoryIcon(category: s.category ?? "订阅")
+            CategoryIcon(category: subscriptionIcon(s.name, category: s.category))
             VStack(alignment: .leading, spacing: 3) {
                 Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
                     .foregroundStyle(s.cancelledOn == nil ? Color.primary : Color.fg3)
@@ -165,7 +215,7 @@ struct SubscriptionsCard: View {
 
     private func candidateRow(_ c: SubscriptionCandidate) -> some View {
         HStack(spacing: 12) {
-            CategoryIcon(category: c.category ?? "订阅", size: 28)
+            CategoryIcon(category: subscriptionIcon(c.name, category: c.category), size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.name).font(.callout).lineLimit(1)
                 Text("\(c.cycle.label) \(c.amount.ui(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)")
@@ -360,4 +410,27 @@ extension LedgerModel {
         let hidden = hiddenAccounts
         return Subscriptions.detect(ledger).filter { !hidden.contains($0.accountID) }
     }
+}
+
+/// 订阅的图标：分类写的是笼统的「订阅」（或没写）时，按名字猜一个更具体的，免得一排全是同一个圆圈。
+/// 视频会员 → 电影，音乐 → 音乐，健身 → 健身房，网站域名 → 网站，云盘、软件、字体、系统月费 → 软件。
+func subscriptionIcon(_ name: String, category: String?) -> String {
+    if let c = category, !c.isEmpty, c != "订阅" { return c }
+    let n = name.lowercased()
+    let rules: [([String], String)] = [
+        (["视频", "影视", "video", "stream", "netflix", "disney", "hbo", "youtube", "爱奇艺", "腾讯视频", "优酷", "bilibili", "b站"], "电影"),
+        (["音乐", "music", "spotify", "tune", "网易云", "qq音乐"], "音乐"),
+        (["健身", "gym", "fit", "瑜伽", "yoga"], "健身房"),
+        (["网站", "域名", "domain", "hosting", "服务器"], "网站"),
+        (["手机", "话费", "流量", "电话", "sim"], "通讯"),
+        (["宽带", "网费", "fibra", "internet"], "网费"),
+        (["保险", "seguro", "insurance"], "保险"),
+        (["读书", "书", "kindle", "阅读", "杂志", "报"], "书"),
+        (["云", "cloud", "icloud", "drive", "网盘", "存储"], "数码"),
+        (["收银", "pos", "刷卡"], "设备"),
+        (["字体", "font", "设计", "canva", "figma"], "文具"),
+        (["软件", "app", "系统", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
+    ]
+    for (words, icon) in rules where words.contains(where: { n.contains($0) }) { return icon }
+    return "订阅"
 }

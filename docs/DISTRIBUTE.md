@@ -79,3 +79,27 @@ bash scripts/release-local.sh --iphone    # iPhone：装到用线连着的那台
 ## 发版前
 
 每次发版前按 [CHECKLIST.md](CHECKLIST.md) 从头跑一遍，其中「8. 连 AI 引导」一节专门查这一页说的流程。
+
+## 发给别人 + 更新提醒（2026-11-23 起）
+
+代码仓库是私有的。安装包和更新清单放在官网 **https://xiaxia.ming95.com**（ming 的服务器，官网线程用 `site/deploy.sh` 部署）：
+
+- `https://xiaxia.ming95.com/appcast.xml`：更新清单，app 里写着它（`SUFeedURL`）。app 每天在后台看一次，有新版不弹窗，只在侧栏左下角显示红点「有新版本 x.y.z」；点它打开更新窗口，看新版改了什么，点「安装更新」就下载、换好、重开（ming：「就是有个更新的按钮在左下角 有更新会提醒」）。设置 →「同步与币种」→「更新」和菜单「夏夏账本 → 检查更新…」也能手动查。换之前会把账本复制到账本旁边的「更新前备份」（留最近 5 份）；更新本身只换 app，不碰账本。
+- `https://xiaxia.ming95.com/download/xiaxia-ledger-<版本>.dmg`：每个版本一份（留最近 3 个）；`/download/xiaxia-ledger.dmg` 永远是最新版（官网下载按钮用）。
+- 网址前缀只写在 `App/project.yml` 的 `XIAXIA_UPDATE_BASE` 一处。换网址的那一版要先在旧网址发一次，旧版用户才跟得过去。
+- 更新包用 Sparkle 的 EdDSA 密钥签名：私钥只在 ming 的 Mac 登录钥匙串里，公钥在 `XIAXIA_SPARKLE_PUBLIC_KEY`。私钥丢了，已经装的人就收不到更新，只能重新下载，所以钥匙串要和 Mac 一起备份。
+
+发一个新版只要一句（在 Mac 的仓库目录）：
+
+```
+bash scripts/release-share.sh 0.2.1            # 编译 → Developer ID 签名 → 公证 → dmg → 写 appcast → site/deploy.sh 上传
+bash scripts/release-share.sh 0.2.1 --adhoc    # 还没有 Developer ID 证书时：临时签名，别人第一次打开要多点一步
+```
+
+版本号每次要比上次大。给别人的包**不带 iCloud 权限**：账本放在对方 iCloud 云盘的「夏夏账本」文件夹（开了 iCloud 云盘时）或「应用程序支持」里，app 和 AI 都读这一份；少的只是「iPhone 和 Mac 同步」。
+
+### 签名和公证：不用 ming 动手（2026-11-23 实测）
+
+- **Developer ID 签名**：ming 的 Mac 上 Xcode 已登录开发者账号（团队 U33A8DX2JT）。`release-share.sh` 走 `xcodebuild archive` + `-exportArchive`（method developer-id，automatic，-allowProvisioningUpdates），Xcode 用苹果云端管理的 Developer ID 证书签名，本机钥匙串不需要证书、不弹窗。Sparkle 和 fin 一起签好。
+- **公证**：优先用 notarytool 的 `xiaxia-notary` 钥匙串配置；没有就用 Mac 上 `asc` 命令行存在钥匙串里的 App Store Connect API 密钥（`asc notarization submit --file <dmg> --wait`），然后 `xcrun stapler staple`。不需要 app 专用密码。
+- 哪天 Xcode 退出了开发者账号，或 asc 的密钥失效：Xcode → 设置 → Accounts 重新登录；或按旧办法生成 App 专用密码，`xcrun notarytool store-credentials xiaxia-notary --apple-id <邮箱> --team-id U33A8DX2JT`。

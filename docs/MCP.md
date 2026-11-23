@@ -17,14 +17,14 @@ fin setup --remove    # 全部拿掉
 
 开发时用 `bash scripts/install-global.sh`：先把 `~/.local/bin/fin` 链到 app 里的 fin（没装 app 就从源码编译），再跑 `fin setup`。改了 `skills/fin` 里的说明，要先跑 `python3 scripts/gen-skill-bundle.py` 再编译。
 
-下面是手动配置的写法。
+下面是手动配置的写法（`/Users/你的用户名` 换成自己的主目录，终端里 `echo ~` 可以看到）。
 
 ## 配置
 
 Claude 桌面版（`~/Library/Application Support/Claude/claude_desktop_config.json`）：
 
 ```json
-{ "mcpServers": { "xiaxia-ledger": { "command": "/Users/ming/.local/bin/fin", "args": ["mcp"] } } }
+{ "mcpServers": { "xiaxia-ledger": { "command": "/Users/你的用户名/.local/bin/fin", "args": ["mcp"] } } }
 ```
 
 Claude Code：`claude mcp add xiaxia-ledger -- ~/.local/bin/fin mcp`
@@ -33,7 +33,7 @@ Codex（`~/.codex/config.toml`）：
 
 ```toml
 [mcp_servers.xiaxia-ledger]
-command = "/Users/ming/.local/bin/fin"
+command = "/Users/你的用户名/.local/bin/fin"
 args = ["mcp"]
 ```
 

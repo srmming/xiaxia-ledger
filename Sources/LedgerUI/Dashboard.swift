@@ -149,7 +149,9 @@ extension LedgerModel {
         for m in months.sorted() {
             let end = LocalDate(year: m.year, month: m.month, day: m.dayCount)
             while i < txs.count, txs[i].date <= end { running = running + txs[i].amount; i += 1 }
-            result.append(NetWorthPoint(month: m, value: running))
+            // 别人欠我的算进来、我还欠的（借款、分期没还完）减掉（ming 2026-11-23）。
+            let owed = Plans.obligations(ledger, asOf: min(end, LocalDate.today)).net
+            result.append(NetWorthPoint(month: m, value: running + owed))
         }
         return result
     }
