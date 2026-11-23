@@ -58,6 +58,7 @@ if [ -n "$IOS_APP" ]; then
   ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
   ios 5d-plans-dark -XiaxiaDemo -XiaxiaSection plans
   ios 33-memory-dark -XiaxiaDemo -XiaxiaSheet memory
+  ios 34-trends-dark -XiaxiaDemo -XiaxiaSection trends
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
 fi
 
@@ -114,14 +115,19 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 51-whats-new-dark -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1 -xiaxia.appearance dark
   snap 52-whats-new-small -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.3 -XiaxiaUpdatePreview 1 -XiaxiaWindowSize 1000x612
   snap 53-settings-update -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaUpdatePreview 1
+  # 趋势页「照这样花下去，月底和年底剩多少」（2026-11-23）
+  snap 60-trends -XiaxiaDemo 1 -XiaxiaSection trends
+  snap 61-trends-small -XiaxiaDemo 1 -XiaxiaSection trends -XiaxiaWindowSize 1000x612
+  snap 62-trends-dark -XiaxiaDemo 1 -XiaxiaSection trends -xiaxia.appearance dark
+  snap 63-trends-empty -XiaxiaEmpty 1 -XiaxiaSection trends
   # 目标页小金猪（2026-11-23）：设目标一步一页、空账本
-  snap 60-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
-  snap 60b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
-  snap 61-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
-  snap 62-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
-  snap 63-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
-  snap 64-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
-  snap 65-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
+  snap 70-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
+  snap 70b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
+  snap 71-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
+  snap 72-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
+  snap 73-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
+  snap 74-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
+  snap 75-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

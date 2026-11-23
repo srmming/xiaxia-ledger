@@ -174,6 +174,19 @@ extension LedgerModel {
                                     owedItems: WealthBreakdown.owedItems(ledger, asOf: min(end, LocalDate.today)))
     }
 
+    /// 趋势页：照这样花下去，月底、年底能随便花的钱还剩多少。和家底页的大数字同一个口径。
+    /// 实线是前 5 个月底（从第一笔记录那个月起）加今天。
+    func cashForecast() -> CashForecast.Result? {
+        let today = LocalDate.today
+        let ym = today.yearMonth
+        let first = recordedMonths.min() ?? ym
+        let history = Reports.months(endingAt: ym.adding(months: -1), count: 5).filter { $0 >= first }.map {
+            CashForecast.Point(date: LocalDate(year: $0.year, month: $0.month, day: $0.dayCount), value: wealthBreakdown($0).spendable)
+        }
+        return CashForecast.make(baseTransactions, books: ledger.books, hiddenAccounts: hiddenAccounts, today: today,
+                                 now: wealthBreakdown(ym).spendable, history: history)
+    }
+
     /// 最近 3 个过完的、有花销的月平均每月花多少（正数）。没有过完的月就用这个月到现在的。
     func averageMonthlySpend() -> Money { averageMonthlySpend(books: [nil]) }
 
