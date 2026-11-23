@@ -214,4 +214,11 @@ final class PhoneCaptureTests: XCTestCase {
         XCTAssertEqual(back.appliedNotes, ["a", "b"])
     }
     #endif
+
+    func testDemoLedgerHasPhoneNotesAndReimbursements() {
+        let l = DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 21))
+        XCTAssertEqual(l.pendingCaptures.count, 2)
+        XCTAssertEqual(l.paperwork.map(\.reimburse), [.toSubmit, .submitted, .paid])
+        XCTAssertGreaterThan(l.reimbursementSummary.outstanding.cents, 0)
+    }
 }
