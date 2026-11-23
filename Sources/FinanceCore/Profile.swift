@@ -63,18 +63,21 @@ public struct Profile: Codable, Hashable, Sendable {
     /// 「你想让夏夏帮你做到什么？」，比如「每个月存下 500 €」。
     public var aim: String?
     public var categories: [CustomCategory]
+    /// 上次整理夏夏的记忆是什么时候（一个月提醒一次）。
+    public var memoryTidiedAt: Date?
 
     public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = []) {
         self.persona = persona; self.aim = aim; self.categories = categories
     }
 
-    enum CodingKeys: String, CodingKey { case persona, aim, categories }
+    enum CodingKeys: String, CodingKey { case persona, aim, categories, memoryTidiedAt }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         persona = try c.decodeIfPresent(Persona.self, forKey: .persona) ?? .gentle
         aim = try c.decodeIfPresent(String.self, forKey: .aim)
         categories = try c.decodeIfPresent([CustomCategory].self, forKey: .categories) ?? []
+        memoryTidiedAt = try c.decodeIfPresent(Date.self, forKey: .memoryTidiedAt)
     }
 
     /// 「你的目标」示例，点一下就填。说法通用。

@@ -217,6 +217,37 @@ run subscription cancel 云盘
 run subscriptions --all --json
 run subscription find
 
+echo; echo "===== 夏夏的记忆 ====="
+run memory
+run memory add 转给妈妈的钱 "转给妈妈的钱不算支出，算家里往来。" --kind rule --quote "给我妈的钱别算花销" --author Claude
+run memory add 工资 "明年 1 月起涨一点。" --review-on 2027-01-31 --link category:工资
+run memory add 工资 "6 月和 12 月多发一份。" --source confirmed
+expect_fail memory add 工资 "6 月和 12 月多发一份。"
+expect_fail memory add 我的工资 "同一件事换个名字再记一遍"
+expect_fail memory add 银行卡 "卡号 4111 1111 1111 1111"
+expect_fail memory add 坏挂法 "挂在不存在的账户上" --link account:nosuch
+run memory add 导入对账单 "还信用卡是账户互转，别记成支出。" --kind lesson --source corrected --story "第一次导入时算成了支出"
+run memory add 旧打算 "去年说过想换手机。" --review-on 2026-01-31
+run memory
+run memory list --kind rule
+run memory list --json
+run memory show 工资
+run memory search 妈妈
+run memory edit 工资 --pin
+run memory edit 转给妈妈的钱 --text "转给妈妈的钱算家里往来，不算支出。" --dry-run
+expect_fail memory edit 工资 --text "两行的话题不说改哪一行"
+run memory tidy
+run memory tidy --json
+run memory edit 旧打算 --keep --dry-run
+run memory tidy --remove 旧打算
+run memory forget 导入对账单 --dry-run
+run memory forget 导入对账单
+run memory forget 转给妈妈的钱 --forever
+run history --limit 6
+run memory
+run regulars
+run regulars --json
+
 echo; echo "===== MCP ====="
 mcp() { printf '%s\n' "$@" | "$FIN" mcp 2>&1; }
 mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"smoke-client","version":"1"}}}' \
@@ -293,6 +324,23 @@ for spec in \
   'edit_subscription|{"subscription":"音乐会员","amount":"11,99"}' \
   'edit_subscription|{"subscription":"音乐会员","cancel":true,"dry_run":true}' \
   'remove_subscription|{"subscription":"没有这个"}' \
+  'memory|{}' \
+  'remember|{"title":"房租","text":"合同签到明年 8 月底。","links":["category:房租"],"review_on":"2027-08-31"}' \
+  'remember|{"text":"房东说到期可能要涨。","topic":"房租","quote":"到期再说吧"}' \
+  'remember|{"title":"房租合同","text":"换个名字再记一遍"}' \
+  'remember|{"title":"网银","text":"网银密码 123456"}' \
+  'remember|{"title":"收益","text":"我说收益是指店里赚的，不算工资。","kind":"rule","source":"corrected","story":"问收益时答成了工资加店里收入","dry_run":true}' \
+  'memory|{"query":"房租"}' \
+  'memory|{"link":"category:房租"}' \
+  'memory|{"kind":"topic"}' \
+  'update_memory|{"id":"房租","pinned":true}' \
+  'update_memory|{"id":"房租","text":"两行的话题不说改哪一行"}' \
+  'tidy_memory|{}' \
+  'tidy_memory|{"done":true,"dry_run":true}' \
+  'forget_memory|{"id":"房租","dry_run":true}' \
+  'forget_memory|{"id":"房租","forever":true,"dry_run":true}' \
+  'forget_memory|{"id":"没有这条"}' \
+  'regulars|{}' \
   'current_view|{}' \
   'open_in_app|{"page":"spending","month":"2026-10","note":"看看 10 月"}' \
   'open_in_app|{"page":"nopage"}' \
@@ -363,6 +411,9 @@ export XIAXIA_LEDGER_PATH="$DEMO"
   run installments
   run goals
   run insight list
+  run memory
+  run memory tidy
+  run regulars
   run history --limit 8
   run tx --limit 8
   run reconcile --account daily --balance 1000

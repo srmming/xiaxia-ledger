@@ -75,7 +75,8 @@ public final class XiaxiaChatState {
         draft = ""
         busy = true
         let prompt = ChatRunner.prompt(question: question, voice: model.ledger.profile.persona.instruction, aim: model.ledger.profile.aim,
-                                       where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
+                                       where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history,
+                                       memory: MemoryBrief(ledger: model.ledger).promptText)
         let resume = engine == .claude ? session : nil
         Task {
             let reply = await ChatRunner.ask(engine, prompt: prompt, resume: resume, fin: BundledFin.path)
