@@ -140,10 +140,8 @@ extension LedgerModel {
     /// ⌘K、菜单「和夏夏聊」、工具栏「问夏夏」共用：开着就收起，没开就 chat.show()。
     func toggleChat() {
         guard chat.enabled else {
-            // 选了不用内置夏夏：和以前一样，把这一页的情况复制好，打开 Claude。
-            Clipboard.copy(contextLine(page: (section ?? .overview).rawValue))
-            let opened = URL(string: "claude://").map { NSWorkspace.shared.open($0) } ?? false
-            toast = .init(text: opened ? Self.copiedOpenedClaude : Self.copiedForAI, changeID: nil)
+            // 选了不用内置夏夏：把这一页的情况复制好，提示一下，要不要打开 Claude 由用户自己点。
+            handOffToAI("", page: (section ?? .overview).rawValue)
             return
         }
         if chat.open { withAnimation(.snappy) { chat.open = false } } else { chat.show() }

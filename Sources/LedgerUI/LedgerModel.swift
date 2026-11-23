@@ -26,6 +26,11 @@ public final class LedgerModel {
         public var isError = false
         /// 停留几秒；不填按有没有撤销决定（3 秒 / 10 秒）。
         public var seconds: Double? = nil
+        /// 提示里的一个按钮（比如「打开 Claude」）：由用户自己点，不替用户跳走。
+        public var actionLabel: String? = nil
+        public var actionURL: URL? = nil
+        /// 按钮的链接打不开时改开这个（Claude app 没装 → 网页版）。
+        public var fallbackURL: URL? = nil
     }
 
     public let store: any LedgerStore

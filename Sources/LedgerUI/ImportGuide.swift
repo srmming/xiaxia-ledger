@@ -105,7 +105,7 @@ struct ImportGuideCard: View {
                 Label("复制给 AI 的话", systemImage: "doc.on.doc").font(.subheadline.weight(.medium))
             }
             .buttonStyle(.softAI)
-            .accessibilityHint("复制一句话并打开 Claude，把账单文件拖进去再粘贴")
+            .accessibilityHint("复制一句话，在你的 AI 里把账单文件拖进去再粘贴")
             .accessibilityIdentifier("importGuide.copy.\(s.name)")
         }
         .padding(14)
@@ -113,14 +113,12 @@ struct ImportGuideCard: View {
         .background(Color.sunken.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    /// 要带附件，所以不进 app 里的对话栏：复制好，打开 Claude 桌面版，让用户把文件拖进去再粘贴。
+    /// 要带附件，所以不进 app 里的对话栏：复制好，让用户在自己的 AI 里把文件拖进去再粘贴。
     private func copy(_ s: Source) {
-        Clipboard.copy(s.prompt)
-        guard let app = URL(string: "claude://") else { return }
-        openURL(app) { opened in
-            model.toast = .init(text: opened ? "已复制。在 Claude 里把账单文件拖进去，再粘贴这句话"
-                                             : "已复制。打开你电脑上的 AI（Claude、Codex……），把账单文件拖进去，再粘贴这句话", changeID: nil)
-        }
+        // 和「问夏夏」一样：复制好、提示停一会儿，要不要打开 Claude 由用户自己点，不自动跳走。
+        model.handOffToAI(s.prompt)
+        model.toast?.text = "提示词已经复制。打开你的 AI，把账单文件拖进去，再粘贴这句话"
+        model.toast?.seconds = 10
     }
 }
 

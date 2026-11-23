@@ -319,11 +319,11 @@ struct ConnectAIView: View {
                         Button { dismiss(); model.chat.prefill(sentence) } label: { Label("在夏夏对话栏里试", systemImage: "sparkles") }
                             .buttonStyle(.softAI)
                     } else {
-                        Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
+                        Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
                             .buttonStyle(.softAI)
                     }
                     #else
-                    Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
+                    Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
                         .buttonStyle(.softAI)
                     #endif
                 }

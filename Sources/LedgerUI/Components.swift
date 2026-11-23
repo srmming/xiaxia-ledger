@@ -353,6 +353,7 @@ extension View {
 struct ToastView: View {
     let toast: LedgerModel.Toast
     let undo: () -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         HStack(spacing: 12) {
@@ -361,6 +362,15 @@ struct ToastView: View {
             Text(toast.text).font(.subheadline).lineLimit(2)
             if toast.changeID != nil {
                 Button("撤销", action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+            }
+            if let label = toast.actionLabel, let url = toast.actionURL {
+                Button(label) {
+                    openURL(url) { opened in
+                        if !opened, let web = toast.fallbackURL { openURL(web) }
+                    }
+                }
+                .font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+                .accessibilityIdentifier("toast.action")
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 11)

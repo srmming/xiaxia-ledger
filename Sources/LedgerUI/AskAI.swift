@@ -28,7 +28,34 @@ extension LedgerModel {
     /// 现在看的是哪儿：给 AI 的话前面带上，AI 就知道你在问哪个月、哪个账本。
     /// 没开内置夏夏时，所有「问夏夏」都是复制好提示词交给用户自己的 AI，提示统一用这两句（ming 2026-11-23 定的说法）。
     static let copiedForAI = "提示词已经复制，可以发给你的 AI"
-    static let copiedOpenedClaude = "提示词已经复制，已打开 Claude，粘贴发送就行"
+
+    /// 没开内置夏夏时「问夏夏」的统一做法：复制好（带上这一页的情况），在 app 里停一会儿提示，
+    /// 旁边给个「打开 Claude」按钮让用户自己点。不自动跳走：跳走了用户看不到提示，会以为没反应。
+    func handOffToAI(_ text: String, page: String? = nil) {
+        let full = page.map { contextLine(page: $0) + text } ?? text
+        Clipboard.copy(full)
+        var t = Toast(text: Self.copiedForAI, changeID: nil, seconds: 8)
+        #if os(macOS)
+        // Mac 上装了 Claude 桌面版才给按钮；用 Codex、ChatGPT 的人只看提示，自己去粘。
+        if let app = URL(string: "claude://"), NSWorkspace.shared.urlForApplication(toOpen: app) != nil {
+            t.actionLabel = "打开 Claude"; t.actionURL = app
+        }
+        #else
+        t.actionLabel = "打开 Claude"
+        t.actionURL = URL(string: "claude://")
+        t.fallbackURL = URL(string: "https://claude.ai/new")
+        #endif
+        toast = t
+    }
+
+    /// 「问夏夏这一笔」：开着内置夏夏就放进对话栏，没开就复制好交给用户的 AI。
+    func askAbout(_ tx: Transaction) {
+        #if os(macOS)
+        if chatReady { chat.ask(about: tx, model: self); return }
+        #endif
+        selectedTransactionID = tx.id
+        handOffToAI("这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，帮我看看", page: (section ?? .overview).rawValue)
+    }
 
     func contextLine(page: String) -> String {
         var line = "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
@@ -95,16 +122,7 @@ struct AskAIAction {
             return
         }
         #endif
-        let full = page.map { model.contextLine(page: $0) + text } ?? text
-        Clipboard.copy(full)
-        guard open, let app = URL(string: "claude://") else {
-            model.toast = .init(text: LedgerModel.copiedForAI, changeID: nil)
-            return
-        }
-        // 装了 Claude 就顺手打开它；没装不跳网页（用户可能用的是 Codex、ChatGPT），只说复制好了。
-        openURL(app) { opened in
-            model.toast = .init(text: opened ? LedgerModel.copiedOpenedClaude : LedgerModel.copiedForAI, changeID: nil)
-        }
+        model.handOffToAI(text, page: page)
     }
 }
 
