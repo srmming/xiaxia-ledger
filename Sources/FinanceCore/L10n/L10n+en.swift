@@ -14,7 +14,7 @@ extension L10n {
         "改动记录": "Change history",
         "流水": "Transactions",
         "设置": "Settings",
-        "看": "Look",
+        "看": "View",
         "记录": "Records",
         "收支": "Money in & out",
         "记一笔": "Add",
