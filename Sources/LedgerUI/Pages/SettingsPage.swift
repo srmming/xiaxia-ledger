@@ -266,7 +266,7 @@ struct SettingsPaneView: View {
                 group("AI 连接", note: "Claude、Codex 这些 AI 通过 MCP 读写同一本账。「用过账本」是 AI 最近一次打开账本的时间。") {
                     AIStatusRows()
                     Button { model.sheet = .connectAI } label: {
-                        item(symbol: "link", color: .ai, title: "连上你的 AI（Claude、Codex、Hermes…）") { chevron }
+                        item(symbol: "link", color: .ai, title: "连接你的 AI（Claude、Codex、Hermes…）") { chevron }
                     }
                     .buttonStyle(.plain)
                 }

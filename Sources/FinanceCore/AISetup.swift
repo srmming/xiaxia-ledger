@@ -239,7 +239,7 @@ public struct AISetup: Sendable {
         let ns = error as NSError
         let denied = [NSFileWriteNoPermissionError, NSFileReadNoPermissionError].contains(ns.code)
             || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map { $0.domain == NSPOSIXErrorDomain && [1, 13].contains($0.code) } == true
-        if denied { return "没有权限写这个文件（多半是 AI 工具的沙盒挡住了）。请自己在「终端」里运行 fin setup，或在夏夏账本 app 里点「连上」" }
+        if denied { return "没有权限写这个文件（多半是 AI 工具的沙盒挡住了）。AI：先用你自己的办法申请放开、让用户点同意再跑一次；还不行就请用户在夏夏账本 app「设置 → 连接你的 AI」里点「连接」，或在「终端」里运行 fin setup" }
         return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 
