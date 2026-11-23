@@ -23,6 +23,8 @@ struct PlansPage: View {
             .accessibilityIdentifier("plansTab")
             switch tab {
             case 1:
+                SubscriptionsXiaxia()
+                if model.subscriptionStatus.contains(where: { $0.cancelledOn == nil }) { SubscriptionTotalsStrip() }
                 SubscriptionsCard()
                 AskAICard(title: "让夏夏帮你找订阅", note: nil, page: "订阅",
                           prompts: [AIPrompt(kind: "订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本")])

@@ -170,9 +170,10 @@ struct DebtsPage: View {
             return (s + (p == .sharp ? "别让人家来催你。" : p == .cheer ? "还上就轻松啦，加油！" : p == .calm ? "" : "记得还上。"), plan, nil)
         }
         // 排了计划的借款：这期过了没还，或者 7 天内要还。
-        if let (d, pr) = mine.compactMap({ d in model.ledger.planProgress(d.id).map { (d, $0) } })
+        if let hit = mine.compactMap({ d in model.ledger.planProgress(d.id).map { (d, $0) } })
             .filter({ $0.1.nextDate.map { today.days(until: $0) <= 7 } ?? false })
-            .min(by: { $0.1.nextDate! < $1.1.nextDate! }), let n = pr.nextDate {
+            .min(by: { $0.1.nextDate! < $1.1.nextDate! }), let n = hit.1.nextDate {
+            let d = hit.0, pr = hit.1
             let days = today.days(until: n)
             let s = pr.overdue
                 ? "还\(d.counterparty)的第 \(pr.paidCount + 1) 期 \(pr.nextAmount.rounded) 过了 \(max(1, -days)) 天。还了点「⋯ → 记一笔还款」，晚点还也可以选顺延。"
@@ -402,13 +403,16 @@ struct DebtLineRow: View {
         .accessibilityElement(children: .contain)
     }
 
-    @ViewBuilder private var tag: some View {
-        let text: String? = switch line.kind {
+    private var tagText: String? {
+        switch line.kind {
         case .installment: "分期"
         case .plannedDebt: "计划"
         case .debt: nil
         }
-        if let text {
+    }
+
+    @ViewBuilder private var tag: some View {
+        if let text = tagText {
             Text(text).font(.caption2.weight(.semibold)).foregroundStyle(Color.fg2)
                 .padding(.horizontal, 6).padding(.vertical, 1)
                 .background(Color.sunken, in: Capsule())
