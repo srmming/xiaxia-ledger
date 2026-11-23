@@ -94,32 +94,9 @@ struct SetupCommand: ParsableCommand {
     struct Status: Encodable { var tool: String; var name: String; var ready: Bool; var next: String }
     struct Check: Encodable { var ok: Bool; var message: String }
 
-    /// 像 AI 工具那样启动 fin mcp，调一次只读的 summary（本月），看能不能读到账本。
+    /// 像 AI 工具那样启动 fin mcp，调一次只读的 summary（本月），看能不能读到账本。规则在 FinanceCore（app 的「连接」也用它）。
     static func verify(fin: String) -> Check {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: fin)
-        p.arguments = ["mcp"]
-        let input = Pipe(), output = Pipe()
-        p.standardInput = input
-        p.standardOutput = output
-        p.standardError = FileHandle.nullDevice
-        do { try p.run() } catch { return Check(ok: false, message: "fin mcp 启动不了：\(error.localizedDescription)") }
-        let month = LocalDate.today.yearMonth.description
-        // 不发 initialize：那会把「fin setup」记成一个连上过的 AI 工具
-        let call = #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"summary","arguments":{"month":"\#(month)"}}}"#
-        input.fileHandleForWriting.write(Data((call + "\n").utf8))
-        try? input.fileHandleForWriting.close()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        guard let line = String(decoding: data, as: UTF8.self).split(separator: "\n").first,
-              let obj = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-              let result = obj["result"] as? [String: Any],
-              let text = (result["content"] as? [[String: Any]])?.first?["text"] as? String else {
-            return Check(ok: false, message: "fin mcp 没有正常回答")
-        }
-        if result["isError"] as? Bool == true { return Check(ok: false, message: text) }
-        // 只报读到了，不把金额打出来
-        let read = text.contains("收入") || text.contains("没有")
-        return Check(ok: read, message: read ? "MCP 能读到账本（调了一次只读的 summary，\(month)）" : "MCP 回答看不懂：\(text.prefix(80))")
+        let r = AIConnector.selfTest(command: fin)
+        return Check(ok: r.ok, message: r.message)
     }
 }

@@ -582,7 +582,7 @@ struct WelcomeView: View {
                     primary("进入夏夏账本", id: "welcome.done.enter") { finish(openAdd: false) }
                 }
             } else {
-                pageBody("都准备好了！", "现在记第一笔试试？\(aiStepAvailable ? "想连 AI 的时候，去「设置」里点「连上你的 AI」。" : "")") {
+                pageBody("都准备好了！", "现在记第一笔试试？\(aiStepAvailable ? "想连 AI 的时候，去「设置」里点「连接你的 AI」。" : "")") {
                     EmptyView()
                 } buttons: {
                     primary("记第一笔", id: "welcome.done.add") { finish(openAdd: true) }
