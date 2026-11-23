@@ -98,6 +98,8 @@ final class DataResetTests: XCTestCase {
         XCTAssertEqual(list.first?.url.lastPathComponent, made.last?.lastPathComponent, "最新的排最前")
         XCTAssertFalse(FileManager.default.fileExists(atPath: made[0].path), "最旧的那份清掉了")
         XCTAssertEqual(list.first?.url.deletingLastPathComponent().lastPathComponent, LedgerBackup.folderName)
+        XCTAssertEqual(list.first?.date.timeIntervalSince1970 ?? 0, base.addingTimeInterval(180).timeIntervalSince1970, accuracy: 1,
+                       "显示的是备份那一刻，不是账本上次改动的时间")
 
         // 同一秒再备份一次不会盖掉上一份。
         let again = try XCTUnwrap(try LedgerBackup.make(of: store.url, label: "删除前", keep: 10, now: base.addingTimeInterval(180)))

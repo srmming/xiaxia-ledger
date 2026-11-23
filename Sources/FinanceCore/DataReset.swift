@@ -138,6 +138,8 @@ public enum LedgerBackup {
             dest = dir.appendingPathComponent("ledger-\(f.string(from: now))-\(label)-\(n).\(ext)"); n += 1
         }
         try fm.copyItem(at: file, to: dest)
+        // 复制会带上原文件的修改时间；列表显示的是「什么时候备份的」，改成现在。
+        try? fm.setAttributes([.modificationDate: now], ofItemAtPath: dest.path)
         for old in list(for: file).dropFirst(keep) { try? fm.removeItem(at: old.url) }
         return dest
     }
