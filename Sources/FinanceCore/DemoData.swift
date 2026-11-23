@@ -487,7 +487,19 @@ struct DemoBuilder {
         if let sisResult = try? l.addDebt(counterparty: "姐姐", direction: .iOweThem, amount: eur(1500), bookID: P, date: sisterDay,
                                           accountID: "daily", dueDate: demoDay(demoShift(end.yearMonth, 4), 30), author: "你") {
             stamp(sisterDay)
-            for k in [3, 5, 7, 9, 11] { repay(sisResult.0.id, eur(250), on: demoDay(months[k], 20), account: "daily", author: "Claude") }
+            for k in [3, 5, 7, 9] { repay(sisResult.0.id, eur(250), on: demoDay(months[k], 20), account: "daily", author: "Claude") }
+            // 剩下 500 € 排成还款计划：每月 125 €（欠款改分期）；上个月多还了 50 €，选了「之后每期少还一点」。
+            let planDay = demoDay(months[9], 25)
+            if planDay <= end {
+                _ = try? l.planDebt(sisResult.0.id, perMonth: eur(125), start: demoDay(months[10], 20), author: "你")
+                stamp(planDay)
+            }
+            repay(sisResult.0.id, eur(125), on: demoDay(months[10], 20), account: "daily", author: "你")
+            if demoDay(months[11], 20) <= end {
+                _ = try? l.repay(debtID: sisResult.0.id, amount: eur(175), date: demoDay(months[11], 20), accountID: "daily",
+                                 adjust: .lowerPayments, author: "你")
+                stamp(demoDay(months[11], 20))
+            }
         }
         // 借给阿杰 300 €，约好两个月还，只还了 100 €（过期了）。
         let ajDay = demoDay(months[7], 9)
@@ -579,6 +591,12 @@ struct DemoBuilder {
                                    accountID: m.3, bookID: m.4, category: "订阅", match: m.5)
             _ = try? l.addSubscription(sub, author: m.7)
             stamp(demoDay(months[2], 4 + k))
+        }
+        // 云存储：说过最近很少用 → 订阅页「可以考虑退」。
+        if let i = l.subscriptions.firstIndex(where: { $0.name == "云存储 50GB" }) {
+            var u = l.subscriptions[i]; u.rarelyUsed = true
+            _ = try? l.editSubscription(u, author: "你")
+            stamp(demoDay(months[9], 2))
         }
         let march = past(3)
         let yearly = Subscription(name: "网站和域名年费", amount: eur(96), cycle: .yearly,

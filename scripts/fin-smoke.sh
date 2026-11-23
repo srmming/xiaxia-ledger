@@ -288,6 +288,7 @@ for spec in \
   'add_transaction|{"amount":"-1","description":"坏账本","account":"cash","book":"nobook"}' \
   'add_debt|{"counterparty":"阿梅","direction":"they_owe_me","amount":"80","account":"cash","dry_run":true}' \
   'repay_debt|{"counterparty":"阿华","amount":"50","account":"cash","dry_run":true}' \
+  'plan_debt|{"counterparty":"阿华","count":3,"start":"2026-12-20","dry_run":true}' \
   'goal_deposit|{"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}' \
   "import_statement|{\"file\":\"$WORK/revolut.csv\",\"account\":\"revolut\",\"format\":\"revolut\",\"dry_run\":true}" \
   'add_book|{"name":"家庭","kind":"personal"}' \

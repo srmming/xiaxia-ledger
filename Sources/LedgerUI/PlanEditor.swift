@@ -231,11 +231,30 @@ struct PlanRowMenu: View {
     let name: String
     @State var confirmDelete = false
     @State var editingGoal: Goal?
+    @State var debtSheet: DebtSheet?
 
     var body: some View {
         Menu {
             if case .goal(let id) = target, let g = model.ledger.goals.first(where: { $0.id == id }) {
                 Button { editingGoal = g } label: { Label("改…", systemImage: "pencil") }
+                Button { model.perform { try $0.pinGoal(g.id, pinned: !g.pinned, author: model.author) } } label: {
+                    Label(g.pinned ? "取消钉住" : "钉到最上面", systemImage: g.pinned ? "pin.slash" : "pin")
+                }
+                if g.rank != nil {
+                    Button { model.perform { try $0.resetGoalOrder(author: model.author) } } label: { Label("顺序改回按急不急排", systemImage: "arrow.up.arrow.down") }
+                }
+            }
+            if case .debt(let id) = target, let d = model.ledger.debts.first(where: { $0.id == id }), !d.closed {
+                Button { debtSheet = DebtSheet(debtID: id, kind: .repay) } label: { Label("记一笔还款…", systemImage: "arrow.uturn.backward.circle") }
+                Button { debtSheet = DebtSheet(debtID: id, kind: .plan) } label: {
+                    Label(d.plan == nil ? "排个还款计划…" : "改还款计划…", systemImage: "calendar.badge.clock")
+                }
+                if let p = model.ledger.planProgress(id), p.currentIndex != nil {
+                    Menu {
+                        Button(RepayAdjust.addToNext.label) { model.perform { try $0.skipPlannedPayment(id, adjust: .addToNext, author: model.author) } }
+                        Button(RepayAdjust.extendPlan.label) { model.perform { try $0.skipPlannedPayment(id, adjust: .extendPlan, author: model.author) } }
+                    } label: { Label("这期先不还…", systemImage: "clock.arrow.circlepath") }
+                }
             }
             if case .debt(let id) = target, let d = model.ledger.debts.first(where: { $0.id == id }) {
                 Button { var x = d; x.closed = true; model.perform { try $0.updateDebt(x, author: model.author) } } label: {
@@ -251,6 +270,18 @@ struct PlanRowMenu: View {
         .confirmationDialog("删除「\(name)」？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("删除", role: .destructive, action: remove)
         } message: { Text("相关的流水会一起删。删错了可以在改动记录里撤销。") }
+        .sheet(item: $debtSheet) { x in
+            NavigationStack {
+                switch x.kind {
+                case .repay: DebtRepaySheet(debtID: x.debtID)
+                case .plan: DebtPlanSheet(debtID: x.debtID)
+                }
+            }
+            .environment(model)
+            #if os(macOS)
+            .frame(width: 500, height: x.kind == .plan ? 560 : 460)
+            #endif
+        }
         .sheet(item: $editingGoal) { g in
             NavigationStack { GoalEditor(goal: g) }
                 .environment(model)

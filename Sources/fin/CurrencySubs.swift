@@ -134,12 +134,15 @@ func subscriptionsText(_ ledger: Ledger, all: Bool, book: String?) -> String {
     let t = Subscriptions.totals(list, bookID: book)
     if list.isEmpty { return "还没有登记订阅。可以用 fin subscription find 从流水里找可能是订阅的。" }
     var lines = ["在续 \(t.activeCount) 个，每月约 \(t.monthly.formatted(in: ledger.baseCurrency))，一年约 \(t.yearly.formatted(in: ledger.baseCurrency))"
-                 + (t.dueSoon > 0 ? "；7 天内要扣 \(t.dueSoon) 个" : "")]
+                 + (t.dueSoon > 0 ? "；7 天内要扣 \(t.dueSoon) 个，共 \(t.weekAmount.formatted(in: ledger.baseCurrency))" : "")
+                 + (t.reviewCount > 0 ? "；可以考虑退 \(t.reviewCount) 个，每月共 \(t.reviewMonthly.formatted(in: ledger.baseCurrency))" : "")]
     for s in list {
         var line = "  \(s.id.uuidString.prefix(8).lowercased())\t\(s.name)\t\(s.cycle.label) \(s.amount.formatted(in: s.currency))"
         if let c = s.cancelledOn { line += "\t已停（\(c)）" }
         else if let n = s.nextDate, let d = s.daysLeft { line += "\t下次 \(n)" + (d <= 14 ? "（\(d == 0 ? "今天" : "\(d) 天后")）" : "") }
         if s.priceChanged, let last = s.lastChargeAmount { line += "\t最近一次扣了 \(last.formatted(in: s.currency))，可能涨价了" }
+        if s.cycle != .monthly, s.cancelledOn == nil { line += "\t折合每月 \(s.monthlyAmount.formatted(in: s.currency))" }
+        if let why = s.reviewReason { line += "\t可以考虑退（\(why)）" }
         lines.append(line)
     }
     return lines.joined(separator: "\n")
@@ -307,7 +310,9 @@ extension MCPTools {
             "subscription": prop("string", "订阅名字或 id"), "name": prop("string", "新名字"), "amount": prop("string", "新金额"),
             "cycle": prop("string", "周期"), "next_date": prop("string", "下次扣款日"), "account": prop("string", "账户"),
             "book": prop("string", "账本"), "category": prop("string", "分类"), "match": prop("string", "关键词"), "note": prop("string", "备注"),
-            "cancel": prop("boolean", "不续了"), "resume": prop("boolean", "停了的又续上"), "author": author, "dry_run": dryRun,
+            "cancel": prop("boolean", "不续了"), "resume": prop("boolean", "停了的又续上"),
+            "rarely_used": prop("boolean", "用户说最近很少用：true = 订阅页标「可以考虑退」，false = 取消这个标记。先问过用户再填"),
+            "author": author, "dry_run": dryRun,
         ], required: ["subscription"], readOnly: false),
         tool("remove_subscription", "删掉登记错的订阅（能撤销）。不续了请用 edit_subscription cancel=true。", [
             "subscription": prop("string", "订阅名字或 id"), "author": author, "dry_run": dryRun,
@@ -380,6 +385,7 @@ extension MCPTools {
             if let v = s("note") { sub.note = v }
             if flag("cancel") { sub.cancelledOn = sub.cancelledOn ?? .today }
             if flag("resume") { sub.cancelledOn = nil }
+            if let r = a["rarely_used"] as? Bool { sub.rarelyUsed = r ? true : nil }
             return try commit(try ledger.editSubscription(sub, author: who))
         case "remove_subscription":
             let sub = try ledger.findSubscription(try req("subscription"))

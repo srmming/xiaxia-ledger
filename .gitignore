@@ -27,3 +27,4 @@ App/*.xcodeproj/
 App/Generated/
 
 site/deploy.env
+.build-linux/

@@ -73,13 +73,16 @@ public struct Subscription: Identifiable, Hashable, Codable, Sendable {
     public var note: String?
     /// 不续了：哪天停的。停了的不算进合计，但留着记录。
     public var cancelledOn: LocalDate?
+    /// 用户（或 AI 问过用户）说「最近很少用」：订阅页标「可以考虑退」（ming 2026-11-23）。nil = 没说过。
+    public var rarelyUsed: Bool?
 
     public init(id: UUID = UUID(), name: String, amount: Money, currency: String? = nil, cycle: Cycle,
                 nextDate: LocalDate, accountID: String? = nil, bookID: String? = nil, category: String? = nil,
-                match: String? = nil, note: String? = nil, cancelledOn: LocalDate? = nil) {
+                match: String? = nil, note: String? = nil, cancelledOn: LocalDate? = nil, rarelyUsed: Bool? = nil) {
         self.id = id; self.name = name; self.amount = amount.magnitude; self.currency = currency?.uppercased()
         self.cycle = cycle; self.nextDate = nextDate; self.accountID = accountID; self.bookID = bookID
         self.category = category; self.match = match; self.note = note; self.cancelledOn = cancelledOn
+        self.rarelyUsed = rarelyUsed
     }
 
     public var isActive: Bool { cancelledOn == nil }
@@ -112,9 +115,25 @@ public struct SubscriptionStatus: Identifiable, Codable, Sendable, Equatable {
     public var priceChanged: Bool
     /// 流水里认出了几次扣款。
     public var chargeCount: Int
+    /// 最近一次扣的比登记的多（涨价了）。
+    public var priceUp: Bool = false
+    /// 用户说最近很少用。
+    public var rarelyUsed: Bool = false
+    /// 摊到每月多少（订阅自己的币种）。每月扣的就是 amount。
+    public var monthlyAmount: Money = .zero
 
     /// 7 天内要扣。
     public var isDueSoon: Bool { (daysLeft ?? 99) <= 7 }
+    /// 3 天内要扣（订阅页标出来）。
+    public var isDueVerySoon: Bool { cancelledOn == nil && (daysLeft ?? 99) <= 3 }
+    /// 「可以考虑退」：刚涨价，或者说过很少用。永远排在订阅页最上面。
+    public var worthReviewing: Bool { cancelledOn == nil && (priceUp || rarelyUsed) }
+    /// 为什么可以考虑退，一句话。
+    public var reviewReason: String? {
+        guard worthReviewing else { return nil }
+        if priceUp, rarelyUsed { return "刚涨价，你也说很少用" }
+        return priceUp ? "刚涨价" : "你说最近很少用"
+    }
 }
 
 /// 从流水里认出来的「可能是订阅」。
@@ -145,6 +164,29 @@ public struct SubscriptionTotals: Codable, Sendable, Equatable {
     public var yearly: Money
     public var activeCount: Int
     public var dueSoon: Int
+    /// 7 天内要扣几笔、一共多少（换成主币种）。
+    public var weekCount: Int = 0
+    public var weekAmount: Money = .zero
+    /// 可以考虑退的几个、每月一共多少（主币种）。
+    public var reviewCount: Int = 0
+    public var reviewMonthly: Money = .zero
+}
+
+/// 订阅多了以后分组折叠（ming 2026-11-23）：可以考虑退 / 这周要扣 / 这个月 / 年付的。
+public struct SubscriptionGroup: Identifiable, Equatable, Sendable {
+    public enum Kind: String, Sendable { case review, thisWeek, thisMonth, later, yearly }
+    public var kind: Kind
+    public var items: [SubscriptionStatus]
+    public var id: String { kind.rawValue }
+    public var title: String {
+        switch kind {
+        case .review: "可以考虑退"
+        case .thisWeek: "这周要扣"
+        case .thisMonth: "这个月"
+        case .later: "下个月以后"
+        case .yearly: "年付和季付"
+        }
+    }
 }
 
 extension LocalDate {
@@ -227,12 +269,16 @@ public enum Subscriptions {
                 // 账户币种和订阅币种不一样时（欧元卡扣美元订阅）没法直接比，不标。
                 if ledger.currency(ofAccount: last.accountID) != code { changed = false }
             }
-            return SubscriptionStatus(id: s.id, name: s.name, amount: s.amount, currency: code, cycle: s.cycle,
-                                      nextDate: next, daysLeft: next.map { today.days(until: $0) },
-                                      monthlyBase: monthly, yearlyBase: yearly, accountID: s.accountID, bookID: s.bookID,
-                                      category: s.category, cancelledOn: s.cancelledOn,
-                                      lastChargeDate: last?.date, lastChargeAmount: last?.amount.magnitude,
-                                      priceChanged: changed, chargeCount: charges.count)
+            var st = SubscriptionStatus(id: s.id, name: s.name, amount: s.amount, currency: code, cycle: s.cycle,
+                                        nextDate: next, daysLeft: next.map { today.days(until: $0) },
+                                        monthlyBase: monthly, yearlyBase: yearly, accountID: s.accountID, bookID: s.bookID,
+                                        category: s.category, cancelledOn: s.cancelledOn,
+                                        lastChargeDate: last?.date, lastChargeAmount: last?.amount.magnitude,
+                                        priceChanged: changed, chargeCount: charges.count)
+            st.priceUp = changed && (last?.amount.magnitude ?? .zero) > s.amount
+            st.rarelyUsed = s.rarelyUsed == true
+            st.monthlyAmount = s.cycle.monthly(s.amount)
+            return st
         }
         .sorted { a, b in
             switch (a.nextDate, b.nextDate) {
@@ -248,7 +294,37 @@ public enum Subscriptions {
         let active = list.filter { $0.cancelledOn == nil && (bookID == nil || $0.bookID == nil || $0.bookID == bookID) }
         return SubscriptionTotals(monthly: active.reduce(.zero) { $0 + $1.monthlyBase },
                                   yearly: active.reduce(.zero) { $0 + $1.yearlyBase },
-                                  activeCount: active.count, dueSoon: active.filter(\.isDueSoon).count)
+                                  activeCount: active.count, dueSoon: active.filter(\.isDueSoon).count,
+                                  weekCount: active.filter(\.isDueSoon).count,
+                                  weekAmount: active.filter(\.isDueSoon).reduce(.zero) { $0 + base($1) },
+                                  reviewCount: active.filter(\.worthReviewing).count,
+                                  reviewMonthly: active.filter(\.worthReviewing).reduce(.zero) { $0 + $1.monthlyBase })
+    }
+
+    /// 这一次扣多少，换成主币种（按每月折算的比例换回一次的钱）。
+    static func base(_ s: SubscriptionStatus) -> Money {
+        let m = s.cycle.monthly(s.amount)
+        guard m.cents > 0 else { return .zero }
+        return Money(cents: s.monthlyBase.cents * s.amount.cents / m.cents)
+    }
+
+    /// 分组：可以考虑退的永远最上面；其余按下次扣款分「这周要扣 / 这个月 / 下个月以后」，年付季付单放一组。
+    /// 没有东西的组不返回。停了的不在里面。
+    public static func groups(_ list: [SubscriptionStatus], today: LocalDate = .today) -> [SubscriptionGroup] {
+        let active = list.filter { $0.cancelledOn == nil }
+        let review = active.filter(\.worthReviewing)
+        let rest = active.filter { !$0.worthReviewing }
+        let monthEnd = LocalDate(year: today.year, month: today.month, day: LocalDate.daysIn(today.yearMonth))
+        var week: [SubscriptionStatus] = [], month: [SubscriptionStatus] = [], later: [SubscriptionStatus] = [], yearly: [SubscriptionStatus] = []
+        for s in rest {
+            if s.isDueSoon { week.append(s) }
+            else if s.cycle == .yearly || s.cycle == .quarterly { yearly.append(s) }
+            else if let n = s.nextDate, n <= monthEnd { month.append(s) }
+            else { later.append(s) }
+        }
+        return [SubscriptionGroup(kind: .review, items: review), SubscriptionGroup(kind: .thisWeek, items: week),
+                SubscriptionGroup(kind: .thisMonth, items: month), SubscriptionGroup(kind: .later, items: later),
+                SubscriptionGroup(kind: .yearly, items: yearly)].filter { !$0.items.isEmpty }
     }
 
     /// 从流水里认出「可能是订阅」：同一个账户、同一个商户，金额差不多（最多差 15%），
