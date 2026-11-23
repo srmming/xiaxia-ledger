@@ -104,11 +104,13 @@ targets:
         CFBundleDisplayName: $(PRODUCT_NAME)
         CFBundleDevelopmentRegion: zh-Hans
         LSApplicationCategoryType: public.app-category.finance
-        # 自动更新：每天看一次 appcast，有新版弹窗，点一下装好（docs/DISTRIBUTE.md「自动更新」）。
+        # 自动更新：每天看一次 appcast，有新版就在后台下载，退出时换好（docs/DISTRIBUTE.md「自动更新」）。
         # 更新包用 EdDSA 签名，私钥只在 ming 的 Mac 钥匙串里，这里是公钥。
         SUFeedURL: $(XIAXIA_UPDATE_BASE)/appcast.xml
         SUPublicEDKey: $(XIAXIA_SPARKLE_PUBLIC_KEY)
         SUEnableAutomaticChecks: true
+        # 默认后台下载、下次打开就是新版，不弹窗（2026-11-23 ming：「软件可以自己更新吗？」）。设置里能关。
+        SUAutomaticallyUpdate: true
         SUScheduledCheckInterval: 86400
         NSUbiquitousContainers:
           iCloud.com.srmming.xiaxia-ledger:

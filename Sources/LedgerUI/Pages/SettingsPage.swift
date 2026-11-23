@@ -298,6 +298,13 @@ struct SettingsPaneView: View {
                             .help(ledgerLocation(model.store))
                     }
                 }
+                #if os(macOS)
+                if AppUpdateSupport.isAvailable {
+                    group("更新", note: "更新只换 app 本身，账本不动；换之前还会把账本复制一份到账本旁边的「更新前备份」文件夹。") {
+                        AppUpdateRows()
+                    }
+                }
+                #endif
                 group("币种", note: "每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种；银行实际扣了多少，就以银行为准。取汇率只下载欧洲央行的公开汇率表，不会发出任何账目。") {
                     CurrencySettingsRows()
                 }

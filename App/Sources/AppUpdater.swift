@@ -1,32 +1,37 @@
 #if os(macOS)
 import Combine
+import LedgerUI
 import Sparkle
 import SwiftUI
 
-/// Mac 版自动更新（Sparkle）：启动后每天去 appcast 看一次，有新版弹窗，点「安装更新」就换好。
+/// Mac 版自动更新（Sparkle）：每天去 appcast 看一次，有新版在后台下载，下次退出 / 打开时换好，不弹窗。
+/// 设置 →「同步」里能关自动更新、手动检查；菜单「夏夏账本 → 检查更新…」也能查。
 /// 开发版（Debug）、截图和示例模式不检查，免得开发时弹窗。
 @MainActor
-final class AppUpdater: ObservableObject {
-    let controller: SPUStandardUpdaterController?
+final class AppUpdater: NSObject, ObservableObject, SPUUpdaterDelegate {
+    private(set) var controller: SPUStandardUpdaterController?
     @Published var canCheck = false
+    private var observer: NSObjectProtocol?
 
-    init() {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let id = Bundle.main.bundleIdentifier ?? ""
-        let feed = info["SUFeedURL"] as? String ?? ""
-        let key = info["SUPublicEDKey"] as? String ?? ""
+    override init() {
+        super.init()
         let args = ProcessInfo.processInfo.arguments
         let quiet = ["-XiaxiaSnapshot", "-XiaxiaDemo", "-XiaxiaEmpty"].contains(where: args.contains)
-        guard !id.hasSuffix(".debug"), !feed.isEmpty, !key.isEmpty, !quiet else {
-            controller = nil
-            return
-        }
-        let c = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        guard AppUpdateSupport.isAvailable, !quiet else { return }
+        let c = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
         controller = c
         c.updater.publisher(for: \.canCheckForUpdates).receive(on: RunLoop.main).assign(to: &$canCheck)
+        observer = NotificationCenter.default.addObserver(forName: AppUpdateSupport.checkNow, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.check() }
+        }
     }
 
     func check() { controller?.checkForUpdates(nil) }
+
+    /// 换新版之前先把账本复制一份（更新本身不碰账本）。
+    nonisolated func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        AppUpdateSupport.backupLedger(toVersion: item.displayVersionString)
+    }
 }
 
 /// 菜单「夏夏账本 → 检查更新…」。
