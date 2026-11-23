@@ -55,12 +55,19 @@ struct WelcomeView: View {
         AimOption(id: "wish", title: "攒钱实现一个心愿", symbol: "gift", aim: "攒够钱，实现一个心愿", reply: "真好！心愿是什么，待会儿可以告诉 AI。"),
         AimOption(id: "shop", title: "把生意的账管清楚", symbol: "storefront", aim: "把生意的收入和支出管清楚", reply: "好，生意的账和生活的分开算。"),
     ]
-    static let saveAmounts = [100, 200, 300, 500, 1000]
+    /// 第一页「你平时用哪种钱？」直接摆出来的币种；别的从「别的币种」菜单里挑。
+    static let commonCurrencies = ["EUR", "CNY", "USD", "GBP", "HKD", "JPY"]
 
-    /// 整数欧元，写成「300 €」「1.000 €」（目标里不要 ,00）。
-    static func euros(_ n: Int) -> String {
-        let full = Money(cents: Int64(n) * 100).formatted
-        return full.hasSuffix(",00 €") ? String(full.dropLast(5)) + " €" : full
+    /// 目标里的金额：「300 €」「1.000 ¥」（整数不写 ,00）。
+    static func goalAmount(_ m: Money, _ currency: String) -> String {
+        m.formatted(in: currency).replacingOccurrences(of: ",00 ", with: " ")
+    }
+
+    /// 用户敲的金额：只认数字和 , .，大于 0 才算。
+    static func parseAmount(_ text: String) -> Money? {
+        let kept = String(text.filter { $0.isNumber || $0 == "," || $0 == "." })
+        guard let m = Money(parsing: kept), m.cents > 0 else { return nil }
+        return m
     }
 
     struct Choice: Identifiable, Hashable {
@@ -129,7 +136,11 @@ struct WelcomeView: View {
     @State private var pickedBooks: Set<String> = []
     /// 第一步选的目标（现成的 id，或 "custom"）。
     @State private var pickedAim: String?
-    @State private var saveAmount = 300
+    /// 每个月想存多少：用户自己填。
+    @State private var saveAmountText = ""
+    @FocusState private var amountFocused: Bool
+    /// 第一页选的币种（nil = 还没动，用建议的那个）。
+    @State private var pickedCurrency: String?
     @State private var customAim: String?
     @State private var accountChoices: [Choice] = [
         Choice(name: "现金", glyph: AccountKind.cash.glyph, accountKind: .cash),
@@ -360,7 +371,7 @@ struct WelcomeView: View {
         switch step {
         case .hello:
             pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
-                EmptyView()
+                currencyPicker
             } buttons: {
                 primary("开始", id: "welcome.start") { Task { await toAim() } }
             }
@@ -376,12 +387,23 @@ struct WelcomeView: View {
                 }
                 if pickedAim == "save" {
                     // 存钱要有个数才好盯：点一个，夏夏按这个数每月看你存没存到。
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("每个月想存多少？").font(.headline).foregroundStyle(Color.fg2)
-                        FlowLayout(spacing: 8) {
-                            ForEach(Self.saveAmounts, id: \.self) { n in
-                                chip(Self.euros(n), symbol: "eurosign", on: saveAmount == n) { saveAmount = n }
-                            }
+                    HStack(spacing: 10) {
+                        Text("每个月想存").font(.title3).foregroundStyle(Color.fg2)
+                        TextField("比如 300", text: $saveAmountText)
+                            .textFieldStyle(.plain)
+                            .font(.title3.weight(.semibold))
+                            .multilineTextAlignment(.trailing)
+                            .focused($amountFocused)
+                            .frame(width: 130)
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(Color.pageBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(amountFocused ? Color.aiLine : Color.fg3.opacity(0.22), lineWidth: amountFocused ? 2 : 1))
+                            .accessibilityLabel("每个月想存多少")
+                            .accessibilityIdentifier("welcome.aim.amount")
+                        Text(Currencies.info(model.ledger.baseCurrency).symbol).font(.title3.weight(.semibold))
+                        if !saveAmountText.isEmpty && Self.parseAmount(saveAmountText) == nil {
+                            Text("填个数字就行").font(.callout).foregroundStyle(Color.alert)
                         }
                     }
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -563,41 +585,51 @@ struct WelcomeView: View {
                     Text(celebrationNote.map { "AI 连上了，第一笔记下了：\($0)" } ?? "AI 连上了！").font(.subheadline).foregroundStyle(Color.fg2)
                 }
             }
+            // 演示和说明并排放，一屏看完不用往下滚（ming：「不要让我下拉」）。窗口窄就把演示收窄，再窄只留演示。
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 28) {
-                    ChatDemo(engineName: name).frame(width: 340)
-                    chatFacts(name)
+                HStack(alignment: .top, spacing: 24) {
+                    ChatDemo(engineName: name).frame(width: 300)
+                    chatSide(name, pick: pick, engines: engines).frame(minWidth: 220, idealWidth: 240, maxWidth: 400, alignment: .leading)
                 }
-                VStack(alignment: .leading, spacing: 20) {
-                    ChatDemo(engineName: name).frame(maxWidth: 340)
-                    chatFacts(name)
+                HStack(alignment: .top, spacing: 18) {
+                    ChatDemo(engineName: name).frame(width: 250)
+                    chatSide(name, pick: pick, engines: engines).frame(minWidth: 190, idealWidth: 200, maxWidth: 400, alignment: .leading)
                 }
-            }
-            if engines.count > 1 {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("用哪个 AI 来回答？").font(.headline).foregroundStyle(Color.fg2)
-                    FlowLayout(spacing: 8) {
-                        ForEach(engines) { e in
-                            chip(e.name, symbol: "sparkles", on: pick == e) { chatPick = e.rawValue }
-                        }
-                    }
-                }
+                ChatDemo(engineName: name).frame(width: 300)
             }
         } buttons: {
             primary("用内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
             secondary("先不用") { Task { await chooseChat(false) } }
+        } extras: {
+            Text("选「先不用」右边就不出现，「问夏夏」会把问题复制好打开 Claude。以后在「设置」里随时能开。")
+                .font(.callout).foregroundStyle(Color.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 演示右边：三句话说清它能做什么，有几个 AI 就顺便选用哪个。
+    private func chatSide(_ name: String, pick: ChatEngine?, engines: [ChatEngine]) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            chatFacts(name)
+            if engines.count > 1 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("用哪个 AI 来回答").font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                    Picker("用哪个 AI 来回答", selection: Binding(get: { pick?.rawValue ?? "" }, set: { chatPick = $0 })) {
+                        ForEach(engines) { e in Text(e.name).tag(e.rawValue) }
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
+                }
+            }
         }
     }
 
     /// 内置夏夏能做什么、和别的 AI 什么关系、不用会怎样：三句话。
     private func chatFacts(_ name: String) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            fact("text.bubble", "说一句就记账、查账", "「今天午饭 12 欧」「这个月吃饭花了多少」，记好的账马上出现在页面上，能撤销。")
-            fact("eye", "知道你在看哪一页", "停在花销页问「为什么这么多」，或者右键一笔问「这是什么」，她知道你说的是哪个。")
-            fact("cpu", "借你电脑上的 \(name) 来回答", "用你自己的订阅，不另外收费；模型跟随 \(name) 自己的默认，在聊天栏顶上能换。")
-            fact("hand.raised", "不用也没关系", "选「先不用」，右边就不出现。点右上角「问夏夏」会把问题复制好、打开 Claude。以后在「设置」里随时能开。")
+        VStack(alignment: .leading, spacing: 14) {
+            fact("text.bubble", "说一句就记账、查账", "记好的账马上出现在页面上，能撤销。")
+            fact("eye", "知道你在看哪一页", "停在花销页问「为什么这么多」，她知道你说的是哪些。")
+            fact("cpu", "借你电脑上的 \(name) 回答", "用你自己的订阅，不另外收费。")
         }
-        .frame(maxWidth: 380, alignment: .leading)
     }
 
     private func fact(_ symbol: String, _ title: String, _ detail: String) -> some View {
@@ -640,10 +672,54 @@ struct WelcomeView: View {
     }
 
     /// 第一步选好的目标，存进账本的那句话（没选就是 nil）。
+    /// 建议的币种：账本里已经有账就用账本的主币种；新账本按这台电脑的地区猜（西班牙 → 欧元，中国 → 人民币）。
+    private var suggestedCurrency: String {
+        let base = model.ledger.baseCurrency
+        guard model.ledger.transactions.isEmpty,
+              let local = Locale.current.currency?.identifier.uppercased(), Currencies.isKnown(local) else { return base }
+        return base == "EUR" ? local : base
+    }
+
+    private var currencyChoice: String { pickedCurrency ?? suggestedCurrency }
+
+    /// 第一页：你平时用哪种钱？常用的直接摆出来，别的在菜单里。
+    private var currencyPicker: some View {
+        let choice = currencyChoice
+        var codes = Self.commonCurrencies
+        if !codes.contains(choice) { codes.insert(choice, at: 0) }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("你平时用哪种钱？").font(.headline).foregroundStyle(Color.fg2)
+            FlowLayout(spacing: 8) {
+                ForEach(codes, id: \.self) { code in
+                    let i = Currencies.info(code)
+                    chip("\(i.name) \(i.symbol)", symbol: "banknote", on: choice == code) { pickedCurrency = code }
+                }
+                Menu {
+                    ForEach(Currencies.all.filter { !codes.contains($0.code) }, id: \.code) { c in
+                        Button("\(c.name) \(c.symbol)") { withAnimation(.snappy) { pickedCurrency = c.code } }
+                    }
+                } label: {
+                    Text("别的币种").font(.title3.weight(.medium))
+                }
+                .menuStyle(.button).buttonStyle(.borderless)
+                .fixedSize()
+                .padding(.horizontal, 12).padding(.vertical, 11)
+                .accessibilityIdentifier("welcome.currency.more")
+            }
+            Text("账上的总数都按它算。有外币卡也没关系，加账户时能单独设，以后在「设置」里也能改。")
+                .font(.callout).foregroundStyle(Color.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityIdentifier("welcome.currency")
+    }
+
     private var aimText: String? {
         guard let pickedAim else { return nil }
         if pickedAim == "custom" { return customAim }
-        if pickedAim == "save" { return "每个月存下 \(Self.euros(saveAmount))" }
+        if pickedAim == "save" {
+            guard let m = Self.parseAmount(saveAmountText) else { return "每个月存下一笔钱" }
+            return "每个月存下 \(Self.goalAmount(m, model.ledger.baseCurrency))"
+        }
         return Self.aimOptions.first { $0.id == pickedAim }?.aim
     }
 
@@ -849,12 +925,19 @@ struct WelcomeView: View {
     }
 
     private func toAim() async {
+        // 第一页选的币种：定成账本的主币种（进改动记录，能撤销）。目标里的金额、看板上的总数都用它。
+        let code = currencyChoice
+        if code != model.ledger.baseCurrency {
+            _ = try? model.edit(quiet: true) { try $0.setBaseCurrency(code, author: model.author) }
+        }
         // 以前定过（比如在「夏夏建议」页）：直接选上，用户点「就定这个」就行。
         if pickedAim == nil, let old = model.ledger.profile.aim {
             if let o = Self.aimOptions.first(where: { $0.aim == old && !$0.aim.isEmpty }) {
                 pickedAim = o.id
-            } else if let n = Self.saveAmounts.first(where: { "每个月存下 \(Self.euros($0))" == old }) {
-                pickedAim = "save"; saveAmount = n
+            } else if old.hasPrefix("每个月存下") {
+                pickedAim = "save"
+                let digits = old.dropFirst("每个月存下".count).filter { $0.isNumber || $0 == "," || $0 == "." }
+                saveAmountText = String(digits)
             } else {
                 customAim = old; pickedAim = "custom"
             }
@@ -866,7 +949,9 @@ struct WelcomeView: View {
     private func pickAim(_ id: String) {
         withAnimation(.snappy) { pickedAim = pickedAim == id ? nil : id }
         guard pickedAim == id else { return }
-        let reply = id == "custom" ? "好，我记住了！" : Self.aimOptions.first { $0.id == id }?.reply ?? "好！"
+        if id == "save" { DispatchQueue.main.async { amountFocused = true } }
+        let reply = id == "save" ? "好目标！每个月想存多少？填个数，我每个月帮你盯着。"
+            : id == "custom" ? "好，我记住了！" : Self.aimOptions.first { $0.id == id }?.reply ?? "好！"
         Task { await say(reply, pose: .cheer) }
     }
 
@@ -1235,7 +1320,7 @@ struct ChatDemo: View {
                 }
             }
             .padding(14)
-            .frame(height: 270, alignment: .bottom)
+            .frame(height: 196, alignment: .bottom)
             .clipped()
             Divider()
             HStack {
