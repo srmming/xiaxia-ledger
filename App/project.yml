@@ -23,9 +23,9 @@ settings:
     # 不签名 / 临时签名（CI、本机 Debug）带着 iCloud 权限，Mac 会直接拒绝打开 app，所以平时留空。
     XIAXIA_ENTITLEMENTS_YES_iOS: Entitlements/iOS.entitlements
     XIAXIA_ENTITLEMENTS_YES_macOS: Entitlements/macOS.entitlements
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.2.0"
     # Sparkle 更新签名的公钥（不是秘密）。第一次在 ming 的 Mac 上跑 Sparkle 的 generate_keys 生成后填这里。
-    XIAXIA_SPARKLE_PUBLIC_KEY: ""
+    XIAXIA_SPARKLE_PUBLIC_KEY: ajRgl6g9W0Bsi+K/pjud0yYHoq9ezdaY64qlM9hIgSQ=
     # 自动更新的网址前缀（只改这一处）：<前缀>/appcast.xml 是更新清单，<前缀>/download/xiaxia-ledger-<版本>.dmg 是安装包。
     # 官网域名定了就换成 https://<域名>；之前先用只放安装包的公开仓库 srmming/xiaxia-ledger-releases。
     XIAXIA_UPDATE_BASE: https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main
@@ -45,6 +45,8 @@ targets:
       properties:
         CFBundleDisplayName: 夏夏账本
         CFBundleDevelopmentRegion: zh-Hans
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         NSUbiquitousContainers:
           iCloud.com.srmming.xiaxia-ledger:
@@ -103,6 +105,9 @@ targets:
       properties:
         CFBundleDisplayName: $(PRODUCT_NAME)
         CFBundleDevelopmentRegion: zh-Hans
+        # 版本号要从构建设置里来，Sparkle 靠 CFBundleVersion 判断有没有新版（XcodeGen 默认写死 1.0 / 1）。
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.finance
         # 自动更新：每天看一次 appcast，有新版在侧栏左下角提醒，点一下看改了什么、装好重开（docs/DISTRIBUTE.md「自动更新」）。
         # 更新包用 EdDSA 签名，私钥只在 ming 的 Mac 钥匙串里，这里是公钥。

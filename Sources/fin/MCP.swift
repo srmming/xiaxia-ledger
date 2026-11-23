@@ -63,7 +63,7 @@ final class MCPServer {
                 result = [
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
-                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.1.0"],
+                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.2.0"],
                     "instructions": MCPServer.instructions,
                 ] as [String: Any]
             case "ping":

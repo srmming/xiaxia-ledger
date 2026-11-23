@@ -40,8 +40,9 @@ KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.pli
 [ -n "$KEY" ] || echo "⚠︎ 还没填更新签名公钥（App/project.yml 的 XIAXIA_SPARKLE_PUBLIC_KEY），这个包不会自动更新"
 
 echo "• 签名（$([ $ADHOC = 1 ] && echo 临时签名 || echo Developer ID)）：从里到外，Sparkle 的小程序也要签"
-SIGN=(codesign --force --options runtime --sign "$ID")
-[ $ADHOC = 1 ] || SIGN+=(--timestamp)
+# 临时签名不能开 hardened runtime：库校验会把临时签名的 Sparkle.framework 当成别家团队的，app 一打开就闪退。
+SIGN=(codesign --force --sign "$ID")
+[ $ADHOC = 1 ] || SIGN+=(--options runtime --timestamp)
 SP="$APP/Contents/Frameworks/Sparkle.framework"
 if [ -d "$SP" ]; then
   for x in "$SP"/Versions/B/XPCServices/Installer.xpc "$SP"/Versions/B/Autoupdate "$SP"/Versions/B/Updater.app; do
