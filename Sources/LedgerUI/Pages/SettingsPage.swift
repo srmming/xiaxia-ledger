@@ -10,14 +10,17 @@ struct SettingsPage: View {
     @AppStorage("xiaxia.appearance") var appearance = "auto"
     @AppStorage(L10n.defaultsKey) var language = L10n.fallbackChoice.rawValue
     @State private var pane: SettingsPane?
+    /// 换语言时整页会按新语言重建（RootView 的 .id(language)），@State 跟着清空。
+    /// 记下当时开着哪一页和当时的语言：重建后语言变了，就回到那一页，不把人踢回设置首页。
+    @MainActor private static var openBeforeLanguageSwitch: (pane: SettingsPane, language: AppLanguage)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             aiCard
             VStack(spacing: 0) {
-                row(.books, symbol: "building.columns", title: "账本与账户") { Text(booksSummary) }
+                row(.books, symbol: "building.columns", title: tr("账本与账户")) { Text(booksSummary) }
                 divider
-                row(.sync, symbol: "icloud", title: "同步与币种") {
+                row(.sync, symbol: "icloud", title: tr("同步与币种")) {
                     HStack(spacing: 6) {
                         Circle().fill(model.loadError == nil ? Color.income : Color.alert).frame(width: 7, height: 7)
                         Text("\(model.loadError == nil ? "账本已读到" : "账本读不出来") · \(Currencies.info(model.ledger.baseCurrency).name) \(Currencies.info(model.ledger.baseCurrency).symbol)")
@@ -58,9 +61,15 @@ struct SettingsPage: View {
                 .navigationTitle(p.title)
         }
         .onAppear {
-            if pane == nil, let name = UserDefaults.standard.string(forKey: "XiaxiaSettingsPage"), let p = SettingsPane(rawValue: name) {
+            if pane == nil, let kept = Self.openBeforeLanguageSwitch, kept.language != L10n.choice {
+                // 等新的导航栈先建好再推进去，同一拍里推会被丢掉。
+                Task { @MainActor in pane = kept.pane }
+            } else if pane == nil, let name = UserDefaults.standard.string(forKey: "XiaxiaSettingsPage"), let p = SettingsPane(rawValue: name) {
                 pane = p
             }
+        }
+        .onChange(of: pane) { _, now in
+            Self.openBeforeLanguageSwitch = now.map { ($0, L10n.choice) }
         }
     }
 
