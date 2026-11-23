@@ -223,11 +223,20 @@ struct WealthPage: View {
     }
 
     private func sourceLine(_ name: String, _ amount: Money) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            // 一行四张卡时每张很窄：名字长（「卡里划给「店面重新装修」的」）就折成两行，不截掉。
-            Text(name).font(.caption).foregroundStyle(Color.fg2).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 4)
-            Text(amount.ui).font(.caption).monospacedDigit().foregroundStyle(Color.fg2).lineLimit(1).fixedSize()
+        let label = Text(name).font(.caption).foregroundStyle(Color.fg2)
+        let money = Text(amount.ui).font(.caption).monospacedDigit().foregroundStyle(Color.fg2).lineLimit(1).fixedSize()
+        // 一行四张卡时每张很窄：名字和金额一行放不下，就名字占一整行、金额放到下一行靠右，名字不被拆开。
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                label.lineLimit(1).fixedSize()
+                Spacer(minLength: 4)
+                money
+            }
+            VStack(alignment: .trailing, spacing: 0) {
+                label.lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                money
+            }
         }
     }
 
