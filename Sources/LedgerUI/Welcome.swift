@@ -296,7 +296,9 @@ struct WelcomeView: View {
                         .frame(maxWidth: 780, alignment: .leading)
                         .frame(maxWidth: .infinity, minHeight: area.size.height, alignment: .leading)
                         .id(pageKey)
-                        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+                        // 旧的一页很快淡掉，新的一页再滑进来：两页不会叠在一起看着花。
+                        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity).animation(.smooth(duration: 0.35).delay(0.08)),
+                                                removal: .opacity.animation(.easeOut(duration: 0.08))))
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
@@ -810,8 +812,12 @@ struct WelcomeView: View {
     private func goBack() {
         switch step {
         case .aim: go(.hello)
-        case .books: go(.aim)
-        case .accounts: go(.books)
+        case .books:
+            go(.aim)
+            Task { await say("你记账最想做到什么？", pose: .think) }
+        case .accounts:
+            go(.books)
+            Task { await say("要几个账本？", pose: .idle) }
         case .ai:
             if aiMode == .trying {
                 withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; partner = nil; family = nil; checking = nil }
@@ -819,8 +825,11 @@ struct WelcomeView: View {
             } else {
                 checking = nil
                 go(.accounts)
+                Task { await say("钱平时放在哪？", pose: .write) }
             }
-        case .chat: go(.ai)
+        case .chat:
+            go(.ai)
+            Task { await say(aiMode == .trying ? "连接 AI 这一步还在这儿。" : "你平时用哪个 AI？", pose: .think) }
         case .hello, .done: break
         }
     }
