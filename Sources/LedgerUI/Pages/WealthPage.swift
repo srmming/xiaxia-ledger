@@ -100,6 +100,7 @@ struct WealthPage: View {
                             Text("\(Int((Double(p.amount.cents) / whole * 100).rounded()))%").font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
                             Text((p.minus ? "\u{2212}" : "") + p.amount.ui).font(.kitAmount)
                                 .foregroundStyle(p.minus ? Color.alert : .primary)
+                                .lineLimit(1).fixedSize()
                                 .frame(minWidth: 96, alignment: .trailing)
                         }
                         .padding(.vertical, short ? 3 : parts.count > 4 ? 4 : 6)

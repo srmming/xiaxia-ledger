@@ -176,6 +176,7 @@ struct CategoryDonut: View {
         .overlay {
             VStack(spacing: 2) {
                 Text(centerLabel).font(.caption).foregroundStyle(Color.fg2)
+                    .lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: size * 0.6)
                 Text(total.rounded).font(.system(size: size * 0.11, weight: .bold, design: .rounded)).monospacedDigit()
                     .contentTransition(.numericText(value: Double(total.cents)))
             }
