@@ -5,8 +5,10 @@ import SwiftUI
 struct SpendingPage: View {
     @Environment(LedgerModel.self) var model
     @State var byChange = false
-    /// 窗口矮（比如 1000×612）：圆环小一点、排行少列两类，尽量一屏放下。
-    @State private var short = false
+    /// 页面能看到的大小（不算滚动）。窗口矮（比如 1000×612）：圆环小一点、排行少列三类；窗口窄：右栏收窄，仍然左右两栏，一屏放下。
+    @State private var viewport = CGSize(width: 1000, height: 800)
+    private var short: Bool { Viewport.isShort(viewport) }
+    private var narrow: Bool { viewport.width < 900 }
 
     var body: some View {
         let month = model.shownMonth
@@ -23,7 +25,7 @@ struct SpendingPage: View {
             } else {
                 VStack(alignment: .leading, spacing: Kit.gap) {
                     // ming 2026-11-23：「花得最多的商户」不要了，一屏放下：左边圆环 + 夏夏，右边分类排行（带上月对比）。
-                    Columns(sideWidth: 440, breakpoint: 760) {
+                    Columns(sideWidth: 440) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
                         XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
                                    question: "\(month.month) 月钱主要花在哪了？哪些可以省？")
@@ -34,7 +36,7 @@ struct SpendingPage: View {
             }
         }
         .kitPage()
-        .onGeometryChange(for: Bool.self) { $0.size.height < 700 } action: { short = $0 }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
     /// 看本月：上个月 1 号到同一天；看以前的月：整个上个月。
@@ -136,7 +138,7 @@ struct SpendingPage: View {
                             Text(c.amount.ui).font(.kitAmount)
                             change(c.amount, before: previous[c.name])
                         }
-                        .frame(minWidth: 86, alignment: .trailing)
+                        .frame(minWidth: narrow ? 70 : 86, alignment: .trailing)
                     }
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())

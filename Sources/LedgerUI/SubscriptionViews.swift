@@ -18,8 +18,10 @@ struct SubscriptionsPage: View {
         let categories = Dictionary(model.subscriptionStatus.map { ($0.id, $0.category) }, uniquingKeysWith: { a, _ in a })
         let soon = (subs + Plans.installmentsDue(model.ledger, today: .today, within: 7).filter { book == nil || $0.bookID == book })
             .sorted { $0.daysLeft < $1.daysLeft }
-        Columns(sideWidth: 360, breakpoint: 780) {
-            SubscriptionsCard()
+        let found = model.subscriptionCandidates.filter { book == nil || $0.bookID == nil || $0.bookID == book }
+        // ming 2026-11-23「尽量不要上下拉动」：左边是清单（大字是每月一共在扣多少，视觉重心），右边是快要扣的和流水里像订阅的。
+        Columns(sideWidth: 360) {
+            SubscriptionsCard(part: .list)
         } side: {
             if !soon.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -39,7 +41,8 @@ struct SubscriptionsPage: View {
                 }
                 .kitCard()
             }
-            AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: model.prompts(for: .subscriptions))
+            if !found.isEmpty { SubscriptionsCard(part: .found) }
+            AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: Array(model.prompts(for: .subscriptions).prefix(found.isEmpty ? 3 : 2)))
         }
         .kitPage()
     }
@@ -48,6 +51,9 @@ struct SubscriptionsPage: View {
 /// 订阅卡片。Mac 在「订阅」页，iPhone 在计划页「订阅」那一格。
 struct SubscriptionsCard: View {
     @Environment(LedgerModel.self) var model
+    /// Mac 订阅页把「流水里像订阅的」放到右栏，左边只放清单（一屏放下）；iPhone 一张卡全放。
+    enum Part { case all, list, found }
+    var part: Part = .all
     @State private var editing: SubscriptionDraft?
     @State private var confirmDelete: Subscription?
     @State private var showCancelled = false
@@ -63,6 +69,7 @@ struct SubscriptionsCard: View {
         let base = model.ledger.baseCurrency
 
         VStack(alignment: .leading, spacing: 10) {
+            if part != .found {
             SectionHeader(title: "订阅") {
                 HStack(spacing: 10) {
                     if !active.isEmpty { Text("按下次扣款排").font(.caption).foregroundStyle(Color.fg2) }
@@ -93,8 +100,9 @@ struct SubscriptionsCard: View {
                 }
             }
 
-            if !found.isEmpty {
-                Divider().padding(.vertical, 2)
+            }
+            if !found.isEmpty && part != .list {
+                if part == .all { Divider().padding(.vertical, 2) }
                 Label("流水里像订阅的 \(found.count) 个", systemImage: "sparkle.magnifyingglass")
                     .font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
                 ForEach(found.prefix(6)) { c in candidateRow(c) }
@@ -104,7 +112,7 @@ struct SubscriptionsCard: View {
                 }
             }
 
-            if !stopped.isEmpty {
+            if !stopped.isEmpty && part != .found {
                 DisclosureGroup(isExpanded: $showCancelled) {
                     VStack(spacing: 0) { ForEach(stopped) { row($0) } }
                 } label: {
@@ -131,7 +139,7 @@ struct SubscriptionsCard: View {
 
     @ViewBuilder private func totalsText(_ t: SubscriptionTotals, base: String) -> some View {
         Text(t.monthly.ui(in: base))
-            .font(.system(.title, design: .rounded).weight(.bold)).monospacedDigit()
+            .font(part == .list ? .system(size: 40, weight: .bold, design: .rounded) : .system(.title, design: .rounded).weight(.bold)).monospacedDigit()
             .contentTransition(.numericText(value: Double(t.monthly.cents)))
         Text("每月固定在扣 · 一年约 \(roundedText(t.yearly, base))")
             .font(.subheadline).foregroundStyle(Color.fg2)

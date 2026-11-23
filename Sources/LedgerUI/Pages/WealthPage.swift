@@ -4,6 +4,7 @@ import SwiftUI
 /// 家底：我一共有多少钱？视觉重心是净资产 + 12 个月曲线。
 struct WealthPage: View {
     @Environment(LedgerModel.self) var model
+    @State private var viewport = CGSize(width: 1000, height: 800)
 
     var body: some View {
         Group {
@@ -17,17 +18,19 @@ struct WealthPage: View {
                 }
                 .kitCard()
             } else {
-                Columns(sideWidth: 380, breakpoint: 760) {
+                Columns(sideWidth: 380) {
                     heroCard
                     XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
                                question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
-                    debtsCard
+                    // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
+                    if !Viewport.isShort(viewport) { debtsCard }
                 } side: {
                     accountsCard
                 }
             }
         }
         .kitPage()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
     private var heroCard: some View {
@@ -51,7 +54,7 @@ struct WealthPage: View {
         return VStack(alignment: .leading, spacing: 16) {
             KeyFigure(label: label, money: now, color: now.isExpense ? .alert : .primary, sentence: sentence,
                       spoken: "净资产 \(now.spoken)")
-            NetWorthChart(points: Array(series.suffix(12)))
+            NetWorthChart(points: Array(series.suffix(12)), height: Viewport.isShort(viewport) ? 130 : 200)
         }
         .kitCard(padding: 20)
     }
@@ -98,6 +101,7 @@ struct WealthPage: View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
+        let short = Viewport.isShort(viewport)
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "账户") {
                 Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
@@ -108,8 +112,11 @@ struct WealthPage: View {
             ForEach(kinds, id: \.self) { kind in
                 let list = model.visibleAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
-                    Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
-                        .padding(.bottom, 4)
+                    // 窗口矮：不分组写标题（图标已经看得出是哪种），每行收紧，一屏放下。
+                    if !short {
+                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
+                            .padding(.bottom, 4)
+                    }
                     ForEach(list) { a in
                         let b = balances[a.id] ?? .zero
                         HStack(spacing: 12) {
@@ -128,7 +135,7 @@ struct WealthPage: View {
                                 Text(b.balance).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
                             }
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, short ? 2 : 6)
                         .accessibilityElement(children: .combine)
                     }
                 }

@@ -51,7 +51,7 @@ struct PlansPage: View {
                     AskAICard(title: "想定个存钱目标？", note: nil, page: "目标", prompts: model.prompts(for: .plans))
                 }
             } else {
-                Columns(sideWidth: 390, breakpoint: 780) {
+                Columns(sideWidth: 390) {
                     HStack {
                         Text("存钱目标").font(.kitSection)
                         Spacer()
