@@ -164,7 +164,7 @@ struct CategoryDonut: View {
         Chart(drawn) { s in
             SectorMark(angle: .value(tr("金额"), Double(s.amount.cents)),
                        innerRadius: .ratio(0.7), angularInset: roomy ? 1.2 : 0)
-                .foregroundStyle(s.name == "其它" ? Color.fg3 : CategoryStyle.color(s.name))
+                .foregroundStyle(s.name == tr("其它") ? Color.fg3 : CategoryStyle.color(s.name))
                 .cornerRadius(roomy ? 3 : 0)
         }
         .chartLegend(.hidden)
@@ -203,8 +203,8 @@ struct MonthBars: View {
     var body: some View {
         let current = LocalDate.today.yearMonth
         let bars = summaries.flatMap { s in
-            [Bar(month: s.month, kind: tr("进账"), value: Double(s.income.cents) / 100),
-             Bar(month: s.month, kind: tr("花掉"), value: Double(s.expense.magnitude.cents) / 100)]
+            [Bar(month: s.month, kind: "进账", value: Double(s.income.cents) / 100),
+             Bar(month: s.month, kind: "花掉", value: Double(s.expense.magnitude.cents) / 100)]
         }
         let top = bars.map(\.value).max() ?? 1
         VStack(alignment: .leading, spacing: 8) {

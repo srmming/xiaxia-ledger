@@ -1,3 +1,4 @@
+import FinanceCore
 import Foundation
 import Observation
 import SwiftUI

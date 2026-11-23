@@ -162,7 +162,9 @@ struct DataSettingsPane: View {
     // MARK: 动作
 
     private func wipe() {
-        guard typed.trimmingCharacters(in: .whitespacesAndNewlines) == "删除" else {
+        // 中文「删除」总能用；换了语言时，界面让输入的是译好的那个词，也认（不分大小写）。
+        let word = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard word == "删除" || word.caseInsensitiveCompare(tr("删除")) == .orderedSame else {
             model.toast = .init(text: tr("没有删：要输入「删除」两个字才行"), changeID: nil, isError: true)
             return
         }

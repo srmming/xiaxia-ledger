@@ -575,19 +575,19 @@ func subscriptionIcon(_ name: String, category: String?) -> String {
     if let c = category, !c.isEmpty, c != "订阅" { return c }
     let n = name.lowercased()
     let rules: [([String], String)] = [
-        ([tr("视频"), tr("影视"), "video", "stream", "netflix", "disney", "hbo", "youtube", tr("爱奇艺"), tr("腾讯视频"), tr("优酷"), "bilibili", tr("b站")], tr("电影")),
-        ([tr("音乐"), "music", "spotify", "tune", tr("网易云"), tr("qq音乐")], tr("音乐")),
-        ([tr("健身"), "gym", "fit", tr("瑜伽"), "yoga"], tr("健身房")),
-        ([tr("网站"), tr("域名"), "domain", "hosting", tr("服务器")], tr("网站")),
-        ([tr("手机"), tr("话费"), tr("流量"), tr("电话"), "sim"], tr("通讯")),
-        ([tr("宽带"), tr("网费"), "fibra", "internet"], tr("网费")),
-        ([tr("保险"), "seguro", "insurance"], tr("保险")),
-        ([tr("读书"), tr("书"), "kindle", tr("阅读"), tr("杂志"), tr("报")], tr("书")),
-        ([tr("云"), "cloud", "icloud", "drive", tr("网盘"), tr("存储")], tr("数码")),
-        ([tr("收银"), "pos", tr("刷卡")], tr("设备")),
-        ([tr("字体"), "font", tr("设计"), "canva", "figma"], tr("文具")),
-        ([tr("软件"), "app", tr("系统"), "adobe", "office", "chatgpt", "claude", "ai "], tr("软件")),
+        (["视频", "影视", "video", "stream", "netflix", "disney", "hbo", "youtube", "爱奇艺", "腾讯视频", "优酷", "bilibili", "b站"], "电影"),
+        (["音乐", "music", "spotify", "tune", "网易云", "qq音乐"], "音乐"),
+        (["健身", "gym", "fit", "瑜伽", "yoga"], "健身房"),
+        (["网站", "域名", "domain", "hosting", "服务器"], "网站"),
+        (["手机", "话费", "流量", "电话", "sim"], "通讯"),
+        (["宽带", "网费", "fibra", "internet"], "网费"),
+        (["保险", "seguro", "insurance"], "保险"),
+        (["读书", "书", "kindle", "阅读", "杂志", "报"], "书"),
+        (["云", "cloud", "icloud", "drive", "网盘", "存储"], "数码"),
+        (["收银", "pos", "刷卡"], "设备"),
+        (["字体", "font", "设计", "canva", "figma"], "文具"),
+        (["软件", "app", "系统", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
     ]
     for (words, icon) in rules where words.contains(where: { n.contains($0) }) { return icon }
-    return tr("订阅")
+    return "订阅"
 }

@@ -32,7 +32,7 @@ extension LedgerModel {
         let args = ProcessInfo.processInfo.arguments
         // -XiaxiaFreshAI：假装是一台还没连过 AI 的新电脑（看引导里「没配置好」的样子），同样只写假主目录。
         let fresh = args.contains("-XiaxiaFreshAI")
-        guard let fin = BundledFin.path ?? (usesSampleData ? tr("/Applications/夏夏账本.app/Contents/MacOS/fin") : nil) else { return nil }
+        guard let fin = BundledFin.path ?? (usesSampleData ? "/Applications/夏夏账本.app/Contents/MacOS/fin" : nil) else { return nil }
         guard usesSampleData || fresh else { return AIConnector(fin: fin) }
         let noTools = args.contains("-XiaxiaNoTools")
         let fake = FileManager.default.temporaryDirectory
