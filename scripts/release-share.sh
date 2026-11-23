@@ -66,7 +66,8 @@ PLIST
     -exportOptionsPlist "$OPTS" -allowProvisioningUpdates | grep -E "error:|EXPORT" || true
   APP="$BUILD/export/夏夏账本.app"
   test -x "$APP/Contents/MacOS/fin" || { echo "导出失败"; exit 1; }
-  codesign -dv "$APP" 2>&1 | grep -q "Developer ID Application" || { echo "没签上 Developer ID"; exit 1; }
+  # codesign -dv 不打 Authority，要 -dvv；用 grep -c 免得 pipefail 下 grep -q 提前关管道误判。
+  codesign -dvv "$APP" 2>&1 | grep -c "Developer ID Application" >/dev/null || { echo "没签上 Developer ID"; exit 1; }
 fi
 KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist" 2>/dev/null || true)"
 [ -n "$KEY" ] || echo "⚠︎ 还没填更新签名公钥（App/project.yml 的 XIAXIA_SPARKLE_PUBLIC_KEY），这个包不会自动更新"
@@ -90,7 +91,10 @@ if [ $ADHOC = 0 ]; then
     echo "没有公证凭据：按 docs/DISTRIBUTE.md 存一个 notarytool 的 $PROFILE"; exit 1
   fi
   xcrun stapler staple "$DMG"
-  spctl -a -vv -t install "$DMG"
+  # dmg 本身没签名（本机没有 Developer ID 证书，只有 Xcode 云端证书给 app 签），spctl 查 dmg 一定是 rejected；
+  # 改查公证票据钉上了没有、里面的 app 过不过 Gatekeeper。
+  xcrun stapler validate "$DMG"
+  spctl -a -vv "$APP"
 fi
 echo "dmg：$DMG"
 
