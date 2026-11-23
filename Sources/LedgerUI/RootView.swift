@@ -482,6 +482,8 @@ public struct XiaxiaScene: Scene {
         if let out = value("-XiaxiaSnapshot") { WindowSnapshot.schedule(to: out) }
         // -XiaxiaChat：一打开就展开右边的夏夏对话栏（检查对话栏、截图用）。
         if args.contains("-XiaxiaChat") { model.chat.open = true }
+        // 引导里选了「打开内置夏夏」：每次打开都展开对话栏。
+        if UserDefaults.standard.bool(forKey: LedgerModel.chatOnLaunchKey), !model.chat.available.isEmpty { model.chat.open = true }
         #endif
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }

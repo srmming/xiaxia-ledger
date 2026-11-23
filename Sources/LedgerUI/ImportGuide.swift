@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 账本还空着时总览上的「把以前的账搬进来」：教用户从银行、支付宝、微信、别的记账 App 导出账单文件，
 /// 再把文件拖给自己电脑上的 AI（Claude 等），复制一句话粘过去，AI 读懂文件、先给预览、确认后导进来（MCP 的 import_rows）。
-/// 记下第一笔以后总览换成正常内容，这张卡就不出现了。
+/// 空总览上点「用 AI 导入旧账 · 查看方法」弹出来看。
 struct ImportGuideCard: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.openURL) private var openURL
@@ -38,7 +38,7 @@ struct ImportGuideCard: View {
                 MascotView(.xiaxia, pose: .write, size: 92)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("把以前的账搬进来").font(.title2.weight(.bold))
-                    Text("从银行、支付宝、微信或别的记账 App 导出一份账单，交给你电脑上的 AI，它会整理好导进夏夏账本。记下第一笔以后，这张卡就收起来了。")
+                    Text("从银行、支付宝、微信或别的记账 App 导出一份账单，交给你电脑上已经连上夏夏账本的 AI，它会整理好、先给你看预览，你确认了才导进来。")
                         .font(.subheadline).foregroundStyle(Color.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -123,3 +123,109 @@ struct ImportGuideCard: View {
         }
     }
 }
+
+#if os(macOS)
+/// 账本还空着时的总览（ming 的稿）：大标题「开始记账」+ 右边夏夏；一张卡两行：记下第一笔 / 用 AI 导入旧账；下面一条「问夏夏」。
+/// 记下第一笔（或导进来）以后总览换成正常内容，这一页就不再出现。
+struct StartLedgerView: View {
+    @Environment(LedgerModel.self) var model
+    @State private var showImportHelp = false
+    static let example = "今天超市花了 23,40 €"
+
+    var body: some View {
+        AskAIReader { ask in
+            VStack(alignment: .leading, spacing: 28) {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("开始记账").font(.system(size: 48, weight: .heavy))
+                            .accessibilityAddTraits(.isHeader)
+                        Text("先记今天的一笔，或把以前的账带过来。").font(.title3).foregroundStyle(Color.fg2)
+                    }
+                    Spacer(minLength: 16)
+                    MascotView(.xiaxia, pose: .write, size: 170)
+                        .accessibilityHidden(true)
+                }
+
+                VStack(spacing: 0) {
+                    row(symbol: "pencil", title: "记下第一笔", detail: "记一笔收入或支出") {
+                        Button { model.sheet = .add } label: {
+                            Text("记一笔").font(.title3.weight(.semibold)).foregroundStyle(.white)
+                                .padding(.horizontal, 28).padding(.vertical, 11)
+                                .background(Color.brand, in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityIdentifier("overview.start.add")
+                    }
+                    Divider().padding(.leading, 76)
+                    Button { showImportHelp = true } label: {
+                        row(symbol: "square.and.arrow.down", title: "用 AI 导入旧账", detail: "把账单发给你已连接夏夏账本的 AI，确认后导入。") {
+                            HStack(spacing: 6) {
+                                Text("查看方法")
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.body).foregroundStyle(Color.fg2)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("overview.start.import")
+                }
+                .kitCard(padding: 0)
+
+                Button { ask(Self.example, page: "总览") } label: {
+                    HStack(spacing: 16) {
+                        Label("问夏夏", systemImage: "sparkles").font(.title3.weight(.semibold)).foregroundStyle(Color.ai)
+                        Rectangle().fill(Color.fg3.opacity(0.3)).frame(width: 1, height: 26)
+                        Text(Self.example).font(.title3).foregroundStyle(Color.fg2)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.up.right").foregroundStyle(Color.fg3)
+                    }
+                    .padding(.horizontal, 24).padding(.vertical, 18)
+                    .kitCard(padding: 0)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("问夏夏：\(Self.example)")
+                .accessibilityIdentifier("overview.start.ask")
+            }
+            .frame(maxWidth: 980, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 36)
+        }
+        .sheet(isPresented: $showImportHelp) { ImportHelpSheet() }
+    }
+
+    private func row<Trailing: View>(symbol: String, title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 20) {
+            Image(systemName: symbol).font(.system(size: 26, weight: .regular)).foregroundStyle(.primary)
+                .frame(width: 36)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.title2.weight(.bold))
+                Text(detail).font(.body).foregroundStyle(Color.fg2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 12)
+            trailing()
+        }
+        .padding(.horizontal, 24).padding(.vertical, 22)
+    }
+}
+
+/// 「用 AI 导入旧账 · 查看方法」：各家怎么导出账单、复制给 AI 的话。
+struct ImportHelpSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView { ImportGuideCard().padding(28) }
+            Divider()
+            HStack {
+                Spacer()
+                Button("好了") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+            .padding(14)
+        }
+        .frame(minWidth: 620, idealWidth: 760, minHeight: 520, idealHeight: 680)
+    }
+}
+#endif

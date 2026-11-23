@@ -3,6 +3,7 @@ import SwiftUI
 
 // 第一次打开（账本里还没有账户、没有流水）的开始引导。样子照 ming 给的稿（design/mockups/welcome-ming-2026-11-22.png）：
 // 左边一大块是夏夏（会动、会说话的气泡、飘着的泡泡），右边是四步：① 目标 ② 账本 ③ 账户 ④ 连接 AI（只在 Mac）。
+// 最后一步（Mac、装了 Claude Code / Codex / Hermes 时）问要不要打开内置夏夏：右边的对话栏，以后一打开 app 就在。
 // 「目标」是用户记账最想做到的事（存进 profile.aim）：夏夏给意见、AI 帮忙记账都围着它说，最后撒花也祝的是它。
 // 每一步点选就行，也能自己加。选的账本和账户在进第三步前写进账本（进改动记录，能撤销）。「以后再说」随时能跳过。
 // 第三步问「你平时用哪个 AI」，夏夏自己看连没连上；给一段指令粘给 AI，由 AI 连上、问「今天花了什么」记第一笔；
@@ -10,6 +11,8 @@ import SwiftUI
 
 extension LedgerModel {
     static let welcomeDoneKey = "xiaxia.welcomeDone"
+    /// 引导最后一步选了「打开内置夏夏」：以后每次打开 app，右边的夏夏对话栏都展开着。
+    static let chatOnLaunchKey = "xiaxia.chatOnLaunch"
 
     /// 要不要出开始引导：真账本、还是空的、以前没走过。启动参数 -XiaxiaWelcome 强制出（截图、检查用）。
     func showWelcomeIfNeeded() {
@@ -33,7 +36,7 @@ struct WelcomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
 
-    enum Step: Int { case hello, aim, books, accounts, ai, done }
+    enum Step: Int { case hello, aim, books, accounts, ai, chat, done }
 
     /// 第一步「你记账最想做到什么」的几个现成答案。
     struct AimOption: Identifiable, Hashable {
@@ -167,6 +170,8 @@ struct WelcomeView: View {
     @State private var celebrationNote: String?
     @State private var celebrationGoal: String?
     @State private var confetti = false
+    /// 内置夏夏用哪个 AI 回答（ChatEngine 的 rawValue；只在 Mac 有）。
+    @State private var chatPick: String?
 
     /// 示例账本、假装新电脑时 AI 不会真的来：给一个「演示」入口看连上之后的样子。
     private var isPretend: Bool {
@@ -310,7 +315,12 @@ struct WelcomeView: View {
 
     private var pageKey: String { "\(step.rawValue)-\(aiMode == .choose ? "a" : "b")-\(celebrated)" }
 
-    private var stepNames: [String] { aiStepAvailable ? ["目标", "账本", "账户", "连接 AI"] : ["目标", "账本", "账户"] }
+    private var stepNames: [String] {
+        var names = ["目标", "账本", "账户"]
+        if aiStepAvailable { names.append("连接 AI") }
+        if chatStepAvailable { names.append("内置夏夏") }
+        return names
+    }
 
     private func stepper(big: Bool) -> some View {
         let dot: CGFloat = big ? 34 : 26
@@ -349,7 +359,7 @@ struct WelcomeView: View {
     private var page: some View {
         switch step {
         case .hello:
-            pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(aiStepAvailable ? "四" : "三")个小问题，一分钟就好。") {
+            pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
                 EmptyView()
             } buttons: {
                 primary("开始", id: "welcome.start") { Task { await toAim() } }
@@ -516,6 +526,12 @@ struct WelcomeView: View {
                     }
                 }
             }
+        case .chat:
+            #if os(macOS)
+            chatPage
+            #else
+            EmptyView()
+            #endif
         case .done:
             if celebrated {
                 pageBody("🎉 恭喜，连接成功！", celebrationText) {
@@ -533,6 +549,61 @@ struct WelcomeView: View {
             }
         }
     }
+
+    #if os(macOS)
+    /// 最后一步：要不要打开内置夏夏（右边的对话栏）。
+    private var chatPage: some View {
+        let engines = model.chat.available
+        let pick = chatPick.flatMap(ChatEngine.init(rawValue:)) ?? model.chat.engine ?? engines.first
+        return pageBody("要不要打开内置夏夏？",
+                        "打开后，窗口右边一直有夏夏：不用切到别的 app，直接打字问账、记账。她借你电脑上的 \(pick?.name ?? "AI") 来回答，用的是你自己的订阅，不另外收费。") {
+            if celebrated {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
+                    Text(celebrationNote.map { "AI 连上了，第一笔记下了：\($0)" } ?? "AI 连上了！").font(.subheadline).foregroundStyle(Color.fg2)
+                }
+            }
+            // 一小段对话，让人一眼看懂「内置夏夏」是什么。
+            VStack(alignment: .leading, spacing: 10) {
+                HStack { Spacer(minLength: 60); chatBubble("今天午饭 12 欧", mine: true) }
+                HStack(alignment: .bottom, spacing: 8) {
+                    MascotView(.xiaxia, size: 30, face: true, animated: false)
+                    chatBubble("记好了：午饭 -12,00 €，个人账本。这个月吃饭一共 86,40 €。", mine: false)
+                    Spacer(minLength: 40)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: 520)
+            .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("例子：你说今天午饭 12 欧，夏夏回答记好了")
+            if engines.count > 1 {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("用哪个 AI 来回答？").font(.headline).foregroundStyle(Color.fg2)
+                    FlowLayout(spacing: 8) {
+                        ForEach(engines) { e in
+                            chip(e.name, symbol: "sparkles", on: pick == e) { chatPick = e.rawValue }
+                        }
+                    }
+                }
+            }
+            Text("模型跟随 \(pick?.name ?? "AI") 自己的默认，想换以后在对话栏顶上换。以后也能随时点右上角「问夏夏」打开、收起。")
+                .font(.subheadline).foregroundStyle(Color.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        } buttons: {
+            primary("打开内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
+            secondary("先不用") { Task { await chooseChat(false) } }
+        }
+    }
+
+    private func chatBubble(_ text: String, mine: Bool) -> some View {
+        Text(text).font(.callout)
+            .foregroundStyle(mine ? Color.white : Color.primary)
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            .background(mine ? Color.aiSolid : Color.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+    #endif
 
     private var tryTitle: String {
         guard let f = family else { return "连接你的 AI" }
@@ -817,7 +888,8 @@ struct WelcomeView: View {
         if aiStepAvailable {
             withAnimation(.smooth(duration: 0.35)) { aiMode = .choose }
             go(.ai)
-            await say(count == 0 ? "账户以后再加也行。最后一步啦！" : "记下了，\(count) 个放钱的地方。最后一步啦！", pose: .think)
+            let tail = chatStepAvailable ? "快好啦！" : "最后一步啦！"
+            await say(count == 0 ? "账户以后再加也行。\(tail)" : "记下了，\(count) 个放钱的地方。\(tail)", pose: .think)
         } else {
             go(.done)
             await say("都准备好了！", pose: .celebrate)
@@ -881,8 +953,28 @@ struct WelcomeView: View {
 
     private func skipAI() async {
         checking = nil
+        if chatStepAvailable {
+            go(.chat)
+            await say("好，以后再连也行。最后一个问题！", pose: .calm)
+        } else {
+            go(.done)
+            await say("好，以后再连也行。", pose: .calm)
+        }
+    }
+
+    /// 打不打开内置夏夏：记下来，以后一打开 app 右边就有对话栏（RootView 读 chatOnLaunchKey）。
+    private func chooseChat(_ on: Bool) async {
+        UserDefaults.standard.set(on, forKey: LedgerModel.chatOnLaunchKey)
+        #if os(macOS)
+        if on, let e = chatPick.flatMap(ChatEngine.init(rawValue:)) { model.chat.engine = e }
+        #endif
         go(.done)
-        await say("好，以后再连也行。", pose: .calm)
+        if celebrated { withAnimation(.smooth) { confetti = true } }
+        await say(on ? "好！以后我就在右边陪着你。" : "好，想聊的时候点右上角「问夏夏」。", pose: on ? .cheer : .calm)
+        if celebrated {
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation(.smooth) { confetti = false }
+        }
     }
 
     /// 每 2 秒看一眼：新装的工具出现了没有；AI 有没有自己连好；有没有真的来读账本；有没有帮着记下第一笔、建了目标。
@@ -948,7 +1040,7 @@ struct WelcomeView: View {
         celebrationGoal = goal
         withAnimation(.smooth(duration: 0.35)) {
             celebrated = true
-            step = .done
+            step = chatStepAvailable ? .chat : .done
             confetti = true
         }
         await say(who.map { "\($0) 连上啦！" } ?? "连上啦！", pose: .celebrate)
@@ -959,7 +1051,23 @@ struct WelcomeView: View {
     private func finish(openAdd: Bool) {
         withAnimation(.smooth) { model.finishWelcome() }
         if openAdd { model.sheet = .add }
+        #if os(macOS)
+        // 选了打开内置夏夏：进账本时右边就展开。
+        if !openAdd, UserDefaults.standard.bool(forKey: LedgerModel.chatOnLaunchKey) { model.chat.show() }
+        #endif
     }
+
+    /// 最后一步「内置夏夏」：只在 Mac、而且这台 Mac 上有能在后台回答的 AI（Claude Code / Codex / Hermes）时问。
+    private var chatStepAvailable: Bool {
+        #if os(macOS)
+        aiStepAvailable && !model.chat.available.isEmpty && !isPretendChat
+        #else
+        false
+        #endif
+    }
+
+    /// 示例账本时对话栏答不了（它不碰示例数据），就不问了。
+    private var isPretendChat: Bool { model.usesSampleData }
 
     // MARK: 连 AI（只在 Mac）
 
