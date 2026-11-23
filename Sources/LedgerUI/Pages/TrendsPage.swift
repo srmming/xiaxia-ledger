@@ -10,6 +10,9 @@ struct TrendsPage: View {
     @Environment(LedgerModel.self) var model
     @State private var viewport = CGSize(width: 1000, height: 800)
     @State private var heroWidth: CGFloat = 560
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// iPhone 竖屏：一屏放下（ming 2026-11-23「页面一律一屏看完」）——图矮一点，「想年底多剩一点」收进主卡片，「怎么算的」不放。
+    private var phone: Bool { sizeClass == .compact }
     private var short: Bool { Viewport.isShort(viewport) }
 
     var body: some View {
@@ -35,8 +38,10 @@ struct TrendsPage: View {
             Columns(sideWidth: 360) {
                 heroCard(f)
             } side: {
-                leversCard(f)
-                howCard(f)
+                if !phone {
+                    leversCard(f)
+                    howCard(f)
+                }
             }
         }
     }
@@ -59,10 +64,11 @@ struct TrendsPage: View {
                            : Text("比现在") + em("\(change.isExpense ? "少" : "多") \(change.magnitude.rounded)", change.isExpense ? .bad : .good),
                        spoken: "照这样花，预计\(year)剩 \(f.yearEnd.spoken)，比现在\(change.isExpense ? "少" : "多") \(change.magnitude.spoken)")
             }
-            ForecastChart(f: f, height: short ? 130 : (narrow ? 170 : 230))
+            ForecastChart(f: f, height: phone ? 112 : (short ? 130 : (narrow ? 170 : 230)))
             legend(f)
+            if phone && !f.levers.isEmpty { phoneLevers(f) }
         }
-        .kitCard(padding: short ? 16 : 20)
+        .kitCard(padding: short || phone ? 16 : 20)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { heroWidth = $0 }
     }
 
@@ -126,6 +132,29 @@ struct TrendsPage: View {
             }
         }
         .kitCard()
+    }
+
+    /// iPhone：主卡片底下两行「少花一半能多剩」。
+    private func phoneLevers(_ f: CashForecast.Result) -> some View {
+        let year = f.isNextYear ? "明年年底" : "年底"
+        return VStack(alignment: .leading, spacing: 6) {
+            Divider()
+            Text("想\(year)多剩一点：这几样少花一半").font(.caption.weight(.semibold)).foregroundStyle(Color.fg2)
+            ForEach(f.levers.prefix(2)) { l in
+                SectionLink(section: .transactions, filter: TransactionFilter(category: l.category)) {
+                    HStack(spacing: 8) {
+                        CategoryIcon(category: l.category, size: 22)
+                        Text(l.category).font(.callout.weight(.medium)).lineLimit(1)
+                        Text("每月约 \(l.monthly.rounded)\(l.rising ? " · 还在涨" : "")").font(.caption).foregroundStyle(l.rising ? Color.alert : Color.fg2).lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text("+\(l.halfSaves.rounded)").font(.callout.weight(.semibold)).foregroundStyle(Color.income)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .accessibilityLabel("\(l.category)每月约 \(l.monthly.spoken)\(l.rising ? "，还在涨" : "")。少花一半，\(year)能多剩 \(l.halfSaves.spoken)")
+                .accessibilityHint("看这个分类的流水")
+            }
+        }
     }
 
     // MARK: 怎么算的
