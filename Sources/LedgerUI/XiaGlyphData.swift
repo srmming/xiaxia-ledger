@@ -328,7 +328,7 @@ extension XiaGlyph {
         case .navSpending: "花销"
         case .navTrends: "趋势"
         case .navWealth: "家底"
-        case .navPlans: "计划"
+        case .navPlans: "目标"
         case .navXiaxia: "夏夏"
         case .navChanges: "改动记录"
         case .navTransactions: "流水"

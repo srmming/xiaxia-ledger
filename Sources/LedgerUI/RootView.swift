@@ -6,7 +6,7 @@ import AppKit
 
 /// 9 个页面，每页回答一个问题。前 5 页是「看」，夏夏建议和改动记录是「AI 做了什么」，最后是流水和设置。
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "计划"
+    case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "目标", subscriptions = "订阅", debts = "欠款与分期"
     case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
     public var id: String { rawValue }
 
@@ -17,6 +17,8 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .trends: "chart.bar.fill"
         case .wealth: "wallet.bifold.fill"
         case .plans: "target"
+        case .subscriptions: "arrow.triangle.2.circlepath"
+        case .debts: "arrow.left.arrow.right"
         case .insights: "sparkles"
         case .changes: "clock.arrow.circlepath"
         case .transactions: "list.bullet.rectangle.portrait.fill"
@@ -25,7 +27,7 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// 工具栏要不要月份和账本切换（AI、改动记录、设置不按月看）。
-    var usesMonth: Bool { ![.insights, .changes, .settings].contains(self) }
+    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions, .debts].contains(self) }
     var usesBook: Bool { ![.insights, .changes, .settings, .wealth].contains(self) }
 
     @ViewBuilder var screen: some View {
@@ -35,6 +37,8 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .trends: TrendsPage()
         case .wealth: WealthPage()
         case .plans: PlansPage()
+        case .subscriptions: SubscriptionsPage()
+        case .debts: DebtsPage()
         case .insights: InsightsPage()
         case .changes: ChangesPage()
         case .transactions: TransactionsPage()
@@ -42,7 +46,9 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans]
+    /// Mac 侧栏「看」：订阅、欠款与分期各自单独一页，「计划」只放存钱目标、改叫「目标」（ming 2026-11-23）。
+    /// iPhone 底栏放不下，订阅、欠款还在「计划」那个标签里分格看。
+    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans, .subscriptions, .debts]
     static let ai: [AppSection] = [.insights, .changes]
     static let records: [AppSection] = [.transactions]
 }
@@ -65,10 +71,13 @@ public struct RootView: View {
                 LoadErrorView(error: error)
             } else if model.isLoading && model.ledger.transactions.isEmpty {
                 ProgressView("正在读取账本…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.pageBackground)
+            } else if model.showWelcome {
+                WelcomeView().transition(.opacity)
             } else {
-                layout
+                layout.transition(.opacity)
             }
         }
+        .animation(.smooth, value: model.showWelcome)
         .tint(Color.brand)
         #if os(macOS)
         .background(GeometryReader { geo in
@@ -106,6 +115,8 @@ public struct RootView: View {
                 case .newCategory: CategoryCreator()
                 case .connectAI: ConnectAIView()
                 case .plan: NewPlanSheet()
+                case .newInstallment: NewPlanSheet(kind: .installment)
+                case .newDebt: NewPlanSheet(kind: .debt)
                 }
             }
                 .environment(model)
@@ -125,8 +136,9 @@ public struct RootView: View {
             // Mac：app 换过位置就把 AI 配置里的路径改过来；第一次打开、还没连过 AI 就弹「连上你的 AI」。
             model.repairAIConnections()
             await model.refreshRatesIfNeeded()   // 有外币账户时，一天取一次欧洲央行汇率
+            model.showWelcomeIfNeeded()          // 空账本第一次打开：夏夏带着走一遍
             try? await Task.sleep(for: .seconds(0.6))
-            model.showAISetupIfNeeded()
+            if !model.showWelcome { model.showAISetupIfNeeded() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }
@@ -223,7 +235,7 @@ struct MacRoot: View {
                 }
                 .id(section)
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                if model.chat.open {
+                if model.chat.open && model.chat.enabled {
                     Divider()
                     XiaxiaChatPanel()
                         .frame(width: 340)
@@ -262,9 +274,12 @@ struct SidebarFooter: View {
             }
         }
         .font(.caption)
-        .padding(.horizontal, 16).padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .safeAreaInset(edge: .bottom, spacing: 6) { SidebarUpdateButton() }
+        #endif
+        .padding(.horizontal, 16).padding(.bottom, 12)
     }
 }
 
@@ -285,7 +300,10 @@ struct MacToolbar: ToolbarContent {
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
+            // 照 ming 的稿：「记一笔」是橙色实心（系统的醒目按钮样式 + 品牌橙，工具栏不会切掉它的底色）。
             Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.brand)
                 .help("记一笔（⌘N）")
             Button { model.toggleChat() } label: {
                 Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
@@ -338,6 +356,7 @@ struct PhoneRoot: View {
             switch model.section ?? .overview {
             case .trends: return .spending
             case .changes, .settings: return .insights
+            case .subscriptions, .debts: return .plans
             case .transactions: return .overview
             default: return model.section ?? .overview
             }
@@ -429,7 +448,9 @@ public struct XiaxiaScene: Scene {
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
         if useDemo {
-            model = LedgerModel.demo()
+            // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
+            let persona = args.firstIndex(of: "-XiaxiaPersona").flatMap { $0 + 1 < args.count ? Persona(rawValue: args[$0 + 1]) : nil }
+            model = LedgerModel.demo(persona: persona)
         } else if args.contains("-XiaxiaEmpty") {
             model = LedgerModel.empty()
         } else {
@@ -469,7 +490,7 @@ public struct XiaxiaScene: Scene {
         }
         let sections: [String: AppSection] = [
             "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
-            "plans": .plans, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
+            "plans": .plans, "goals": .plans, "subscriptions": .subscriptions, "debts": .debts, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
             "transactions": .transactions, "settings": .settings,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
@@ -479,6 +500,9 @@ public struct XiaxiaScene: Scene {
         if let out = value("-XiaxiaSnapshot") { WindowSnapshot.schedule(to: out) }
         // -XiaxiaChat：一打开就展开右边的夏夏对话栏（检查对话栏、截图用）。
         if args.contains("-XiaxiaChat") { model.chat.open = true }
+        // 引导里选了「打开内置夏夏」：每次打开都展开对话栏。
+        // 示例数据不连 AI：别一打开就摆个用不了的对话栏，挤窄页面。
+        if XiaxiaChatState.chosenOn, model.chatReady { model.chat.open = true }
         #endif
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
@@ -522,7 +546,8 @@ public struct XiaxiaScene: Scene {
                 .keyboardShortcut(.rightArrow, modifiers: .command)
                 Button("重新读取账本") { model.reload() }.keyboardShortcut("r", modifiers: .command)
                 Divider()
-                ForEach(Array(AppSection.allCases.enumerated()), id: \.element) { i, s in
+                // ⌘1…⌘9：只有九个数字键，多出来的页（设置有 ⌘,）不给数字快捷键。
+                ForEach(Array(AppSection.allCases.prefix(9).enumerated()), id: \.element) { i, s in
                     Button(s.rawValue) { model.section = s }
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }

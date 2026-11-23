@@ -270,6 +270,8 @@ call() { mcp '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInf
          | tail -1 | python3 -c 'import json,sys; r=json.load(sys.stdin); res=r.get("result") or r; print(("出错 " if res.get("isError") else "") + "\n".join(c["text"] for c in res.get("content",[])) if "content" in res else json.dumps(r, ensure_ascii=False))'; }
 for spec in \
   'context|{}' \
+  'welcome|{}' \
+  'import_rows|{"account":"cash","rows":[{"date":"2026-11-03","amount":"-12,50","description":"烟测超市"},{"date":"bad","amount":"1","description":"x"}],"dry_run":true}' \
   'list_transactions|{"month":"2026-11","limit":3}' \
   'list_transactions|{"query":"mercadona"}' \
   'list_transactions|{"include_private":true,"account":"stash"}' \
@@ -348,6 +350,11 @@ for spec in \
   echo; echo "MCP › ${spec%%|*} ${spec#*|}"
   call "${spec%%|*}" "${spec#*|}"
 done
+
+echo; echo "import_rows 预演（AI 读懂 Excel / PDF / 支付宝账单后批量导入）："
+if call import_rows '{"account":"cash","rows":[{"date":"2026-11-03","amount":"-12,50","description":"烟测超市"},{"date":"bad","amount":"1","description":"x"}],"dry_run":true}' | grep -q "读到 1 笔"; then
+  echo "读到 1 笔，坏的那行跳过了"
+else echo "↳ import_rows 预演不对"; FAILS=$((FAILS + 1)); fi
 
 echo; echo "open_in_app 留给 app 的纸条："
 if grep -q '"花销"' "$WORK/open.json" 2>/dev/null; then cat "$WORK/open.json"; else echo "↳ 没写出 open.json"; FAILS=$((FAILS + 1)); fi

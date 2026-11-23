@@ -252,11 +252,19 @@ final class ManageFlowTests: XCTestCase {
         }
         app.tabBars.buttons["总览"].tap()
         app.buttons["设置"].firstMatch.tap()
+        // 设置是一级列表，点「账本与账户」进二级页才有管理入口（2026-11-23 新设置页）。
+        let books = button(app, "账本与账户")
+        XCTAssertTrue(books.waitForExistence(timeout: 5), "设置里没有「账本与账户」")
+        books.tap()
         for entry in ["管理账本（新建、改名、删除）", "管理分类"] {
             let e = find(app, entry)
             for _ in 0..<4 where !e.isHittable { app.swipeUp() }
             XCTAssertTrue(e.waitForExistence(timeout: 5), "设置里没有「\(entry)」")
         }
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let prefs = button(app, "夏夏偏好")
+        XCTAssertTrue(prefs.waitForExistence(timeout: 5), "设置里没有「夏夏偏好」")
+        prefs.tap()
         let sharp = find(app, "毒舌")
         for _ in 0..<6 where !sharp.isHittable { app.swipeUp() }
         XCTAssertTrue(sharp.waitForExistence(timeout: 5), "设置里没有夏夏的性格")

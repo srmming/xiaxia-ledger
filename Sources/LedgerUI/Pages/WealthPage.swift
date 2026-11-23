@@ -4,6 +4,7 @@ import SwiftUI
 /// 家底：我一共有多少钱？视觉重心是净资产 + 12 个月曲线。
 struct WealthPage: View {
     @Environment(LedgerModel.self) var model
+    @State private var viewport = CGSize(width: 1000, height: 800)
 
     var body: some View {
         Group {
@@ -17,17 +18,19 @@ struct WealthPage: View {
                 }
                 .kitCard()
             } else {
-                Columns(sideWidth: 380, breakpoint: 760) {
+                Columns(sideWidth: 380) {
                     heroCard
                     XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
                                question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
-                    debtsCard
+                    // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
+                    if !Viewport.isShort(viewport) { debtsCard }
                 } side: {
                     accountsCard
                 }
             }
         }
         .kitPage()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
     private var heroCard: some View {
@@ -45,11 +48,13 @@ struct WealthPage: View {
         } else {
             sentence = Text("记的月份多了，这里会告诉你比以前多了还是少了。")
         }
-        let label = model.showPrivate ? "净资产（所有账户加起来，减掉信用卡，含私房钱）" : "净资产（所有账户加起来，减掉信用卡）"
+        // 借款、分期也算进来（ming 2026-11-23）：别人欠我的加上，我还欠的减掉。
+        let owes = !Plans.obligations(model.ledger, asOf: .today).isEmpty
+        let label = "净资产（所有账户加起来，减掉信用卡" + (owes ? "和欠款，加上别人欠我的" : "") + (model.showPrivate ? "，含私房钱）" : "）")
         return VStack(alignment: .leading, spacing: 16) {
             KeyFigure(label: label, money: now, color: now.isExpense ? .alert : .primary, sentence: sentence,
                       spoken: "净资产 \(now.spoken)")
-            NetWorthChart(points: Array(series.suffix(12)))
+            NetWorthChart(points: Array(series.suffix(12)), height: Viewport.isShort(viewport) ? 130 : 200)
         }
         .kitCard(padding: 20)
     }
@@ -69,17 +74,26 @@ struct WealthPage: View {
             : model.voiced("家底比 3 个月前多了 \(diff.rounded)。" + card, .good)
     }
 
+    /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
     @ViewBuilder private var debtsCard: some View {
-        let debts = Plans.debts(model.ledger, today: .today)
-        if !debts.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                SectionHeader("借款往来").padding(.bottom, 6)
-                ForEach(debts, id: \.id) { d in
-                    DebtRow(debt: d)
-                    if d.id != debts.last?.id { Divider().padding(.leading, 42) }
+        let o = Plans.obligations(model.ledger, asOf: .today)
+        if !o.isEmpty {
+            Button { withAnimation(.snappy) { model.section = .debts } } label: {
+                HStack(spacing: 12) {
+                    XiaIcon(.debt, size: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("欠款与分期").font(.callout.weight(.medium))
+                        Text("我还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded) · 已经算进上面的净资产")
+                            .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
                 }
+                .contentShape(Rectangle())
+                .kitCard()
             }
-            .kitCard()
+            .buttonStyle(.pressable)
+            .accessibilityHint("打开欠款与分期")
         }
     }
 
@@ -87,6 +101,7 @@ struct WealthPage: View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
+        let short = Viewport.isShort(viewport)
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "账户") {
                 Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
@@ -97,8 +112,11 @@ struct WealthPage: View {
             ForEach(kinds, id: \.self) { kind in
                 let list = model.visibleAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
-                    Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
-                        .padding(.bottom, 4)
+                    // 窗口矮：不分组写标题（图标已经看得出是哪种），每行收紧，一屏放下。
+                    if !short {
+                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
+                            .padding(.bottom, 4)
+                    }
                     ForEach(list) { a in
                         let b = balances[a.id] ?? .zero
                         HStack(spacing: 12) {
@@ -117,7 +135,7 @@ struct WealthPage: View {
                                 Text(b.balance).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
                             }
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, short ? 2 : 6)
                         .accessibilityElement(children: .combine)
                     }
                 }
@@ -182,7 +200,8 @@ struct DebtRow: View {
     private var detail: String {
         var parts: [String] = []
         if debt.repaid.cents > 0 { parts.append("已还 \(debt.repaid.rounded)") }
-        if let due = debt.dueDate { parts.append(debt.overdue ? "\(due.short) 就该还了" : "\(due.short) 前还") }
+        // 过期的只说过了几天，短一点，窄窗口也一行放得下（哪天到期在夏夏说里有）。
+        if let due = debt.dueDate { parts.append(debt.overdue ? "过期 \(max(1, due.days(until: .today))) 天" : "\(due.short) 前还") }
         return parts.isEmpty ? "还没还" : parts.joined(separator: " · ")
     }
 }

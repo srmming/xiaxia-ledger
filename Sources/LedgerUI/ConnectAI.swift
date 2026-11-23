@@ -26,10 +26,19 @@ extension LedgerModel {
     var usesSampleData: Bool { store is InMemoryLedgerStore }
 
     var aiConnector: AIConnector? {
+        let args = ProcessInfo.processInfo.arguments
+        // -XiaxiaFreshAI：假装是一台还没连过 AI 的新电脑（看引导里「没配置好」的样子），同样只写假主目录。
+        let fresh = args.contains("-XiaxiaFreshAI")
         guard let fin = BundledFin.path ?? (usesSampleData ? "/Applications/夏夏账本.app/Contents/MacOS/fin" : nil) else { return nil }
-        guard usesSampleData else { return AIConnector(fin: fin) }
-        let noTools = ProcessInfo.processInfo.arguments.contains("-XiaxiaNoTools")
-        let fake = FileManager.default.temporaryDirectory.appendingPathComponent(noTools ? "xiaxia-sample-home-empty" : "xiaxia-sample-home")
+        guard usesSampleData || fresh else { return AIConnector(fin: fin) }
+        let noTools = args.contains("-XiaxiaNoTools")
+        let fake = FileManager.default.temporaryDirectory
+            .appendingPathComponent(fresh ? (noTools ? "xiaxia-fresh-home-empty" : "xiaxia-fresh-home") : (noTools ? "xiaxia-sample-home-empty" : "xiaxia-sample-home"))
+        if fresh, !Self.freshHomeReset {
+            // 每次打开都从「没连过」开始。
+            Self.freshHomeReset = true
+            try? FileManager.default.removeItem(at: fake)
+        }
         if !noTools {
             // 演示时假装装了 Claude 桌面版和 Codex
             for dir in ["Library/Application Support/Claude", ".codex"] {
@@ -38,6 +47,8 @@ extension LedgerModel {
         }
         return AIConnector(home: fake, fin: fin, appFolders: [fake.appendingPathComponent("Applications")])
     }
+
+    nonisolated(unsafe) private static var freshHomeReset = false
 
     /// 「一键复制配置提示词」：粘给任何 AI，它自己配好。
     var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
@@ -308,11 +319,11 @@ struct ConnectAIView: View {
                         Button { dismiss(); model.chat.prefill(sentence) } label: { Label("在夏夏对话栏里试", systemImage: "sparkles") }
                             .buttonStyle(.softAI)
                     } else {
-                        Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
+                        Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
                             .buttonStyle(.softAI)
                     }
                     #else
-                    Button { ask(sentence) } label: { Label("复制并打开 Claude", systemImage: "sparkles") }
+                    Button { ask(sentence) } label: { Label("复制这句话", systemImage: "doc.on.doc") }
                         .buttonStyle(.softAI)
                     #endif
                 }

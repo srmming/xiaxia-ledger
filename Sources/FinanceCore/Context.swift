@@ -62,12 +62,13 @@ public struct LedgerContext: Codable, Sendable {
         "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
         "私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。",
         "记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。",
+        "用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。",
         "锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。",
         "拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。",
         "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
         "不动钱、不碰银行密码；银行数据只读。",
         "记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。",
-        "app 里的 AI 叫「夏夏」。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans）。",
+        "app 里的 AI 叫「夏夏」。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。",
     ]
 
     /// 问什么用哪个工具：免得问收入去翻支出、问余额去加流水。

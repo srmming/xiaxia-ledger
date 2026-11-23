@@ -33,11 +33,13 @@ final class MCPServer {
     用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、谁欠我钱、还款、分期、存钱目标时用这些工具。
     1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天、统计口径、夏夏的说话方式（voice）和用户的目标（aim）都在里面。账户 id、账本 id 只用 context 里有的，别猜。context 里还有夏夏的记忆（memory：用户定的规矩照做，目录里有相关话题就用 memory 工具读出来）、每月固定进出（regulars）和问什么用哪个工具（toolGuide）。用户说「记住……」「以后都……」用 remember 记下来。
     2. 拿不准的（哪个账户、哪个账本、什么分类、是不是自己账户之间转钱）先在对话里问用户，确认后再写。
-    3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。
+    3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。用户发来银行 Excel / PDF、支付宝或微信账单、别的记账 App 导出的文件：你自己读懂，整理成 rows 用 import_rows 导入（标准 CSV 文件路径也可以用 import_statement）。
     4. 写完告诉用户记了什么和改动编号；写错用 undo 撤销。
     5. 不算收支的：借款和还款、存取目标、自己账户之间转钱、分期每期还款；分期买的那天按全额算支出；退款冲减原分类的支出。
     6. 私房钱账户（isPrivate）只在用户本人问时提。金额按账本的格式显示（如 1.234,56 €）。连不上账本就直说，不要编数字。
     7. 用户说「这笔」「这个月」「我在看的这个」时，先用 current_view 看用户在 app 里停在哪、选中了哪一笔。答完想让用户在 app 里看到，用 open_in_app 让 app 跳过去、圈出那几笔。
+    8. 用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时：先调用 welcome，照它返回的步骤带用户走。
+    9. 用用户说话的语言回答（用户说中文就用中文）。不要主动报账本里有几笔、有哪些账户，用户问了再说。
     """
     let protocolVersion = "2025-06-18"
 
@@ -61,7 +63,7 @@ final class MCPServer {
                 result = [
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
-                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.1.0"],
+                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.2.0"],
                     "instructions": MCPServer.instructions,
                 ] as [String: Any]
             case "ping":
@@ -71,6 +73,8 @@ final class MCPServer {
             case "tools/call":
                 let name = params["name"] as? String ?? ""
                 let args = params["arguments"] as? [String: Any] ?? [:]
+                // 每次用工具都记一下：有的 AI（Claude 桌面版）一直开着同一个连接，只在握手时记的话，app 等不到「刚刚来过」。
+                AIConnections.record(client: clientName)
                 do {
                     let text = try MCPTools.call(name, args, author: clientName)
                     result = ["content": [["type": "text", "text": text]], "isError": false] as [String: Any]
@@ -98,7 +102,7 @@ struct ToolError: Error, LocalizedError {
 
 enum MCPTools {
     static func prop(_ type: String, _ desc: String) -> [String: Any] { ["type": type, "description": desc] }
-    static let author = prop("string", "谁在改，不填就用 AI 工具自己的名字")
+    static let author = prop("string", "不用填：会自动记成你这个 AI 工具的名字")
     static let dryRun = prop("boolean", "预演：只返回会改什么，不写进账本")
 
     static func tool(_ name: String, _ desc: String, _ props: [String: [String: Any]], required: [String] = [],
@@ -110,6 +114,7 @@ enum MCPTools {
 
     static let list: [[String: Any]] = [
         tool("context", "说明书：账本、账户和余额、数据覆盖日期、借款合计、最近改动、统计口径。先调这个。", [:], readOnly: true),
+        tool("welcome", "新用户第一次记账的带路步骤。用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时先调这个，照返回的步骤做。", [:], readOnly: true),
         tool("list_transactions", "查流水。", [
             "book": prop("string", "账本 id，如 personal（fin books 能看到全部）；不填 = 全部"),
             "account": prop("string", "账户 id"),
@@ -301,7 +306,19 @@ enum MCPTools {
             "book": prop("string", "账本 id"),
             "author": author, "dry_run": dryRun,
         ], required: ["ids", "book"], readOnly: false),
-        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给用户 看，确认后再正式导入。", [
+        tool("import_rows", "批量导入你自己从文件里读出来的流水：银行的 Excel / PDF 对账单、支付宝 / 微信账单、别的记账 App 导出的数据，或用户直接发给你的附件。你先读懂文件，把每一笔整理成 rows（支出写负数，收入写正数），一次最多 500 行，多的分批。自动去重，整批是一条改动、能一次撤销。先 dry_run 给用户看读到几笔、新的几笔，确认后再正式导入。转给自己的钱、还信用卡、支付宝的「不计收支」、充值提现先问用户或不要导。", [
+            "account": prop("string", "导进哪个账户（context 里的账户 id）"),
+            "rows": ["type": "array", "description": "每一笔：date（2026-11-03）、amount（-23,40 或 -23.40）、description（商户或说明），可选 category、book、note",
+                     "items": ["type": "object", "properties": [
+                        "date": prop("string", "日期 2026-11-03"), "amount": prop("string", "金额，支出是负数"),
+                        "description": prop("string", "商户或说明"), "category": prop("string", "分类（可不填）"),
+                        "book": prop("string", "账本 id（可不填，默认用外面的 book）"), "note": prop("string", "备注（可不填）"),
+                     ] as [String: Any], "required": ["date", "amount", "description"]] as [String: Any]] as [String: Any],
+            "book": prop("string", "这批默认归哪个账本"),
+            "source": prop("string", "数据从哪来，比如「支付宝账单 2026-10」，记进每笔流水的来源"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["account", "rows"], readOnly: false),
+        tool("import_statement", "导入对账单文件（CSV），自动去重。先 dry_run 给用户 看，确认后再正式导入。Excel、PDF、支付宝 / 微信账单这些不是标准 CSV 的，用 import_rows。", [
             "file": prop("string", "文件路径"),
             "account": prop("string", "导进哪个账户"),
             "format": ["type": "string", "enum": ["revolut", "csv"], "description": "格式"],
@@ -342,7 +359,7 @@ enum MCPTools {
             "month": prop("string", "哪个月，如 2026-11；默认这个月"),
             "book": prop("string", "账本 id；不填 = 全部"),
             "metric": prop("string", "关联的东西，如 category:超市、account:银行卡（可不填）"),
-            "page": prop("string", "写给哪一页：overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划；默认 overview"),
+            "page": prop("string", "写给哪一页：overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 目标；默认 overview"),
             "author": author, "dry_run": dryRun,
         ], required: ["kind", "title"], readOnly: false),
         tool("list_insights", "列出写进账本的 AI 意见（默认这个月、没点「知道了」的）。写新意见前先看看，别重复。", [
@@ -356,7 +373,7 @@ enum MCPTools {
         tool("ai_status", "最近谁写过账本：每个作者最后一次写入的时间和内容。", [:], readOnly: true),
         tool("current_view", "用户现在在 app 里看什么：哪一页、哪个月、哪个账本、选中了哪一笔。用户说「这笔」「这个月」「这里」又没说清时先调这个，不用让用户复制粘贴。", [:], readOnly: true),
         tool("open_in_app", "让夏夏账本 app 跳到某一页给用户看，可以圈出几笔流水。回答完想让用户在 app 里看到结果时用，比如「看看这 5 笔」「打开 10 月的花销」。", [
-            "page": prop("string", "overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划 / insights 夏夏建议 / changes 改动记录 / transactions 流水"),
+            "page": prop("string", "overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 目标 / subscriptions 订阅 / debts 欠款与分期 / insights 夏夏建议 / changes 改动记录 / transactions 流水"),
             "month": prop("string", "哪个月，如 2026-10；不填 = 不换月份"),
             "book": prop("string", "账本 id；不填 = 不换"),
             "ids": ["type": "array", "items": ["type": "string"], "description": "要圈出来的流水 id（前 8 位也行）；填了就打开流水页只列这几笔"],
@@ -390,7 +407,9 @@ enum MCPTools {
             guard let d = LocalDate(v) else { throw ToolError(message: "日期要写成 2026-11-21：\(v)") }
             return d
         }
-        let who = s("author") ?? clientName
+        // 经 MCP 来的改动一律记成这个 AI 工具的名字：有的 AI 会把 author 填成用户的名字，
+        // app 就认不出「这是 AI 记的」（不弹提醒、引导也不撒花）。
+        let who = clientName
         var ledger = try loadLedger()
 
         /// 写入收尾：预演不保存。
@@ -405,7 +424,7 @@ enum MCPTools {
             guard let view = AppBridge.readView() else { return "app 还没打开过，或者是旧版本，不知道用户在看什么。直接问用户。" }
             return view.describe()
         case "open_in_app":
-            guard let page = AppBridge.pageName(try req("page")) else { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / insights / changes / transactions") }
+            guard let page = AppBridge.pageName(try req("page")) else { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / subscriptions / debts / insights / changes / transactions") }
             if let m = s("month"), YearMonth(m) == nil { throw ToolError(message: "月份要写成 2026-11") }
             if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
             let ids = try (a["ids"] as? [String]).map { try ledger.findTransactions($0).map(\.id) } ?? []
@@ -424,6 +443,8 @@ enum MCPTools {
             return "已让 app 打开「\(request.page)」" + (ids.isEmpty ? "" : "，圈出 \(ids.count) 笔") + "。如果 app 没开，打开后 10 分钟内还会跳过去。"
         case "context":
             return try json(LedgerContext(ledger: ledger))
+        case "welcome":
+            return AIConnector.welcomeGuide
         case "list_transactions":
             let ym = try s("month").map { m -> YearMonth in
                 guard let v = YearMonth(m) else { throw ToolError(message: "月份要写成 2026-11") }
@@ -668,6 +689,39 @@ enum MCPTools {
                 change = try ledger.assignBook(txs, bookID: try req("book"), author: who)
             }
             return try commit(change)
+        case "import_rows":
+            guard let rows = a["rows"] as? [[String: Any]], !rows.isEmpty else { throw ToolError(message: "rows 要是非空的数组") }
+            guard rows.count <= 500 else { throw ToolError(message: "一次最多 500 行，这次有 \(rows.count) 行，请分批") }
+            let account = try req("account")
+            guard ledger.accounts.contains(where: { $0.id == account }) else {
+                throw ToolError(message: "找不到账户：\(account)。先用 context 看有哪些账户，没有就先 add_account")
+            }
+            let source = s("source") ?? "AI 整理导入"
+            var txs: [Transaction] = []
+            var skipped: [String] = []
+            for (i, r) in rows.enumerated() {
+                func field(_ k: String) -> String? {
+                    if let v = r[k] as? String { let t = v.trimmingCharacters(in: .whitespaces); return t.isEmpty ? nil : t }
+                    if let n = r[k] as? NSNumber { return n.stringValue }
+                    return nil
+                }
+                let n = i + 1
+                guard let d = field("date"), let day = LocalDate(String(d.prefix(10))) else { skipped.append("第 \(n) 行：日期看不懂（要 2026-11-03）"); continue }
+                guard let a = field("amount"), let amount = Money(parsing: a), amount.cents != 0 else { skipped.append("第 \(n) 行：金额看不懂或是 0"); continue }
+                guard let desc = field("description") else { skipped.append("第 \(n) 行：没有说明"); continue }
+                txs.append(Transaction(date: day, amount: amount, description: desc, accountID: account,
+                                       bookID: field("book") ?? s("book"), category: field("category"), source: source, note: field("note")))
+            }
+            let skippedText = skipped.isEmpty ? "" : "\n跳过：\n" + skipped.map { "  \($0)" }.joined(separator: "\n")
+            guard !txs.isEmpty else { return "一笔都没读进来。\(skippedText)" }
+            if flag("dry_run") {
+                let fresh = Dedup.newTransactions(txs, existing: ledger.transactions)
+                let preview = fresh.prefix(40).map { "  \($0.date) \($0.amount.formatted) \($0.description)" }.joined(separator: "\n")
+                return "预演（没有写入）：读到 \(txs.count) 笔，新的 \(fresh.count) 笔\n\(preview)\(skippedText)"
+            }
+            let (_, dupes, change) = try ledger.importTransactions(txs, accountID: account, source: source, author: who)
+            guard let change else { return "没有新流水（\(dupes) 笔都已经有了）。\(skippedText)" }
+            return try commit(change) + skippedText
         case "import_statement":
             let url = URL(fileURLWithPath: (try req("file") as NSString).expandingTildeInPath)
             let data = try Data(contentsOf: url)
@@ -741,7 +795,7 @@ enum MCPTools {
                 return v
             } ?? LocalDate.today.yearMonth
             if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
-            if let p = s("page"), !Insight.pages.contains(p) { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans") }
+            if let p = s("page"), !Insight.pages.contains(p) { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / debts") }
             let insight = Insight(month: month, bookID: s("book"), kind: kind, title: try req("title"), body: s("body") ?? "",
                                   metric: s("metric"), page: s("page"), author: who)
             return try commit(try ledger.addInsight(insight, author: who))

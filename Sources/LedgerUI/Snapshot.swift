@@ -19,6 +19,12 @@ enum WindowSnapshot {
                 }
                 return
             }
+            // -XiaxiaWindowSize 1000x612：先把窗口内容改成这么大再截（检查窄窗口、矮窗口用）。
+            let args = ProcessInfo.processInfo.arguments
+            if let i = args.firstIndex(of: "-XiaxiaWindowSize"), i + 1 < args.count {
+                let parts = args[i + 1].split(separator: "x").compactMap { Double($0) }
+                if parts.count == 2 { window.setContentSize(NSSize(width: parts[0], height: parts[1])) }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
                 let url = URL(fileURLWithPath: path)
                 save(window, to: url)
