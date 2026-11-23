@@ -8,6 +8,7 @@ struct SettingsPage: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.openURL) var openURL
     @AppStorage("xiaxia.appearance") var appearance = "auto"
+    @AppStorage(L10n.defaultsKey) var language = L10n.fallbackChoice.rawValue
     @State private var pane: SettingsPane?
 
     var body: some View {
@@ -23,15 +24,15 @@ struct SettingsPage: View {
                     }
                 }
                 divider
-                row(.xiaxia, symbol: "slider.horizontal.3", title: "夏夏偏好") { Text(xiaxiaSummary) }
+                row(.xiaxia, symbol: "slider.horizontal.3", title: tr("夏夏偏好")) { Text(xiaxiaSummary) }
                 divider
-                row(.memory, symbol: "brain.head.profile", title: "夏夏的记忆") { Text(model.memorySummary) }
+                row(.memory, symbol: "brain.head.profile", title: tr("夏夏的记忆")) { Text(model.memorySummary) }
                 divider
-                row(.privacy, symbol: "eye", title: "隐私与外观") { Text(appearanceLabel) }
+                row(.privacy, symbol: "eye", title: tr("隐私与外观")) { Text(appearanceLabel) }
                 divider
-                row(.author, symbol: "person", title: "记账人") { Text(model.author.isEmpty ? "更改名称" : model.author) }
+                row(.author, symbol: "person", title: tr("记账人")) { Text(model.author.isEmpty ? "更改名称" : model.author) }
                 divider
-                row(.data, symbol: "externaldrive", title: "数据") { Text(model.isTryingDemo ? "正在看演示数据" : "演示数据、删除数据") }
+                row(.data, symbol: "externaldrive", title: tr("数据")) { Text(model.isTryingDemo ? "正在看演示数据" : "演示数据、删除数据") }
             }
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
@@ -163,7 +164,7 @@ struct SettingsPage: View {
     }
 
     private var appearanceLabel: String {
-        switch appearance { case "light": "浅色"; case "dark": "深色"; default: "跟随系统" }
+        switch appearance { case "light": tr("浅色"); case "dark": tr("深色"); default: tr("跟随系统") }
     }
 
     private var version: String {
@@ -181,14 +182,14 @@ enum SettingsPane: String, Identifiable, Hashable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .ai: "管理 AI 连接"
-        case .books: "账本与账户"
-        case .sync: "同步与币种"
-        case .xiaxia: "夏夏偏好"
-        case .memory: "夏夏的记忆"
-        case .privacy: "隐私与外观"
-        case .author: "记账人"
-        case .data: "数据"
+        case .ai: tr("管理 AI 连接")
+        case .books: tr("账本与账户")
+        case .sync: tr("同步与币种")
+        case .xiaxia: tr("夏夏偏好")
+        case .memory: tr("夏夏的记忆")
+        case .privacy: tr("隐私与外观")
+        case .author: tr("记账人")
+        case .data: tr("数据")
         }
     }
 }
@@ -252,6 +253,7 @@ struct SettingsPaneView: View {
     @FocusState private var nameFocused: Bool
     @State private var manage: AppSheet?
     @AppStorage("xiaxia.appearance") var appearance = "auto"
+    @AppStorage(L10n.defaultsKey) var language = L10n.fallbackChoice.rawValue
 
     var body: some View {
         // 记忆页是另一个线程做的整页，自己管排版和滚动。
@@ -344,17 +346,27 @@ struct SettingsPaneView: View {
             case .memory, .data:
                 EmptyView()
             case .privacy:
-                group("隐私") {
-                    item(symbol: "eye.slash.fill", color: .fg3, title: "显示私房钱") {
-                        Toggle("显示私房钱", isOn: Bindable(model).showPrivate).labelsHidden().toggleStyle(.switch)
+                group(tr("隐私")) {
+                    item(symbol: "eye.slash.fill", color: .fg3, title: tr("显示私房钱")) {
+                        Toggle(tr("显示私房钱"), isOn: Bindable(model).showPrivate).labelsHidden().toggleStyle(.switch)
                     }
                 }
-                group("外观") {
-                    item(symbol: "circle.lefthalf.filled", color: .fg3, title: "外观") {
-                        Picker("外观", selection: $appearance) {
-                            Text("跟随系统").tag("auto"); Text("浅色").tag("light"); Text("深色").tag("dark")
+                group(tr("外观")) {
+                    item(symbol: "circle.lefthalf.filled", color: .fg3, title: tr("外观")) {
+                        Picker(tr("外观"), selection: $appearance) {
+                            Text(tr("跟随系统")).tag("auto"); Text(tr("浅色")).tag("light"); Text(tr("深色")).tag("dark")
                         }
                         .pickerStyle(.segmented).labelsHidden().fixedSize()
+                    }
+                }
+                // 多语言（ming 2026-11-23）：中文、英文、西班牙语。换了马上生效，不用重开。
+                group(tr("语言"), note: tr("英文和西班牙语还在翻译，没翻到的地方先显示中文。")) {
+                    item(symbol: "globe", color: .fg3, title: tr("界面语言")) {
+                        Picker(tr("界面语言"), selection: $language) {
+                            ForEach(AppLanguage.allCases) { Text($0.nativeName).tag($0.rawValue) }
+                        }
+                        .labelsHidden().fixedSize()
+                        .accessibilityIdentifier("settings.language")
                     }
                 }
             case .author:

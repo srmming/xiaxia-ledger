@@ -1,0 +1,41 @@
+extension L10n {
+    /// 英文。键是代码里的中文原文，一个字都不能差；新加界面文字时在这里和 L10n+es.swift 各加一行。
+    static let en: [String: String] = [
+        // 侧栏和底栏
+        "总览": "Overview",
+        "花销": "Spending",
+        "趋势": "Trends",
+        "家底": "Net worth",
+        "目标": "Goals",
+        "计划": "Plans",
+        "订阅": "Subscriptions",
+        "欠款与分期": "Debts & instalments",
+        "夏夏建议": "Xiaxia's advice",
+        "改动记录": "Change history",
+        "流水": "Transactions",
+        "设置": "Settings",
+        "看": "Look",
+        "记录": "Records",
+        "收支": "Money in & out",
+        "记一笔": "Add",
+        "完成": "Done",
+        // 设置
+        "管理 AI 连接": "AI connections",
+        "账本与账户": "Books & accounts",
+        "同步与币种": "Sync & currency",
+        "夏夏偏好": "Xiaxia preferences",
+        "夏夏的记忆": "Xiaxia's memory",
+        "隐私与外观": "Privacy & appearance",
+        "记账人": "Your name",
+        "数据": "Data",
+        "隐私": "Privacy",
+        "显示私房钱": "Show private stash",
+        "外观": "Appearance",
+        "跟随系统": "System",
+        "浅色": "Light",
+        "深色": "Dark",
+        "语言": "Language",
+        "界面语言": "App language",
+        "英文和西班牙语还在翻译，没翻到的地方先显示中文。": "English and Spanish are still being translated. Anything not translated yet shows in Chinese.",
+    ]
+}
