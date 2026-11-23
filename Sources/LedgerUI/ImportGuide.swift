@@ -17,7 +17,7 @@ struct ImportGuideCard: View {
         var prompt: String
     }
 
-    static let sources: [Source] = [
+    static var sources: [Source] { [
         Source(name: tr("银行卡、信用卡"), symbol: "building.columns", formats: "Excel · CSV · PDF",
                how: tr("网银或银行 App 里找「交易明细」或「对账单」，选一段时间导出。"),
                prompt: "附件是我从银行导出的对账单。请帮我导进夏夏账本：先告诉我该记到哪个账户、读到多少笔、哪些像是转给自己或还信用卡，给我看一下预览，我说可以再导。"),
@@ -30,7 +30,7 @@ struct ImportGuideCard: View {
         Source(name: tr("别的记账 App、自己的表格"), symbol: "tablecells", formats: "Excel · CSV",
                how: tr("钱迹、随手记、iCost 这些在「设置」里找「导出数据」；自己记的 Excel 表格也行。"),
                prompt: "附件是我以前在别的记账软件（或自己的表格）里记的账。请帮我导进夏夏账本，原来的分类能照搬就照搬，导之前先给我看预览，我说可以再导。"),
-    ]
+    ] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {

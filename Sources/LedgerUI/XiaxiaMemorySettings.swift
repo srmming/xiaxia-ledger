@@ -200,7 +200,7 @@ struct XiaxiaMemorySettings: View {
 
     // MARK: 还没有记忆
 
-    static let meetPrompt = tr("先认识一下我：翻一遍我的流水，把你看出来的规律（固定的收入和开销、常去的地方、分类上的习惯）一条一条问我，我说对的你再记进记忆。")
+    static var meetPrompt: String { tr("先认识一下我：翻一遍我的流水，把你看出来的规律（固定的收入和开销、常去的地方、分类上的习惯）一条一条问我，我说对的你再记进记忆。") }
 
     private var emptyState: some View {
         AskAIReader { ask in

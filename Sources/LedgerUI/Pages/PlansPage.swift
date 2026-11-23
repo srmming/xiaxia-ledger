@@ -849,14 +849,14 @@ func arrivalText(_ p: PiggyGoal) -> String {
 /// 目标图标：引导第一步给的几个，加上按名字猜。
 enum GoalIcons {
     struct Preset: Hashable { var symbol: String; var name: String }
-    static let presets: [Preset] = [
+    static var presets: [Preset] { [
         Preset(symbol: "laptopcomputer", name: tr("换新电脑")), Preset(symbol: "airplane", name: tr("去旅行")),
         Preset(symbol: "cross.case", name: tr("应急金")), Preset(symbol: "gift", name: tr("给家人的礼物")),
         Preset(symbol: "iphone", name: tr("换手机")), Preset(symbol: "house", name: tr("买房首付")),
         Preset(symbol: "car", name: tr("买车")), Preset(symbol: "graduationcap", name: tr("学习充电")),
         Preset(symbol: "camera", name: tr("相机")), Preset(symbol: "gamecontroller", name: tr("游戏机")),
         Preset(symbol: "bicycle", name: tr("自行车")), Preset(symbol: "star", name: tr("一个心愿")),
-    ]
+    ] }
 
     static func guess(_ name: String) -> String {
         let n = name.lowercased()

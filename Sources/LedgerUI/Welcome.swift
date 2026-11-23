@@ -47,14 +47,14 @@ struct WelcomeView: View {
         var reply: String
     }
 
-    static let aimOptions: [AimOption] = [
+    static var aimOptions: [AimOption] { [
         AimOption(id: "save", title: tr("每个月存下一笔钱"), symbol: "banknote", aim: "", reply: tr("好目标！我每个月帮你盯着。")),
         AimOption(id: "clarity", title: tr("搞清楚钱都花哪了"), symbol: "chart.pie", aim: tr("搞清楚钱都花哪了"), reply: tr("交给我，每一笔都给你分好类。")),
         AimOption(id: "less", title: tr("少花冤枉钱"), symbol: "cart.badge.minus", aim: tr("少花冤枉钱，比如外卖和冲动网购"), reply: tr("好，花多了我会提醒你。")),
         AimOption(id: "debt", title: tr("先把欠的钱还清"), symbol: "creditcard", aim: tr("先把信用卡和欠的钱还清"), reply: tr("一笔一笔来，我陪你还完。")),
         AimOption(id: "wish", title: tr("攒钱实现一个心愿"), symbol: "gift", aim: tr("攒够钱，实现一个心愿"), reply: tr("真好！心愿是什么，待会儿可以告诉 AI。")),
         AimOption(id: "shop", title: tr("把生意的账管清楚"), symbol: "storefront", aim: tr("把生意的收入和支出管清楚"), reply: tr("好，生意的账和生活的分开算。")),
-    ]
+    ] }
     /// 第一页「你平时用哪种钱？」直接摆出来的币种；别的从「别的币种」菜单里挑。
     static let commonCurrencies = ["EUR", "CNY", "USD", "GBP", "HKD", "JPY"]
 

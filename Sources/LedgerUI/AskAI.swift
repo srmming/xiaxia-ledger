@@ -27,7 +27,7 @@ enum Clipboard {
 extension LedgerModel {
     /// 现在看的是哪儿：给 AI 的话前面带上，AI 就知道你在问哪个月、哪个账本。
     /// 没开内置夏夏时，所有「问夏夏」都是复制好提示词交给用户自己的 AI，提示统一用这两句（ming 2026-11-23 定的说法）。
-    static let copiedForAI = tr("提示词已经复制，可以发给你的 AI")
+    static var copiedForAI: String { tr("提示词已经复制，可以发给你的 AI") }
 
     /// 没开内置夏夏时「问夏夏」的统一做法：复制好（带上这一页的情况），在 app 里停一会儿提示，
     /// 旁边给个「打开 Claude」按钮让用户自己点。不自动跳走：跳走了用户看不到提示，会以为没反应。
