@@ -130,7 +130,8 @@ struct ImportGuideCard: View {
 struct StartLedgerView: View {
     @Environment(LedgerModel.self) var model
     @State private var showImportHelp = false
-    static let example = "今天超市花了 23,40 €"
+    /// 例句的金额跟着主币种写（引导里选了人民币就是「23,40 ¥」）。
+    static var example: String { "今天超市花了 \(Money(cents: 2340).formatted(in: Money.defaultCurrency))" }
 
     var body: some View {
         AskAIReader { ask in

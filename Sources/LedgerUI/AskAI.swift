@@ -26,6 +26,10 @@ enum Clipboard {
 
 extension LedgerModel {
     /// 现在看的是哪儿：给 AI 的话前面带上，AI 就知道你在问哪个月、哪个账本。
+    /// 没开内置夏夏时，所有「问夏夏」都是复制好提示词交给用户自己的 AI，提示统一用这两句（ming 2026-11-23 定的说法）。
+    static let copiedForAI = "提示词已经复制，可以发给你的 AI"
+    static let copiedOpenedClaude = "提示词已经复制，已打开 Claude，粘贴发送就行"
+
     func contextLine(page: String) -> String {
         var line = "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
         line += "请你当「夏夏」，用「\(ledger.profile.persona.label)」的口吻回答。"
@@ -93,10 +97,13 @@ struct AskAIAction {
         #endif
         let full = page.map { model.contextLine(page: $0) + text } ?? text
         Clipboard.copy(full)
-        model.toast = .init(text: open ? "已复制，在 Claude 里粘贴就行" : "已复制", changeID: nil)
-        guard open, let app = URL(string: "claude://") else { return }
-        openURL(app) { accepted in
-            if !accepted, let web = URL(string: "https://claude.ai/new") { openURL(web) }
+        guard open, let app = URL(string: "claude://") else {
+            model.toast = .init(text: LedgerModel.copiedForAI, changeID: nil)
+            return
+        }
+        // 装了 Claude 就顺手打开它；没装不跳网页（用户可能用的是 Codex、ChatGPT），只说复制好了。
+        openURL(app) { opened in
+            model.toast = .init(text: opened ? LedgerModel.copiedOpenedClaude : LedgerModel.copiedForAI, changeID: nil)
         }
     }
 }

@@ -142,10 +142,8 @@ extension LedgerModel {
         guard chat.enabled else {
             // 选了不用内置夏夏：和以前一样，把这一页的情况复制好，打开 Claude。
             Clipboard.copy(contextLine(page: (section ?? .overview).rawValue))
-            toast = .init(text: "已复制，在 Claude 里粘贴就行", changeID: nil)
-            if let app = URL(string: "claude://"), !NSWorkspace.shared.open(app), let web = URL(string: "https://claude.ai/new") {
-                NSWorkspace.shared.open(web)
-            }
+            let opened = URL(string: "claude://").map { NSWorkspace.shared.open($0) } ?? false
+            toast = .init(text: opened ? Self.copiedOpenedClaude : Self.copiedForAI, changeID: nil)
             return
         }
         if chat.open { withAnimation(.snappy) { chat.open = false } } else { chat.show() }
