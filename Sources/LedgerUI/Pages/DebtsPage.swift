@@ -122,7 +122,7 @@ struct DebtsPage: View {
                 let late = max(1, due.days(until: today))
                 sentence = switch p {
                 case .gentle: "\(who)的 \(amt) 本该 \(due.short) 还，已经过了 \(late) 天。要不要我帮你想句不尴尬的话提醒一下？"
-                case .sharp: "\(who)欠你 \(amt)，拖了 \(late) 天了。他忘了，你也忘了？我来写句催款的，客气但扎心。"
+                case .sharp: "\(who)欠你 \(amt)，拖了 \(late) 天了。人家忘了，你也忘了？我来写句催款的，客气但扎心。"
                 case .calm: "\(who)的 \(amt) 已逾期 \(late) 天（约定 \(due.short) 归还）。可以发一条提醒。"
                 case .cheer: "\(who)还欠你 \(amt)，都过了 \(late) 天啦～要不要我们想个办法把钱要回来，嘻嘻😁"
                 }
