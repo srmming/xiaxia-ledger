@@ -77,7 +77,7 @@ struct OverviewPage: View {
         let m = s.month.month
         let over = s.net.isExpense
         let label = s.isCurrent ? "\(m) 月\(over ? "超支" : "还剩") · 截至 \(s.dayOfMonth) 日" : "\(m) 月\(over ? "超支了" : "剩了")"
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: short ? 8 : 14) {
             if s.summary.income.cents == 0 && s.summary.expense.cents == 0 {
                 KitEmptyState(symbol: "calendar", title: "\(m) 月还没有流水",
                               message: "新的流水导进来后，这里会画出花钱速度。跟 AI 说一句就能导。",
@@ -87,10 +87,10 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s, height: short ? 60 : 170)
+                SpendingPaceChart(status: s, height: short ? 64 : 170)
             }
         }
-        .kitCard(padding: 20)
+        .kitCard(padding: short ? 14 : 20)
     }
 
     private func sentence(_ s: MonthStatus) -> Text {
