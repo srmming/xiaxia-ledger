@@ -230,6 +230,7 @@ struct MacRoot: View {
             HStack(spacing: 0) {
                 NavigationStack {
                     section.screen
+                        .safeAreaInset(edge: .top, spacing: 0) { DemoBanner() }
                         .navigationTitle(section.rawValue)
                         .toolbar { MacToolbar(model: model, section: section) }
                 }
@@ -261,9 +262,13 @@ struct SidebarFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Divider().padding(.bottom, 6)
-            StatusDot(color: model.loadError == nil ? .income : .alert, text: model.loadError == nil ? "账本已读到" : "账本读不出来")
+            StatusDot(color: model.loadError == nil ? .income : .alert,
+                      text: model.isTryingDemo ? "正在看演示数据" : model.loadError == nil ? "账本已读到" : "账本读不出来")
                 .foregroundStyle(Color.fg2)
-            if let last = model.lastAIChange {
+            if model.isTryingDemo {
+                // 演示时不显示真账本「谁刚写过」，免得以为演示数据被写了。
+                Text("演示数据，不会保存").foregroundStyle(Color.ai)
+            } else if let last = model.lastAIChange {
                 HStack(spacing: 4) {
                     Image(systemName: "sparkles")
                     Text("\(last.author) \(last.createdAt.friendly) 写入").lineLimit(1)
@@ -399,6 +404,7 @@ struct PhoneRoot: View {
     private func page<Content: View>(_ section: AppSection, title: String, @ViewBuilder content: () -> Content) -> some View {
         NavigationStack {
             content()
+                .safeAreaInset(edge: .top, spacing: 0) { DemoBanner() }
                 .navigationTitle(title)
                 .toolbar {
                     // iPhone 也能选月份（ming 2026-11-23）：左上角点月份弹出同一个小面板。

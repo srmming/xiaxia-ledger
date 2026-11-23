@@ -23,7 +23,7 @@ settings:
     # 不签名 / 临时签名（CI、本机 Debug）带着 iCloud 权限，Mac 会直接拒绝打开 app，所以平时留空。
     XIAXIA_ENTITLEMENTS_YES_iOS: Entitlements/iOS.entitlements
     XIAXIA_ENTITLEMENTS_YES_macOS: Entitlements/macOS.entitlements
-    MARKETING_VERSION: "0.2.2"
+    MARKETING_VERSION: "0.2.3"
     # Sparkle 更新签名的公钥（不是秘密）。第一次在 ming 的 Mac 上跑 Sparkle 的 generate_keys 生成后填这里。
     XIAXIA_SPARKLE_PUBLIC_KEY: ajRgl6g9W0Bsi+K/pjud0yYHoq9ezdaY64qlM9hIgSQ=
     # 自动更新的网址前缀（只改这一处）：<前缀>/appcast.xml 是更新清单，<前缀>/download/xiaxia-ledger-<版本>.dmg 是安装包。

@@ -37,7 +37,12 @@ public final class LedgerModel {
         public var fallbackURL: URL? = nil
     }
 
-    public let store: any LedgerStore
+    /// 现在读写的账本。平时是真账本；「看看演示数据」时换成内存里的示例账本（不写任何文件），退出再换回来。
+    public private(set) var store: any LedgerStore
+    /// 正在看演示数据时，真账本的存储先放在这儿。
+    @ObservationIgnored private var realStore: (any LedgerStore)?
+    /// 正在看演示数据（设置 → 数据 里进的，不是启动参数那种）。
+    public private(set) var isTryingDemo = false
     public private(set) var ledger: Ledger = .fresh {
         didSet { CategoryStyle.customIcons = ledger.categoryIcons }
     }
@@ -77,7 +82,7 @@ public final class LedgerModel {
     /// 做完一件事后底部的提示。
     public var toast: Toast?
     /// 这次打开 app 以来自己做的改动，⌥⌘Z 从最后一条往回撤。
-    public private(set) var undoStack: [UUID] = []
+    public fileprivate(set) var undoStack: [UUID] = []
 
     /// 总览看哪个月；nil = 最新有流水的月份。
     public var selectedMonth: YearMonth? = nil { didSet { publishView() } }
@@ -121,7 +126,7 @@ public final class LedgerModel {
     public var activity: ExternalActivity?
     /// 「看看」之后在流水页高亮的那几笔。
     public var highlighted: Set<UUID> = []
-    @ObservationIgnored private var lastStamp: String?
+    @ObservationIgnored fileprivate var lastStamp: String?
 
     /// 每隔两秒看一眼账本文件，变了（AI 刚写过）就重新读。弹着窗口时先不换，免得正在填的东西被打断。
     public func watch() async {
@@ -259,7 +264,7 @@ public final class LedgerModel {
     }
 
     /// 正在看的账本被删了：回到「全部」。
-    private func dropMissingSelection() {
+    fileprivate func dropMissingSelection() {
         if let b = selectedBookID, !ledger.books.contains(where: { $0.id == b }) { selectedBookID = nil }
     }
 
@@ -270,7 +275,7 @@ public final class LedgerModel {
 
     // MARK: 给界面用的派生数据（算一次存着，账本一变就重算）
 
-    private struct Cache {
+    fileprivate struct Cache {
         var showPrivate: Bool
         var balances: [String: Money]
         var suggester: Suggester
@@ -279,7 +284,7 @@ public final class LedgerModel {
         /// 账户自己币种的余额。
         var nativeBalances: [String: Money]
     }
-    @ObservationIgnored private var cache: Cache?
+    @ObservationIgnored fileprivate var cache: Cache?
 
     private func cached() -> Cache {
         if let c = cache, c.showPrivate == showPrivate { return c }
@@ -430,6 +435,88 @@ public final class LedgerModel {
     public func showTransactions(_ filter: TransactionFilter) {
         pendingFilter = filter
         section = .transactions
+    }
+}
+
+// MARK: 演示数据、删除数据、从备份恢复（设置 → 数据）
+
+extension LedgerModel {
+    /// 换一个账本来看：页面、月份、选中的东西都回到开头。
+    private func switchStore(to new: any LedgerStore) {
+        store = new
+        selectedBookID = nil
+        selectedMonth = nil
+        selectedTransactionID = nil
+        highlighted = []
+        activity = nil
+        pendingFilter = nil
+        undoStack = []
+        reload()
+        lastStamp = store.changeStamp()
+    }
+
+    /// 「看看演示数据」：换成内存里的示例账本，随便点随便改，都不会存进自己的账本。
+    public func enterDemo() {
+        guard !isTryingDemo else { return }
+        realStore = store
+        var l = Ledger.demo
+        // 夏夏的名字、性格、称呼跟自己设的一样，看起来还是「自己的 app」。
+        l.profile.persona = ledger.profile.persona
+        l.profile.assistantName = ledger.profile.assistantName
+        l.profile.userCallName = ledger.profile.userCallName
+        isTryingDemo = true
+        switchStore(to: InMemoryLedgerStore(l))
+        // 每页顶上有一条「正在看演示数据」，这里不再弹一句一样的话。
+        section = .overview
+        toast = nil
+    }
+
+    /// 「退出演示」：回到自己的账本。演示里改的东西都不留。
+    public func exitDemo() {
+        guard isTryingDemo, let real = realStore else { return }
+        realStore = nil
+        isTryingDemo = false
+        switchStore(to: real)
+        toast = Toast(text: "回到你自己的账本了", changeID: nil)
+    }
+
+    /// 账本文件在哪；示例数据、演示数据没有文件。
+    public var ledgerFileURL: URL? { LedgerBackup.fileURL(of: store) }
+
+    /// 删除前的备份，从新到旧。
+    public var backups: [LedgerBackup.Item] { ledgerFileURL.map { LedgerBackup.list(for: $0) } ?? [] }
+
+    /// 删除数据：先把账本文件复制一份到「删除前备份」，复制不成就不删。返回备份的位置（内存账本没有）。
+    @discardableResult
+    public func wipe(_ scope: WipeScope) throws -> URL? {
+        var backup: URL?
+        if let file = ledgerFileURL { backup = try LedgerBackup.make(of: file, label: "删除前") }
+        var copy = ledger
+        try copy.wipe(scope, author: author, backupNote: backup.map { "\(LedgerBackup.folderName)/\($0.lastPathComponent)" })
+        try store.save(copy)
+        lastStamp = store.changeStamp()
+        ledger = copy
+        cache = nil; authorCache = nil
+        undoStack = []
+        selectedMonth = nil
+        selectedTransactionID = nil
+        highlighted = []
+        activity = nil
+        dropMissingSelection()
+        return backup
+    }
+
+    /// 从备份恢复：先把现在的账本也备份一份，再把备份里的内容存回来。
+    public func restore(_ item: LedgerBackup.Item) throws {
+        let old = try LedgerBackup.load(item.url)
+        if let file = ledgerFileURL { try LedgerBackup.make(of: file, label: "恢复前") }
+        try store.save(old)
+        lastStamp = store.changeStamp()
+        ledger = old
+        cache = nil; authorCache = nil
+        undoStack = []
+        selectedMonth = nil
+        dropMissingSelection()
     }
 }
 
