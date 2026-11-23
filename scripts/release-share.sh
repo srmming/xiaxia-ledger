@@ -6,8 +6,7 @@
 #   bash scripts/release-share.sh 0.2.0 --adhoc      # 临时签名，别人第一次打开要去「隐私与安全性」点「仍要打开」
 #   加 --no-publish：只做 dmg，不推到更新仓库
 #
-# 产物：dist/XiaxiaLedger-<版本>.dmg；发布时复制进更新仓库（XIAXIA_RELEASES_DIR，默认 ~/xiaxia-ledger-releases）
-# 的 updates/，用 Sparkle 的 generate_appcast 重写 appcast.xml，git push。别人的 app 每天看一次 appcast，有新版就在左下角提醒。
+# 产物：dist/appcast.xml 和 dist/download/；发布时由 site/deploy.sh 传到官网（网址前缀见 App/project.yml 的 XIAXIA_UPDATE_BASE）。别人的 app 每天看一次 appcast，有新版就在左下角提醒。
 set -euo pipefail
 VERSION="${1:?用法：release-share.sh <版本号，比如 0.2.0> [--adhoc] [--no-publish]}"; shift
 ADHOC=0; PUBLISH=1
@@ -112,7 +111,8 @@ MD
     git -C "$RELEASES" push -q ;;
   *)
     # 官网（自己的服务器）：site/deploy.sh 把 dist/ 里的 dmg 和 appcast.xml 一起传上去。
-    [ -x "$REPO/site/deploy.sh" ] || { echo "更新网址是 $BASE，但没有 site/deploy.sh"; exit 1; }
-    bash "$REPO/site/deploy.sh" ;;
+    [ -f "$REPO/site/deploy.sh" ] || { echo "更新网址是 $BASE，但没有 site/deploy.sh"; exit 1; }
+    # 只传 dist/appcast.xml、dist/download/、dist/release-notes/；服务器设置在 site/deploy.env（不进仓库）或环境变量 XIAXIA_SSH / XIAXIA_DIR / XIAXIA_DOMAIN。
+    (cd "$REPO" && bash site/deploy.sh --release) ;;
 esac
 echo "发布好了：别人的 app 一天内左下角会提醒更新到 $VERSION"

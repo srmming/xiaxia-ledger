@@ -36,7 +36,7 @@ struct SettingsPage: View {
 
             // 帮助与反馈、版本：稿里没画，放在最下面一行小字。
             HStack(spacing: 14) {
-                Button { open("https://github.com/srmming/xiaxia-ledger-releases/issues/new")  // 代码仓库是私有的，反馈走公开的安装包仓库 } label: {
+                Button { open("https://xiaxia.ming95.com") } label: {  // 代码仓库是私有的，反馈走官网
                     Label("反馈问题 / 提个想法", systemImage: "exclamationmark.bubble")
                 }
                 .buttonStyle(.borderless)
