@@ -174,7 +174,6 @@ struct WealthPage: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(stepSpoken(step))
             .accessibilityHint(canOpen ? (open ? "收起来源" : "展开看是哪几个账户") : "")
             .accessibilityIdentifier("wealth.step.\(step.id)")
