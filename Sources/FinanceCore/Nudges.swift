@@ -28,7 +28,7 @@ public struct Nudge: Identifiable, Equatable, Sendable {
         case .unusual: "留意"
         case .upcoming: "快要扣钱"
         case .praise: "做得好"
-        case .info: "花在哪"
+        case .info: "看一眼"
         }
     }
 }

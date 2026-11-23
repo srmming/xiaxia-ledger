@@ -62,8 +62,8 @@ struct WealthPage: View {
         let parts = [
             Part(name: "能随时用的", hint: w.earmarked.cents > 0 ? "银行卡、现金、钱包（不含划给目标的 \(w.earmarked.rounded)）" : "银行卡、现金、钱包", amount: w.liquid, color: .income),
             Part(name: "存着的", hint: "存款、存钱目标里的钱", amount: w.saved, color: .ai),
-            Part(name: "店里的", hint: "只在生意账本里用的账户", amount: w.shop, color: .brand),
-            Part(name: "别人欠我的", hint: "借出去还没还的", amount: w.owedToMe, color: .warn),
+            Part(name: "店里的", hint: "只在生意账本里用的账户", amount: w.shop, color: .warn),
+            Part(name: "别人欠我的", hint: "借出去还没还的", amount: w.owedToMe, color: .fg3),
             Part(name: "欠款", hint: "信用卡、借的钱、分期没还完的", amount: w.owed, color: .alert, minus: true),
         ].filter { $0.amount.cents > 0 }
         let whole = Double(max(1, parts.reduce(Int64(0)) { $0 + $1.amount.cents }))
