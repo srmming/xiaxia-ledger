@@ -73,6 +73,13 @@ struct SpendingPage: View {
                     .foregroundStyle(delta.isExpense ? Color.income : Color.fg2)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(delta.isExpense ? Color.incomeSoft : Color.sunken, in: Capsule())
+            } else {
+                // 新账本上个月没记录时也让人知道这里会对比（ming 2026-11-23 新装后问「花销对比有了吗」）。
+                Text("\(previousName(month))还没有记录，记满两个月就能对比")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.fg3)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.sunken, in: Capsule())
             }
             (Text(top.name == totals[0].name ? "" : "房租之外，") + em(top.name) + Text("是最大的一块")
              + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? "，和\(previousName(month))差不多。"

@@ -63,7 +63,7 @@ final class MCPServer {
                 result = [
                     "protocolVersion": (params["protocolVersion"] as? String) ?? protocolVersion,
                     "capabilities": ["tools": [:] as [String: Any]],
-                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.2.0"],
+                    "serverInfo": ["name": "xiaxia-ledger", "version": "0.2.1"],
                     "instructions": MCPServer.instructions,
                 ] as [String: Any]
             case "ping":
@@ -155,7 +155,7 @@ enum MCPTools {
             "account": prop("string", "账户 id"),
             "book": prop("string", "账本 id"),
             "category": prop("string", "分类"),
-            "date": prop("string", "日期 2026-11-21，默认今天"),
+            "date": prop("string", "日期 2026-11-21，默认今天。照小票、截图、账单记的，一定填上面印的日期，不要用今天"),
             "note": prop("string", "备注（可不填）"),
             "tags": ["type": "array", "items": ["type": "string"], "description": "标签，如 [\"旅行\"]，不带 #"],
             "repeat": ["type": "string", "enum": ["weekly", "monthly", "yearly"], "description": "重复：每周 / 每月 / 每年（可不填）"],
