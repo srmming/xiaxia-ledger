@@ -151,7 +151,8 @@ extension LedgerModel {
             while i < txs.count, txs[i].date <= end { running = running + txs[i].amount; i += 1 }
             // 别人欠我的算进来、我还欠的（借款、分期没还完）减掉（ming 2026-11-23）。
             let owed = Plans.obligations(ledger, asOf: min(end, LocalDate.today)).net
-            result.append(NetWorthPoint(month: m, value: running + owed))
+            // 本月这个点用现在的账户余额（外币按今天的汇率），和家底页的大数字是同一个数。
+            result.append(NetWorthPoint(month: m, value: (end >= LocalDate.today ? totalBalance : running) + owed))
         }
         return result
     }
