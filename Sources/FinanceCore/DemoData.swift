@@ -239,6 +239,34 @@ struct DemoBuilder {
         l.fillMissingFX()
         insights()
         memories()
+        phoneAndReimburse()
+    }
+
+    /// 手机上随口记的两句（还没进账本）+ 三笔报销（待提交、已提交、已到账），截图和「演示数据」看得到。
+    /// 用自己的随机数，不动前面的流水。
+    mutating func phoneAndReimburse() {
+        var r = DemoRandom(seed: 2026_1123)
+        func id() -> UUID { UUID(uuidString: r.uuidString())! }
+        let lines: [(String, Int, Int)] = [("午饭 12,50 欧", 13, 5), ("打车回家 18 欧", 19, 40)]
+        for (text, h, m) in lines {
+            l.captures.append(Capture(id: id(), kind: .text, text: text,
+                                      guess: CaptureGuess.parse(sentence: text, today: end),
+                                      createdAt: moment(end, 0, 0).addingTimeInterval(Double(h * 3600 + m * 60)),
+                                      device: "iPhone"))
+        }
+        let since = end.adding(days: -45)
+        let picks = l.transactions
+            .filter { $0.bookID == Self.P && $0.flow == nil && !$0.amount.isIncome && !$0.isTransfer && $0.date >= since
+                && $0.amount.cents <= -1500 && $0.amount.cents >= -9000 }
+            .sorted { $0.date > $1.date }
+            .prefix(3)
+        for (i, t) in picks.enumerated() {
+            var p = Paperwork(id: t.id, reimburse: [.toSubmit, .submitted, .paid][i])
+            p.reimburseTo = "公司"
+            if i >= 1 { p.submittedOn = min(end, t.date.adding(days: 3)) }
+            if i == 2 { p.paidOn = min(end, t.date.adding(days: 12)) }
+            l.paperwork.append(p)
+        }
     }
 
     mutating func setUp() {

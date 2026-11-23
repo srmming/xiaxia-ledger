@@ -18,6 +18,7 @@ struct OverviewPage: View {
                               message: "把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」。哪家银行、什么格式都行，导好就会出现在这里。",
                               prompt: "这是我的银行对账单，帮我整理好导进夏夏账本", page: "总览")
                     .kitCard()
+                PendingCapturesCard()
                 AskAICard(page: "总览", prompts: model.prompts(for: .overview))
             }
             .kitPage()
@@ -45,6 +46,8 @@ struct OverviewPage: View {
             } else {
                 XiaxiaCards(nudges: nudges, insights: insights)
             }
+            // 手机上随口记的、拍的小票，还没进账本的：一张卡 +「同步今天的」。
+            PendingCapturesCard()
             // 速度图收矮、最近流水 4 条：1280×800 一屏放得下（ming：「尽量不要上下拉」）。
             // 账本卡收成一行一个、放到右栏最近流水下面（右栏下面原来空着），左边只留结论和速度图。
             Columns {

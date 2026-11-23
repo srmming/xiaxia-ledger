@@ -39,9 +39,17 @@ args = ["mcp"]
 
 ## 工具
 
-只读：`context`、`accounts`、`list_transactions`、`summary`、`monthly_report`、`reconcile`、`debts`、`installments`、`goals`、`history`、`currency`、`subscriptions`、`find_subscriptions`、`memory`、`regulars`。
+只读：`context`、`accounts`、`list_transactions`、`summary`、`monthly_report`、`reconcile`、`debts`、`installments`、`goals`、`history`、`currency`、`subscriptions`、`find_subscriptions`、`memory`、`regulars`、`phone_notes`、`reimbursements`。
 
-写入（都能 `dry_run`）：`add_account`、`set_opening_balance`、`add_transaction`、`edit_transaction`、`delete_transactions`、`account_transfer`、`book_transfer`、`goal_withdraw`、`mark_account_transfer`、`add_debt`、`repay_debt`、`plan_debt`、`edit_debt_plan`、`skip_debt_payment`、`categorize`、`assign_book`、`import_statement`、`add_installment`、`pay_installment`、`add_goal`、`goal_deposit`、`set_main_goal`、`goal_check`、`set_goal_stash`、`remove_goal`、`split_transaction`、`duplicate_transaction`、`add_refund`、`tag_transactions`、`set_recurring`、`update_recurring`、`run_recurring`、`set_base_currency`、`set_account_currency`、`set_rate`、`update_rates`、`add_subscription`、`edit_subscription`、`remove_subscription`、`remember`、`update_memory`、`forget_memory`、`tidy_memory`、`undo`。只读另有 `list_recurring`、`plan_goal`（建目标前算每天存多少、超不超出每月剩的）。
+写入（都能 `dry_run`）：`add_account`、`set_opening_balance`、`add_transaction`、`edit_transaction`、`delete_transactions`、`account_transfer`、`book_transfer`、`goal_withdraw`、`mark_account_transfer`、`add_debt`、`repay_debt`、`plan_debt`、`edit_debt_plan`、`skip_debt_payment`、`categorize`、`assign_book`、`import_statement`、`add_installment`、`pay_installment`、`add_goal`、`goal_deposit`、`set_main_goal`、`goal_check`、`set_goal_stash`、`remove_goal`、`split_transaction`、`duplicate_transaction`、`add_refund`、`tag_transactions`、`set_recurring`、`update_recurring`、`run_recurring`、`set_base_currency`、`set_account_currency`、`set_rate`、`update_rates`、`add_subscription`、`edit_subscription`、`remove_subscription`、`remember`、`update_memory`、`forget_memory`、`tidy_memory`、`resolve_phone_note`、`link_phone_note`、`dismiss_phone_note`、`attach_receipt`、`set_reimbursement`、`export_reimbursements`、`undo`。只读另有 `list_recurring`、`plan_goal`（建目标前算每天存多少、超不超出每月剩的）。
+
+### 手机随手记、小票发票、报销
+
+- `phone_notes`：手机上随口记的、拍的小票，还没进账本的（「待记录」）。每条带猜好的金额、日期、店名、小票上认出的字，和可能已经记过的那几笔。
+- `resolve_phone_note`：记成一笔（带上分类、账户、账本；有小票照片会自动挂到这笔上）。`link_phone_note`：其实已经记过了，挂到那一笔。`dismiss_phone_note`：不记。
+- 用户说「同步今天的」：先 `phone_notes`，一条条判断，拿不准的（账户、是不是记过了）用提问框问，再写。
+- `attach_receipt`：给一笔挂小票 / 发票（本机文件路径）。`reimbursements`：报销清单和还有多少钱没收回。`set_reimbursement`：待提交 / 已提交 / 已到账，到账那笔可以带 `paid_transaction`。`export_reimbursements`：导出 CSV + 附件到一个文件夹。
+- 命令行：`fin phone list|resolve|link|dismiss`、`fin receipt`、`fin reimburse list|set|export`。
 
 ### 夏夏的记忆
 

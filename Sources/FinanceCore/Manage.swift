@@ -410,6 +410,16 @@ extension Ledger {
         }
         let addedMemories = Set(s.addedMemoryIDs ?? [])
         if !addedMemories.isEmpty { memories.removeAll { addedMemories.contains($0.id) } }
+        for x in s.captures ?? [] {
+            if let i = captures.firstIndex(where: { $0.id == x.id }) { captures[i] = x } else { captures.append(x) }
+        }
+        let addedCaptures = Set(s.addedCaptureIDs ?? [])
+        if !addedCaptures.isEmpty { captures.removeAll { addedCaptures.contains($0.id) } }
+        for x in s.paperwork ?? [] {
+            if let i = paperwork.firstIndex(where: { $0.id == x.id }) { paperwork[i] = x } else { paperwork.append(x) }
+        }
+        let addedPaperwork = Set(s.addedPaperworkIDs ?? [])
+        if !addedPaperwork.isEmpty { paperwork.removeAll { addedPaperwork.contains($0.id) } }
         let addedInsights = Set(s.addedInsightIDs ?? [])
         if !addedInsights.isEmpty { insights.removeAll { addedInsights.contains($0.id) } }
         for id in s.addedAccountIDs ?? [] where !transactions.contains(where: { $0.accountID == id && $0.flow != .opening }) {

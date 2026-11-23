@@ -107,6 +107,8 @@ struct QuickAdd: View {
 
     private var content: some View {
         VStack(spacing: 14) {
+            // 说一句 / 拍小票：不填表，先存成「待记录」，夏夏或自己之后补进账本（ming 2026-11-23）。
+            if editing == nil { CaptureBar() }
             if editing == nil || editing?.isPlainEntry == false {
                 Picker("支出、收入还是转账", selection: $kind) {
                     Text("支出").tag(Kind.expense)
