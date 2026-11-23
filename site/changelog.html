@@ -9,6 +9,16 @@
 <meta name="theme-color" content="#0f0f14">
 <meta property="og:title" content="夏夏账本 · 更新日志">
 <meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/changelog.html">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/changelog.html">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/changelog.html">
+<!--zh-only-->
+<script>
+// 浏览器是英文或西班牙语、又没自己选过语言的，带去对应的页面；选过就听选的。
+(function(){try{var c=localStorage.getItem('xiaxia.lang'),l=c||(navigator.language||'').slice(0,2).toLowerCase();
+if(l==='en'||l==='es')location.replace('/'+l+'/changelog.html'+location.hash)}catch(e){}})();
+</script>
+<!--/zh-only-->
 <link rel="icon" type="image/png" href="assets/app-icon-64.png">
 <link rel="alternate" type="application/rss+xml" title="夏夏账本更新" href="/appcast.xml">
 <style>
@@ -35,6 +45,9 @@ nav .logo img{width:28px;height:28px;border-radius:7px}
 nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
 nav .links a{text-decoration:none}
 nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
 .btn{display:inline-flex;align-items:center;border-radius:999px;padding:7px 14px;font-weight:600;text-decoration:none;background:var(--brand);color:#fff;font-size:14px}
 .btn:hover{background:#ff6a26}
 header{padding:64px 0 32px}
@@ -59,6 +72,8 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--fg3);border-top:1px solid 
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media (max-width:720px){
   nav .links a:not(.btn){display:none}
+  nav .links .lang a:not(.btn){display:inline}
+  nav .links{gap:12px}
   header{padding:40px 0 24px}
   article{grid-template-columns:1fr;gap:10px}
   .when{position:static;flex-direction:row;align-items:baseline;gap:10px}
@@ -75,6 +90,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <a href="/#tour">看看界面</a>
       <a href="/#install">怎么装</a>
       <a href="changelog.html" aria-current="page">更新日志</a>
+      <span class="lang" aria-label="Language"><a href="/changelog.html" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" data-lang="en">EN</a><a href="/es/changelog.html" data-lang="es">ES</a></span>
       <a class="btn" href="/download/xiaxia-ledger.dmg">下载</a>
     </div>
   </div>
@@ -136,5 +152,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <span>截图里的金额和人名都是示例数据。</span>
   </div>
 </footer>
+<script>
+document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}})});
+</script>
 </body>
 </html>

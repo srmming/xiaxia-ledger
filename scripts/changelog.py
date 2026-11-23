@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """夏夏账本更新日志：一份数据（Sources/LedgerUI/Resources/Changelog.json），三处用。
 
-  python3 scripts/changelog.py site              # 生成官网 site/changelog.html
+  python3 scripts/changelog.py site              # 生成官网 site/changelog.html，还有 site/en/、site/es/ 里的英文、西语版
   python3 scripts/changelog.py notes 0.2.5 out.html  # 生成 Mac 更新窗口里显示的「新版改了什么」
   python3 scripts/changelog.py add 0.2.5         # 发版时调用：没有这一版就按上次发版以来的 PR 标题起草一条
   python3 scripts/changelog.py check [0.2.5]     # 检查格式（可选：这一版必须有）
@@ -44,6 +44,11 @@ def check(d, need=None):
         for k in ("title", "summary"):
             if not r.get(k): errs.append(f"{v} 缺 {k}")
         if not r.get("items"): errs.append(f"{v} 至少写一条改动")
+        for lang in ("en", "es"):
+            t = r.get(lang)
+            if t is None: continue
+            if not t.get("title") or not t.get("summary"): errs.append(f"{v} 的 {lang} 缺 title 或 summary")
+            if len(t.get("items", [])) != len(r.get("items", [])): errs.append(f"{v} 的 {lang} 条数和中文不一样")
         img = r.get("image")
         if img and not os.path.exists(os.path.join(SITE, img)): errs.append(f"{v} 的截图 site/{img} 不存在")
     vs = [vkey(r["version"]) for r in rs if re.fullmatch(r"\d+\.\d+\.\d+", r.get("version", ""))]
@@ -95,32 +100,74 @@ a{{color:#ff7a3d}}
     with open(out, "w", encoding="utf-8") as f: f.write(body)
 
 
+# 更新日志页上除了每一版内容以外的文字。
+CHROME = {
+    "zh": {"lang": "zh-CN", "date": lambda d: f"{d.year} 年 {d.month} 月 {d.day} 日", "shot": "{v} 版截图（示例数据）", "new": "最新"},
+    "en": {"lang": "en", "date": lambda d: f"{d.day} {EN_MONTHS[d.month - 1]} {d.year}", "shot": "Screenshot of version {v} (sample data)", "new": "Latest",
+           "text": {"主导航": "Main navigation", "更新日志 · 夏夏账本": "Changelog · Xiaxia Ledger", "夏夏账本每个版本改了什么，用大白话写。": "What changed in each version of Xiaxia Ledger, in plain words.",
+                    "夏夏账本 · 更新日志": "Xiaxia Ledger · Changelog", "夏夏账本更新": "Xiaxia Ledger updates", "看看界面": "Tour", "怎么装": "Install", "更新日志": "Changelog", "下载": "Download",
+                    "每一版改了什么，大白话写在这里。装好的 app 有新版会在左下角提醒，点一下就更新。": "What changed in each version, in plain words. The installed app shows a reminder in the bottom-left corner when a new version is out; one click updates it.",
+                    "截图里的金额和人名都是示例数据。": "Amounts and names in the screenshots are sample data; screenshots show the Chinese interface.", "夏夏账本": "Xiaxia Ledger"}},
+    "es": {"lang": "es", "date": lambda d: f"{d.day} de {ES_MONTHS[d.month - 1]} de {d.year}", "shot": "Captura de la versión {v} (datos de ejemplo)", "new": "Última",
+           "text": {"主导航": "Navegación principal", "更新日志 · 夏夏账本": "Novedades · Xiaxia Ledger", "夏夏账本每个版本改了什么，用大白话写。": "Qué ha cambiado en cada versión de Xiaxia Ledger, explicado con claridad.",
+                    "夏夏账本 · 更新日志": "Xiaxia Ledger · Novedades", "夏夏账本更新": "Novedades de Xiaxia Ledger", "看看界面": "Recorrido", "怎么装": "Instalar", "更新日志": "Novedades", "下载": "Descargar",
+                    "每一版改了什么，大白话写在这里。装好的 app 有新版会在左下角提醒，点一下就更新。": "Qué ha cambiado en cada versión, explicado con claridad. La app instalada avisa abajo a la izquierda cuando hay versión nueva; un clic la actualiza.",
+                    "截图里的金额和人名都是示例数据。": "Los importes y nombres de las capturas son datos de ejemplo; las capturas muestran la interfaz en chino.", "夏夏账本": "Xiaxia Ledger"}},
+}
+EN_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+ES_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
 def site():
     d = load()
+    for lang in ("zh", "en", "es"):
+        page = render(d, lang)
+        rel = "changelog.html" if lang == "zh" else f"{lang}/changelog.html"
+        path = os.path.join(SITE, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f: f.write(page)
+        print(f"写好了 site/{rel}")
+        missing = [r["version"] for r in d["releases"] if lang != "zh" and not r.get(lang)]
+        if missing: print(f"⚠︎ {lang} 还没翻的版本（先显示中文）：{'、'.join(missing)}")
+
+
+def render(d, lang):
     e = html.escape
+    c = CHROME[lang]
+    up = "" if lang == "zh" else "../"
     cards = []
     for i, r in enumerate(d["releases"]):
-        dt = datetime.date.fromisoformat(r["date"])
-        date = f"{dt.year} 年 {dt.month} 月 {dt.day} 日"
-        lis = "".join(f"<li>{e(x)}</li>" for x in r["items"])
+        t = r if lang == "zh" else (r.get(lang) or r)
+        date = c["date"](datetime.date.fromisoformat(r["date"]))
+        lis = "".join(f"<li>{e(x)}</li>" for x in t["items"])
         img = ""
         if r.get("image"):
             cls = ' class="art"' if r.get("imageStyle") == "art" else ""
-            img = (f'<figure{cls}><img src="{e(r["image"])}" alt="{e(r["version"])} 版截图（示例数据）" '
+            img = (f'<figure{cls}><img src="{up}{e(r["image"])}" alt="{e(c["shot"].format(v=r["version"]))}" '
                    f'loading="{"eager" if i == 0 else "lazy"}"></figure>')
-        tag = '<span class="new">最新</span>' if i == 0 else ""
+        tag = f'<span class="new">{c["new"]}</span>' if i == 0 else ""
         cards.append(f"""<article id="v{e(r['version'])}">
   <div class="when"><a class="ver" href="#v{e(r['version'])}">{e(r['version'])}</a>{tag}<time datetime="{e(r['date'])}">{date}</time></div>
   <div class="card">
-    <h2>{e(r['title'])}</h2>
-    <p class="sum">{e(r['summary'])}</p>
+    <h2>{e(t['title'])}</h2>
+    <p class="sum">{e(t['summary'])}</p>
     <ul>{lis}</ul>
     {img}
   </div>
 </article>""")
-    page = TEMPLATE.replace("{{CARDS}}", "\n".join(cards))
-    with open(os.path.join(SITE, "changelog.html"), "w", encoding="utf-8") as f: f.write(page)
-    print("写好了 site/changelog.html")
+    page = TEMPLATE
+    if lang != "zh":
+        # 中文页才有的（按浏览器语言跳转）去掉；外面的文字换掉，长的先换，一次扫完。
+        page = re.sub(r"<!--zh-only-->.*?<!--/zh-only-->\n?", "", page, flags=re.S)
+        text = c["text"]
+        rx = re.compile("|".join(re.escape(k) for k in sorted(text, key=len, reverse=True)))
+        page = rx.sub(lambda m: text[m.group(0)], page)
+        page = page.replace('<html lang="zh-CN">', f'<html lang="{c["lang"]}">')
+        page = re.sub(r'((?:src|href)=")assets/', r"\1../assets/", page)
+        page = page.replace('href="/#', f'href="/{lang}/#').replace('class="logo" href="/"', f'class="logo" href="/{lang}/"')
+        page = page.replace(' data-lang="zh" aria-current="true"', ' data-lang="zh"')
+        page = page.replace(f' data-lang="{lang}"', f' data-lang="{lang}" aria-current="true"')
+    return page.replace("{{CARDS}}", "\n".join(cards))
 
 
 TEMPLATE = """<!doctype html>
@@ -134,6 +181,16 @@ TEMPLATE = """<!doctype html>
 <meta name="theme-color" content="#0f0f14">
 <meta property="og:title" content="夏夏账本 · 更新日志">
 <meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/changelog.html">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/changelog.html">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/changelog.html">
+<!--zh-only-->
+<script>
+// 浏览器是英文或西班牙语、又没自己选过语言的，带去对应的页面；选过就听选的。
+(function(){try{var c=localStorage.getItem('xiaxia.lang'),l=c||(navigator.language||'').slice(0,2).toLowerCase();
+if(l==='en'||l==='es')location.replace('/'+l+'/changelog.html'+location.hash)}catch(e){}})();
+</script>
+<!--/zh-only-->
 <link rel="icon" type="image/png" href="assets/app-icon-64.png">
 <link rel="alternate" type="application/rss+xml" title="夏夏账本更新" href="/appcast.xml">
 <style>
@@ -160,6 +217,9 @@ nav .logo img{width:28px;height:28px;border-radius:7px}
 nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
 nav .links a{text-decoration:none}
 nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
 .btn{display:inline-flex;align-items:center;border-radius:999px;padding:7px 14px;font-weight:600;text-decoration:none;background:var(--brand);color:#fff;font-size:14px}
 .btn:hover{background:#ff6a26}
 header{padding:64px 0 32px}
@@ -184,6 +244,8 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--fg3);border-top:1px solid 
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media (max-width:720px){
   nav .links a:not(.btn){display:none}
+  nav .links .lang a:not(.btn){display:inline}
+  nav .links{gap:12px}
   header{padding:40px 0 24px}
   article{grid-template-columns:1fr;gap:10px}
   .when{position:static;flex-direction:row;align-items:baseline;gap:10px}
@@ -200,6 +262,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <a href="/#tour">看看界面</a>
       <a href="/#install">怎么装</a>
       <a href="changelog.html" aria-current="page">更新日志</a>
+      <span class="lang" aria-label="Language"><a href="/changelog.html" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" data-lang="en">EN</a><a href="/es/changelog.html" data-lang="es">ES</a></span>
       <a class="btn" href="/download/xiaxia-ledger.dmg">下载</a>
     </div>
   </div>
@@ -217,6 +280,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <span>截图里的金额和人名都是示例数据。</span>
   </div>
 </footer>
+<script>
+document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}})});
+</script>
 </body>
 </html>
 """

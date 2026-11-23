@@ -155,5 +155,5 @@ MD
     (cd "$REPO" && bash site/deploy.sh --release) ;;
 esac
 echo "发布好了：别人的 app 下次打开（或一天内）左下角会提醒更新到 $VERSION"
-git -C "$REPO" diff --quiet -- Sources/LedgerUI/Resources/Changelog.json site/changelog.html || \
+git -C "$REPO" diff --quiet -- Sources/LedgerUI/Resources/Changelog.json site/changelog.html site/en site/es || \
   echo "⚠︎ 更新日志有改动（Sources/LedgerUI/Resources/Changelog.json、site/changelog.html），记得提交到仓库"
