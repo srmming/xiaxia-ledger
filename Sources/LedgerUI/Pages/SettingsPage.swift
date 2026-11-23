@@ -51,6 +51,18 @@ struct SettingsPage: View {
                 Text("你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。").font(.caption).foregroundStyle(Color.fg2)
                     .padding(.horizontal, 4).padding(.top, 4)
             }
+            group("夏夏的记忆", note: "夏夏和你连上的 AI 记住的规矩、习惯和做事经验。跟着账本同步。") {
+                Button { manage = .memory } label: {
+                    item(symbol: "brain.head.profile", color: .ai, title: "看看夏夏记住了什么") {
+                        HStack(spacing: 6) {
+                            Text(model.memorySummary).foregroundStyle(Color.fg2)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fg3)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings-memory")
+            }
             group("夏夏怎么跟你说话", note: "夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。") {
                 PersonaPicker()
             }
@@ -110,13 +122,14 @@ struct SettingsPage: View {
                 switch sheet {
                 case .books: BookManager()
                 case .accounts: AccountManager()
+                case .memory: XiaxiaMemoryPanel()
                 default: CategoryManager()
                 }
             }
             .environment(model)
             .tint(Color.brand)
             #if os(macOS)
-            .frame(width: 520, height: 580)
+            .frame(width: sheet == .memory ? 760 : 520, height: 580)
             #endif
         }
         .onAppear {

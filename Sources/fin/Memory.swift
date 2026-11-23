@@ -20,9 +20,9 @@ extension MCPTools {
         ], readOnly: true),
         tool("remember", "记住一件事（记进夏夏的记忆，所有连上的 AI 和 app 都读得到）。先搜再记：同一件事已经有话题，就用 topic 加在它下面。标题写话题不写结论。能从流水算出来的数字、临时的事、你的猜测、卡号密码不记；你自己看出来的规律先问用户再记。", [
             "title": prop("string", "话题：这件事叫什么，如「工资」「转给妈妈的钱」「导入对账单」。加到已有话题时不用填"),
-            "text": prop("string", "记住什么。一句话说清，单独看也看得懂"),
+            "text": prop("string", "记住什么。一句话说清，单独看也看得懂。时间写具体的年月日（2027 年 3 月），不写「明年 3 月」「月底」这种过一阵就看不懂的"),
             "kind": memoryKinds, "source": memorySources,
-            "quote": prop("string", "用户的原话（有就填）"),
+            "quote": prop("string", "用户的原话（有就填，照原样，不用改时间）"),
             "story": prop("string", "当时出了什么事、怎么解决的（纠正和做事经验要填）"),
             "review_on": prop("string", "会过时的事填哪天回头看，如 2027-03-31"),
             "links": memoryLinks,

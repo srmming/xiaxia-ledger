@@ -347,9 +347,10 @@ extension Ledger {
                                   quote: String? = nil, story: String? = nil, date: LocalDate = .today,
                                   reviewOn: LocalDate? = nil, links: [String] = [], into memoryID: UUID? = nil,
                                   allowNew: Bool = false, author: String) throws -> ChangeRecord {
-        let body = try Self.cleanText(text)
+        // 「明年」「下个月」换成具体时间（按说这话那天算）；原话照留。
+        let body = try Self.cleanText(MemoryDates.absolute(text, on: date))
         let q = try Self.cleanOptional(quote, what: "原话")
-        let st = try Self.cleanOptional(story, what: "经过")
+        let st = try Self.cleanOptional(story.map { MemoryDates.absolute($0, on: date) }, what: "经过")
         let cleanLinks = try checkedLinks(links)
         let note = Memory.Note(text: body, source: source, quote: q, story: st, date: date, author: author, reviewOn: reviewOn)
 
@@ -399,10 +400,10 @@ extension Ledger {
         guard let k = memories[i].notes.firstIndex(where: { $0.id == noteID }) else { throw MemoryError.unknownNote(noteID.uuidString) }
         let old = memories[i]
         var note = old.notes[k]
-        if let text { note.text = try Self.cleanText(text) }
+        if let text { note.text = try Self.cleanText(MemoryDates.absolute(text, on: .today)) }
         if let source { note.source = source }
         if let quote { note.quote = try Self.cleanOptional(quote, what: "原话") }
-        if let story { note.story = try Self.cleanOptional(story, what: "经过") }
+        if let story { note.story = try Self.cleanOptional(story.map { MemoryDates.absolute($0, on: .today) }, what: "经过") }
         if let reviewOn { note.reviewOn = reviewOn }
         guard note != old.notes[k] else { throw MemoryError.nothingToChange }
         note.editedBy = author
@@ -685,6 +686,86 @@ extension Ledger {
     }
 }
 
+/// 记忆里的时间要写具体（2026-11-23 ming 定）：用户说「明年 3 月退健身房」，记下来的是「2027 年 3 月退健身房」。
+/// 不然过一年再看，「明年」就不知道是哪年了。原话（quote）不动，照用户说的留着。
+public enum MemoryDates {
+    /// 把「明年」「下个月」「明天」「下周三」这类相对的说法，按说这话那天（`day`）换成具体的年月日。
+    /// 只换意思确定的；「月底」「年底」「过两个月」这类可能是每月都这样、也可能要换算的，留给记的人写清楚。
+    /// 「以后天天」「加上周末」「基本月薪」这种碰巧连在一起的字不动。
+    public static func absolute(_ text: String, on day: LocalDate) -> String {
+        func ymd(_ d: LocalDate) -> String { "\(d.year) 年 \(d.month) 月 \(d.day) 日" }
+        func ym(_ n: Int) -> String {
+            let m = day.yearMonth.adding(months: n)
+            return "\(m.year) 年 \(m.month) 月"
+        }
+        let monday = day.adding(days: -weekdayIndex(day))
+        let weekdays: [Character: Int] = ["一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6]
+        let weekOffsets = ["下下": 2, "下": 1, "上上": -2, "上": -1]
+        var rules: [(pattern: String, make: ([String]) -> String)] = []
+        func rule(_ pattern: String, _ make: @escaping ([String]) -> String) { rules.append((pattern, make)) }
+        rule("大后天") { _ in ymd(day.adding(days: 3)) }
+        rule("大前天") { _ in ymd(day.adding(days: -3)) }
+        rule("(?<![以之今此])后天") { _ in ymd(day.adding(days: 2)) }
+        rule("(?<![以之])前天") { _ in ymd(day.adding(days: -2)) }
+        rule("明天") { _ in ymd(day.adding(days: 1)) }
+        rule("(?<![如当现而])今天") { _ in ymd(day) }
+        rule("昨天") { _ in ymd(day.adding(days: -1)) }
+        rule("(?<![以之今此])后年") { _ in "\(day.year + 2) 年" }
+        rule("明年") { _ in "\(day.year + 1) 年" }
+        rule("(?<![如当现而])今年") { _ in "\(day.year) 年" }
+        rule("去年") { _ in "\(day.year - 1) 年" }
+        rule("(?<![以之])前年") { _ in "\(day.year - 2) 年" }
+        rule("下下个月") { _ in ym(2) }
+        rule("上上个月") { _ in ym(-2) }
+        rule("下个月") { _ in ym(1) }
+        rule("上个月") { _ in ym(-1) }
+        rule("这个月|(?<![基])本月") { _ in ym(0) }
+        rule("(?<![剩以余留基加算])(下下|下|上上|上|这|本)(?:周|星期|礼拜)(?!期)([一二三四五六日天])?") { g in
+            let start = monday.adding(days: 7 * (weekOffsets[g[1]] ?? 0))
+            guard let ch = g[2].first, let w = weekdays[ch] else { return ymd(start) + "那一周" }
+            let name = ch == "天" ? "日" : String(ch)
+            return ymd(start.adding(days: w)) + "（周" + name + "）"
+        }
+        var out = text
+        for r in rules {
+            guard let re = try? NSRegularExpression(pattern: r.pattern) else { continue }
+            let ns = out as NSString
+            let matches = re.matches(in: out, range: NSRange(location: 0, length: ns.length))
+            if matches.isEmpty { continue }
+            var result = ""
+            var cursor = 0
+            for m in matches {
+                var groups: [String] = []
+                for i in 0..<3 {
+                    let range = i < m.numberOfRanges ? m.range(at: i) : NSRange(location: NSNotFound, length: 0)
+                    groups.append(range.location == NSNotFound ? "" : ns.substring(with: range))
+                }
+                result += ns.substring(with: NSRange(location: cursor, length: m.range.location - cursor))
+                var piece = r.make(groups)
+                // 前后是字就隔一个空格，和「明年 3 月」这种写法对齐。
+                if let before = result.last, !before.isWhitespace, !"（(「『《，。、：；！？".contains(before) { piece = " " + piece }
+                let end = m.range.location + m.range.length
+                if end < ns.length, let next = ns.substring(with: NSRange(location: end, length: 1)).first, next.isASCII, next.isNumber || next.isLetter {
+                    piece += " "
+                }
+                result += piece
+                cursor = end
+            }
+            result += ns.substring(from: cursor)
+            out = result
+        }
+        return out
+    }
+
+    /// 星期几：0 = 周一 … 6 = 周日。
+    static func weekdayIndex(_ day: LocalDate) -> Int {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .current
+        guard let date = cal.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) else { return 0 }
+        return (cal.component(.weekday, from: date) + 5) % 7
+    }
+}
+
 /// 记忆搜索用的文字处理。
 public enum MemorySearch {
     /// 比较用的样子：小写、去重音、标点变空格。中文原样留着。
@@ -796,6 +877,7 @@ public struct MemoryBrief: Codable, Sendable {
         "先搜再记：同一件事只留一条。已经有这个话题，就加在它下面（topic 填它的 id 或同名标题）；说法变了就用 update_memory 改那一行，不要留两条打架。标题写话题不写结论：「工资」，不是「工资 1.380 €」。",
         "分三类：rule（规矩，每次必读，最多 \(Memory.maxRuleLines) 行，只放高频、确定的约定）、topic（记得的事）、lesson（做事经验：导入、对账这类事做完，有值得下次注意的坑就记，标题用任务名，如「导入对账单」）。",
         "用户说「忘掉」「别记这个」：用 forget_memory。forever=true 是彻底忘掉，连改动记录里的痕迹一起抹掉、找不回来，先跟用户确认。",
+        "时间写具体：用户说「明年 3 月退健身房」，text 里写「2027 年 3 月退健身房」，原话放 quote。「明年」「下个月」「明天」「下周三」这几种系统会自动换成具体日期；「月底」「年底」「过两个月」「开春」这类要你自己换算成年月日再记。",
         "会过时的事记的时候带上 review_on（哪天回头看），比如「明年 3 月退健身房」填 3 月底。记忆每月整理一次：到期的、半年没用上的会列出来给用户清，所以少记、记准，一个话题最多 \(Memory.maxLines) 行。",
     ]
 

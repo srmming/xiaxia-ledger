@@ -83,6 +83,31 @@ final class MemoryTests: XCTestCase {
         XCTAssertThrowsError(try l.editMemory(rent.id, kind: .rule, author: "你")) { XCTAssertEqual($0 as? MemoryError, .tooManyRules) }
     }
 
+    /// 时间要记具体的：「明年 3 月」过一年再看就不知道是哪年了。
+    func testRelativeTimeBecomesConcrete() throws {
+        let day = d(2026, 11, 23)   // 周一
+        XCTAssertEqual(MemoryDates.absolute("明年 3 月退健身房", on: day), "2027 年 3 月退健身房")
+        XCTAssertEqual(MemoryDates.absolute("打算明年3月退掉", on: day), "打算 2027 年 3月退掉")
+        XCTAssertEqual(MemoryDates.absolute("下个月 5 号交押金", on: day), "2026 年 12 月 5 号交押金")
+        XCTAssertEqual(MemoryDates.absolute("他说明天还", on: day), "他说 2026 年 11 月 24 日还")
+        XCTAssertEqual(MemoryDates.absolute("下周三交报表，去年没交", on: day), "2026 年 12 月 2 日（周三）交报表，2025 年没交")
+        XCTAssertEqual(MemoryDates.absolute("这周先不记", on: day), "2026 年 11 月 23 日那一周先不记")
+        XCTAssertEqual(MemoryDates.absolute("下个月开始存钱", on: d(2026, 12, 15)), "2027 年 1 月开始存钱", "12 月说下个月要跨年")
+        // 不是在说哪一天的，不动。
+        for same in ["以后天天记账", "以前天天喝咖啡", "每月 27 号发工资", "每年年底多发一份", "加上周末打车的钱", "基本月薪不变",
+                     "2027 年 3 月退健身房"] {
+            XCTAssertEqual(MemoryDates.absolute(same, on: day), same)
+        }
+
+        var l = Ledger.starter
+        try l.remember(kind: .topic, title: "健身房", text: "明年 3 月退健身房", quote: "明年 3 月我要把健身房退了", date: day, author: "Claude")
+        XCTAssertEqual(l.memories[0].notes[0].text, "2027 年 3 月退健身房")
+        XCTAssertEqual(l.memories[0].notes[0].quote, "明年 3 月我要把健身房退了", "原话照留")
+        let m = l.memories[0]
+        try l.updateMemoryNote(m.id, noteID: m.notes[0].id, text: "改到后年再退", author: "你")
+        XCTAssertEqual(l.memories[0].notes[0].text, "改到 \(LocalDate.today.year + 2) 年再退")
+    }
+
     // MARK: 找
 
     func testSearchWithoutVectors() throws {
@@ -161,7 +186,7 @@ final class MemoryTests: XCTestCase {
         try l.remember(kind: .topic, title: "私事", text: "借给表哥两千块，别告诉家里。", quote: "这事别跟别人说", author: "Claude")
         let id = l.memories[0].id
         try l.updateMemoryNote(id, noteID: l.memories[0].notes[0].id, text: "借给表哥两千块。", author: "Claude")
-        try l.remember(kind: .topic, title: "工资", text: "明年涨一点。", author: "Claude")
+        try l.remember(kind: .topic, title: "工资", text: "发薪日是 27 号。", author: "Claude")
         let removed = try l.removeMemory(id, author: "你")
         _ = try l.undo(changeID: removed.id, author: "你")
         XCTAssertNotNil(l.findMemory("私事"))
@@ -170,7 +195,7 @@ final class MemoryTests: XCTestCase {
         XCTAssertFalse(forgot.canUndo)
         let text = String(decoding: try JSONEncoder().encode(l), as: UTF8.self)
         for word in ["私事", "表哥", "这事别跟别人说"] { XCTAssertFalse(text.contains(word), "账本里还留着「\(word)」") }
-        XCTAssertTrue(text.contains("明年涨一点"), "别的记忆不受影响")
+        XCTAssertTrue(text.contains("发薪日是 27 号"), "别的记忆不受影响")
         XCTAssertEqual(l.memories.map(\.title), ["工资"])
         // 以前那几条改动现在没东西可放回去了。
         for c in l.changes where c.summary.contains("已经忘掉") { XCTAssertFalse(c.canUndo, c.summary) }
@@ -179,12 +204,12 @@ final class MemoryTests: XCTestCase {
 
     func testForgetOneLine() throws {
         var l = Ledger.starter
-        try l.remember(kind: .topic, title: "工资", text: "明年涨一点。", author: "Claude")
+        try l.remember(kind: .topic, title: "工资", text: "每年 1 月调一次。", author: "Claude")
         try l.remember(kind: .topic, title: "工资", text: "老板私下说的，先别声张。", author: "Claude")
         try l.remember(kind: .topic, title: "工资", text: "发薪日是 27 号。", author: "Claude")
         let m = l.memories[0]
         try l.forgetMemory(m.id, noteID: m.notes[1].id, author: "你")
-        XCTAssertEqual(l.memories[0].notes.map(\.text), ["明年涨一点。", "发薪日是 27 号。"])
+        XCTAssertEqual(l.memories[0].notes.map(\.text), ["每年 1 月调一次。", "发薪日是 27 号。"])
         let text = String(decoding: try JSONEncoder().encode(l), as: UTF8.self)
         XCTAssertFalse(text.contains("先别声张"))
         // 之前的改动撤销回去，也不会把那一行带回来。
@@ -309,7 +334,7 @@ final class MemoryTests: XCTestCase {
         let prompt = try XCTUnwrap(brief.promptText)
         XCTAssertTrue(prompt.contains("- 收益：我说「收益」是指小店赚的钱"))
         XCTAssertTrue(prompt.contains("「导入对账单」（做事经验）"))
-        XCTAssertFalse(prompt.contains("合同签到明年"), "记得的事只给标题，正文要用的时候再读")
+        XCTAssertFalse(prompt.contains("到期可能要涨"), "记得的事只给标题，正文要用的时候再读")
         XCTAssertNil(MemoryBrief(ledger: .starter).promptText)
     }
 
