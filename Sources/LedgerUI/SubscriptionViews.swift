@@ -18,7 +18,7 @@ struct SubscriptionsPage: View {
         let categories = Dictionary(model.subscriptionStatus.map { ($0.id, $0.category) }, uniquingKeysWith: { a, _ in a })
         let soon = (subs + Plans.installmentsDue(model.ledger, today: .today, within: 7).filter { book == nil || $0.bookID == book })
             .sorted { $0.daysLeft < $1.daysLeft }
-        Columns(sideWidth: 360, breakpoint: 780) {
+        Columns(sideWidth: 360) {
             SubscriptionsCard()
         } side: {
             if !soon.isEmpty {

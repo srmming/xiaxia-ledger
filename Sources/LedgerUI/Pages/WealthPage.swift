@@ -4,6 +4,7 @@ import SwiftUI
 /// 家底：我一共有多少钱？视觉重心是净资产 + 12 个月曲线。
 struct WealthPage: View {
     @Environment(LedgerModel.self) var model
+    @State private var viewport = CGSize(width: 1000, height: 800)
 
     var body: some View {
         Group {
@@ -17,7 +18,7 @@ struct WealthPage: View {
                 }
                 .kitCard()
             } else {
-                Columns(sideWidth: 380, breakpoint: 760) {
+                Columns(sideWidth: 380) {
                     heroCard
                     XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
                                question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
@@ -28,6 +29,7 @@ struct WealthPage: View {
             }
         }
         .kitPage()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
     }
 
     private var heroCard: some View {
@@ -51,7 +53,7 @@ struct WealthPage: View {
         return VStack(alignment: .leading, spacing: 16) {
             KeyFigure(label: label, money: now, color: now.isExpense ? .alert : .primary, sentence: sentence,
                       spoken: "净资产 \(now.spoken)")
-            NetWorthChart(points: Array(series.suffix(12)))
+            NetWorthChart(points: Array(series.suffix(12)), height: Viewport.isShort(viewport) ? 130 : 200)
         }
         .kitCard(padding: 20)
     }

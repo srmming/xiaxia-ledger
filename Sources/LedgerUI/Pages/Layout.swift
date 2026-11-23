@@ -1,21 +1,23 @@
 import SwiftUI
 
-/// 宽的时候左右两栏（右栏固定宽），窄的时候（Mac 窗口小、iPhone）落成一列。
+/// 宽的时候左右两栏（右栏固定宽），窄的时候（iPhone）落成一列。
+/// Mac 最小窗口（1000×612）页面只有 700 多宽：右栏收窄到页面的 42%（不小于 300），仍然左右两栏，少往下拉（ming：「尽量不要上下拉动」）。
 struct Columns<Main: View, Side: View>: View {
     var sideWidth: CGFloat = 340
-    var breakpoint: CGFloat = 720
+    var breakpoint: CGFloat = 600
     @ViewBuilder var main: () -> Main
     @ViewBuilder var side: () -> Side
     @State var width: CGFloat = 1000
 
     var body: some View {
         let wide = width >= breakpoint
+        let side = min(sideWidth, max(300, (width * 0.42).rounded()))
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: Kit.gap)) : AnyLayout(VStackLayout(alignment: .leading, spacing: Kit.gap))
         layout {
             VStack(alignment: .leading, spacing: Kit.gap) { main() }
                 .frame(maxWidth: .infinity, alignment: .top)
             VStack(alignment: .leading, spacing: Kit.gap) { side() }
-                .frame(width: wide ? sideWidth : nil)
+                .frame(width: wide ? side : nil)
                 .frame(maxWidth: wide ? nil : .infinity, alignment: .top)
         }
         .background { WidthReader(width: $width) }
@@ -48,6 +50,13 @@ struct CardRow<Item: Identifiable, Content: View>: View {
         }
         .background { WidthReader(width: $width) }
     }
+}
+
+/// 页面能看到多大（窗口里去掉工具栏，不算滚动）。放在 .kitPage() 后面量：
+/// `.onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }`
+enum Viewport {
+    /// 矮窗口（比如 1000×612）：图表收矮、列表少列几条，一屏放下。
+    static func isShort(_ size: CGSize) -> Bool { size.height < 700 }
 }
 
 /// 页面顶部的状态小字（iPhone 上的大标题下面、Mac 的页面开头）。

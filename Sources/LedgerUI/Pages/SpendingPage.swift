@@ -7,7 +7,7 @@ struct SpendingPage: View {
     @State var byChange = false
     /// 页面能看到的大小（不算滚动）。窗口矮（比如 1000×612）：圆环小一点、排行少列三类；窗口窄：右栏收窄，仍然左右两栏，一屏放下。
     @State private var viewport = CGSize(width: 1000, height: 800)
-    private var short: Bool { viewport.height < 700 }
+    private var short: Bool { Viewport.isShort(viewport) }
     private var narrow: Bool { viewport.width < 900 }
 
     var body: some View {
@@ -25,7 +25,7 @@ struct SpendingPage: View {
             } else {
                 VStack(alignment: .leading, spacing: Kit.gap) {
                     // ming 2026-11-23：「花得最多的商户」不要了，一屏放下：左边圆环 + 夏夏，右边分类排行（带上月对比）。
-                    Columns(sideWidth: narrow ? 330 : 440, breakpoint: 600) {
+                    Columns(sideWidth: 440) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
                         XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
                                    question: "\(month.month) 月钱主要花在哪了？哪些可以省？")
