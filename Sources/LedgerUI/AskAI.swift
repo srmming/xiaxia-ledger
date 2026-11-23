@@ -87,7 +87,7 @@ extension LedgerModel {
             return [AIPrompt(kind: tr("问问题"), text: tr("\(m)钱主要花在哪了？哪些可以省？")), record,
                     AIPrompt(kind: tr("整理"), text: tr("帮我看看\(m)有没有分错类的流水"))]
         case .trends:
-            return [AIPrompt(kind: tr("问问题"), text: tr("最近 12 个月我花钱的趋势怎么样？")), AIPrompt(kind: tr("月报"), text: tr("给我写一份\(m)的月报，写进夏夏账本"))]
+            return [AIPrompt(kind: tr("问问题"), text: tr("照我现在这样花，年底能剩多少？怎么能多剩一点？")), AIPrompt(kind: tr("月报"), text: tr("给我写一份\(m)的月报，写进夏夏账本"))]
         case .wealth:
             return [AIPrompt(kind: tr("问问题"), text: tr("月底的钱够还信用卡吗？")), AIPrompt(kind: tr("对账"), text: tr("帮我核对一下各个账户的余额和银行对不对得上"))]
         case .transactions, .changes:

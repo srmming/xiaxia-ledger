@@ -142,7 +142,7 @@ struct SpendingPage: View {
             }
             if !short {
             (Text(top.name == totals[0].name ? "" : tr("房租之外，")) + em(top.name) + Text(tr("是最大的一块"))
-             + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? tr("，和\(previousName(month))差不多。")
+             + Text(topBefore.cents == 0 ? tr("。") : diff.magnitude.cents < 100 ? tr("，和\(previousName(month))差不多。")
                     : tr("，比\(previousName(month))\(diff.isExpense ? tr("少") : tr("多")) \(diff.magnitude.rounded)。")))
                 .font(.body).multilineTextAlignment(.center)
             }

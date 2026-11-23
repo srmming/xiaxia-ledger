@@ -100,16 +100,16 @@ struct OverviewPage: View {
         if delta.cents == 0 {
             t = Text(tr("和\(s.isCurrent ? tr("上月同期") : lastName)剩得一样。"))
         } else if delta.isIncome {
-            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)多剩 ")) + em(delta.rounded, .good) + Text("。")
+            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)多剩 ")) + em(delta.rounded, .good) + Text(tr("。"))
         } else {
-            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)少剩 ")) + em(delta.magnitude.rounded, .bad) + Text("。")
+            t = Text(tr("比\(s.isCurrent ? tr("上月同期") : lastName)少剩 ")) + em(delta.magnitude.rounded, .bad) + Text(tr("。"))
         }
         if s.isCurrent {
             t = t + Text(tr("花钱速度\(s.paceWord)"))
             if let end = s.projectedEnd {
-                t = t + Text(end.isExpense ? tr("，照这样月底约超支 ") : tr("，照这样月底约剩 ")) + em(end.magnitude.rounded, end.isExpense ? .bad : .plain) + Text("。")
+                t = t + Text(end.isExpense ? tr("，照这样月底约超支 ") : tr("，照这样月底约剩 ")) + em(end.magnitude.rounded, end.isExpense ? .bad : .plain) + Text(tr("。"))
             } else {
-                t = t + Text("。")
+                t = t + Text(tr("。"))
             }
         }
         if s.summary.betweenBooks.cents != 0, let book = model.selectedBookID {
