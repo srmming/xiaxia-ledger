@@ -52,7 +52,11 @@ public final class LedgerModel {
     public var isLoading = true
     /// app 里的写入记在谁名下：设置里填的名字，没填就用这台设备的用户名。
     /// 助手现在叫什么（默认「夏夏」），和把界面文字里的「夏夏」换成这个名字。
-    var xiaName: String { ledger.profile.xiaName }
+    /// 夏夏的名字。没改过名、界面又不是中文时叫 Xiaxia。
+    var xiaName: String {
+        let name = ledger.profile.xiaName
+        return name == "夏夏" && L10n.language != .zhHans ? "Xiaxia" : name
+    }
     func xia(_ text: String) -> String { ledger.profile.renamed(text) }
 
     public var author: String = LedgerModel.defaultAuthor {

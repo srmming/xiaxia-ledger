@@ -110,7 +110,10 @@ public enum L10n {
     public static func string(_ text: L10nText, in language: AppLanguage? = nil) -> String {
         let lang = language ?? self.language
         let template = lang == .zhHans ? text.key : (table(lang)[text.key] ?? text.key)
-        return fill(template, text.args)
+        let out = fill(template, text.args)
+        // 中文两句直接接上就行，英文、西语的句号后面要有空格，不然拼出来是「…€.Spending…」。
+        if lang != .zhHans, let last = text.key.last, "。！？".contains(last), let end = out.last, ".!?".contains(end) { return out + " " }
+        return out
     }
 
     /// 把 `%@`（按顺序）和 `%1$@`（指定第几个）换成值。
