@@ -466,8 +466,9 @@ extension LedgerModel {
         l.profile.userCallName = ledger.profile.userCallName
         isTryingDemo = true
         switchStore(to: InMemoryLedgerStore(l))
+        // 每页顶上有一条「正在看演示数据」，这里不再弹一句一样的话。
         section = .overview
-        toast = Toast(text: "现在看的是演示数据，都是编的。你自己的账本没动。", changeID: nil, seconds: 5)
+        toast = nil
     }
 
     /// 「退出演示」：回到自己的账本。演示里改的东西都不留。

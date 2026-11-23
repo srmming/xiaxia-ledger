@@ -11,7 +11,7 @@ struct SettingsPage: View {
     @State private var pane: SettingsPane?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 14) {
             aiCard
             VStack(spacing: 0) {
                 row(.books, symbol: "building.columns", title: "账本与账户") { Text(booksSummary) }
@@ -140,7 +140,7 @@ struct SettingsPage: View {
                 value().font(.callout).foregroundStyle(Color.fg2).lineLimit(1)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
             }
-            .padding(.vertical, 14)
+            .padding(.vertical, 11)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

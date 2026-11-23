@@ -14,6 +14,7 @@ struct DataSettingsPane: View {
     @State private var typed = ""
     @State private var restoring: LedgerBackup.Item?
     @State private var backups: [LedgerBackup.Item] = []
+    @State private var restoringCount: String?
 
     private var scope: WipeScope { bookID.map { .book($0) } ?? .everything }
     private var count: WipeCount { model.ledger.wipeCount(scope) }
@@ -33,7 +34,7 @@ struct DataSettingsPane: View {
             Button("取消", role: .cancel) {}
             Button("继续", role: .destructive) { typed = ""; askSecond = true }
         } message: {
-            Text("会删掉：\(count.text)。\(keepNote)\n删之前会自动备份一份，删错了可以在这一页「从备份恢复」。")
+            Text("会删掉：\(count.text)。\(keepNote)\n\n删之前自动备份，删错了能在这一页恢复。")
         }
         .alert("最后确认一次", isPresented: $askSecond) {
             TextField("输入「删除」两个字", text: $typed)
@@ -47,7 +48,7 @@ struct DataSettingsPane: View {
             Button("取消", role: .cancel) { restoring = nil }
             Button("恢复") { restore() }
         } message: {
-            Text("账本会回到 \(restoring.map { label($0) } ?? "") 的样子。现在的账本也会先备份一份，不会丢。")
+            Text("这份备份是 \(restoring.map { when($0) } ?? "") 留的\(restoringCount.map { "，里面有 \($0)" } ?? "")。\n\n现在的账本也会先备份一份，不会丢。")
         }
     }
 
@@ -119,7 +120,7 @@ struct DataSettingsPane: View {
     }
 
     private var keepNote: String {
-        bookID == nil ? "账本、账户也会一起删，回到刚装好的样子。" : "这个账本本身和账户会留着，账户余额会跟着变。"
+        bookID == nil ? "" : "账本和账户留着，余额会跟着变。"
     }
 
     // MARK: 从备份恢复
@@ -132,7 +133,11 @@ struct DataSettingsPane: View {
                     icon("clock.arrow.circlepath", .income)
                     Text(label(b)).font(.callout)
                     Spacer(minLength: 12)
-                    Button("恢复") { restoring = b }
+                    Button("恢复") {
+                        // 先看一眼备份里有多少东西，确认框里说出来，好判断是不是要的那份。
+                        restoringCount = (try? LedgerBackup.load(b.url)).map { $0.wipeCount(.everything).text }
+                        restoring = b
+                    }
                         .buttonStyle(.soft)
                         .accessibilityIdentifier("data.restore.\(i)")
                 }
@@ -141,13 +146,17 @@ struct DataSettingsPane: View {
         }
     }
 
-    /// 「11 月 23 日 14:05 · 删除前」
-    private func label(_ b: LedgerBackup.Item) -> String {
+    /// 「11 月 23 日 14:05」
+    private func when(_ b: LedgerBackup.Item) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M 月 d 日 HH:mm"
-        let kind = b.url.lastPathComponent.contains("恢复前") ? "恢复前" : "删除前"
-        return "\(f.string(from: b.date)) · \(kind)"
+        return f.string(from: b.date)
+    }
+
+    /// 「11 月 23 日 14:05 · 删除前」
+    private func label(_ b: LedgerBackup.Item) -> String {
+        "\(when(b)) · \(b.url.lastPathComponent.contains("恢复前") ? "恢复前" : "删除前")"
     }
 
     // MARK: 动作
@@ -175,7 +184,7 @@ struct DataSettingsPane: View {
         do {
             try model.restore(b)
             backups = model.backups
-            model.toast = .init(text: "已恢复到 \(label(b)) 的账本", changeID: nil, seconds: 5)
+            model.toast = .init(text: "已恢复成 \(when(b)) 那份备份", changeID: nil, seconds: 5)
         } catch {
             model.toast = .init(text: "没有恢复：\(error.localizedDescription)", changeID: nil, isError: true)
         }
