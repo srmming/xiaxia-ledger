@@ -60,8 +60,8 @@ struct InsightCard: View {
                     Label {
                         Text(insight.kind == .monthlyReview ? "夏夏 · \(insight.month.month) 月点评" : "夏夏说 · \(insight.kind.label)")
                     } icon: {
-                        // 写这条的 AI 伙伴的小头像（Claude 写的是小橘、Codex 是小紫……）
-                        MascotView(MascotCharacter.of(author: insight.author), size: 20, face: true, animated: false)
+                        // 和右边站着的一样是夏夏（ming 2026-11-23：左上角是小橘、右边是夏夏，对不上）。谁写的看右上角的名字。
+                        MascotView(.xiaxia, size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()

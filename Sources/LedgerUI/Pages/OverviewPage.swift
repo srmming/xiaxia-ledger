@@ -29,8 +29,15 @@ struct OverviewPage: View {
         let status = model.status(model.shownMonth)
         // ming 2026-11-23：夏夏的点评放最上面、一整行拉过去；「跟 AI 说就行」那张卡不要了；尽量一屏看完不用往下滚。
         return VStack(alignment: .leading, spacing: Kit.gap) {
-            XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
-                       question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
+            // 一张卡说一件事，左右拖动看下一张（ming 2026-11-23）。看以前的月份、又没有 AI 点评时，照旧说一句。
+            let nudges = model.overviewNudges(status)
+            let insight = model.ledger.insight(forPage: "overview", month: model.shownMonth, bookID: model.selectedBookID)
+            if nudges.isEmpty && insight == nil {
+                XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
+                           question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
+            } else {
+                XiaxiaCards(nudges: nudges, insight: insight)
+            }
             Columns {
                 heroCard(status)
                 if model.selectedBookID == nil, model.ledger.books.count > 1 {
