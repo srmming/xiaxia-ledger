@@ -43,6 +43,12 @@ public struct LedgerContext: Codable, Sendable {
     /// 助手的名字（用户可以改，默认「夏夏」）和怎么称呼用户（nil = 就叫「你」）。
     public var assistantName: String
     public var callUser: String?
+    /// 夏夏的记忆：用户定的规矩（全文）、其它记忆的目录、记忆怎么用。
+    public var memory: MemoryBrief
+    /// 每月固定进出（工资、房租、话费……），从最近 12 个月的流水现算。用户问「工资多少」「每月固定要花多少」先看这里。
+    public var regulars: [String]
+    /// 问什么用哪个工具。
+    public var toolGuide: [String]
     public var rules: [String]
 
     public static let rules: [String] = [
@@ -64,7 +70,21 @@ public struct LedgerContext: Codable, Sendable {
         "拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。",
         "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
         "不动钱、不碰银行密码；银行数据只读。",
+        "记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。",
         "app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。",
+    ]
+
+    /// 问什么用哪个工具：免得问收入去翻支出、问余额去加流水。
+    public static let toolGuide: [String] = [
+        "先看 memory.rules：用户对「收益」「结余」「生活费」这些词有自己的说法时，照他的说法算。",
+        "收入、支出、结余、某个分类花了多少（一个月 / 一年 / 一段时间）→ summary。只问收入就只答收入那一行，不用把支出明细念一遍。",
+        "工资多少、每月固定进出多少 → context 里的 regulars（或 regulars 工具），不用自己翻流水加。",
+        "某几笔、某家店、某个标签、某天花了什么 → list_transactions（用 query / category / month 缩小范围）。",
+        "卡里、账户里现在有多少 → accounts。不要拿流水自己加。",
+        "订阅 → subscriptions；谁欠谁 → debts；分期 → installments；存钱进度 → goals。",
+        "要一段能直接读给用户的月度总结 → monthly_report。",
+        "用户说「这笔」「这页」「我在看的」→ current_view。",
+        "聊到 memory.index 里有的话题、或要做导入 / 对账 / 月报之前 → memory（填 id 或 query）把那条读出来。",
     ]
 
     public init(ledger: Ledger) {
@@ -106,6 +126,9 @@ public struct LedgerContext: Codable, Sendable {
         aim = ledger.profile.aim
         assistantName = ledger.profile.xiaName
         callUser = ledger.profile.userCallName
+        memory = MemoryBrief(ledger: ledger)
+        regulars = Regulars.lines(ledger)
+        toolGuide = Self.toolGuide
         rules = Self.rules
     }
 }

@@ -6,7 +6,7 @@ enum SkillBundle {
         ("SKILL.md", #"""
 ---
 name: fin
-description: 夏夏账本：用户的个人（和店里/副业）记账软件，也是用户记账的唯一入口。对话里用户提到自己花了钱、收了钱，发来小票/发票/账单的照片或截图，或者说记一笔、花了多少、收支、余额、月报、对账、导入对账单/银行流水、分类、店里还是个人、谁欠我钱、还款、分期、订阅、存钱目标、私房钱，或提到自己的银行卡、账户时使用。通过 fin 命令行或 xiaxia-ledger MCP 查账和记账。
+description: 夏夏账本：用户的个人（和店里/副业）记账软件，也是用户记账的唯一入口。对话里用户提到自己花了钱、收了钱，发来小票/发票/账单的照片或截图，或者说记一笔、花了多少、收支、余额、月报、对账、导入对账单/银行流水、分类、店里还是个人、谁欠我钱、还款、分期、订阅、存钱目标、私房钱、「记住」「以后都这样」「我跟你说过」，或提到自己的银行卡、账户时使用。通过 fin 命令行或 xiaxia-ledger MCP 查账和记账。
 ---
 
 # 夏夏账本（fin / MCP）
@@ -23,6 +23,7 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 
 1. 跑 `fin context`（MCP：`context`）。它给出账本、账户 id 和余额、数据覆盖到哪天、借款合计、最近改动和**统计口径**。按口径回答，不要自己另定规则。
 2. 账户 id、账本 id 只用 context 里出现的，别猜。
+3. 看 context 里的「记忆」：**规矩**全文照着做；**记得的事**和**做事经验**只给了标题，和这次的问题有关就先读全文（`fin memory show 工资`，MCP：`memory` 带 `id`），再回答。
 
 ## 记账入口（最重要）
 
@@ -114,6 +115,20 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 **出月报**（「出一份 11 月月报」）
 先跑 `fin report --month 2026-11 [--book shop]`（MCP：`monthly_report`），它已经写好了收支、花在哪、和上月比、要留意什么，默认不含私房钱。在它的基础上用大白话整理给用户；需要更细时再按账本分别跑 `fin summary --month 2026-11 --book personal` / `--book shop` 和不加 `--book` 的合计，再跑上个月做对比；加上 `fin debts`、`fin installments`、`fin goals`。写成：一句话结论 → 收入/支出/结余（和上月比）→ 支出前 5 类 → 店里单独一段 → 借款、分期、目标 → 需要用户处理的事（没分类的笔数、过期的借款）。给店里或会计的版本不含私房钱。
 
+**记住一件事**（「记住，还姐姐的钱不算支出」「我明年 3 月退健身房」「以后导入先问我店里还是个人」）
+1. 先看有没有这件事：`fin memory search 健身`（MCP：`memory` 带 `query`）。有就加在那一条下面，别另开一条。
+2. 记：`fin memory add 健身房 "2027 年 3 月退掉。" --kind topic --quote "我明年 3 月退健身房" --review-on 2027-03-31 --link category:运动 --author Claude`（MCP：`remember`）。三类：`rule` 用户定的规矩（以后都这样做）、`topic` 记得的事（一件事一条，默认）、`lesson` 做事经验（踩过的坑、导入某家银行要注意什么）。
+3. **时间写具体**：用户说「明年」「下个月」「下周三」，`text` 里写成「2027 年 3 月」这种具体时间（常见说法会自动换，「月底」「年底」要自己写清）；`--quote` 里的原话照原样。有期限的事加 `--review-on`，到那天整理时会提醒。
+4. 该记什么：用户明说的规矩和纠正；流水里看不出来的事实；这次做错了、下次要避开的做法（`--kind lesson --story "当时出了什么事"`）。**你自己看出来的规律先问用户**（「看起来你每月 27 号发工资，要我记下吗？」），点头了再记，`--source confirmed`。
+5. 不记：金额、余额、每月花多少（要用时现算：`fin regulars` 看工资和固定开销，`fin summary` 看收支）；卡号、密码、验证码；闲聊。
+6. 改：`fin memory edit 健身房 --text "…"`；用户说「这个不对」就改那一行，不要再加一行相反的。删：`fin memory forget 健身房`（能撤销）；用户说「彻底忘掉」「别留痕迹」才加 `--forever`（不能撤销，先跟用户确认）。
+
+**每月整理记忆**
+context 的记忆里出现「该整理了」时，找个不打断用户的时候提一句。`fin memory tidy`（MCP：`tidy_memory`）列出可能该清掉的（到期的、半年没用上的、挂的分类或借款已经没了的、一个话题挤了太多行的），一条一条用一句话问用户；用户说清掉的 `fin memory tidy --remove <id…>`，说留着的 `fin memory edit <id> --keep`，挤太多行的帮着并成两三行；过完 `fin memory tidy --done`。规矩和标成「重要」的不会列出来，也不要主动建议删。
+
+**工资、房租、每月固定开销**（「我工资多少」「每月固定要扣多少」）
+`fin regulars`（MCP：`regulars`）：从最近 12 个月流水现算，给出每月哪天、大约多少、哪几个月多发一份。不要把这些数字记进记忆，涨薪、搬家后它自己会变。
+
 **AI 意见（app 的总览和「夏夏建议」页会显示）**
 写之前先 `fin insight list`（MCP：`list_insights`）看这个月已经有什么，别重复。
 - **本月点评**：每个月月初（或用户问起这个月怎么样时）跑完 `fin report` 后写一条：`fin insight add review "这个月花钱比上月慢 8%，月底大概能剩 1.150 €" --body "两三句原因和要留意的" [--book shop] --author Claude`（MCP：`add_insight`，kind=review）。同月同账本只留一条，新的会替换旧的。
@@ -155,6 +170,8 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 | 月报（直接能读） | `fin report [--month 2026-11] [--book shop] [--include-private]` | `monthly_report` |
 | 对账（只看不改） | `fin reconcile --account revolut --balance 105,84 [--date …]` | `reconcile` |
 | 改动记录 | `fin history [--limit 20]` | `history` |
+| 夏夏的记忆 | `fin memory [list] [--kind rule｜topic｜lesson] [--json]`；`fin memory show <id 或话题名>`；`fin memory search 关键词` | `memory`（不带参数：规矩全文 + 目录；`id`；`query`） |
+| 工资、房租等每月固定进出 | `fin regulars [--include-private] [--json]` | `regulars` |
 
 `fin tx` 每行：`编号 日期 金额 账本 分类 说明`；JSON 字段是 `id date amount description accountID bookID category transferID source flow`，`bookID`/`category` 为空表示还没整理。
 
@@ -188,6 +205,10 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 | 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
 | 多币种 | `fin fx`；`fin fx update`；`fin fx account 账户 USD`；`fin fx set-rate <编号> --bank 46,12｜--rate 0,925`；`fin fx base USD`；记一笔带原价 `fin add … --original "50 USD"`；外币账户 `fin account add … --currency USD` | `currency`、`update_rates`、`set_account_currency`、`set_rate`、`set_base_currency`、`add_transaction` 的 `original`、`add_account` 的 `currency` |
 | 订阅 | `fin subscriptions [--all]`；`fin subscription find`；`fin subscription add 名称 金额 --next 日期 [--cycle weekly｜monthly｜quarterly｜yearly] [--account] [--book] [--category] [--match 关键词] [--currency]`；`fin subscription edit 名称 [--amount …]`；`fin subscription cancel 名称`；`fin subscription remove 名称` | `subscriptions`、`find_subscriptions`、`add_subscription`、`edit_subscription`、`remove_subscription` |
+| 记住一件事 | `fin memory add 话题 "一句话" [--kind rule｜topic｜lesson] [--source said｜corrected｜confirmed｜observed] [--quote 原话] [--story 经过] [--review-on 2027-03-31] [--link category:工资 account:daily] [--new-topic]`（时间写具体，不写「明年」「下个月」） | `remember` |
+| 改记忆 | `fin memory edit <id 或话题名> [--line 行号] [--text …] [--title …] [--kind …] [--review-on 日期｜none] [--pin｜--no-pin] [--keep]` | `update_memory` |
+| 删记忆 | `fin memory forget <id 或话题名> [--line 行号]`（能撤销）；`--forever` 彻底忘掉（不能撤销） | `forget_memory`（`forever`） |
+| 每月整理记忆 | `fin memory tidy`（列出）；`fin memory tidy --remove <id…>`；`fin memory tidy --done` | `tidy_memory`（`remove`、`done`） |
 | AI 意见 | `fin insight add review｜alert｜tip｜good｜action "结论" [--body] [--month] [--book] [--metric]`；`fin insight list [--month] [--book] [--all]`；`fin insight dismiss <编号>` | `add_insight`、`list_insights`、`dismiss_insight`；`ai_status` 看谁最近写过 |
 | 账本 | `fin book add 名字 [--kind personal｜business]`；`fin book rename <id> 新名字`；`fin book rm <id> [--move-to <id>]`（先 `--dry-run`） | `add_book`、`rename_book`、`remove_book` |
 | 改 / 删账户 | 暂无 | `edit_account`、`remove_account` |
@@ -212,7 +233,7 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 
 **夏夏账本是用户记账的唯一入口。** 不管在聊什么，用户提到自己花了钱、收了钱（哪怕是顺口一句「刚打车花了 15」「今天发工资了」），都当作要记进夏夏账本：信息够就记，然后用一句话说记了什么；缺哪个账户、哪个账本这种关键信息，就先问一句再记。别人的钱、假设的、计划要花的不记。
 
-用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、店里还是个人、谁欠我钱、还款、分期、订阅、存钱目标、私房钱，或者提到自己的银行卡、账户名，或者发来小票、发票、账单的照片或截图时：
+用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、店里还是个人、谁欠我钱、还款、分期、订阅、存钱目标、私房钱、「记住这件事」，或者提到自己的银行卡、账户名，或者发来小票、发票、账单的照片或截图时：
 
 1. 先跑 `fin context`（或 MCP 工具 `context`），按里面的账户 id 和统计口径来；命令不熟就看 `fin --help`、`fin <命令> --help`。完整说明在 `~/.agents/skills/fin/SKILL.md`。
 2. 拿不准的（哪个账户、个人还是店里、什么分类、是不是自己账户互转）先在对话里问用户，确认后再写。
@@ -223,7 +244,8 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 7. 拍的小票、单子、账单截图：读出商户、日期、金额、币种，一张小票一般记成一笔，一份账单有很多笔就用 `import_rows` 先预演。写之前先给用户看读到了什么（例：「读到 Mercadona，11 月 20 日，−23,40 €，餐饮·个人，记吗？」），确认后再写。看不清的数字问用户，不要猜。也先查一下同一天、同一金额是不是已经有了（比如已经从银行导进来了），有就不要重复记。
 8. 要用户选的时候（哪个账户、哪个账本、什么分类、记不记），如果你有提问工具或选项卡（比如 Claude Code 的 AskUserQuestion），就用它把选项列出来让用户点。没有这种工具，就用文字问，并给选项编上号。
 9. 用户要「定时问我记账」：用你自己的定时功能，比如定时任务、cron 或提醒，按用户选的「每天」或「每周」，到点问一句「今天（这周）有没有没记的开销？直接说或者拍小票都行」，同时说一下这段时间已经记了多少。你没有定时功能就直接说明，建议用户在手机上设个提醒。
-10. 金额按 `fin context` 里的主币种显示（欧元写成 1.234,56 €）。真实数字不贴到公开地方、不提交进 git。连不上 fin 时直接说，不要编数字。
+10. 记忆：`fin context` 里有用户定的规矩（照着做）和记得的事的标题（相关的先 `fin memory show <话题>` 读全文）。用户说「记住」「以后都这样」时先 `fin memory search` 看有没有，再 `fin memory add 话题 "一句话" --kind rule｜topic｜lesson`；时间写具体（「明年 3 月」写成「2027 年 3 月」）；自己看出来的规律先问用户再记；金额不记，工资和固定开销用 `fin regulars` 现算。
+11. 金额按 `fin context` 里的主币种显示（欧元写成 1.234,56 €）。真实数字不贴到公开地方、不提交进 git。连不上 fin 时直接说，不要编数字。
 
 ---
 """#),

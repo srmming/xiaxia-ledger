@@ -7,6 +7,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case add
     /// 管理账本、账户、分类。
     case books, accounts, categories
+    /// 夏夏的记忆（设置里进）。
+    case memory
     /// 新建分类：先挑图标再填名字。
     case newCategory
     /// 连上你的 AI（Mac 第一次打开、设置里）。

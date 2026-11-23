@@ -238,6 +238,7 @@ struct DemoBuilder {
         openingBalances()
         l.fillMissingFX()
         insights()
+        memories()
     }
 
     mutating func setUp() {
@@ -703,6 +704,51 @@ struct DemoBuilder {
             l.insights[k].createdAt = at
             if dismissed { l.insights[k].dismissedAt = at.addingTimeInterval(3600) }
         }
+    }
+
+    // MARK: 夏夏的记忆
+
+    /// 示例记忆：规矩、记得的事、做事经验都有；有一条到期的、一条挂的订阅已经退了的、一条半年没动的，
+    /// 这样「该整理了」的提示条在示例账本里看得到。全是编的。
+    mutating func memories() {
+        let S = Self.S
+        let nextJan = LocalDate(year: end.year + 1, month: 1, day: 31)
+        // 我的规矩
+        memo(.rule, "还姐姐的钱", "还给姐姐的钱不算花销，算还款。", .said, by: "Claude", on: demoDay(months[3], 20),
+             quote: "还我姐的钱别算进花销里", links: ["person:姐姐"])
+        memo(.rule, "收益", "我说「收益」是指小店赚的钱（店里收入减店里开销），不包括工资。", .corrected, by: "Claude", on: demoDay(months[6], 8),
+             quote: "我问收益是问店里赚了多少，不是问工资", story: "第一次问「这个月收益多少」，答成了工资加店里收入的合计。", links: ["book:\(S)"])
+        memo(.rule, "记账习惯", "咖啡、奶茶都记在「餐饮」，不单独分一类。", .written, by: "你", on: demoDay(months[8], 14))
+        // 记得的事
+        memo(.topic, "工资", "6 月和 12 月各多发一份双薪。", .confirmed, by: "Claude", on: demoDay(months[7], 28), links: ["category:工资"])
+        memo(.topic, "工资", "明年 1 月起每月涨 120 €。", .said, by: "Claude", on: demoDay(months[11], 6),
+             quote: "老板说明年一月给我涨一百二", reviewOn: nextJan)
+        memo(.topic, "房租", "合同签到明年 8 月底，到期可能要涨。", .said, by: "Codex", on: demoDay(months[9], 2), links: ["category:房租"])
+        let ajDue = demoDay(months[11], 28)
+        memo(.topic, "阿杰借的钱", "他说 \(ajDue.year) 年 \(ajDue.month) 月底前把剩下的 200 € 还清。", .said, by: "你", on: demoDay(months[10], 5),
+             reviewOn: ajDue, links: ["person:阿杰"])
+        memo(.topic, "FitPlan 健身 App", "试用完觉得不值，已经退了，不用再提醒续费。", .said, by: "Claude", on: demoDay(months[8], 21),
+             links: ["subscription:FitPlan 健身 App"])
+        memo(.topic, "夏天去海边", "夏天想去海边玩一周，预算 800 € 左右。", .said, by: "Claude", on: demoDay(months[1], 15))
+        // 做事经验
+        memo(.lesson, "导入对账单", "信用卡对账单里的「信用卡还款」是自己账户之间转钱，要标成账户互转，别记成支出。", .corrected, by: "Claude",
+             on: demoDay(months[9], 3), story: "第一次导入时把还款也算成了支出，那个月的花销多出一大截，后来改成账户互转才对上。")
+        memo(.lesson, "对账", "先对日常账户，再对电子钱包：钱包充值会在两边各出现一次，别当成漏记。", .observed, by: "Codex", on: demoDay(months[10], 2))
+        if let i = l.memories.firstIndex(where: { $0.title == "还姐姐的钱" }) { l.memories[i].pinned = true }
+    }
+
+    /// 记一条示例记忆，时间定在那一天（不用「现在」：同一个种子每次生成的要一模一样）。
+    mutating func memo(_ kind: Memory.Kind, _ title: String, _ text: String, _ source: Memory.Source, by author: String, on date: LocalDate,
+                       quote: String? = nil, story: String? = nil, reviewOn: LocalDate? = nil, links: [String] = []) {
+        guard (try? l.remember(kind: kind, title: title, text: text, source: source, quote: quote, story: story, date: date,
+                               reviewOn: reviewOn, links: links, allowNew: true, author: author)) != nil else { return }
+        let at = moment(min(date, demoDay(months[11], 28)), 21, 10 + l.memories.count)
+        l.changes[l.changes.count - 1].createdAt = at
+        stamped = l.changes.count
+        guard let i = l.memories.firstIndex(where: { $0.title == title }) else { return }
+        if l.memories[i].notes.count == 1 { l.memories[i].createdAt = at }
+        l.memories[i].updatedAt = at
+        l.memories[i].notes[l.memories[i].notes.count - 1].createdAt = at
     }
 
     // MARK: 收尾

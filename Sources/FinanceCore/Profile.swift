@@ -67,6 +67,8 @@ public struct Profile: Codable, Hashable, Sendable {
     public var assistantName: String?
     /// 助手怎么称呼用户，比如「小明」「老板」；nil = 就叫「你」。
     public var userCallName: String?
+    /// 上次整理夏夏的记忆是什么时候（一个月提醒一次）。
+    public var memoryTidiedAt: Date?
 
     public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = [],
                 assistantName: String? = nil, userCallName: String? = nil) {
@@ -87,7 +89,7 @@ public struct Profile: Codable, Hashable, Sendable {
             .replacingOccurrences(of: app, with: "夏夏账本")
     }
 
-    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName }
+    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName, memoryTidiedAt }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -96,6 +98,7 @@ public struct Profile: Codable, Hashable, Sendable {
         categories = try c.decodeIfPresent([CustomCategory].self, forKey: .categories) ?? []
         assistantName = try c.decodeIfPresent(String.self, forKey: .assistantName)
         userCallName = try c.decodeIfPresent(String.self, forKey: .userCallName)
+        memoryTidiedAt = try c.decodeIfPresent(Date.self, forKey: .memoryTidiedAt)
     }
 
     /// 「你的目标」示例，点一下就填。说法通用。

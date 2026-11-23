@@ -123,6 +123,7 @@ public final class XiaxiaChatState {
         busy = true
         let prompt = ChatRunner.prompt(question: question, voice: model.ledger.profile.persona.instruction, aim: model.ledger.profile.aim,
                                        where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history,
+                                       memory: MemoryBrief(ledger: model.ledger).promptText,
                                        name: model.xiaName, callUser: model.ledger.profile.userCallName)
         let resume = engine == .claude ? session : nil
         let aiModel = self.model   // 这里的参数 model 是账本（LedgerModel），选的 AI 模型是 self.model

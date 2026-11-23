@@ -245,6 +245,9 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 重复记账改之前的样子；这次新加的重复记账（撤销时删掉）。
     public var recurring: [Recurring]?
     public var addedRecurringIDs: [UUID]?
+    /// 夏夏的记忆改之前的样子；这次新记的话题（撤销时删掉）。
+    public var memories: [Memory]?
+    public var addedMemoryIDs: [UUID]?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,
@@ -275,6 +278,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var subscriptions: [Subscription] = []
     /// 重复记账：房租、话费这种固定的，到日子自动记上。
     public var recurring: [Recurring] = []
+    /// 夏夏的记忆：规矩、记得的事、做事经验（见 Memory.swift）。
+    public var memories: [Memory] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -286,6 +291,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
         case currency, subscriptions
+        case memories
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -305,6 +311,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         currency = (try? c.decodeIfPresent(CurrencySettings.self, forKey: .currency)) ?? CurrencySettings()
         subscriptions = try c.decodeIfPresent([Subscription].self, forKey: .subscriptions) ?? []
         recurring = try c.decodeIfPresent([Recurring].self, forKey: .recurring) ?? []
+        memories = try c.decodeIfPresent([Memory].self, forKey: .memories) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。
