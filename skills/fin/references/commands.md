@@ -56,6 +56,10 @@
 | 目标 | `fin goal add 名称 金额 [--savings-account] [--locked] [--deadline]`；`fin goal deposit 名称 金额 --from 账户`；`fin goal withdraw 名称 金额 --to 账户` | `add_goal`、`goal_deposit`、`goal_withdraw` |
 | 多币种 | `fin fx`；`fin fx update`；`fin fx account 账户 USD`；`fin fx set-rate <编号> --bank 46,12｜--rate 0,925`；`fin fx base USD`；记一笔带原价 `fin add … --original "50 USD"`；外币账户 `fin account add … --currency USD` | `currency`、`update_rates`、`set_account_currency`、`set_rate`、`set_base_currency`、`add_transaction` 的 `original`、`add_account` 的 `currency` |
 | 订阅 | `fin subscriptions [--all]`；`fin subscription find`；`fin subscription add 名称 金额 --next 日期 [--cycle weekly｜monthly｜quarterly｜yearly] [--account] [--book] [--category] [--match 关键词] [--currency]`；`fin subscription edit 名称 [--amount …]`；`fin subscription cancel 名称`；`fin subscription remove 名称` | `subscriptions`、`find_subscriptions`、`add_subscription`、`edit_subscription`、`remove_subscription` |
+| AI 意见 | `fin insight add review｜alert｜tip｜good｜action "结论" [--body] [--month] [--book] [--metric]`；`fin insight list [--month] [--book] [--all]`；`fin insight dismiss <编号>` | `add_insight`、`list_insights`、`dismiss_insight`；`ai_status` 看谁最近写过 |
+| 账本 | `fin book add 名字 [--kind personal｜business]`；`fin book rename <id> 新名字`；`fin book rm <id> [--move-to <id>]`（先 `--dry-run`） | `add_book`、`rename_book`、`remove_book` |
+| 改 / 删账户 | 暂无 | `edit_account`、`remove_account` |
+| 分类改名或合并 | 暂无 | `rename_category` |
 | 撤销 | `fin undo <改动编号>` | `undo` |
 
 ## 还做不到的（要做就告诉用户，别绕过去直接改文件）
