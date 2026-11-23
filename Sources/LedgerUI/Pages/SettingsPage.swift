@@ -299,7 +299,7 @@ struct SettingsPaneView: View {
                     }
                 }
                 #if os(macOS)
-                if AppUpdateSupport.isAvailable {
+                if AppUpdateSupport.isAvailable || AppUpdateSupport.preview {
                     group("更新", note: "更新只换 app 本身，账本不动；换之前还会把账本复制一份到账本旁边的「更新前备份」文件夹。") {
                         AppUpdateRows()
                     }

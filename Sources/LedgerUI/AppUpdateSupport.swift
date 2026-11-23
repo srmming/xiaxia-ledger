@@ -9,7 +9,13 @@ public enum AppUpdateSupport {
     /// 设置里「检查更新」按钮发这个通知，app 那层收到就让 Sparkle 去查。
     public static let checkNow = Notification.Name("xiaxia.checkForUpdates")
     /// 后台查到的新版本号（app 那层的更新程序填）；侧栏左下角据此显示「有新版本」。
-    @MainActor public static let state = AppUpdateState()
+    /// 截图看样子：启动参数带 -XiaxiaUpdatePreview 就假装有新版 0.2.1（开发版、截图模式也显示）。
+    @MainActor public static let state: AppUpdateState = {
+        let s = AppUpdateState()
+        if preview { s.available = "0.2.1" }
+        return s
+    }()
+    static var preview: Bool { ProcessInfo.processInfo.arguments.contains("-XiaxiaUpdatePreview") }
 
     /// 这个 app 有没有配好自动更新（开发版、没填更新公钥的包没有）。
     public static var isAvailable: Bool {
@@ -80,7 +86,7 @@ struct SidebarUpdateButton: View {
     private var state: AppUpdateState { AppUpdateSupport.state }
 
     var body: some View {
-        if AppUpdateSupport.isAvailable {
+        if AppUpdateSupport.isAvailable || AppUpdateSupport.preview {
             Button { AppUpdateSupport.requestCheck() } label: {
                 HStack(spacing: 5) {
                     if let v = state.available {
