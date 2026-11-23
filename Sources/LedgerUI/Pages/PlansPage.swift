@@ -107,7 +107,7 @@ struct GoalsBoard: View {
                     .help("登记一个存钱目标")
             }
             if !open.isEmpty || done.isEmpty {
-                GoalHeroCard(goal: hero)
+                GoalHeroCard(goal: hero, compact: short)
             } else {
                 allDoneCard(done)
             }
@@ -145,7 +145,7 @@ struct GoalsBoard: View {
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: perRow), spacing: 10) {
                 ForEach(slice) { g in
-                    GoalTile(goal: g)
+                    GoalTile(goal: g, compact: short)
                         .draggable(g.id.uuidString) { GoalTile(goal: g).frame(width: 160).environment(model) }
                         .dropDestination(for: String.self) { items, _ in
                             guard let raw = items.first, let id = UUID(uuidString: raw), id != g.id else { return false }
@@ -163,7 +163,7 @@ struct GoalsBoard: View {
                 withAnimation(.snappy) { page = v.translation.width < 0 ? min(pages - 1, p + 1) : max(0, p - 1) }
             })
             #endif
-            if pages == 1 && list.count > 1 {
+            if pages == 1 && list.count > 1 && !short {
                 Text("拖动小卡可以调顺序，⋯ 里能把一个钉到最上面。").font(.caption2).foregroundStyle(Color.fg3)
             }
         }
@@ -259,6 +259,8 @@ struct GoalsBoard: View {
 struct GoalHeroCard: View {
     @Environment(LedgerModel.self) var model
     let goal: GoalForecast
+    /// 窗口矮：环小一点、大数字小一点，好让下面的小卡一屏放下。
+    var compact = false
 
     var body: some View {
         let g = goal
@@ -278,7 +280,7 @@ struct GoalHeroCard: View {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(g.left.cents > 0 ? "还差 " : "已存 ").font(.title3.weight(.semibold)).foregroundStyle(Color.fg2)
                         Text(g.left.cents > 0 ? g.left.rounded : g.saved.rounded)
-                            .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
+                            .font(.system(size: compact ? 28 : 34, weight: .bold, design: .rounded)).monospacedDigit()
                         Text("已存 \(g.saved.rounded) / \(g.target.rounded)").font(.callout).foregroundStyle(Color.fg3)
                     }
                     .fixedSize()
@@ -291,7 +293,7 @@ struct GoalHeroCard: View {
                 GoalForecastText(goal: g).font(.callout).fixedSize(horizontal: false, vertical: true)
             }
         }
-        .kitCard(padding: 18)
+        .kitCard(padding: compact ? 14 : 18)
         .accessibilityElement(children: .contain)
     }
 
@@ -299,7 +301,7 @@ struct GoalHeroCard: View {
         #if os(iOS)
         104
         #else
-        128
+        compact ? 84 : 128
         #endif
     }
 }
@@ -361,9 +363,36 @@ struct GoalForecastText: View {
 struct GoalTile: View {
     @Environment(LedgerModel.self) var model
     let goal: GoalForecast
+    /// 窗口矮：环小一点，「晚 3 个月」挪到金额下面，少一行。
+    var compact = false
 
     var body: some View {
         let g = goal
+        if compact { compactBody(g) } else { fullBody(g) }
+    }
+
+    private func compactBody(_ g: GoalForecast) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 4) {
+                Text(g.name).font(.callout.weight(.medium)).lineLimit(1)
+                Spacer(minLength: 0)
+                PlanRowMenu(target: .goal(g.id), name: g.name)
+            }
+            HStack(spacing: 10) {
+                MiniRing(fraction: Double(g.percent) / 100, color: ringColor(g))
+                    .frame(width: 38, height: 38)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(g.left.cents > 0 ? "还差 \(g.left.rounded)" : "存够了 \(g.target.rounded)")
+                        .font(.kitAmount).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(tileNote(g)).font(.caption2).foregroundStyle(g.pace == .behind ? Color.alert : Color.fg2).lineLimit(1)
+                }
+            }
+        }
+        .padding(10)
+        .modifier(TileChrome(label: "\(g.name)，已存 \(g.percent)%，还差 \(g.left.spoken)，\(tileNote(g))"))
+    }
+
+    private func fullBody(_ g: GoalForecast) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 4) {
                 Text(g.name).font(.callout.weight(.medium)).lineLimit(1)
@@ -381,11 +410,7 @@ struct GoalTile: View {
             Text(tileNote(g)).font(.caption2).foregroundStyle(g.pace == .behind ? Color.alert : Color.fg2).lineLimit(1)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(g.name)，已存 \(g.percent)%，还差 \(g.left.spoken)，\(tileNote(g))")
+        .modifier(TileChrome(label: "\(g.name)，已存 \(g.percent)%，还差 \(g.left.spoken)，\(tileNote(g))"))
     }
 
     private func tileNote(_ g: GoalForecast) -> String {
@@ -439,5 +464,18 @@ struct PaceTag: View {
         return Text(text).font(.caption2.weight(.semibold)).foregroundStyle(fg)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(bg, in: Capsule())
+    }
+}
+
+/// 小卡的底色、圆角和读屏文字（大小两种小卡共用）。
+private struct TileChrome: ViewModifier {
+    let label: String
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(label)
     }
 }

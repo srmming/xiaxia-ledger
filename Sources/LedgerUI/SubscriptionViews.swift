@@ -15,11 +15,12 @@ struct SubscriptionsPage: View {
         // 7 天内要扣的分期（ming 2026-11-23：分期快扣了也在这里提一句）。订阅自己的在左边清单「这周要扣」里。
         let soon = Plans.installmentsDue(model.ledger, today: .today, within: 7).filter { book == nil || $0.bookID == book }
         let found = model.subscriptionCandidates.filter { book == nil || $0.bookID == nil || $0.bookID == book }
+        let short = Viewport.isShort(viewport)
         VStack(alignment: .leading, spacing: Kit.gap) {
             SubscriptionsXiaxia()
-            if model.subscriptionStatus.contains(where: { $0.cancelledOn == nil }) { SubscriptionTotalsStrip() }
+            if model.subscriptionStatus.contains(where: { $0.cancelledOn == nil }) { SubscriptionTotalsStrip(compact: short) }
             Columns(sideWidth: 340) {
-                SubscriptionsCard(part: .list, maxRows: Viewport.isShort(viewport) ? 7 : 11)
+                SubscriptionsCard(part: .list, maxRows: short ? 5 : 11, compact: short)
             } side: {
                 if !soon.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -37,8 +38,11 @@ struct SubscriptionsPage: View {
                     }
                     .kitCard()
                 }
-                if !found.isEmpty { SubscriptionsCard(part: .found) }
+                if !found.isEmpty { SubscriptionsCard(part: .found, maxFound: short ? 3 : 6) }
+                // 窗口矮又有「流水里像订阅的」时，问夏夏那张先不放（夏夏卡上已经有按钮），一屏放下。
+                if !(short && !found.isEmpty) {
                 AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: Array(model.prompts(for: .subscriptions).prefix(found.isEmpty ? 3 : 2)))
+                }
             }
         }
         .kitPage()
@@ -65,16 +69,16 @@ struct SubscriptionsXiaxia: View {
         let p = model.persona
         if !review.isEmpty {
             let names = review.prefix(2).map { s -> String in
-                if s.priceUp, let last = s.lastChargeAmount { return "「\(s.name)」刚涨到 \(last.ui(in: s.currency))" }
-                return "「\(s.name)」你说很少用"
+                s.priceUp ? "「\(s.name)」刚涨价" : "「\(s.name)」你说很少用"
             }.joined(separator: "，")
             let monthly = review.reduce(Money.zero) { $0 + $1.monthlyBase }
             let more = review.count > 2 ? "，还有 \(review.count - 2) 个" : ""
-            let s = "\(names)\(more)。这些一个月 \(monthly.ui(in: base))，一年就是 \(Money(cents: monthly.cents * 12).rounded)，可以考虑退。"
+            // 一句话说完（每月多少顶上那条有），夏夏卡矮一点，一屏放得下。
+            let s = "\(names)\(more)，一年加起来 \(Money(cents: monthly.cents * 12).rounded)，可以考虑退。"
             return switch p {
             case .sharp: s + "不用还交钱，图什么？"
             case .cheer: s + "退掉的钱拿去存目标吧～"
-            case .gentle: s + "要不要我帮你一个个看看？"
+            case .gentle: s + "要我帮你一个个看看吗？"
             case .calm: s
             }
         }
@@ -89,6 +93,8 @@ struct SubscriptionsXiaxia: View {
 /// 订阅页顶上固定的一条：每月共多少、一年共多少、这周要扣几笔。
 struct SubscriptionTotalsStrip: View {
     @Environment(LedgerModel.self) var model
+    /// 窗口矮：数字小一号、卡片边距小一点。
+    var compact = false
     @State private var adding: SubscriptionDraft?
 
     var body: some View {
@@ -98,7 +104,7 @@ struct SubscriptionTotalsStrip: View {
         let base = model.ledger.baseCurrency
         HStack(alignment: .top) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 32) { figures(t, base, size: 32) }
+                HStack(alignment: .top, spacing: 32) { figures(t, base, size: compact ? 26 : 32) }
                 HStack(alignment: .top, spacing: 18) { figures(t, base, size: 24) }
                 VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
             }
@@ -107,7 +113,7 @@ struct SubscriptionTotalsStrip: View {
                 .buttonStyle(.soft)
                 .help("登记一个订阅")
         }
-        .kitCard(padding: 18)
+        .kitCard(padding: compact ? 14 : 18)
         .accessibilityElement(children: .contain)
         .sheet(item: $adding) { draft in
             NavigationStack { SubscriptionEditor(draft: draft) }
@@ -146,6 +152,11 @@ struct SubscriptionsCard: View {
     var part: Part = .all
     /// 不分组时最多列几行（Mac 矮窗口少列几行，一屏放下）；分组时只管展开的那组。
     var maxRows = 12
+    /// 窗口矮：超过 maxRows 不分组，只列前几行，剩下的收进「还有 N 个」（分组展开会撑出一屏）。
+    var compact = false
+    /// 「流水里像订阅的」最多列几个。
+    var maxFound = 6
+    @State private var showMore = false
     @State private var editing: SubscriptionDraft?
     /// 分组折叠时哪些组是展开的。默认只展开「可以考虑退」和最近要扣的那一组。
     @State private var expanded: Set<String>?
@@ -181,13 +192,26 @@ struct SubscriptionsCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 let groups = Subscriptions.groups(shown)
-                if active.count <= maxRows {
-                    // 不多：一个列表，可以考虑退的在最上面。
+                if active.count <= maxRows || compact {
+                    // 不多：一个列表，可以考虑退的在最上面。窗口矮又多的：先列前几行，剩下的点开看。
                     let ordered = (groups.first { $0.kind == .review }?.items ?? []) + active.filter { !$0.worthReviewing }
+                    let cut = active.count <= maxRows ? ordered.count : max(1, maxRows - 1)
                     VStack(spacing: 0) {
-                        ForEach(ordered) { s in
+                        ForEach(ordered.prefix(cut)) { s in
                             row(s)
-                            if s.id != ordered.last?.id { Divider().padding(.leading, 36) }
+                            if s.id != ordered.prefix(cut).last?.id { Divider().padding(.leading, 36) }
+                        }
+                    }
+                    if ordered.count > cut {
+                        DisclosureGroup(isExpanded: $showMore) {
+                            VStack(spacing: 0) {
+                                ForEach(ordered.dropFirst(cut)) { s in
+                                    Divider().padding(.leading, 36)
+                                    row(s)
+                                }
+                            }
+                        } label: {
+                            Text("还有 \(ordered.count - cut) 个，往后扣的").font(.caption).foregroundStyle(Color.fg2)
                         }
                     }
                 } else {
@@ -223,9 +247,9 @@ struct SubscriptionsCard: View {
                 if part == .all { Divider().padding(.vertical, 2) }
                 Label("流水里像订阅的 \(found.count) 个", systemImage: "sparkle.magnifyingglass")
                     .font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
-                ForEach(found.prefix(6)) { c in candidateRow(c) }
-                if found.count > 6 {
-                    Text("还有 \(found.count - 6) 个，跟夏夏说「帮我把流水里的订阅都找出来」一起处理。")
+                ForEach(found.prefix(maxFound)) { c in candidateRow(c) }
+                if found.count > maxFound {
+                    Text("还有 \(found.count - maxFound) 个，跟夏夏说「帮我把流水里的订阅都找出来」一起处理。")
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
             }
@@ -264,11 +288,12 @@ struct SubscriptionsCard: View {
                 HStack(spacing: 6) {
                     Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
                         .foregroundStyle(stopped ? Color.fg3 : Color.primary)
-                    if let why = s.reviewReason {
-                        Text("可以考虑退 · \(why)").font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
+                    if s.reviewReason != nil {
+                        // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
+                        Text("可以考虑退").font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.alertSoft, in: Capsule())
-                            .lineLimit(1)
+                            .lineLimit(1).fixedSize()
                     }
                 }
                 Text(detail(s)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
@@ -295,6 +320,7 @@ struct SubscriptionsCard: View {
     /// 「每月 · 12 月 3 日」「每年 · 折合每月 8 €」「涨到 12,99 €」。
     private func detail(_ s: SubscriptionStatus) -> String {
         var parts = [s.cycle.label]
+        if let why = s.reviewReason { parts.insert(why, at: 0) }
         if let c = s.cancelledOn { parts.append("\(c.short)停了") }
         else {
             if s.cycle != .monthly { parts.append("折合每月 \(s.monthlyAmount.ui(in: s.currency))") }

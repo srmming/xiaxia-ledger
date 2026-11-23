@@ -63,7 +63,7 @@ struct DebtsPage: View {
     private func totalsCard() -> some View {
         let o = Plans.debtOverview(model.ledger, today: .today, bookID: model.selectedBookID)
         let ob = Plans.obligations(model.ledger, asOf: .today, bookID: model.selectedBookID)
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: short ? 8 : 14) {
             HStack(alignment: .top) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 32) { figures(o, ob) }
@@ -74,11 +74,16 @@ struct DebtsPage: View {
                 addButtons
             }
             if !o.payoffs.isEmpty {
-                Divider()
-                PayoffTimeline(overview: o)
+                if short {
+                    // 窗口矮：时间线只留一行字（哪个月全部还清 + 每笔哪个月清），一屏放下。
+                    PayoffTimeline(overview: o, compact: true)
+                } else {
+                    Divider()
+                    PayoffTimeline(overview: o)
+                }
             }
         }
-        .kitCard(padding: 18)
+        .kitCard(padding: short ? 14 : 18)
         .accessibilityElement(children: .contain)
     }
 
@@ -207,7 +212,7 @@ struct DebtsPage: View {
 
     private func iOweCard(_ lines: [DebtLine], installments: [InstallmentStatus], borrowed: [DebtStatus]) -> some View {
         let total = lines.reduce(Money.zero) { $0 + $1.outstanding }
-        let maxRows = short ? 4 : 6
+        let maxRows = short ? 3 : 6
         return VStack(alignment: .leading, spacing: 2) {
             header("我欠的", total, hint: lines.isEmpty ? nil : "本月要还的在前")
             if lines.isEmpty {
@@ -215,7 +220,7 @@ struct DebtsPage: View {
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(lines.prefix(maxRows)) { l in
-                DebtLineRow(line: l)
+                DebtLineRow(line: l, compact: short)
                 if l.id != lines.prefix(maxRows).last?.id { Divider().padding(.leading, 44) }
             }
             if lines.count > maxRows {
@@ -294,9 +299,9 @@ struct DebtsPage: View {
                 Text("没有借出去还没收回的钱。借给别人时点「记借款」。")
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
-            ForEach(lines.prefix(short ? 4 : 6)) { l in
-                DebtLineRow(line: l)
-                if l.id != lines.prefix(short ? 4 : 6).last?.id { Divider().padding(.leading, 44) }
+            ForEach(lines.prefix(short ? 3 : 6)) { l in
+                DebtLineRow(line: l, compact: short)
+                if l.id != lines.prefix(short ? 3 : 6).last?.id { Divider().padding(.leading, 44) }
             }
         }
         .kitCard()
@@ -371,6 +376,8 @@ struct DebtLine: Identifiable, Equatable {
 struct DebtLineRow: View {
     @Environment(LedgerModel.self) var model
     let line: DebtLine
+    /// 窗口矮：进度条和「第 2/4 期…」并成一行。
+    var compact = false
 
     var body: some View {
         let l = line
@@ -393,13 +400,23 @@ struct DebtLineRow: View {
                         .foregroundStyle(l.theyOweMe ? Color.income : .primary)
                     PlanRowMenu(target: l.kind == .installment ? .installment(l.id) : .debt(l.id), name: l.name)
                 }
-                if l.count > 0 {
-                    SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                if compact {
+                    HStack(spacing: 8) {
+                        if l.count > 0 {
+                            SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                                .frame(width: 72)
+                        }
+                        Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
+                    }
+                } else {
+                    if l.count > 0 {
+                        SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                    }
+                    Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
                 }
-                Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, compact ? 4 : 6)
         .accessibilityElement(children: .contain)
     }
 
@@ -442,6 +459,8 @@ struct DebtLineRow: View {
 /// 还清时间线（ming 2026-11-23）：从这个月到全部还清那个月一条线，每笔在它还清的那个月打个点。
 struct PayoffTimeline: View {
     let overview: DebtPlans.Overview
+    /// 只要一行字，不画线（窗口矮时）。
+    var compact = false
 
     var body: some View {
         let o = overview
@@ -460,8 +479,13 @@ struct PayoffTimeline: View {
                     }
                 }
                 .font(.callout)
+                if compact {
+                    Text(dated.sorted { $0.finish! < $1.finish! }.map { "\($0.name) \($0.finish!.year % 100)/\($0.finish!.month)" }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                }
                 Spacer()
             }
+            if !compact {
             GeometryReader { geo in
                 let w = geo.size.width
                 ZStack(alignment: .leading) {
@@ -483,6 +507,7 @@ struct PayoffTimeline: View {
             .frame(height: dated.count > 1 ? 44 : 30)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(dated.map { "\($0.name) \($0.finish!.year) 年 \($0.finish!.month) 月还清" }.joined(separator: "，"))
+            }
         }
     }
 }
