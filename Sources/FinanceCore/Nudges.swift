@@ -47,7 +47,7 @@ public enum Nudges {
         return Money(cents: units * 100).formatted(in: currency).replacingOccurrences(of: ",00 ", with: " ")
     }
 
-    static func dayWord(_ days: Int) -> String {
+    public static func dayWord(_ days: Int) -> String {
         switch days { case 0: "今天"; case 1: "明天"; case 2: "后天"; default: "\(days) 天后" }
     }
 
@@ -61,12 +61,17 @@ public enum Nudges {
     /// - subscriptions: 订阅现状；balance: 某个账户现在有多少（账户自己的币种），不知道就 nil。
     public static func overview(expenses: [Transaction], today: LocalDate, currency: String,
                                 aim: String?, projectedEnd: Money?, spentSoFar: Money, lastMonthSameDaySpent: Money,
-                                subscriptions: [SubscriptionStatus], accountName: (String) -> String,
-                                balance: (String) -> Money?) -> [Nudge] {
+                                subscriptions: [SubscriptionStatus], installments: [UpcomingCharge] = [],
+                                accountName: (String) -> String, balance: (String) -> Money?) -> [Nudge] {
         var out: [Nudge] = []
         if let n = goal(expenses: expenses, today: today, currency: currency, aim: aim, projectedEnd: projectedEnd) { out.append(n) }
         if let n = unusual(expenses: expenses, today: today, currency: currency) { out.append(n) }
-        if let n = upcoming(subscriptions, accountName: accountName, balance: balance) { out.append(n) }
+        let subs = subscriptions.compactMap { s -> UpcomingCharge? in
+            guard s.cancelledOn == nil, let left = s.daysLeft else { return nil }
+            return UpcomingCharge(id: s.id, name: s.name, amount: s.amount, currency: s.currency, daysLeft: left,
+                                  accountID: s.accountID, bookID: s.bookID, isInstallment: false)
+        }
+        if let n = upcoming(subs + installments, accountName: accountName, balance: balance) { out.append(n) }
         if out.isEmpty {
             let calm = lastMonthSameDaySpent.cents > 0 && spentSoFar.cents <= lastMonthSameDaySpent.cents
             out.append(Nudge(kind: .praise, key: today.description,
@@ -148,32 +153,32 @@ public enum Nudges {
                      question: "最近 7 天「\(b.cat)」为什么花得多？")
     }
 
-    /// 3 天内要扣的订阅；扣款账户里的钱不够就提醒。
-    static func upcoming(_ subs: [SubscriptionStatus], accountName: (String) -> String, balance: (String) -> Money?) -> Nudge? {
-        let soon = subs.filter { $0.cancelledOn == nil && ($0.daysLeft ?? 99) <= 3 }
-            .sorted { ($0.daysLeft ?? 0) < ($1.daysLeft ?? 0) }
+    /// 3 天内要扣的订阅和分期；扣款账户里的钱不够就提醒。
+    static func upcoming(_ charges: [UpcomingCharge], accountName: (String) -> String, balance: (String) -> Money?) -> Nudge? {
+        let soon = charges.filter { $0.daysLeft <= 3 }.sorted { $0.daysLeft < $1.daysLeft }
         guard let first = soon.first else { return nil }
-        let names = soon.prefix(3).map { "「\($0.name)」" }.joined(separator: "、") + (soon.count > 3 ? " 等 \(soon.count) 个" : "")
+        let names = soon.prefix(3).map { "「\($0.name)」" + ($0.isInstallment ? "分期" : "") }.joined(separator: "、") + (soon.count > 3 ? " 等 \(soon.count) 笔" : "")
         // 同一种币的才加起来；混着币种就不报总数。
         let currencies = Set(soon.map(\.currency))
         let spread = soon.contains(where: { $0.daysLeft != first.daysLeft })
-        var title = dayWord(first.daysLeft ?? 0) + (spread ? "起" : "") + "扣\(names)"
+        var title = dayWord(first.daysLeft) + (spread ? "起" : "") + "扣\(names)"
         if currencies.count == 1, let c = currencies.first {
             title += "，一共 \(short(soon.reduce(Money.zero) { $0 + $1.amount }, c))。"
         } else {
             title += "。"
         }
         var lacking: [String] = []
-        var byAccount: [String: [SubscriptionStatus]] = [:]
+        var byAccount: [String: [UpcomingCharge]] = [:]
         for s in soon { if let a = s.accountID { byAccount[a, default: []].append(s) } }
-        for (a, list) in byAccount {
+        for (a, list) in byAccount.sorted(by: { $0.key < $1.key }) {
             guard let have = balance(a), Set(list.map(\.currency)).count == 1 else { continue }
             let need = list.reduce(Money.zero) { $0 + $1.amount }
             if have.cents < need.cents { lacking.append("「\(accountName(a))」") }
         }
         let advice = lacking.isEmpty ? (byAccount.isEmpty ? "到时候留意一下扣款账户。" : "扣款账户里的钱够。")
             : "\(lacking.joined(separator: "、"))里的钱不够扣，记得先转一点进去。"
+        let onlyInstallments = soon.allSatisfy(\.isInstallment)
         return Nudge(kind: .upcoming, key: soon.map(\.name).joined(separator: "+"), title: title, advice: advice,
-                     question: "这几个订阅里有哪些可以停掉？")
+                     question: onlyInstallments ? "这几笔分期还要还多久？" : "这几个订阅里有哪些可以停掉？")
     }
 }

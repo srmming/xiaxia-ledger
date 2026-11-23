@@ -38,6 +38,8 @@ struct InsightCard: View {
     let insight: Insight
     var large = false
     var showAllLink = true
+    /// 总览卡叠里最多几行，免得一张特别长把下面挤出屏幕（全文在「夏夏建议」页）。
+    var bodyLines: Int? = nil
     @State var appeared = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -72,7 +74,7 @@ struct InsightCard: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(insight.title.keepingAmountsTogether).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
                         if !insight.body.isEmpty {
-                            Text(insight.body.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                            Text(insight.body.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(bodyLines).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

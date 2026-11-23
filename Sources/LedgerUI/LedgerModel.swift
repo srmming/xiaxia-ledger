@@ -11,8 +11,10 @@ public enum AppSheet: String, Identifiable, Hashable {
     case newCategory
     /// 连上你的 AI（Mac 第一次打开、设置里）。
     case connectAI
-    /// 计划页「新计划」：存钱目标、分期、借款。
+    /// 目标页「新目标」：存钱目标（也能切到分期、借款）。
     case plan
+    /// 欠款与分期页：直接打开登记分期 / 借款。
+    case newInstallment, newDebt
     public var id: String { rawValue }
 }
 

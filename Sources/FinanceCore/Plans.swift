@@ -103,6 +103,32 @@ public struct DebtStatus: Codable, Sendable, Equatable {
     public var overdue: Bool
 }
 
+/// 快要扣的一笔：订阅或者分期的下一期。总览「快要扣钱」和订阅页「7 天内要扣」都用它。
+public struct UpcomingCharge: Identifiable, Equatable, Sendable {
+    public var id: UUID
+    public var name: String
+    public var amount: Money
+    public var currency: String
+    public var daysLeft: Int
+    public var accountID: String?
+    public var bookID: String?
+    public var isInstallment: Bool
+    public init(id: UUID, name: String, amount: Money, currency: String, daysLeft: Int, accountID: String?, bookID: String?, isInstallment: Bool) {
+        self.id = id; self.name = name; self.amount = amount; self.currency = currency; self.daysLeft = daysLeft
+        self.accountID = accountID; self.bookID = bookID; self.isInstallment = isInstallment
+    }
+}
+
+/// 别人欠我多少、我还欠多少（借来的没还完 + 分期没还完）。
+public struct Obligations: Equatable, Sendable {
+    public var owedToMe: Money
+    public var iOwe: Money
+    public init(owedToMe: Money, iOwe: Money) { self.owedToMe = owedToMe; self.iOwe = iOwe }
+    /// 算进家底的那部分：正数是净的别人欠我，负数是净的我欠别人。
+    public var net: Money { owedToMe - iOwe }
+    public var isEmpty: Bool { owedToMe.cents == 0 && iOwe.cents == 0 }
+}
+
 public struct InstallmentStatus: Codable, Sendable, Equatable {
     public var id: UUID
     public var name: String
@@ -127,6 +153,42 @@ public enum Plans {
     static func amounts(_ ids: [UUID], in txs: [Transaction]) -> Money {
         let set = Set(ids)
         return txs.filter { set.contains($0.id) }.reduce(.zero) { $0 + $1.amount.magnitude }
+    }
+
+    /// 几天内要扣的分期（下一期），金额按账户的币种。
+    public static func installmentsDue(_ ledger: Ledger, today: LocalDate, within days: Int) -> [UpcomingCharge] {
+        let status = Dictionary(installments(ledger).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return ledger.installments.compactMap { i in
+            guard let s = status[i.id], let next = s.nextDate, s.remaining.cents > 0 else { return nil }
+            let left = today.days(until: next)
+            guard left >= 0, left <= days else { return nil }
+            let currency = ledger.accounts.first { $0.id == i.accountID }?.currency ?? ledger.baseCurrency
+            return UpcomingCharge(id: i.id, name: i.name, amount: Money(cents: min(s.perPayment.cents, s.remaining.cents)), currency: currency,
+                                  daysLeft: left, accountID: i.accountID, bookID: i.bookID, isInstallment: true)
+        }
+        .sorted { $0.daysLeft < $1.daysLeft }
+    }
+
+    /// 某一天还没了结的欠款和分期（「欠款与分期」页顶上那一行，也算进家底）。
+    /// 借出去、借进来、分期买东西时，账户里的钱已经跟着进出了，这里补上「还欠着/还没收回」的那部分：
+    /// 家底 = 账户余额 + 别人欠我 − 我还欠（借来的没还完 + 分期没还完）。
+    /// - bookID: 只算某个账本；nil 是全部。
+    public static func obligations(_ ledger: Ledger, asOf date: LocalDate, bookID: String? = nil) -> Obligations {
+        let byID = Dictionary(ledger.transactions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        func paid(_ ids: [UUID]) -> Int64 {
+            ids.compactMap { byID[$0] }.filter { $0.date <= date }.reduce(Int64(0)) { $0 + $1.amount.magnitude.cents }
+        }
+        var owedToMe: Int64 = 0, iOwe: Int64 = 0
+        for d in ledger.debts where !d.closed && d.startDate <= date && (bookID == nil || d.bookID == bookID) {
+            let left = max(0, d.principal.cents - paid(d.repaymentIDs))
+            if d.direction == .theyOweMe { owedToMe += left } else { iOwe += left }
+        }
+        for i in ledger.installments where bookID == nil || i.bookID == bookID {
+            let start = i.purchaseID.flatMap { byID[$0]?.date } ?? i.firstDate
+            guard start <= date else { continue }
+            iOwe += max(0, i.total.cents - paid(i.paidIDs))
+        }
+        return Obligations(owedToMe: Money(cents: owedToMe), iOwe: Money(cents: iOwe))
     }
 
     public static func debts(_ ledger: Ledger, today: LocalDate, includeClosed: Bool = false) -> [DebtStatus] {

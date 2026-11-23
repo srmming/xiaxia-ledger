@@ -10,8 +10,14 @@ struct SubscriptionsPage: View {
 
     var body: some View {
         let book = model.selectedBookID
-        let soon = model.subscriptionStatus
+        // 7 天内要扣的订阅，加上分期的下一期（ming 2026-11-23：分期快扣了也在这里提一句）。
+        let subs = model.subscriptionStatus
             .filter { $0.cancelledOn == nil && $0.isDueSoon && (book == nil || $0.bookID == nil || $0.bookID == book) }
+            .map { UpcomingCharge(id: $0.id, name: $0.name, amount: $0.amount, currency: $0.currency, daysLeft: $0.daysLeft ?? 0,
+                                  accountID: $0.accountID, bookID: $0.bookID, isInstallment: false) }
+        let categories = Dictionary(model.subscriptionStatus.map { ($0.id, $0.category) }, uniquingKeysWith: { a, _ in a })
+        let soon = (subs + Plans.installmentsDue(model.ledger, today: .today, within: 7).filter { book == nil || $0.bookID == book })
+            .sorted { $0.daysLeft < $1.daysLeft }
         Columns(sideWidth: 360, breakpoint: 780) {
             SubscriptionsCard()
         } side: {
@@ -20,10 +26,10 @@ struct SubscriptionsPage: View {
                     SectionHeader("7 天内要扣")
                     ForEach(soon) { s in
                         HStack(spacing: 10) {
-                            CategoryIcon(category: subscriptionIcon(s.name, category: s.category))
+                            CategoryIcon(category: s.isInstallment ? "分期" : subscriptionIcon(s.name, category: categories[s.id] ?? nil))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
-                                Text(s.daysLeft == 0 ? "今天扣" : "\(s.daysLeft ?? 0) 天后扣").font(.caption).foregroundStyle(Color.fg2)
+                                Text(Nudges.dayWord(s.daysLeft) + "扣" + (s.isInstallment ? " · 分期" : "")).font(.caption).foregroundStyle(Color.fg2)
                             }
                             Spacer(minLength: 8)
                             Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)

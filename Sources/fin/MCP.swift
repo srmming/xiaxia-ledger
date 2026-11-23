@@ -359,7 +359,7 @@ enum MCPTools {
             "month": prop("string", "哪个月，如 2026-11；默认这个月"),
             "book": prop("string", "账本 id；不填 = 全部"),
             "metric": prop("string", "关联的东西，如 category:超市、account:银行卡（可不填）"),
-            "page": prop("string", "写给哪一页：overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划；默认 overview"),
+            "page": prop("string", "写给哪一页：overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 目标；默认 overview"),
             "author": author, "dry_run": dryRun,
         ], required: ["kind", "title"], readOnly: false),
         tool("list_insights", "列出写进账本的 AI 意见（默认这个月、没点「知道了」的）。写新意见前先看看，别重复。", [
@@ -373,7 +373,7 @@ enum MCPTools {
         tool("ai_status", "最近谁写过账本：每个作者最后一次写入的时间和内容。", [:], readOnly: true),
         tool("current_view", "用户现在在 app 里看什么：哪一页、哪个月、哪个账本、选中了哪一笔。用户说「这笔」「这个月」「这里」又没说清时先调这个，不用让用户复制粘贴。", [:], readOnly: true),
         tool("open_in_app", "让夏夏账本 app 跳到某一页给用户看，可以圈出几笔流水。回答完想让用户在 app 里看到结果时用，比如「看看这 5 笔」「打开 10 月的花销」。", [
-            "page": prop("string", "overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 计划 / insights 夏夏建议 / changes 改动记录 / transactions 流水"),
+            "page": prop("string", "overview 总览 / spending 花销 / trends 趋势 / wealth 家底 / plans 目标 / subscriptions 订阅 / debts 欠款与分期 / insights 夏夏建议 / changes 改动记录 / transactions 流水"),
             "month": prop("string", "哪个月，如 2026-10；不填 = 不换月份"),
             "book": prop("string", "账本 id；不填 = 不换"),
             "ids": ["type": "array", "items": ["type": "string"], "description": "要圈出来的流水 id（前 8 位也行）；填了就打开流水页只列这几笔"],
@@ -424,7 +424,7 @@ enum MCPTools {
             guard let view = AppBridge.readView() else { return "app 还没打开过，或者是旧版本，不知道用户在看什么。直接问用户。" }
             return view.describe()
         case "open_in_app":
-            guard let page = AppBridge.pageName(try req("page")) else { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / insights / changes / transactions") }
+            guard let page = AppBridge.pageName(try req("page")) else { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / subscriptions / debts / insights / changes / transactions") }
             if let m = s("month"), YearMonth(m) == nil { throw ToolError(message: "月份要写成 2026-11") }
             if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
             let ids = try (a["ids"] as? [String]).map { try ledger.findTransactions($0).map(\.id) } ?? []

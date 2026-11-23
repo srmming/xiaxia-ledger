@@ -45,7 +45,9 @@ struct WealthPage: View {
         } else {
             sentence = Text("记的月份多了，这里会告诉你比以前多了还是少了。")
         }
-        let label = model.showPrivate ? "净资产（所有账户加起来，减掉信用卡，含私房钱）" : "净资产（所有账户加起来，减掉信用卡）"
+        // 借款、分期也算进来（ming 2026-11-23）：别人欠我的加上，我还欠的减掉。
+        let owes = !Plans.obligations(model.ledger, asOf: .today).isEmpty
+        let label = "净资产（所有账户加起来，减掉信用卡" + (owes ? "和欠款，加上别人欠我的" : "") + (model.showPrivate ? "，含私房钱）" : "）")
         return VStack(alignment: .leading, spacing: 16) {
             KeyFigure(label: label, money: now, color: now.isExpense ? .alert : .primary, sentence: sentence,
                       spoken: "净资产 \(now.spoken)")
@@ -69,17 +71,26 @@ struct WealthPage: View {
             : model.voiced("家底比 3 个月前多了 \(diff.rounded)。" + card, .good)
     }
 
+    /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
     @ViewBuilder private var debtsCard: some View {
-        let debts = Plans.debts(model.ledger, today: .today)
-        if !debts.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                SectionHeader("借款往来").padding(.bottom, 6)
-                ForEach(debts, id: \.id) { d in
-                    DebtRow(debt: d)
-                    if d.id != debts.last?.id { Divider().padding(.leading, 42) }
+        let o = Plans.obligations(model.ledger, asOf: .today)
+        if !o.isEmpty {
+            Button { withAnimation(.snappy) { model.section = .debts } } label: {
+                HStack(spacing: 12) {
+                    XiaIcon(.debt, size: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("欠款与分期").font(.callout.weight(.medium))
+                        Text("我还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded) · 已经算进上面的净资产")
+                            .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
                 }
+                .contentShape(Rectangle())
+                .kitCard()
             }
-            .kitCard()
+            .buttonStyle(.pressable)
+            .accessibilityHint("打开欠款与分期")
         }
     }
 

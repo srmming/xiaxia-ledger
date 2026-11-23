@@ -4,6 +4,8 @@ import SwiftUI
 /// 总览：这个月我过得怎么样？视觉重心是「本月还剩多少」+ 一句结论 + 花钱速度线。
 struct OverviewPage: View {
     @Environment(LedgerModel.self) var model
+    /// 窗口矮（比如最小的 1000×612）：速度图再收矮、最近流水少一条，尽量一屏放下。
+    @State private var short = false
 
     var body: some View {
         if model.ledger.transactions.isEmpty {
@@ -22,6 +24,7 @@ struct OverviewPage: View {
             #endif
         } else {
             content.kitPage()
+                .onGeometryChange(for: Bool.self) { $0.size.height < 700 } action: { short = $0 }
         }
     }
 
@@ -39,13 +42,12 @@ struct OverviewPage: View {
                 XiaxiaCards(nudges: nudges, insight: insight)
             }
             // 速度图收矮、最近流水 4 条：1280×800 一屏放得下（ming：「尽量不要上下拉」）。
+            // 账本卡收成一行一个、放到右栏最近流水下面（右栏下面原来空着），左边只留结论和速度图。
             Columns {
                 heroCard(status)
-                if model.selectedBookID == nil, model.ledger.books.count > 1 {
-                    CardRow(items: model.ledger.books, minWidth: 230) { BookCard(book: $0) }
-                }
             } side: {
                 recentCard
+                if model.selectedBookID == nil, model.ledger.books.count > 1 { booksCard }
             }
         }
     }
@@ -80,7 +82,7 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s, height: 170)
+                SpendingPaceChart(status: s, height: short ? 110 : 170)
             }
         }
         .kitCard(padding: 20)
@@ -121,7 +123,7 @@ struct OverviewPage: View {
 
     private var recentCard: some View {
         // 开账余额、自己账户之间互转不算收支，不占「最近流水」的位置（流水页里都还在）。
-        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(4))
+        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(short ? 3 : 4))
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "最近流水") {
                 MoreLink(title: "全部", section: .transactions)
@@ -130,6 +132,42 @@ struct OverviewPage: View {
             ForEach(recent) { t in
                 TxRow(tx: t, showDate: true)
                 if t.id != recent.last?.id { Divider().padding(.leading, 44) }
+            }
+        }
+        .kitCard()
+    }
+
+    // MARK: 各个账本
+
+    /// 每个账本一行：名字、近 6 个月小折线、本月剩下多少。点一下只看这个账本。
+    private var booksCard: some View {
+        let months = Reports.months(endingAt: model.shownMonth, count: 6)
+        return VStack(alignment: .leading, spacing: 4) {
+            SectionHeader("各个账本").padding(.bottom, 4)
+            ForEach(model.ledger.books) { book in
+                let list = Reports.summaries(model.baseTransactions, months: months, bookID: book.id, hiddenAccounts: model.hiddenAccounts)
+                let now = list.last ?? Summaries.monthly(model.baseTransactions, month: model.shownMonth, bookID: book.id)
+                Button {
+                    withAnimation(.snappy) { model.selectedBookID = book.id }
+                } label: {
+                    HStack(spacing: 10) {
+                        Monogram(text: book.name, color: model.bookColor(book.id), size: 24)
+                        Text(book.name).font(.callout.weight(.medium)).lineLimit(1)
+                        Spacer(minLength: 8)
+                        Sparkline(values: list.map { Double($0.net.cents) / 100 }, color: model.bookColor(book.id))
+                            .frame(width: 60, height: 22)
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text(now.net.balance).font(.kitAmount).foregroundStyle(now.net.isExpense ? Color.alert : .primary)
+                            Text(now.net.isExpense ? "本月超支" : "本月剩下").font(.caption2).foregroundStyle(Color.fg2)
+                        }
+                    }
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(book.name)：本月\(now.net.isExpense ? "超支" : "剩下") \(now.net.magnitude.spoken)")
+                .accessibilityHint("只看这个账本")
+                if book.id != model.ledger.books.last?.id { Divider().padding(.leading, 34) }
             }
         }
         .kitCard()

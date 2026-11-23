@@ -70,3 +70,24 @@ final class NudgesTests: XCTestCase {
         XCTAssertEqual(n[0].title, "这个月花钱比上个月同期稳。")
     }
 }
+
+extension NudgesTests {
+    /// 分期的下一期也算「快要扣钱」（ming 2026-11-23）。
+    func testInstallmentDueSoon() throws {
+        var l = Ledger.starter
+        l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+        let (inst, _) = try l.addInstallment(name: "示例手机", bookID: "personal", accountID: "card", total: Money(cents: 600_00), count: 6,
+                                             purchaseDate: d(9, 1), firstPayment: d(10, 21), author: "测试")
+        try l.payInstallment(inst.id, date: d(10, 21), author: "测试")
+        let due = Plans.installmentsDue(l, today: today, within: 3)
+        XCTAssertEqual(due.map(\.daysLeft), [1])
+        XCTAssertEqual(due.first?.amount.cents, 100_00)
+        XCTAssertTrue(Plans.installmentsDue(l, today: d(11, 10), within: 3).isEmpty)
+        let n = Nudges.overview(expenses: [], today: today, currency: "EUR", aim: nil, projectedEnd: nil,
+                                spentSoFar: Money(cents: 100_00), lastMonthSameDaySpent: Money(cents: 100_00), subscriptions: [],
+                                installments: due, accountName: { _ in "银行卡" }, balance: { _ in Money(cents: 50_00) })
+            .first { $0.kind == .upcoming }!
+        XCTAssertEqual(n.title, "明天扣「示例手机」分期，一共 100 €。")
+        XCTAssertTrue(n.advice.contains("「银行卡」里的钱不够扣"), n.advice)
+    }
+}
