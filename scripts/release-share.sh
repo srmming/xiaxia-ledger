@@ -7,7 +7,7 @@
 #   加 --no-publish：只做 dmg，不推到更新仓库
 #
 # 产物：dist/XiaxiaLedger-<版本>.dmg；发布时复制进更新仓库（XIAXIA_RELEASES_DIR，默认 ~/xiaxia-ledger-releases）
-# 的 updates/，用 Sparkle 的 generate_appcast 重写 appcast.xml，git push。别人的 app 每天看一次 appcast，有新版就在后台下载、下次打开换好。
+# 的 updates/，用 Sparkle 的 generate_appcast 重写 appcast.xml，git push。别人的 app 每天看一次 appcast，有新版就在左下角提醒。
 set -euo pipefail
 VERSION="${1:?用法：release-share.sh <版本号，比如 0.2.0> [--adhoc] [--no-publish]}"; shift
 ADHOC=0; PUBLISH=1
@@ -102,7 +102,7 @@ case "$BASE" in
 
 最新版 $VERSION：[下载](https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/download/xiaxia-ledger.dmg)
 
-打开 dmg，把「夏夏账本」拖进「应用程序」，再双击打开。装好以后会自己更新。
+打开 dmg，把「夏夏账本」拖进「应用程序」，再双击打开。以后有新版，app 左下角会提醒，点一下就更新。
 
 本仓库只放安装包和更新信息，不含源代码。© srmming，保留所有权利。
 MD
@@ -114,4 +114,4 @@ MD
     [ -x "$REPO/site/deploy.sh" ] || { echo "更新网址是 $BASE，但没有 site/deploy.sh"; exit 1; }
     bash "$REPO/site/deploy.sh" ;;
 esac
-echo "发布好了：别人的 app 一天内会提示更新到 $VERSION"
+echo "发布好了：别人的 app 一天内左下角会提醒更新到 $VERSION"

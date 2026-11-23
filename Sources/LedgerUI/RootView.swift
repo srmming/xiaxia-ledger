@@ -273,9 +273,12 @@ struct SidebarFooter: View {
             }
         }
         .font(.caption)
-        .padding(.horizontal, 16).padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+        #if os(macOS)
+        .safeAreaInset(edge: .bottom, spacing: 6) { SidebarUpdateButton() }
+        #endif
+        .padding(.horizontal, 16).padding(.bottom, 12)
     }
 }
 
