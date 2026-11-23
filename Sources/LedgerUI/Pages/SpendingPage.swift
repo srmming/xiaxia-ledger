@@ -5,6 +5,8 @@ import SwiftUI
 struct SpendingPage: View {
     @Environment(LedgerModel.self) var model
     @State var byChange = false
+    /// 窗口矮（比如 1000×612）：圆环小一点、排行少列两类，尽量一屏放下。
+    @State private var short = false
 
     var body: some View {
         let month = model.shownMonth
@@ -20,12 +22,11 @@ struct SpendingPage: View {
                     .kitCard()
             } else {
                 VStack(alignment: .leading, spacing: Kit.gap) {
-                    // 商户放在圆环下面，和右边的分类排行差不多高，不留一大块空。
+                    // ming 2026-11-23：「花得最多的商户」不要了，一屏放下：左边圆环 + 夏夏，右边分类排行（带上月对比）。
                     Columns(sideWidth: 440, breakpoint: 760) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
                         XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
                                    question: "\(month.month) 月钱主要花在哪了？哪些可以省？")
-                        merchantsCard(month: month)
                     } side: {
                         rankingCard(month: month, totals: totals, previous: previous, total: now.expense.magnitude)
                     }
@@ -33,6 +34,7 @@ struct SpendingPage: View {
             }
         }
         .kitPage()
+        .onGeometryChange(for: Bool.self) { $0.size.height < 700 } action: { short = $0 }
     }
 
     /// 看本月：上个月 1 号到同一天；看以前的月：整个上个月。
@@ -61,7 +63,7 @@ struct SpendingPage: View {
         let topBefore = previous[top.name] ?? .zero
         let diff = top.amount - topBefore
         return VStack(spacing: 14) {
-            CategoryDonut(slices: CategoryDonut.slices(totals), centerLabel: "\(month.month) 月花掉", total: now.expense.magnitude, size: 250)
+            CategoryDonut(slices: CategoryDonut.slices(totals), centerLabel: "\(month.month) 月花掉", total: now.expense.magnitude, size: short ? 180 : 250)
                 .id(month)
             if status.lastMonthSameDaySpent.cents > 0 {
                 Text(delta.isExpense ? "比上月同期少花 \(delta.magnitude.rounded)" : "比上月同期多花 \(delta.rounded)")
@@ -76,7 +78,7 @@ struct SpendingPage: View {
                 .font(.body).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .kitCard(padding: 24)
+        .kitCard(padding: short ? 16 : 24)
     }
 
     /// 夏夏先说的一句：比上个月多花最多的那一类（没有就说最大的一块）。
@@ -98,7 +100,7 @@ struct SpendingPage: View {
             ? all.sorted { abs(($0.amount - (previous[$0.name] ?? .zero)).cents) > abs(($1.amount - (previous[$1.name] ?? .zero)).cents) }
             : all
         // 条的满格按这个月和上个月里最大的那个算，上个月的竖线不会跑出条外。
-        let shownNames = Set(rows.prefix(10).map(\.name))
+        let shownNames = Set(rows.prefix(short ? 7 : 10).map(\.name))
         let maxAmount = Double(max(totals.first?.amount.cents ?? 1, previous.filter { shownNames.contains($0.key) }.values.map(\.cents).max() ?? 0, 1))
         return VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "分类排行") {
@@ -108,7 +110,7 @@ struct SpendingPage: View {
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
             }
-            ForEach(Array(rows.prefix(10))) { c in
+            ForEach(Array(rows.prefix(short ? 7 : 10))) { c in
                 SectionLink(section: .transactions, filter: TransactionFilter(category: c.name)) {
                     HStack(spacing: 10) {
                         CategoryIcon(category: c.name, size: 28)
@@ -177,27 +179,5 @@ struct SpendingPage: View {
         let d = now - before
         if d.magnitude.cents < 100 { return "和\(previousName(month))差不多" }
         return "比\(previousName(month))\(d.isExpense ? "少" : "多") \(d.magnitude.rounded)"
-    }
-
-    private func merchantsCard(month: YearMonth) -> some View {
-        let list = model.topMerchants(month)
-        return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader("花得最多的商户").padding(.bottom, 6)
-            ForEach(list) { m in
-                HStack(spacing: 12) {
-                    Monogram(text: m.name, color: Color.fg3.opacity(0.6), size: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(m.name).font(.callout.weight(.medium)).lineLimit(1)
-                        Text(m.category == nil ? "未分类 · \(m.count) 笔" : m.category == m.name ? "\(m.count) 笔" : "\(m.category!) · \(m.count) 笔").font(.caption).foregroundStyle(Color.fg2)
-                    }
-                    Spacer()
-                    Text(m.amount.ui).font(.kitAmount)
-                }
-                .padding(.vertical, 6)
-                .accessibilityElement(children: .combine)
-                if m.id != list.last?.id { Divider().padding(.leading, 42) }
-            }
-        }
-        .kitCard()
     }
 }
