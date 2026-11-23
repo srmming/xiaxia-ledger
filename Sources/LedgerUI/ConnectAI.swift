@@ -77,6 +77,8 @@ extension LedgerModel {
         #if os(macOS)
         guard !usesSampleData, let c = aiConnector else { return }
         for app in AIApp.allCases where c.needsRepair(app) { try? AISetup(connector: c).connect(app) }
+        // 更新到新版后，已经装过的 skill 和提示词跟着换新（ming 2026-11-23：更新后 AI 还按旧说明把旧小票记成今天）。
+        AISetup(connector: c).refreshInstalled()
         #endif
     }
 }
