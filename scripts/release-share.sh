@@ -18,54 +18,77 @@ BUILD="${TMPDIR:-/tmp}/xiaxia-share"
 RELEASES="${XIAXIA_RELEASES_DIR:-$HOME/xiaxia-ledger-releases}"
 BUILDNO="$(date +%Y%m%d%H%M)"
 
-if [ $ADHOC = 1 ]; then ID="-"; else
-  ID="$(security find-identity -v -p codesigning | grep "Developer ID Application" | grep "$TEAM" | head -1 | grep -oE '[0-9A-F]{40}' || true)"
-  [ -n "$ID" ] || { echo "钥匙串里没有 Developer ID Application 证书：按 docs/DISTRIBUTE.md「要 ming 本人做的」建一个，或者先加 --adhoc"; exit 1; }
-fi
-
 cd "$REPO/App"
 xcodegen generate >/dev/null
-echo "• 编译 Release $VERSION（$BUILDNO，不带 iCloud）"
-rm -rf "$BUILD/dd/Build/Products"
-xcodebuild -project XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Release \
-  -destination 'generic/platform=macOS' -derivedDataPath "$BUILD/dd" \
-  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILDNO" XIAXIA_ICLOUD=NO \
-  CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
-  ${XIAXIA_SPARKLE_PUBLIC_KEY:+XIAXIA_SPARKLE_PUBLIC_KEY="$XIAXIA_SPARKLE_PUBLIC_KEY"} \
-  build | grep -E "error:|BUILD" || true
-APP="$BUILD/dd/Build/Products/Release/夏夏账本.app"
-test -x "$APP/Contents/MacOS/fin" || { echo "编译失败"; exit 1; }
+COMMON=(-project XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Release
+  -destination 'generic/platform=macOS' -derivedDataPath "$BUILD/dd"
+  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILDNO" XIAXIA_ICLOUD=NO)
+[ -n "${XIAXIA_SPARKLE_PUBLIC_KEY:-}" ] && COMMON+=(XIAXIA_SPARKLE_PUBLIC_KEY="$XIAXIA_SPARKLE_PUBLIC_KEY")
+
+if [ $ADHOC = 1 ]; then
+  echo "• 编译 Release $VERSION（$BUILDNO，不带 iCloud，临时签名）"
+  rm -rf "$BUILD/dd/Build/Products"
+  xcodebuild "${COMMON[@]}" CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" build | grep -E "error:|BUILD" || true
+  APP="$BUILD/dd/Build/Products/Release/夏夏账本.app"
+  test -x "$APP/Contents/MacOS/fin" || { echo "编译失败"; exit 1; }
+  echo "• 临时签名：从里到外，Sparkle 的小程序也要签"
+  # 临时签名不能开 hardened runtime：库校验会把临时签名的 Sparkle.framework 当成别家团队的，app 一打开就闪退。
+  SIGN=(codesign --force --sign -)
+  SP="$APP/Contents/Frameworks/Sparkle.framework"
+  if [ -d "$SP" ]; then
+    for x in "$SP"/Versions/B/XPCServices/Installer.xpc "$SP"/Versions/B/XPCServices/Downloader.xpc "$SP"/Versions/B/Autoupdate "$SP"/Versions/B/Updater.app; do
+      [ -e "$x" ] && "${SIGN[@]}" --preserve-metadata=entitlements "$x"
+    done
+    "${SIGN[@]}" "$SP"
+  fi
+  "${SIGN[@]}" "$APP/Contents/MacOS/fin"
+  "${SIGN[@]}" "$APP"
+else
+  # Developer ID：Xcode 用 ming 登录的开发者账号（团队 $TEAM）里云端管理的 Developer ID 证书签名，
+  # 本机钥匙串不需要有证书，也不会弹窗（2026-11-23 在 ming 的 Mac 上实测）。Sparkle 和 fin 一起签好。
+  echo "• 归档 Release $VERSION（$BUILDNO，不带 iCloud）"
+  rm -rf "$BUILD/XiaxiaLedger.xcarchive" "$BUILD/export"
+  xcodebuild "${COMMON[@]}" -archivePath "$BUILD/XiaxiaLedger.xcarchive" -allowProvisioningUpdates \
+    DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic archive | grep -E "error:|ARCHIVE" || true
+  test -d "$BUILD/XiaxiaLedger.xcarchive" || { echo "归档失败"; exit 1; }
+  echo "• 导出 Developer ID 版"
+  OPTS="$(mktemp).plist"
+  cat > "$OPTS" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>method</key><string>developer-id</string>
+  <key>teamID</key><string>$TEAM</string>
+  <key>signingStyle</key><string>automatic</string>
+</dict></plist>
+PLIST
+  xcodebuild -exportArchive -archivePath "$BUILD/XiaxiaLedger.xcarchive" -exportPath "$BUILD/export" \
+    -exportOptionsPlist "$OPTS" -allowProvisioningUpdates | grep -E "error:|EXPORT" || true
+  APP="$BUILD/export/夏夏账本.app"
+  test -x "$APP/Contents/MacOS/fin" || { echo "导出失败"; exit 1; }
+  codesign -dv "$APP" 2>&1 | grep -q "Developer ID Application" || { echo "没签上 Developer ID"; exit 1; }
+fi
 KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist" 2>/dev/null || true)"
 [ -n "$KEY" ] || echo "⚠︎ 还没填更新签名公钥（App/project.yml 的 XIAXIA_SPARKLE_PUBLIC_KEY），这个包不会自动更新"
-
-echo "• 签名（$([ $ADHOC = 1 ] && echo 临时签名 || echo Developer ID)）：从里到外，Sparkle 的小程序也要签"
-# 临时签名不能开 hardened runtime：库校验会把临时签名的 Sparkle.framework 当成别家团队的，app 一打开就闪退。
-SIGN=(codesign --force --sign "$ID")
-[ $ADHOC = 1 ] || SIGN+=(--options runtime --timestamp)
-SP="$APP/Contents/Frameworks/Sparkle.framework"
-if [ -d "$SP" ]; then
-  for x in "$SP"/Versions/B/XPCServices/Installer.xpc "$SP"/Versions/B/Autoupdate "$SP"/Versions/B/Updater.app; do
-    [ -e "$x" ] && "${SIGN[@]}" "$x"
-  done
-  [ -e "$SP/Versions/B/XPCServices/Downloader.xpc" ] && "${SIGN[@]}" --preserve-metadata=entitlements "$SP/Versions/B/XPCServices/Downloader.xpc"
-  "${SIGN[@]}" "$SP"
-fi
-"${SIGN[@]}" "$APP/Contents/MacOS/fin"
-"${SIGN[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 if codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "iCloud"; then echo "包里不该有 iCloud 权限"; exit 1; fi
 
 echo "• 做 dmg"
 mkdir -p "$REPO/dist"; DMG="$REPO/dist/XiaxiaLedger-$VERSION.dmg"
 STAGE="$(mktemp -d)"; ditto "$APP" "$STAGE/夏夏账本.app"; ln -s /Applications "$STAGE/应用程序"
-cp "$REPO/App/DMG/打不开看这里.txt" "$STAGE/"
+[ $ADHOC = 1 ] && cp "$REPO/App/DMG/打不开看这里.txt" "$STAGE/"
 rm -f "$DMG"; hdiutil create -volname "夏夏账本" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
 if [ $ADHOC = 0 ]; then
-  codesign --force --timestamp --sign "$ID" "$DMG"
-  xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 || { echo "钥匙串里还没有公证密码（$PROFILE），见 docs/DISTRIBUTE.md"; exit 1; }
   echo "• 交给苹果公证（几分钟）"
-  xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+  if xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
+    xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+  elif command -v asc >/dev/null; then
+    # ming 的 Mac 上 asc 命令行存着一把 App Store Connect API 密钥（在钥匙串里），能直接公证，不用 app 专用密码。
+    asc notarization submit --file "$DMG" --wait
+  else
+    echo "没有公证凭据：按 docs/DISTRIBUTE.md 存一个 notarytool 的 $PROFILE"; exit 1
+  fi
   xcrun stapler staple "$DMG"
   spctl -a -vv -t install "$DMG"
 fi
