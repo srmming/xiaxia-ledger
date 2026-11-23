@@ -26,6 +26,9 @@ settings:
     MARKETING_VERSION: "0.1.0"
     # Sparkle 更新签名的公钥（不是秘密）。第一次在 ming 的 Mac 上跑 Sparkle 的 generate_keys 生成后填这里。
     XIAXIA_SPARKLE_PUBLIC_KEY: ""
+    # 自动更新的网址前缀（只改这一处）：<前缀>/appcast.xml 是更新清单，<前缀>/download/xiaxia-ledger-<版本>.dmg 是安装包。
+    # 官网域名定了就换成 https://<域名>；之前先用只放安装包的公开仓库 srmming/xiaxia-ledger-releases。
+    XIAXIA_UPDATE_BASE: https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_LANGUAGE: zh-Hans
@@ -103,7 +106,7 @@ targets:
         LSApplicationCategoryType: public.app-category.finance
         # 自动更新：每天看一次 appcast，有新版弹窗，点一下装好（docs/DISTRIBUTE.md「自动更新」）。
         # 更新包用 EdDSA 签名，私钥只在 ming 的 Mac 钥匙串里，这里是公钥。
-        SUFeedURL: https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/appcast.xml
+        SUFeedURL: $(XIAXIA_UPDATE_BASE)/appcast.xml
         SUPublicEDKey: $(XIAXIA_SPARKLE_PUBLIC_KEY)
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400

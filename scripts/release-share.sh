@@ -71,30 +71,47 @@ if [ $ADHOC = 0 ]; then
 fi
 echo "dmg：$DMG"
 
+# 更新清单和安装包统一放在 dist/：dist/appcast.xml、dist/download/xiaxia-ledger-<版本>.dmg、dist/download/xiaxia-ledger.dmg（最新版）。
+BASE="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$APP/Contents/Info.plist" | sed 's|/appcast.xml$||')"
+mkdir -p "$REPO/dist/download"
+cp "$DMG" "$REPO/dist/download/xiaxia-ledger-$VERSION.dmg"
+cp "$DMG" "$REPO/dist/download/xiaxia-ledger.dmg"
+# 只留最近 3 个版本
+ls -t "$REPO"/dist/download/xiaxia-ledger-*.dmg | tail -n +4 | while read -r old; do rm -f "$old"; done
+if [ -n "$KEY" ]; then
+  GEN="$(find "$BUILD/dd/SourcePackages/artifacts" -path '*/bin/generate_appcast' -type f | head -1)"
+  [ -x "$GEN" ] || { echo "没找到 Sparkle 的 generate_appcast"; exit 1; }
+  ARCH="$(mktemp -d)"; cp "$REPO"/dist/download/xiaxia-ledger-*.dmg "$ARCH/"
+  "$GEN" --download-url-prefix "$BASE/download/" -o "$REPO/dist/appcast.xml" "$ARCH"
+  rm -rf "$ARCH"
+fi
+echo "更新清单：$REPO/dist/appcast.xml（网址前缀 $BASE）"
+
 [ $PUBLISH = 1 ] || exit 0
 [ -n "$KEY" ] || { echo "没有更新公钥，不发布"; exit 1; }
-[ -d "$RELEASES/.git" ] || { echo "没找到更新仓库 $RELEASES：先 git clone https://github.com/srmming/xiaxia-ledger-releases ~/xiaxia-ledger-releases"; exit 1; }
-GEN="$(find "$BUILD/dd/SourcePackages/artifacts" -path '*/bin/generate_appcast' -type f | head -1)"
-[ -x "$GEN" ] || { echo "没找到 Sparkle 的 generate_appcast"; exit 1; }
-echo "• 发布更新"
-git -C "$RELEASES" pull -q --ff-only
-mkdir -p "$RELEASES/updates"
-cp "$DMG" "$RELEASES/updates/"
-# 只留最近 3 个安装包，仓库不至于越来越大。
-ls -t "$RELEASES"/updates/*.dmg | tail -n +4 | while read -r old; do rm -f "$old"; done
-"$GEN" --download-url-prefix "https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/updates/" \
-  -o "$RELEASES/appcast.xml" "$RELEASES/updates"
-NAME="$(basename "$DMG")"
-cat > "$RELEASES/README.md" <<MD
+case "$BASE" in
+  https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/*)
+    [ -d "$RELEASES/.git" ] || { echo "没找到更新仓库 $RELEASES：先 git clone https://github.com/srmming/xiaxia-ledger-releases ~/xiaxia-ledger-releases"; exit 1; }
+    echo "• 推到 xiaxia-ledger-releases"
+    git -C "$RELEASES" pull -q --ff-only
+    rm -rf "$RELEASES/download"; mkdir -p "$RELEASES/download"
+    cp "$REPO"/dist/download/*.dmg "$RELEASES/download/"
+    cp "$REPO/dist/appcast.xml" "$RELEASES/appcast.xml"
+    cat > "$RELEASES/README.md" <<MD
 # 夏夏账本 · 下载
 
-最新版 $VERSION：[下载 $NAME](https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/updates/$NAME)
+最新版 $VERSION：[下载](https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/download/xiaxia-ledger.dmg)
 
 打开 dmg，把「夏夏账本」拖进「应用程序」，再双击打开。装好以后有新版会自动提醒，点一下就更新。
 
 本仓库只放安装包和更新信息，不含源代码。© srmming，保留所有权利。
 MD
-git -C "$RELEASES" add -A
-git -C "$RELEASES" commit -qm "夏夏账本 $VERSION（$BUILDNO）"
-git -C "$RELEASES" push -q
+    git -C "$RELEASES" add -A
+    git -C "$RELEASES" commit -qm "夏夏账本 $VERSION（$BUILDNO）"
+    git -C "$RELEASES" push -q ;;
+  *)
+    # 官网（自己的服务器）：site/deploy.sh 把 dist/ 里的 dmg 和 appcast.xml 一起传上去。
+    [ -x "$REPO/site/deploy.sh" ] || { echo "更新网址是 $BASE，但没有 site/deploy.sh"; exit 1; }
+    bash "$REPO/site/deploy.sh" ;;
+esac
 echo "发布好了：别人的 app 一天内会提示更新到 $VERSION"

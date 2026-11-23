@@ -85,7 +85,8 @@ bash scripts/release-local.sh --iphone    # iPhone：装到用线连着的那台
 仓库改成私有以后，别人下不到仓库里的东西，所以安装包和更新信息放在一个**只放安装包的公开仓库** `srmming/xiaxia-ledger-releases`（没有源代码）：
 
 - `appcast.xml`：最新版本的清单。别人的 app 里写着它的地址（`SUFeedURL`），每天看一次，有新版就弹「有新版本」，点「安装更新」，app 自己下载、换好、重开。菜单「夏夏账本 → 检查更新…」可以手动查。
-- `updates/XiaxiaLedger-<版本>.dmg`：安装包，只留最近 3 个。
+- `download/xiaxia-ledger-<版本>.dmg`：每个版本一份，只留最近 3 个；`download/xiaxia-ledger.dmg` 永远是最新版（下载按钮用）。
+- 网址前缀只写在 `App/project.yml` 的 `XIAXIA_UPDATE_BASE` 一处。官网域名定了就换成 `https://<域名>`，`release-share.sh` 会改用 `site/deploy.sh` 上传 dist/。换网址的那一版要先在旧网址发一次，旧版用户才跟得过去。
 - 更新包用 Sparkle 的 EdDSA 密钥签名：私钥只在 ming 的 Mac 钥匙串里（Sparkle 的 `generate_keys` 生成），公钥写在 `App/project.yml` 的 `XIAXIA_SPARKLE_PUBLIC_KEY`。私钥丢了，旧版就收不到新版的更新，要让大家重新下载一次，所以钥匙串要和 Mac 一起备份。
 
 发一个新版只要一句（在 Mac 的仓库目录）：
