@@ -194,8 +194,68 @@ struct DebtsPage: View {
                 debtRow(d)
                 if d.id != borrowed.last?.id { Divider().padding(.leading, 42) }
             }
+            if let tip = repayTip(installments: installments, borrowed: borrowed) {
+                repayFooter(tip)
+            }
         }
         .kitCard()
+    }
+
+    /// ming 2026-11-23：「欠别人钱呢？比如你可以在这里省省，然后建立一个还钱计划，然后偶尔俏皮，要不然我们想个法子赖掉吧！」
+    /// 卡片底下夏夏一句：按约定日期算每月还多少，点按钮让 AI 看哪里能省、排还钱计划。
+    /// 「赖掉吧」只在毒舌、打气两种性格里、隔几天出现一次；AI 那边的规矩写明用户附和也只是玩笑，拉回还钱计划。
+    private func repayTip(installments: [InstallmentStatus], borrowed: [DebtStatus]) -> String? {
+        let today = LocalDate.today
+        let p = model.persona
+        let total = installments.reduce(Money.zero) { $0 + $1.remaining } + borrowed.reduce(Money.zero) { $0 + $1.outstanding }
+        guard total.cents > 0 else { return nil }
+        let joke = (p == .sharp || p == .cheer) && today.day % 3 == 0
+        var s: String
+        if let d = borrowed.first(where: \.overdue) {
+            s = "欠\(d.counterparty)的 \(d.outstanding.rounded) 已经过了约定的日子。"
+        } else if let d = borrowed.compactMap({ d in Plans.repaymentPlan(d, today: today).map { (d, $0) } }).min(by: { $0.0.dueDate! < $1.0.dueDate! }) {
+            s = d.1.months == 1
+                ? "欠\(d.0.counterparty)的 \(d.0.outstanding.rounded) 这个月要还清。"
+                : "欠\(d.0.counterparty)的 \(d.0.outstanding.rounded)，每月还 \(d.1.perMonth.rounded)，\(d.1.months) 个月就清了。"
+        } else if let d = borrowed.first {
+            s = "欠\(d.counterparty)的 \(d.outstanding.rounded) 还没约哪天还。"
+        } else {
+            s = "分期每月自动扣，按时就好。"
+        }
+        if joke {
+            s += p == .sharp ? "要不……我们想个法子赖掉吧？😏" : "要不然我们想个法子赖掉吧！😜"
+        } else {
+            s += switch p {
+            case .gentle: "我帮你看看哪里能省出来。"
+            case .sharp: "从外卖里抠一点，够了。"
+            case .calm: "可以排一个还款计划。"
+            case .cheer: "省一点点就能早点还完，一起加油！"
+            }
+        }
+        return s
+    }
+
+    private func repayFooter(_ tip: String) -> some View {
+        AskAIReader { ask in
+            VStack(alignment: .leading, spacing: 8) {
+                Divider()
+                HStack(alignment: .top, spacing: 10) {
+                    XiaxiaAvatar(persona: model.persona, size: 26).accessibilityHidden(true)
+                    Text(tip).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                HStack {
+                    Spacer()
+                    Button {
+                        ask("我还欠的分期和借款都在「欠款与分期」页上。看看我这个月哪些分类花多了、能省出多少，帮我排一个还钱计划：每月还多少、哪个月能还清。"
+                            + "（你要是开玩笑说赖掉、我也附和，记得说是逗我的，拉回还钱计划。）", page: "欠款与分期")
+                    } label: { Label("帮我排还钱计划", systemImage: "sparkles") }
+                        .buttonStyle(.softAI)
+                }
+            }
+            .padding(.top, 6)
+            .accessibilityElement(children: .contain)
+        }
     }
 
     private func installmentRow(_ i: InstallmentStatus) -> some View {

@@ -795,7 +795,7 @@ enum MCPTools {
                 return v
             } ?? LocalDate.today.yearMonth
             if let b = s("book"), !ledger.books.contains(where: { $0.id == b }) { throw ToolError(message: "没有这个账本：\(b)") }
-            if let p = s("page"), !Insight.pages.contains(p) { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans") }
+            if let p = s("page"), !Insight.pages.contains(p) { throw ToolError(message: "page 只能是 overview / spending / trends / wealth / plans / debts") }
             let insight = Insight(month: month, bookID: s("book"), kind: kind, title: try req("title"), body: s("body") ?? "",
                                   metric: s("metric"), page: s("page"), author: who)
             return try commit(try ledger.addInsight(insight, author: who))

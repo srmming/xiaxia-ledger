@@ -199,6 +199,15 @@ public enum Plans {
         return Obligations(owedToMe: Money(cents: owedToMe), iOwe: Money(cents: iOwe), installments: Money(cents: inst))
     }
 
+    /// 还钱计划：欠别人的这笔，从这个月到约定的那个月每月还一样多，每月要还多少（按欧分向上取整）。
+    /// 没约日期、已经过期或已还清时返回 nil（过期的就是马上还）。
+    public static func repaymentPlan(_ d: DebtStatus, today: LocalDate) -> (months: Int, perMonth: Money)? {
+        guard d.direction == .iOweThem, d.outstanding.cents > 0, let due = d.dueDate, !d.overdue, due >= today else { return nil }
+        let months = max(1, (due.year - today.year) * 12 + (due.month - today.month) + 1)
+        let per = (d.outstanding.cents + Int64(months) - 1) / Int64(months)
+        return (months, Money(cents: per))
+    }
+
     public static func debts(_ ledger: Ledger, today: LocalDate, includeClosed: Bool = false) -> [DebtStatus] {
         ledger.debts.compactMap { d in
             let repaid = amounts(d.repaymentIDs, in: ledger.transactions)
