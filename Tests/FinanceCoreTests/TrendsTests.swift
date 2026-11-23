@@ -66,6 +66,29 @@ final class TrendsTests: XCTestCase {
         XCTAssertEqual(w.shop, Money(cents: 800_00))
         XCTAssertEqual(w.owed, Money(cents: 550_00), "信用卡 300 + 借的和分期 250")
         XCTAssertEqual(w.owedToMe, Money(cents: 50_00))
+        // 下楼梯：总存款 − 店里要用 − 存着不动 − 要还的 = 能随便花。
+        XCTAssertEqual(w.total, Money(cents: 4800_00), "银行卡 2000 + 现金 100 + 储蓄罐 1500 + 店里 800 + 旅行钱包 400")
+        XCTAssertEqual(w.spendable, w.total - w.shop - w.saved - w.owed)
+        XCTAssertEqual(w.spendable, Money(cents: 1050_00))
+        // 每一步点开的来源清单，加起来等于那一步的数。
+        func sum(_ list: [WealthBreakdown.Source]) -> Money { list.reduce(.zero) { $0 + $1.amount } }
+        XCTAssertEqual(sum(w.sources.total), w.total)
+        XCTAssertEqual(sum(w.sources.shop), w.shop)
+        XCTAssertEqual(sum(w.sources.saved), w.saved)
+        XCTAssertEqual(sum(w.sources.owed), w.owed)
+        XCTAssertEqual(w.sources.shop.map(\.name), ["店里的卡"])
+        XCTAssertEqual(w.sources.saved.map(\.name), ["储蓄罐", "划给「电脑」的", "旅行钱包"])
+        XCTAssertEqual(w.sources.owed.map(\.name), ["信用卡（已刷）", "借的钱和分期"], "没给明细时借款和分期合成一行")
+        XCTAssertEqual(WealthBreakdown.monthsText(2.5), "2,5")
+        XCTAssertEqual(WealthBreakdown.monthsText(3.0), "3")
+        XCTAssertEqual(WealthBreakdown.monthsText(14.4), "14")
+        // 示例账本：有一家店，「店里要用」用账本名；每一步的清单也都对得上。
+        let demo = DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 20))
+        XCTAssertEqual(WealthBreakdown.shopLabel(demo), "我的小店要用")
+        XCTAssertEqual(WealthBreakdown.shopLabel(.fresh), "店里要用")
+        XCTAssertTrue(WealthBreakdown.businessAccounts(.fresh).isEmpty, "只有个人账本：没有「店里要用」这一步")
+        let owedItems = WealthBreakdown.owedItems(demo, asOf: LocalDate(year: 2026, month: 11, day: 20))
+        XCTAssertEqual(sum(owedItems), Plans.obligations(demo, asOf: LocalDate(year: 2026, month: 11, day: 20)).iOwe, "明细加起来等于欠款合计")
         // 真家底 = 所有账户余额加起来 + 欠我的 − 我欠的，和家底曲线同一个数。
         XCTAssertEqual(w.net, Money(cents: 2000_00 + 100_00 + 1500_00 + 800_00 - 300_00 + 400_00 + 50_00 - 250_00))
     }
@@ -74,11 +97,20 @@ final class TrendsTests: XCTestCase {
         let w = WealthBreakdown(liquid: Money(cents: 2500_00), saved: Money(cents: 1000_00), shop: .zero, owedToMe: .zero, owed: Money(cents: 3000_00))
         let out = Nudges.wealth(w, monthlySpend: Money(cents: 1000_00), threeMonthsAgo: Money(cents: 200_00), currency: "EUR")
         XCTAssertEqual(out.map(\.key), ["wealth-runway", "wealth-owed", "wealth-change"])
-        XCTAssertTrue(out[0].title.contains("够你过 2,5 个月"), out[0].title)
+        XCTAssertEqual(w.spendable, Money(cents: -500_00), "手头 2500，要还 3000")
+        XCTAssertNil(w.months(monthlySpend: Money(cents: 1000_00)))
+        XCTAssertTrue(out[0].title.contains("没有能随便花的钱"), out[0].title)
         XCTAssertTrue(out[0].advice.contains("还差 500 €"), out[0].advice)
+        // 没有欠款：能随便花的就是手头的钱，够过 2,5 个月，离 3 个月还差 500。
+        let free = WealthBreakdown(liquid: Money(cents: 2500_00), saved: Money(cents: 1000_00), shop: Money(cents: 800_00), owedToMe: .zero, owed: .zero)
+        XCTAssertEqual(free.total, Money(cents: 4300_00), "总存款 = 手头 + 存着 + 店里")
+        XCTAssertEqual(free.spendable, Money(cents: 2500_00))
+        let calm = Nudges.wealth(free, monthlySpend: Money(cents: 1000_00), threeMonthsAgo: nil, currency: "EUR")
+        XCTAssertTrue(calm[0].title.contains("够你过 2,5 个月"), calm[0].title)
+        XCTAssertTrue(calm[0].advice.contains("还差 500 €"), calm[0].advice)
         XCTAssertEqual(out[1].kind, .upcoming)
         XCTAssertTrue(out[1].advice.contains("还差 500 €"), out[1].advice)
-        XCTAssertTrue(out[2].title.contains("真家底 500 €，比 3 个月前多了 300 €"), out[2].title)
+        XCTAssertTrue(out[2].title.contains("家底比 3 个月前多了 300 €"), out[2].title)
         let empty = Nudges.wealth(WealthBreakdown(liquid: Money(cents: 80_00), saved: .zero, shop: .zero, owedToMe: .zero, owed: .zero),
                                   monthlySpend: .zero, threeMonthsAgo: nil, currency: "EUR")
         XCTAssertEqual(empty.map(\.key), ["wealth-net"])

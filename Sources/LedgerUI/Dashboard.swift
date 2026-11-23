@@ -170,7 +170,8 @@ extension LedgerModel {
         return WealthBreakdown.make(accounts: visibleAccounts, balances: balances,
                                     goals: ledger.goals.map { (goal: $0, saved: saved[$0.id] ?? .zero) },
                                     businessAccounts: WealthBreakdown.businessAccounts(ledger),
-                                    obligations: Plans.obligations(ledger, asOf: min(end, LocalDate.today)))
+                                    obligations: Plans.obligations(ledger, asOf: min(end, LocalDate.today)),
+                                    owedItems: WealthBreakdown.owedItems(ledger, asOf: min(end, LocalDate.today)))
     }
 
     /// 最近 3 个过完的、有花销的月平均每月花多少（正数）。没有过完的月就用这个月到现在的。
