@@ -98,7 +98,7 @@ h2{font-size:clamp(30px,4vw,44px);line-height:1.18;letter-spacing:-.015em;margin
 .tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:32px 0 28px;gap:2px;flex-wrap:wrap;justify-content:center}
 .tabs button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:15px;font-weight:500;padding:8px 18px;border-radius:999px;cursor:pointer}
 .tabs button[aria-selected=true]{background:var(--fg);color:var(--bg)}
-.tour .frame{max-width:1000px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#1c1c1e;aspect-ratio:1600/1196}
+.tour .frame{max-width:1000px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#1c1c1e;aspect-ratio:16/10}
 .tour .frame img{width:100%;height:100%;object-fit:cover;transition:opacity .25s}
 .tour .cap{margin-top:18px;color:var(--fg2);font-size:16px;min-height:52px}
 
@@ -241,13 +241,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <h2>原生 Mac app，深浅色都好看。</h2>
     <p class="sub">苹果原生组件做的，窗口拉大拉小都是一屏看完。下面的数字全是示例数据。</p>
     <div class="tabs" role="tablist" aria-label="选择页面">
-      <button role="tab" aria-selected="true" data-img="assets/mac-overview.webp" data-cap="总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。">总览</button>
-      <button role="tab" aria-selected="false" data-img="assets/mac-spending.webp" data-cap="花销：钱都花在哪了，每个分类和上个月比多了还是少了。">花销</button>
-      <button role="tab" aria-selected="false" data-img="assets/mac-debts.webp" data-cap="欠款与分期：我欠谁、谁欠我、分期还剩几期，夏夏帮你排还钱计划，也会俏皮地帮你催款。">欠款与分期</button>
+      <button role="tab" aria-selected="true" data-img="assets/tour-overview.webp" data-cap="总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。">总览</button>
+      <button role="tab" aria-selected="false" data-img="assets/tour-spending.webp" data-cap="花销：这个月和上个月并排对比，圆饼、柱状随你切；夏夏告诉你哪类花多了、主要花在哪、怎么省。">花销</button>
+      <button role="tab" aria-selected="false" data-img="assets/tour-trends.webp" data-cap="趋势：每个月存下多少，一眼看出是越过越好还是越差；连着几个月悄悄变多的开销会被揪出来。">趋势</button>
+      <button role="tab" aria-selected="false" data-img="assets/tour-wealth.webp" data-cap="家底：真正属于你的有多少，钱分别在哪：能随时用的、存着的、店里的、欠着的。">家底</button>
+      <button role="tab" aria-selected="false" data-img="assets/tour-debts.webp" data-cap="欠款与分期：我欠谁、谁欠我、分期还剩几期，夏夏帮你排还钱计划，也会俏皮地帮你催款。">欠款与分期</button>
     </div>
-    <div class="frame"><img id="tourImg" src="assets/mac-overview.webp" alt="夏夏账本「总览」页截图（示例数据）" width="1600" height="1196" loading="lazy"></div>
+    <div class="frame"><img id="tourImg" src="assets/tour-overview.webp" alt="夏夏账本「总览」页截图（示例数据）" width="1600" height="1000" loading="lazy"></div>
     <p class="cap" id="tourCap" aria-live="polite">总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。</p>
-    <p class="sub" style="font-size:16px">还有趋势、家底、存钱目标、订阅、流水和改动记录。支持多个账本（比如「个人」和「我的小店」）和多种货币。</p>
+    <p class="sub" style="font-size:16px">还有存钱目标、订阅、流水和改动记录。顶上的月份点一下就能选年选月。支持多个账本（比如「个人」和「我的小店」）和多种货币。</p>
   </div>
 </section>
 
