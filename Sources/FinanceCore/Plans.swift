@@ -78,16 +78,31 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
     public var pinned: Bool
     /// 用户自己拖出来的顺序（小的在前）。nil = 没拖过，按急不急排。
     public var rank: Int?
+    /// 小金猪上的图标（SF Symbol 名字，如 laptopcomputer）。nil = 按名字猜。
+    public var icon: String?
+    /// 钱真的放在哪：储蓄罐 / 一张银行卡 / 一个固定的地方（ming 2026-11-23）。
+    public var stash: GoalStash?
+    /// 具体在哪，如「卧室抽屉里的信封」。
+    public var stashNote: String?
+    /// 久没存时问过「还重要吗」，这天之前不再问。
+    public var quietUntil: LocalDate?
+    /// 哪天开始存的（建目标那天）。老账本没有，看改动记录。
+    public var startedOn: LocalDate?
 
     public init(id: UUID = UUID(), name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
                 savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false,
-                pinned: Bool = false, rank: Int? = nil) {
+                pinned: Bool = false, rank: Int? = nil, icon: String? = nil, stash: GoalStash? = nil,
+                stashNote: String? = nil, quietUntil: LocalDate? = nil, startedOn: LocalDate? = nil) {
         self.id = id; self.name = name; self.bookID = bookID; self.target = target; self.deadline = deadline
         self.savingsAccountID = savingsAccountID; self.contributionIDs = contributionIDs; self.locked = locked
         self.pinned = pinned; self.rank = rank
+        self.icon = icon; self.stash = stash; self.stashNote = stashNote; self.quietUntil = quietUntil; self.startedOn = startedOn
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked, pinned, rank }
+    enum CodingKeys: String, CodingKey {
+        case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked, pinned, rank
+        case icon, stash, stashNote, quietUntil, startedOn
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -101,6 +116,12 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
         locked = try c.decodeIfPresent(Bool.self, forKey: .locked) ?? false
         pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
         rank = try c.decodeIfPresent(Int.self, forKey: .rank)
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        // 更新版本加的放法读不懂就当没写，不让整本账打不开。
+        stash = (try? c.decodeIfPresent(String.self, forKey: .stash)).flatMap { $0 }.flatMap(GoalStash.init(rawValue:))
+        stashNote = try c.decodeIfPresent(String.self, forKey: .stashNote)
+        quietUntil = try c.decodeIfPresent(LocalDate.self, forKey: .quietUntil)
+        startedOn = try c.decodeIfPresent(LocalDate.self, forKey: .startedOn)
     }
 }
 

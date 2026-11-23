@@ -185,20 +185,45 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(button(app, "超市").isSelected, "点了提示，分类没跟着选上")
     }
 
-    /// 计划页自己登记一个存钱目标。
+    /// 目标页「新目标」：一步一页的引导（想要什么 → 多少钱 → 哪天要 → 存在哪 → 大还是小），建好出现在目标页。
     func testNewGoalFromPlans() {
         let app = launch("-XiaxiaEmpty", "-XiaxiaSheet", "plan")
-        let name = app.textFields["名字，比如「旅行」"]
-        XCTAssertTrue(name.waitForExistence(timeout: 15), "新计划没打开")
-        name.tap()
-        name.typeText("旅行")
-        let amount = app.textFields["要存多少，比如 2.000"]
+        let next = app.buttons["goalWizard.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 15), "设目标引导没打开")
+        next.tap()   // 开始
+        let name = app.textFields["goalWizard.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5), "没到「想要什么」")
+        XCTAssertFalse(next.isEnabled, "没写想要什么就能下一步")
+        app.buttons["去旅行"].tap()
+        XCTAssertEqual(name.value as? String, "去旅行", "点了现成的，名字没跟着填上")
+        next.tap()
+        let amount = app.textFields["goalWizard.amount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5), "没到「多少钱」")
         amount.tap()
         amount.typeText("2000")
-        app.buttons["保存"].tap()
-        XCTAssertTrue(name.waitForNonExistence(timeout: 5), "保存后没关")
+        next.tap()
+        XCTAssertTrue(find(app, "≈").waitForExistence(timeout: 5), "没把每天存多少换成人话")
+        next.tap()
+        XCTAssertTrue(app.buttons["goalWizard.stash.jar"].waitForExistence(timeout: 5), "没到「存在哪」")
+        XCTAssertFalse(next.isEnabled, "没选存在哪就能下一步")
+        app.buttons["goalWizard.stash.jar"].tap()
+        next.tap()
+        XCTAssertTrue(app.buttons["goalWizard.main"].waitForExistence(timeout: 5), "没到「大目标还是小目标」")
+        next.tap()   // 放进小猪
+        XCTAssertTrue(find(app, "「去旅行」建好了").waitForExistence(timeout: 5), "没建好")
+        next.tap()   // 好了
+        XCTAssertTrue(next.waitForNonExistence(timeout: 5), "建好后没关")
         app.tabBars.buttons["计划"].tap()
-        XCTAssertTrue(find(app, "旅行").waitForExistence(timeout: 5), "目标没出现在计划页")
+        XCTAssertTrue(find(app, "去旅行").waitForExistence(timeout: 5), "目标没出现在目标页")
+    }
+
+    /// 示例账本：大目标卡上点「忍住了」，钱进小猪，底部提示「忍住了…提前几天」。
+    func testHeldBackGoesIntoPiggy() {
+        let app = launch("-XiaxiaDemo", "-XiaxiaSection", "plans")
+        let held = app.buttons["goals.heldBack"]
+        XCTAssertTrue(held.waitForExistence(timeout: 15), "大目标卡上没有「忍住了」")
+        held.tap()
+        XCTAssertTrue(find(app, "忍住了「Café Nube」，往「换新电脑」").waitForExistence(timeout: 5), "忍住了以后没提示")
     }
 
     /// 计划页「订阅」：登记一个，合计和这一行出来；再「不续了」，合计变成 0。

@@ -280,15 +280,20 @@ struct DemoBuilder {
     mutating func plans() {
         let P = Self.P, S = Self.S
         if let gResult = try? l.addGoal(name: "应急金", bookID: P, target: eur(5000), deadline: demoDay(demoShift(end.yearMonth, 6), 30),
-                                       savingsAccountID: "pot", author: "你") { goalPot = gResult.0.id }
+                                       savingsAccountID: "pot", icon: "cross.case", stash: .card, stashNote: "银行 app 里的储蓄罐",
+                                       today: demoDay(months[0], 2), author: "你") { goalPot = gResult.0.id }
         stamp(demoDay(months[0], 2))
         if let gResult = try? l.addGoal(name: "店面重新装修", bookID: S, target: eur(6000), deadline: demoDay(demoShift(end.yearMonth, 9), 1),
+                                       icon: "storefront", stash: .card, stashNote: "店里那张卡", today: demoDay(months[6], 24),
                                        author: "Claude") { goalShop = gResult.0.id }
         stamp(demoDay(months[6], 24))
+        // 大目标：换新电脑（存在家里的小猪储蓄罐里）。
         if let gResult = try? l.addGoal(name: "换新电脑", bookID: P, target: eur(1400), deadline: demoDay(demoShift(end.yearMonth, 5), 30),
-                                       author: "你") { goalLaptop = gResult.0.id }
+                                       main: true, icon: "laptopcomputer", stash: .jar, stashNote: "书桌上的小猪储蓄罐",
+                                       today: demoDay(months[6], 25), author: "你") { goalLaptop = gResult.0.id }
         stamp(demoDay(months[6], 25))
-        if let gResult = try? l.addGoal(name: "锁起来的存钱罐", bookID: P, target: eur(1000), locked: true, author: "你") { goalLocked = gResult.0.id }
+        if let gResult = try? l.addGoal(name: "锁起来的存钱罐", bookID: P, target: eur(1000), locked: true, icon: "lock.shield",
+                                       stash: .spot, stashNote: "衣柜里的信封", today: demoDay(months[7], 27), author: "你") { goalLocked = gResult.0.id }
         stamp(demoDay(months[7], 27))
         // 店里的咖啡机：分 12 期，有手续费。
         if let instResult = try? l.addInstallment(name: "咖啡机", bookID: S, accountID: "shop", total: eur(1800), count: 12,
@@ -358,6 +363,10 @@ struct DemoBuilder {
             let (name, acct, lo, hi) = rng.pick(dining)
             spend(d(rng.int(1...28)), rng.euros(lo, hi), name, acct, P, "餐饮")
         }
+        // 最近两个月几乎隔天一杯咖啡：目标页拿它换算「每 2 天少一杯」、做「忍住了」按钮和每周小挑战（不用随机数，别的数字不变）。
+        if i >= 11 {
+            for day in [1, 3, 4, 6, 8, 10, 11, 13, 15, 17, 18, 20, 22, 24, 25, 27] { spend(d(day), eur(3.2), "Café Nube", "credit", P, "餐饮") }
+        }
         for _ in 0..<rng.int(0...2) { spend(d(rng.int(1...28)), rng.euros(8, 22), "出租车", "wallet", P, "交通") }
         let shops: [(String, String, Double, Double)] = [
             ("Tienda Mar 服装", "credit", 19, 89), ("网购 · 包裹一号", "wallet", 9, 65), ("Libros Faro 书店", "credit", 12, 30),
@@ -382,13 +391,20 @@ struct DemoBuilder {
         // 存钱、还分期。
         deposit(goalPot, eur(250), from: "daily", on: d(26), author: "你")
         if i >= 6 { deposit(goalLaptop, eur(100), from: "daily", on: d(26), author: "你") }
-        if i >= 7 { deposit(goalLocked, eur(50), from: "daily", on: d(28), author: "你") }
+        // 锁起来的存钱罐两个多月没往里存了：目标页会问「它对你还重要吗」。
+        if i >= 7 && i <= 9 { deposit(goalLocked, eur(50), from: "daily", on: d(28), author: "你") }
+        // 这个月忍住了几次咖啡，存进电脑（小日历点亮、月底总结）。
+        if i == 12 {
+            for day in [2, 5, 9, 12, 16, 19] where d(day) < end {
+                deposit(goalLaptop, eur(3.2), from: "daily", on: d(day), heldBack: "Café Nube", author: "你")
+            }
+        }
         if i >= 9 { pay(instPhone, on: d(15)) }
     }
 
-    mutating func deposit(_ goal: UUID, _ amount: Money, from: String, on date: LocalDate, author: String) {
+    mutating func deposit(_ goal: UUID, _ amount: Money, from: String, on date: LocalDate, heldBack: String? = nil, author: String) {
         guard date <= end else { return }
-        _ = try? l.deposit(goalID: goal, amount: amount, fromAccount: from, date: date, author: author)
+        _ = try? l.deposit(goalID: goal, amount: amount, fromAccount: from, date: date, heldBack: heldBack, author: author)
         stamp(date)
     }
 

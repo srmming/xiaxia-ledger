@@ -1,13 +1,15 @@
 import FinanceCore
 import SwiftUI
 
-/// 目标：离存钱目标还差多少？视觉重心是最快到期（或最接近完成）的目标，一个大进度环。右上角「新目标」自己登记。
-/// （ming 2026-11-23：以前叫「计划」、还放着分期和借款；分期、借款搬去「欠款与分期」，这页只放存钱目标。）
+/// 目标页：小金猪存钱罐（ming 2026-11-23）。
+/// 目标 = 把「我想要的东西」变成「哪天能到手」，让人感到小小坚持就有改变。
+/// 一个大目标（最大的那只猪）+ 最多 3 个小目标（小猪），旁边是夏夏的一句话、本周小挑战、这个月坚持了哪几天。
+/// 存一笔 = 金币掉进小猪；点小猪（iPhone 摇手机）叮叮当当，钱越多声音越满。规则都在 FinanceCore/PiggyBank.swift。
 struct PlansPage: View {
     @Environment(LedgerModel.self) var model
     /// iPhone 上分三格：目标 / 订阅 / 欠款（Mac 上这三个各是一页）。
     @State private var tab = 0
-    /// 页面能看到多大：窗口矮（1000×612）时小卡格子只放一排，一屏放下。
+    /// 页面能看到多大：窗口矮（1000×612）时小猪小一点，一屏放下。
     @State private var viewport = CGSize(width: 1000, height: 800)
     private var short: Bool { Viewport.isShort(viewport) }
 
@@ -31,180 +33,201 @@ struct PlansPage: View {
             case 2:
                 DebtsPage(embedded: true)
             default:
-                plans
+                PiggyGoalsBoard(short: false)
             }
         }
         .kitPage()
         .onAppear { if model.section == .debts { tab = 2 } else if model.section == .subscriptions { tab = 1 } }
         #else
-        plans.kitPage()
+        PiggyGoalsBoard(short: short).kitPage()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
         #endif
     }
-
-    @ViewBuilder private var plans: some View {
-        let all = forecasts
-        if all.isEmpty {
-            VStack(spacing: Kit.gap) {
-                VStack(spacing: 12) {
-                    KitEmptyState(symbol: "target", title: "还没有存钱目标",
-                                  message: "想为什么事存钱？旅行、换电脑、应急金……定个数，这里会告诉你还差多少、照现在的存法哪个月能到、来不来得及。自己登记或者跟夏夏说一句都行。",
-                                  prompt: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够", page: "目标")
-                    newPlanButton
-                }
-                .kitCard()
-                AskAICard(title: "想定个存钱目标？", note: nil, page: "目标", prompts: model.prompts(for: .plans))
-            }
-        } else {
-            GoalsBoard(goals: all, short: short)
-        }
-    }
-
-    /// 这个账本的目标和预测，按钉住 → 拖过的顺序 → 急不急排好。
-    private var forecasts: [GoalForecast] {
-        let book = model.selectedBookID
-        let ids = Set(model.ledger.goals.filter { book == nil || $0.bookID == book }.map(\.id))
-        return Plans.sortedGoals(Plans.goalForecasts(model.ledger).filter { ids.contains($0.id) })
-    }
-
-    private var newPlanButton: some View {
-        Button { model.sheet = .plan } label: { Label("新目标", systemImage: "plus") }
-            .buttonStyle(.soft)
-            .help("登记一个存钱目标")
-    }
 }
 
-/// 目标页（ming 2026-11-23）：只回答「我离想要的还差多远、来得及吗？」
-/// 最上面夏夏挑最急的目标说一句；下面一个大卡是最急的（或钉住的）目标：进度环、还差多少、照现在的存法哪个月到、要多存多少；
-/// 其余的做成小卡格子，一排 3 个（名字、进度环、还差多少），放不下左右翻页，不上下拉；存够了的收进「已完成」。小卡可以拖动排序。
-struct GoalsBoard: View {
+/// 存一笔 / 取出 的面板要哪个目标、哪一种。
+struct PiggyMoney: Identifiable, Hashable {
+    enum Kind: Hashable { case deposit, withdraw }
+    var goalID: UUID
+    var kind: Kind
+    var id: String { "\(goalID)-\(kind)" }
+}
+
+struct PiggyGoalsBoard: View {
     @Environment(LedgerModel.self) var model
-    let goals: [GoalForecast]
     var short = false
-    @State private var page = 0
+    @AppStorage(PiggySound.storageKey) private var soundOn = true
+    @State private var drops: [UUID: Int] = [:]
+    @State private var shakes: [UUID: Int] = [:]
+    /// 刚存进去提前了几天：小猪旁边冒一个「+3 天」。
+    @State private var bubbles: [UUID: String] = [:]
+    @State private var money: PiggyMoney?
+    @State private var confetti = false
     @State private var showDone = false
+    @State private var showExtra = false
+
+    private var board: GoalBoard { Plans.goalBoard(model.ledger) }
 
     var body: some View {
-        let open = goals.filter { !$0.isDone }
-        let done = goals.filter(\.isDone)
-        let hero = open.first ?? goals[0]
-        let rest = open.filter { $0.id != hero.id }
-        VStack(alignment: .leading, spacing: Kit.gap) {
-            XiaxiaSays(page: "plans", pageName: "目标", sentence: xiaxiaSentence(open.isEmpty ? goals : open),
-                       question: "看看我的存钱目标：照现在的速度来得及吗？最急的是哪个，每月要怎么调整？")
-            HStack(alignment: .firstTextBaseline) {
-                Text("存钱目标").font(.kitSection).accessibilityAddTraits(.isHeader)
-                Text(summaryLine(open: open, done: done)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
-                Spacer(minLength: 8)
-                if !done.isEmpty {
-                    Button { showDone = true } label: { Label("已完成 \(done.count)", systemImage: "checkmark.seal") }
-                        .buttonStyle(.borderless).font(.subheadline)
-                        .popover(isPresented: $showDone, arrowEdge: .bottom) { doneList(done) }
-                        .accessibilityIdentifier("goalsDone")
-                }
-                Button { model.sheet = .plan } label: { Label("新目标", systemImage: "plus") }
-                    .buttonStyle(.soft)
-                    .help("登记一个存钱目标")
-            }
-            if !open.isEmpty || done.isEmpty {
-                GoalHeroCard(goal: hero, compact: short)
+        let b = board
+        Group {
+            if b.isEmpty {
+                emptyState(b)
             } else {
-                allDoneCard(done)
+                content(b)
             }
-            if !rest.isEmpty { grid(rest) }
         }
-    }
-
-    // MARK: 小卡格子
-
-    /// iPhone 窄，一排 2 个；Mac 一排 3 个。
-    private var perRow: Int {
-        #if os(iOS)
-        2
-        #else
-        3
-        #endif
-    }
-    /// iPhone 上小卡一律用紧凑样式（「还差 2.000 €」一行，不会被挤没）。
-    private var compactTiles: Bool {
-        #if os(iOS)
-        true
-        #else
-        short
-        #endif
-    }
-    private var rowsPerPage: Int {
-        #if os(iOS)
-        2
-        #else
-        short ? 1 : 2
-        #endif
-    }
-
-    @ViewBuilder private func grid(_ list: [GoalForecast]) -> some View {
-        let per = perRow * rowsPerPage
-        let pages = max(1, (list.count + per - 1) / per)
-        let p = min(page, pages - 1)
-        let slice = Array(list.dropFirst(p * per).prefix(per))
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                SectionHeader("其它目标")
-                Spacer()
-                if pages > 1 {
-                    Button { withAnimation(.snappy) { page = max(0, p - 1) } } label: { Image(systemName: "chevron.left") }
-                        .buttonStyle(.borderless).disabled(p == 0).accessibilityLabel("上一页目标")
-                    Text("\(p + 1) / \(pages)").font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
-                    Button { withAnimation(.snappy) { page = min(pages - 1, p + 1) } } label: { Image(systemName: "chevron.right") }
-                        .buttonStyle(.borderless).disabled(p == pages - 1).accessibilityLabel("下一页目标")
-                }
+        .overlay {
+            if confetti { ConfettiView().allowsHitTesting(false).transition(.opacity) }
+        }
+        .onShake { if let m = b.main { shake(m) } }
+        .sheet(item: $money) { m in
+            NavigationStack {
+                PiggyMoneySheet(goalID: m.goalID, kind: m.kind) { result in after(result) }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: perRow), spacing: 10) {
-                ForEach(slice) { g in
-                    GoalTile(goal: g, compact: compactTiles)
-                        .draggable(g.id.uuidString) { GoalTile(goal: g).frame(width: 160).environment(model) }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let id = UUID(uuidString: raw), id != g.id else { return false }
-                            move(id, before: g.id)
-                            return true
-                        }
-                }
-            }
-            .id(p)
-            .transition(.push(from: .trailing))
-            #if os(iOS)
-            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
-                // iPhone 上左右滑翻页（拖动排序要先长按，不冲突）。Mac 上用右上角的箭头翻。
-                guard abs(v.translation.width) > abs(v.translation.height) else { return }
-                withAnimation(.snappy) { page = v.translation.width < 0 ? min(pages - 1, p + 1) : max(0, p - 1) }
-            })
+            .environment(model)
+            #if os(macOS)
+            .frame(width: 460, height: 420)
             #endif
-            if pages == 1 && list.count > 1 && !short {
-                Text("拖动小卡可以调顺序，⋯ 里能把一个钉到最上面。").font(.caption2).foregroundStyle(Color.fg3)
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: drops)
+    }
+
+    // MARK: 有目标
+
+    @ViewBuilder private func content(_ b: GoalBoard) -> some View {
+        VStack(alignment: .leading, spacing: Kit.gap) {
+            header(b)
+            #if os(iOS)
+            PiggyXiaxiaCard(board: b, showExtra: $showExtra)
+            if let main = b.main { mainCard(main, b) } else { allDone(b) }
+            smallRow(b)
+            PiggyChallengeCard(habit: b.habit)
+            PiggyMonthCard(board: b)
+            #else
+            Columns(sideWidth: 320) {
+                if let main = b.main { mainCard(main, b) } else { allDone(b) }
+                smallRow(b)
+            } side: {
+                PiggyXiaxiaCard(board: b, showExtra: $showExtra)
+                PiggyChallengeCard(habit: b.habit, compact: short)
+                PiggyMonthCard(board: b, compact: short)
+            }
+            #endif
+        }
+    }
+
+    private func header(_ b: GoalBoard) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("存钱目标").font(.kitSection).accessibilityAddTraits(.isHeader)
+            Text(roomLine(b)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+            Spacer(minLength: 8)
+            Button { soundOn.toggle() } label: {
+                Image(systemName: soundOn ? "speaker.wave.2" : "speaker.slash")
+            }
+            .buttonStyle(.borderless).foregroundStyle(Color.fg2)
+            .help(soundOn ? "小猪的声音：开（点一下关掉）" : "小猪的声音：关（点一下打开）")
+            .accessibilityLabel(soundOn ? "关掉小猪的声音" : "打开小猪的声音")
+            if !b.done.isEmpty {
+                Button { showDone = true } label: { Label("已完成 \(b.done.count)", systemImage: "checkmark.seal") }
+                    .buttonStyle(.borderless).font(.subheadline)
+                    .popover(isPresented: $showDone, arrowEdge: .bottom) { doneList(b.done) }
+                    .accessibilityIdentifier("goalsDone")
+            }
+            Button { model.sheet = .plan } label: { Label("新目标", systemImage: "plus") }
+                .buttonStyle(.soft)
+                .help(b.slotsLeft > 0 ? "还能加 \(b.slotsLeft) 个目标" : Plans.goalLimitSentence)
+                .accessibilityIdentifier("goals.new")
+        }
+    }
+
+    /// 「你每月大约剩 420 € 可以存 · 1 大 3 小」
+    private func roomLine(_ b: GoalBoard) -> String {
+        var parts: [String] = []
+        if let room = b.monthlyRoom {
+            parts.append(room.cents > 0 ? "你每月大约剩 \(room.rounded) 可以存" : "最近几个月花的比赚的多，先从小目标开始")
+        }
+        parts.append("\(b.main == nil ? 0 : 1) 大 \(b.small.count) 小")
+        return parts.joined(separator: " · ")
+    }
+
+    private func mainCard(_ p: PiggyGoal, _ b: GoalBoard) -> some View {
+        PiggyMainCard(goal: p, habit: b.habit, pigSize: pigSize,
+                      drop: drops[p.id, default: 0], shakeCount: shakes[p.id, default: 0], bubble: bubbles[p.id],
+                      onShake: { shake(p) },
+                      onMoney: { money = PiggyMoney(goalID: p.id, kind: $0) },
+                      onHeldBack: { heldBack(p, b.habit) })
+    }
+
+    private var pigSize: CGFloat {
+        #if os(iOS)
+        150
+        #else
+        short ? 120 : 150
+        #endif
+    }
+
+    private func smallRow(_ b: GoalBoard) -> some View {
+        let slots = Plans.maxSmallGoals
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("小目标").font(.subheadline.weight(.semibold))
+                Text("最多 3 个 · 目标不在多，在于坚持").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(Array(b.small.enumerated()), id: \.element.id) { i, p in
+                    PiggySmallTile(goal: p, palette: PiggyPalette.small[i % PiggyPalette.small.count], compact: short,
+                                   drop: drops[p.id, default: 0], shakeCount: shakes[p.id, default: 0], bubble: bubbles[p.id],
+                                   onShake: { shake(p) }, onMoney: { money = PiggyMoney(goalID: p.id, kind: $0) })
+                }
+                if b.small.count < slots {
+                    ForEach(0..<(slots - b.small.count), id: \.self) { _ in emptySlot(enabled: b.slotsLeft > 0) }
+                }
             }
         }
-        .kitCard()
+        .kitCard(padding: 14)
     }
 
-    /// 拖动排序：把 id 挪到 target 前面，按现在看到的顺序存下来（大卡那个保持最前）。
-    private func move(_ id: UUID, before target: UUID) {
-        var order = goals.map(\.id)
-        guard let from = order.firstIndex(of: id) else { return }
-        order.remove(at: from)
-        let to = order.firstIndex(of: target) ?? order.count
-        order.insert(id, at: to)
-        model.perform { try $0.reorderGoals(order, author: model.author) }
+    private func emptySlot(enabled: Bool) -> some View {
+        Button { model.sheet = .plan } label: {
+            VStack(spacing: 6) {
+                Image(systemName: "plus.circle").font(.title2).foregroundStyle(Color.fg3)
+                Text("加一个小目标").font(.caption).foregroundStyle(Color.fg2)
+            }
+            .frame(maxWidth: .infinity, minHeight: short ? 96 : 140)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.fg3.opacity(0.5), style: StrokeStyle(lineWidth: 1.2, dash: [5, 4])))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .disabled(!enabled)
+        .accessibilityLabel("加一个小目标")
     }
 
-    private func doneList(_ done: [GoalForecast]) -> some View {
+    private func allDone(_ b: GoalBoard) -> some View {
+        HStack(spacing: 16) {
+            PiggyBankView(fraction: 1, palette: .done, size: 110, sparkle: false)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("目标都存够了 🎉").font(.title3.weight(.semibold))
+                Text("\(b.done.count) 个目标已经到手。再定一个新的吧，小小的一步也能实现大大的目标。").font(.callout).foregroundStyle(Color.fg2)
+                Button { model.sheet = .plan } label: { Label("定一个新目标", systemImage: "plus") }.buttonStyle(.soft)
+            }
+            Spacer(minLength: 0)
+        }
+        .kitCard(padding: 20)
+    }
+
+    private func doneList(_ done: [PiggyGoal]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("已完成的目标").font(.headline)
-            ForEach(done) { g in
+            Text("已经到手的目标").font(.headline)
+            ForEach(done) { p in
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income)
-                    Text(g.name).font(.callout)
+                    Text(p.name).font(.callout)
                     Spacer(minLength: 12)
-                    Text(g.target.rounded).font(.kitAmount)
-                    PlanRowMenu(target: .goal(g.id), name: g.name)
+                    Text(p.forecast.target.rounded).font(.kitAmount)
+                    PiggyGoalMenu(goal: p, onMoney: { money = PiggyMoney(goalID: p.id, kind: $0) })
                 }
             }
         }
@@ -212,285 +235,632 @@ struct GoalsBoard: View {
         .frame(minWidth: 280)
     }
 
-    private func allDoneCard(_ done: [GoalForecast]) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: "checkmark.seal.fill").font(.system(size: 40)).foregroundStyle(Color.income)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("目标都存够了").font(.title3.weight(.semibold))
-                Text("\(done.count) 个目标已经完成，点右上角「已完成」看看。再定一个新的吧。").font(.callout).foregroundStyle(Color.fg2)
+    // MARK: 没有目标
+
+    private func emptyState(_ b: GoalBoard) -> some View {
+        VStack(spacing: Kit.gap) {
+            VStack(spacing: 14) {
+                PiggyBankView(fraction: 0, size: 170, sparkle: false)
+                Text("还没有存钱目标").font(.title3.weight(.semibold))
+                Text("想要的东西，定个数、定个日子，夏夏帮你算出每天存多少、哪天能到手。\n准备一个真的存钱的地方，每次存了钱就来喂一下小猪。小小的一步，也能实现大大的目标。")
+                    .font(.callout).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
+                Button { model.sheet = .plan } label: { Label("定第一个目标", systemImage: "plus") }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .accessibilityIdentifier("goals.first")
+                if let room = b.monthlyRoom, room.cents > 0 {
+                    Text("你最近每月大约剩 \(room.rounded)").font(.caption).foregroundStyle(Color.fg3)
+                }
             }
-            Spacer()
+            .frame(maxWidth: .infinity)
+            .kitCard(padding: 24)
+            AskAICard(title: "也可以跟夏夏说", note: nil, page: "目标", prompts: model.prompts(for: .plans))
         }
-        .kitCard(padding: 20)
     }
 
-    // MARK: 文字
+    // MARK: 动作
 
-    /// 「3 个在存 · 每月一共存约 450 €」
-    private func summaryLine(open: [GoalForecast], done: [GoalForecast]) -> String {
-        guard !open.isEmpty else { return "" }
-        let pace = open.reduce(Money.zero) { $0 + $1.monthlyPace }
-        var parts = ["\(open.count) 个在存"]
-        if pace.cents > 0 { parts.append("最近每月一共存约 \(pace.rounded)") }
-        let behind = open.filter { $0.pace == .behind }.count
-        if behind > 0 { parts.append("\(behind) 个赶不上") }
-        return parts.joined(separator: " · ")
+    private func shake(_ p: PiggyGoal) {
+        shakes[p.id, default: 0] += 1
+        PiggySound.shake(fraction: Double(p.forecast.percent) / 100)
     }
 
-    /// 夏夏挑最急的目标说一句（不管钉没钉）。
-    private func xiaxiaSentence(_ list: [GoalForecast]) -> String {
-        let urgent = Plans.sortedGoals(list.map { var g = $0; g.pinned = false; g.rank = nil; return g })
-        guard let g = urgent.first else { return model.voiced("还没有存钱目标，定一个吧。", .neutral) }
-        let p = model.persona
-        switch g.pace {
-        case .done:
-            return model.voiced("「\(g.name)」已经存够了。", .good)
-        case .behind:
-            if let due = g.deadline, due < .today {
-                return model.voiced("「\(g.name)」定的 \(due.year) 年 \(due.month) 月已经过了，还差 \(g.left.rounded)。改个日子，或者咬咬牙一次补上？", .bad)
+    /// 「忍住了」：常买的小东西的钱，点一下进小猪。
+    private func heldBack(_ p: PiggyGoal, _ habit: SmallHabit) {
+        let goal = model.ledger.goals.first { $0.id == p.id }
+        guard let from = model.visibleAccounts.first(where: { $0.id != goal?.savingsAccountID })?.id ?? model.visibleAccounts.first?.id else {
+            model.toast = LedgerModel.Toast(text: "先加一个账户，存的钱从那里划出来", changeID: nil, isError: true)
+            return
+        }
+        let preferred = model.defaultAccountID != goal?.savingsAccountID && !model.defaultAccountID.isEmpty ? model.defaultAccountID : from
+        let amount = habit.typical
+        let days = Plans.daysEarlier(model.ledger, goalID: p.id, amount: amount)
+        do {
+            let change = try model.edit(quiet: true) { l in
+                try l.deposit(goalID: p.id, amount: amount, fromAccount: preferred, date: .today, heldBack: habit.name, author: model.author)
             }
-            let late = g.monthsLate.map { "晚 \($0) 个月" } ?? "赶不上"
-            let extra = g.extraPerMonth.map { "每月再多存 \($0.rounded) 就能按时到。" } ?? ""
-            let s = "「\(g.name)」照现在的存法要\(g.eta.map { "到 \($0.year) 年 \($0.month) 月" } ?? "很久")，比你定的\(late)。" + extra
-            return switch p {
-            case .sharp: s + "外卖少点两次就有了。"
-            case .cheer: s + "差一点点，冲！"
-            case .gentle: s + "要不要我帮你看看哪里能省出来？"
-            case .calm: s
-            }
-        case .stalled:
-            if let need = g.neededPerMonth, let due = g.deadline {
-                return model.voiced("「\(g.name)」最近三个月没往里存。要在 \(due.year) 年 \(due.month) 月前存够，每月得存 \(need.rounded)。", .bad)
-            }
-            return model.voiced("「\(g.name)」还差 \(g.left.rounded)，最近没在存。定个日子，我帮你算每月存多少。", .neutral)
-        case .onTrack:
-            let when = g.eta.map { "\($0.year) 年 \($0.month) 月就能存够" } ?? "能存够"
-            return model.voiced("「\(g.name)」照现在每月存 \(g.monthlyPace.rounded)，\(when)" + (g.deadline == nil ? "。" : "，赶得上。"), .good)
+            after(.init(goalID: p.id, deposit: true, amount: amount, days: days, changeID: change.id, heldBack: habit.name))
+        } catch {
+            model.toast = LedgerModel.Toast(text: error.localizedDescription, changeID: nil, isError: true)
+        }
+    }
+
+    /// 存完、取完：金币掉进去、冒「+3 天」、提示；存够了撒花。
+    private func after(_ r: PiggyMoneyResult) {
+        let finished = Plans.goalBoard(model.ledger).done.contains { $0.id == r.goalID }
+        let name = model.ledger.goals.first { $0.id == r.goalID }?.name ?? ""
+        if r.deposit {
+            drops[r.goalID, default: 0] += 1
+            PiggySound.drop()
+            if let d = r.days { flash(r.goalID, "+\(d) 天") }
+        } else if let d = r.days {
+            flash(r.goalID, "−\(d) 天")
+        }
+        var text: String
+        if finished && r.deposit {
+            text = "「\(name)」存够了！到手啦 🎉"
+            withAnimation { confetti = true }
+            Task { try? await Task.sleep(for: .seconds(4)); withAnimation { confetti = false } }
+        } else if r.deposit {
+            text = (r.heldBack.map { "忍住了「\($0)」，" } ?? "") + "往「\(name)」存了 \(r.amount.rounded)"
+            if let d = r.days { text += "，提前 \(d) 天到手" }
+        } else {
+            text = "从「\(name)」取出 \(r.amount.rounded)" + (r.days.map { "，到手往后推约 \($0) 天" } ?? "") + "。用钱很正常，慢慢补回来就好"
+        }
+        model.toast = LedgerModel.Toast(text: text, changeID: r.changeID)
+    }
+
+    private func flash(_ id: UUID, _ text: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { bubbles[id] = text }
+        Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            withAnimation(.easeOut(duration: 0.3)) { if bubbles[id] == text { bubbles[id] = nil } }
         }
     }
 }
 
-/// 最急（或钉住）的那个目标：大进度环 + 还差多少 + 哪个月能到 + 要多存多少。
-struct GoalHeroCard: View {
+// MARK: - 大目标
+
+struct PiggyMainCard: View {
     @Environment(LedgerModel.self) var model
-    let goal: GoalForecast
-    /// 窗口矮：环小一点、大数字小一点，好让下面的小卡一屏放下。
-    var compact = false
+    let goal: PiggyGoal
+    let habit: SmallHabit
+    var pigSize: CGFloat
+    var drop: Int
+    var shakeCount: Int
+    var bubble: String?
+    var onShake: () -> Void
+    var onMoney: (PiggyMoney.Kind) -> Void
+    var onHeldBack: () -> Void
 
     var body: some View {
-        let g = goal
-        HStack(alignment: .center, spacing: 22) {
-            GoalRing(fraction: Double(g.percent) / 100, color: ringColor(g))
-                .frame(width: ringSize, height: ringSize)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    if g.pinned { Image(systemName: "pin.fill").font(.caption).foregroundStyle(Color.brand).accessibilityLabel("钉住了") }
-                    Text(g.name).font(.headline).lineLimit(1)
-                    if g.locked { Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.fg3).accessibilityLabel("锁定的") }
-                    PaceTag(goal: g)
-                    Spacer()
-                    PlanRowMenu(target: .goal(g.id), name: g.name)
-                }
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(g.left.cents > 0 ? "还差 " : "已存 ").font(.title3.weight(.semibold)).foregroundStyle(Color.fg2)
-                        Text(g.left.cents > 0 ? g.left.rounded : g.saved.rounded)
-                            .font(.system(size: compact ? 28 : 34, weight: .bold, design: .rounded)).monospacedDigit()
-                        Text("已存 \(g.saved.rounded) / \(g.target.rounded)").font(.callout).foregroundStyle(Color.fg3)
-                    }
-                    .fixedSize()
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text((g.left.cents > 0 ? "还差 " : "已存 ") + (g.left.cents > 0 ? g.left.rounded : g.saved.rounded))
-                            .font(.system(size: 28, weight: .bold, design: .rounded)).monospacedDigit().fixedSize()
-                        Text("已存 \(g.saved.rounded) / \(g.target.rounded)").font(.caption).foregroundStyle(Color.fg3)
-                    }
-                }
-                GoalForecastText(goal: g).font(.callout).fixedSize(horizontal: false, vertical: true)
+        let p = goal
+        let f = p.forecast
+        Group {
+            #if os(iOS)
+            VStack(alignment: .leading, spacing: 12) {
+                pig(p).frame(maxWidth: .infinity)
+                details(p, f)
             }
+            #else
+            // Mac：小猪放左边、名字和「还差」放右边，下面整行写日子和按钮——一屏放得下小目标
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 16) {
+                    pig(p)
+                    VStack(alignment: .leading, spacing: 8) {
+                        titleRow(p, f)
+                        amountRow(f, savedInline: false)
+                        PiggyProgress(fraction: Double(f.percent) / 100)
+                        Text("已存 \(f.saved.rounded) / \(f.target.rounded) · \(f.percent)%").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
+                    }
+                }
+                infoLines(p)
+                buttons(p)
+            }
+            #endif
         }
-        .kitCard(padding: compact ? 14 : 18)
+        .kitCard(padding: 18)
         .accessibilityElement(children: .contain)
     }
 
-    private var ringSize: CGFloat {
-        #if os(iOS)
-        104
-        #else
-        compact ? 84 : 128
-        #endif
+    private func pig(_ p: PiggyGoal) -> some View {
+        VStack(spacing: 4) {
+            Button(action: onShake) {
+                PiggyBankView(fraction: Double(p.forecast.percent) / 100, palette: .main, size: pigSize,
+                              dropTrigger: drop, shakeTrigger: shakeCount)
+                    .overlay(alignment: .topTrailing) { PiggyBubble(text: bubble) }
+            }
+            .buttonStyle(.plain)
+            .help("点一下，摇一摇小猪")
+            .accessibilityLabel("小金猪，\(p.name)已经存了 \(p.forecast.percent)%")
+            .accessibilityHint("摇一摇，听听里面的钱")
+            .accessibilityIdentifier("goals.mainPig")
+            #if os(iOS)
+            Text("摇一摇手机，听听小猪里的钱").font(.caption2).foregroundStyle(Color.fg3)
+            #else
+            Text("点小猪摇一摇").font(.caption2).foregroundStyle(Color.fg3)
+            #endif
+        }
+        .fixedSize()
     }
-}
 
-/// 「照现在每月存 150 €，要到 2027 年 9 月，比你定的晚 3 个月。每月再多存 50 € 就能按时到。」
-struct GoalForecastText: View {
-    let goal: GoalForecast
+    private func details(_ p: PiggyGoal, _ f: GoalForecast) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            titleRow(p, f)
+            amountRow(f, savedInline: true)
+            PiggyProgress(fraction: Double(f.percent) / 100)
+            infoLines(p)
+            buttons(p)
+        }
+    }
 
-    var body: some View { sentence }
+    private func titleRow(_ p: PiggyGoal, _ f: GoalForecast) -> some View {
+        HStack(spacing: 8) {
+            GoalIconBadge(symbol: goalSymbol(p), color: Color.kit(0xE07A90, 0xF08AA0))
+            Text(p.name).font(.title3.weight(.semibold)).lineLimit(1)
+            KitTag(text: "大目标", color: Color.kit(0xB4445C, 0xFF9AB0), background: Color.kit(0xF26A86, 0xF26A86, alpha: 0.12, darkAlpha: 0.2))
+            if f.locked { Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.fg3).accessibilityLabel("锁定的") }
+            Spacer(minLength: 0)
+            PiggyGoalMenu(goal: p, onMoney: onMoney)
+        }
+    }
 
-    private func ym(_ m: YearMonth) -> String { "\(m.year) 年 \(m.month) 月" }
-
-    /// 一段一段拼，免得编译器算不过来。
-    private var sentence: Text {
-        let g = goal
-        var t: Text
-        switch g.pace {
-        case .done:
-            t = Text("已经存够了 🎉")
-        case .behind:
-            if let due = g.deadline, due < .today {
-                t = Text("定的 \(ym(due.yearMonth)) 已经过了。改个日子，或者一次补上 ")
-                t = t + em(g.left.rounded)
-                t = t + Text("。")
-            } else {
-                t = Text("照现在每月存 \(g.monthlyPace.rounded)，要到 ")
-                t = t + em(g.eta.map(ym) ?? "很久以后")
-                t = t + Text("，比你定的晚 ")
-                t = t + em("\(g.monthsLate ?? 0) 个月", .bad)
-                t = t + Text("。")
-                if let extra = g.extraPerMonth {
-                    t = t + Text("每月再多存 ")
-                    t = t + em(extra.rounded, .good)
-                    t = t + Text(" 就能按时到。")
-                }
-            }
-        case .stalled:
-            if let need = g.neededPerMonth, let due = g.deadline {
-                t = Text("最近三个月没往里存。要在 \(ym(due.yearMonth)) 前存够，每月得存 ")
-                t = t + em(need.rounded)
-                t = t + Text("。")
-            } else {
-                t = Text("最近没在存，也没定日子。定个日子，我帮你算每月存多少。")
-            }
-        case .onTrack:
-            t = Text("照现在每月存 \(g.monthlyPace.rounded)，")
-            t = t + em(g.eta.map(ym) ?? "很快")
-            if let due = g.deadline {
-                t = t + Text(" 就能存够，赶得上 \(ym(due.yearMonth)) 的期限。")
-            } else {
-                t = t + Text(" 能存够。")
+    private func amountRow(_ f: GoalForecast, savedInline: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(f.left.cents > 0 ? "还差" : "存够了").font(.callout).foregroundStyle(Color.fg2)
+            Text(f.left.cents > 0 ? f.left.rounded : f.target.rounded)
+                .font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+            if savedInline {
+                Text("已存 \(f.saved.rounded) / \(f.target.rounded)").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
             }
         }
-        return t
+    }
+
+    private func infoLines(_ p: PiggyGoal) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label { Text(arrivalText(p)).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "calendar") }
+            if let d = p.perDay {
+                Label { Text("每天存 \(d.ui)，\(habit.phrase(perDay: d))") } icon: { Image(systemName: "cup.and.saucer") }
+            }
+            Label { Text(stashText(p)).foregroundStyle(p.stash == nil ? Color.warn : Color.primary) } icon: { Image(systemName: stashSymbol(p.stash)) }
+        }
+        .font(.callout)
+        .labelStyle(PiggyLabelStyle())
+    }
+
+    private func buttons(_ p: PiggyGoal) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { depositButton; heldBackButton; withdrawButton }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) { depositButton; withdrawButton }
+                heldBackButton
+            }
+        }
+        .disabled(p.forecast.isDone)
+    }
+
+    private var depositButton: some View {
+        Button { onMoney(.deposit) } label: { Label("存一笔", systemImage: "plus.circle.fill") }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.kit(0xD9557A, 0xE86A8E))
+            .accessibilityIdentifier("goals.deposit")
+    }
+
+    private var heldBackButton: some View {
+        Button(action: onHeldBack) {
+            Label("忍住了\(habit.isGuess ? habit.name : "「\(habit.name)」") +\(habit.typical.ui)", systemImage: "hand.raised")
+                .lineLimit(1)
+        }
+        .buttonStyle(.soft)
+        .help("想买\(habit.name)的时候忍住了？点一下，这笔钱直接进小猪")
+        .accessibilityIdentifier("goals.heldBack")
+    }
+
+    private var withdrawButton: some View {
+        Button { onMoney(.withdraw) } label: { Label("取出", systemImage: "arrow.uturn.up") }
+            .buttonStyle(.soft)
+            .disabled(goal.forecast.locked)
+            .help(goal.forecast.locked ? "锁定的目标到期前不能取" : "要用钱就取出来，到手日子会往后推一点")
     }
 }
 
-/// 小卡：名字、进度环、还差多少。
-struct GoalTile: View {
-    @Environment(LedgerModel.self) var model
-    let goal: GoalForecast
-    /// 窗口矮：环小一点，「晚 3 个月」挪到金额下面，少一行。
+// MARK: - 小目标
+
+struct PiggySmallTile: View {
+    let goal: PiggyGoal
+    var palette: PiggyPalette
     var compact = false
+    var drop: Int
+    var shakeCount: Int
+    var bubble: String?
+    var onShake: () -> Void
+    var onMoney: (PiggyMoney.Kind) -> Void
 
     var body: some View {
-        let g = goal
-        if compact { compactBody(g) } else { fullBody(g) }
-    }
-
-    private func compactBody(_ g: GoalForecast) -> some View {
+        let p = goal
+        let f = p.forecast
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 4) {
-                Text(g.name).font(.callout.weight(.medium)).lineLimit(1)
+            HStack(spacing: 4) {
+                Image(systemName: goalSymbol(p)).font(.caption).foregroundStyle(palette.dark)
+                Text(p.name).font(.callout.weight(.medium)).lineLimit(1)
                 Spacer(minLength: 0)
-                PlanRowMenu(target: .goal(g.id), name: g.name)
+                PiggyGoalMenu(goal: p, onMoney: onMoney)
             }
-            HStack(spacing: 10) {
-                MiniRing(fraction: Double(g.percent) / 100, color: ringColor(g))
-                    .frame(width: 38, height: 38)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(g.left.cents > 0 ? "还差 \(g.left.rounded)" : "存够了 \(g.target.rounded)")
-                        .font(.kitAmount).lineLimit(1).minimumScaleFactor(0.8)
-                    Text(tileNote(g)).font(.caption2).foregroundStyle(g.pace == .behind ? Color.alert : Color.fg2).lineLimit(1)
-                }
+            Button(action: onShake) {
+                PiggyBankView(fraction: Double(f.percent) / 100, palette: palette, size: compact ? 64 : 84,
+                              dropTrigger: drop, shakeTrigger: shakeCount, sparkle: false)
+                    .overlay(alignment: .topTrailing) { PiggyBubble(text: bubble) }
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(p.name)的小猪，已经存了 \(f.percent)%")
+            .accessibilityHint("摇一摇")
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(f.left.cents > 0 ? "还差 \(f.left.rounded)" : "存够了").font(.kitAmount).lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                Text("\(f.percent)%").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg3).monospacedDigit()
+            }
+            HStack(spacing: 4) {
+                Text(note(p)).font(.caption2).foregroundStyle(p.needsCheck ? Color.warn : Color.fg2).lineLimit(1)
+                Spacer(minLength: 0)
+                Button { onMoney(.deposit) } label: { Image(systemName: "plus.circle.fill").font(.title3) }
+                    .buttonStyle(.borderless).foregroundStyle(palette.dark)
+                    .help("往「\(p.name)」存一笔")
+                    .accessibilityLabel("往\(p.name)存一笔")
+                    .disabled(f.isDone)
             }
         }
         .padding(10)
-        .modifier(TileChrome(label: "\(g.name)，已存 \(g.percent)%，还差 \(g.left.spoken)，\(tileNote(g))"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func fullBody(_ g: GoalForecast) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 4) {
-                Text(g.name).font(.callout.weight(.medium)).lineLimit(1)
-                Spacer(minLength: 0)
-                PlanRowMenu(target: .goal(g.id), name: g.name)
-            }
-            HStack(spacing: 10) {
-                MiniRing(fraction: Double(g.percent) / 100, color: ringColor(g))
-                    .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(g.left.cents > 0 ? "还差" : "存够了").font(.caption2).foregroundStyle(Color.fg2)
-                    Text(g.left.cents > 0 ? g.left.rounded : g.target.rounded).font(.kitAmount).lineLimit(1).minimumScaleFactor(0.8)
+    private func note(_ p: PiggyGoal) -> String {
+        if p.needsCheck { return "\(p.idleDays) 天没存了" }
+        if let a = p.arrival { return "\(a.year % 100) 年 \(a.month) 月 \(a.day) 日到手" }
+        return "最近没在存"
+    }
+}
+
+// MARK: - 右边：夏夏、小挑战、这个月
+
+/// 夏夏的一句话。很久没存的目标优先：问「它对你还重要吗？」给三个按钮。
+struct PiggyXiaxiaCard: View {
+    @Environment(LedgerModel.self) var model
+    let board: GoalBoard
+    @Binding var showExtra: Bool
+    @State private var confirmDelete: PiggyGoal?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            MascotView(.xiaxia, pose: pose, size: 44, face: true)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(sentence).font(.callout).fixedSize(horizontal: false, vertical: true)
+                if let p = board.needsCheck {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 6) { checkButtons(p) }
+                        VStack(alignment: .leading, spacing: 6) { checkButtons(p) }
+                    }
+                } else if !board.extra.isEmpty {
+                    Button { showExtra = true } label: { Text("看看多出来的 \(board.extra.count) 个") }
+                        .buttonStyle(.soft)
+                        .popover(isPresented: $showExtra, arrowEdge: .bottom) { extraList }
                 }
             }
-            Text(tileNote(g)).font(.caption2).foregroundStyle(g.pace == .behind ? Color.alert : Color.fg2).lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .padding(12)
-        .modifier(TileChrome(label: "\(g.name)，已存 \(g.percent)%，还差 \(g.left.spoken)，\(tileNote(g))"))
+        .kitCard(padding: 14)
+        .confirmationDialog("删掉目标「\(confirmDelete?.name ?? "")」？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("删掉", role: .destructive) {
+                if let p = confirmDelete { model.perform { try $0.removeGoal(p.id, author: model.author) } }
+                confirmDelete = nil
+            }
+        } message: { Text("存过的钱不会丢：在现有账户里划出的记录一起删，账户余额不变。删错了可以撤销。") }
+        .accessibilityElement(children: .contain)
     }
 
-    private func tileNote(_ g: GoalForecast) -> String {
-        switch g.pace {
-        case .done: return "已完成"
-        case .behind: return g.monthsLate.map { "晚 \($0) 个月" } ?? "过期了"
-        case .stalled: return "最近没在存"
-        case .onTrack: return g.eta.map { "\($0.year % 100) 年 \($0.month) 月能到" } ?? "赶得上"
+    @ViewBuilder private func checkButtons(_ p: PiggyGoal) -> some View {
+        Button("还重要，继续") { model.perform { try $0.keepGoal(p.id, pause: false, author: model.author) } }
+            .buttonStyle(.soft).accessibilityIdentifier("goals.keep")
+        Button("先放一放") { model.perform { try $0.keepGoal(p.id, pause: true, author: model.author) } }
+            .buttonStyle(.soft)
+        Button("删掉") { confirmDelete = p }
+            .buttonStyle(.softAlert)
+    }
+
+    private var pose: MascotPose {
+        if board.needsCheck != nil { return .think }
+        if !board.extra.isEmpty { return .think }
+        return .cheer
+    }
+
+    private var sentence: String {
+        if let p = board.needsCheck {
+            return model.voiced("「\(p.name)」已经 \(p.idleDays) 天没投币了。这个目标你很久没动了，它对你还重要吗？", .neutral)
+        }
+        if !board.extra.isEmpty {
+            return model.voiced("现在有 \(board.active.count) 个目标，比 1 个大目标 + 3 个小目标多了 \(board.extra.count) 个。目标不在多，在于坚持：挑出最想要的，其它的先完成或删掉。", .neutral)
+        }
+        guard let m = board.main else { return model.voiced("目标都存够了，真棒。再定一个吧。", .good) }
+        let (count, saved) = board.monthHeldBack
+        var s = "「\(m.name)」"
+        if let a = m.arrival { s += "照现在的存法 \(a.year) 年 \(a.month) 月 \(a.day) 日到手。" } else { s += "最近没在存，存一笔就能算出哪天到手。" }
+        if count > 0 { s += "这个月忍住了 \(count) 次，攒下 \(saved.rounded)。" }
+        s += "小小的一步也能实现大大的目标。"
+        return model.voiced(s, .good)
+    }
+
+    private var extraList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("多出来的目标").font(.headline)
+            Text("先完成或删掉，留下最想要的 1 个大目标、3 个小目标。").font(.caption).foregroundStyle(Color.fg2)
+            ForEach(board.extra) { p in
+                HStack(spacing: 10) {
+                    Text(p.name).font(.callout)
+                    Spacer(minLength: 12)
+                    Text("还差 \(p.forecast.left.rounded)").font(.kitAmount)
+                    PiggyGoalMenu(goal: p, onMoney: { _ in })
+                }
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 300)
+    }
+}
+
+/// 本周小挑战：上周最常买的小东西，这周少一次。
+struct PiggyChallengeCard: View {
+    let habit: SmallHabit
+    var compact = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "flag.checkered").foregroundStyle(Color.brand)
+                Text("本周小挑战").font(.subheadline.weight(.semibold))
+            }
+            if let limit = habit.challengeLimit {
+                Text("上周「\(habit.name)」买了 \(habit.lastWeek) 次，这周少一次：不超过 \(limit) 次。")
+                    .font(.callout).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 5) {
+                    ForEach(0..<max(limit, habit.thisWeek), id: \.self) { i in
+                        Circle()
+                            .fill(i < habit.thisWeek ? (i < limit ? Color.warn : Color.alert) : Color.sunken)
+                            .overlay(Circle().stroke(Color.fg3.opacity(0.3), lineWidth: 0.5))
+                            .frame(width: 12, height: 12)
+                    }
+                    Text(status(limit)).font(.caption).foregroundStyle(habit.thisWeek > limit ? Color.alert : Color.fg2).padding(.leading, 4)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("这周已经 \(habit.thisWeek) 次，\(status(limit))")
+            } else {
+                Text("想买\(habit.isGuess ? habit.name : "「\(habit.name)」")的时候忍一下，点「忍住了」，这笔钱直接进小猪。")
+                    .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .kitCard(padding: compact ? 12 : 14)
+    }
+
+    private func status(_ limit: Int) -> String {
+        if habit.thisWeek > limit { return "超了一点，没关系，下周再来" }
+        if habit.thisWeek == limit { return "到了，这周就到这儿" }
+        return "这周 \(habit.thisWeek) 次，还能 \(limit - habit.thisWeek) 次"
+    }
+}
+
+/// 这个月：小日历点亮投过币的日子 + 忍住了几次、省了多少、提前几天。
+struct PiggyMonthCard: View {
+    let board: GoalBoard
+    var compact = false
+
+    var body: some View {
+        let today = board.today
+        let days = LocalDate.daysIn(today.yearMonth)
+        let first = LocalDate(year: today.year, month: today.month, day: 1).weekdayIndex
+        let lit = board.monthDepositDays
+        let held = board.monthHeldBack
+        let earlier = (board.active + board.done).reduce(0) { $0 + $1.heldBackDays }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").foregroundStyle(Color.warn)
+                Text("\(today.month) 月坚持了 \(lit.count) 天").font(.subheadline.weight(.semibold))
+            }
+            let cell: CGFloat = compact ? 14 : 18
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(cell), spacing: 4), count: 7), alignment: .leading, spacing: 4) {
+                ForEach(Array(["一", "二", "三", "四", "五", "六", "日"].enumerated()), id: \.offset) { _, w in
+                    Text(w).font(.system(size: cell * 0.55)).foregroundStyle(Color.fg3).frame(width: cell, height: cell * 0.8)
+                }
+                ForEach(0..<(first + days), id: \.self) { i in
+                    if i < first {
+                        Color.clear.frame(width: cell, height: cell)
+                    } else {
+                        let d = i - first + 1
+                        ZStack {
+                            Circle().fill(lit.contains(d) ? Color.kit(0xF2B33D, 0xFFC94D) : Color.sunken)
+                            if d == today.day { Circle().stroke(Color.brand, lineWidth: 1.5) }
+                            if lit.contains(d) { Text("€").font(.system(size: cell * 0.5, weight: .bold, design: .rounded)).foregroundStyle(Color.kit(0x8A5A00, 0x5A3A00)) }
+                        }
+                        .frame(width: cell, height: cell)
+                        .opacity(d > today.day ? 0.45 : 1)
+                    }
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("这个月有 \(lit.count) 天投了币")
+            Text(summary(count: held.count, saved: held.saved, earlier: earlier))
+                .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .kitCard(padding: compact ? 12 : 14)
+    }
+
+    private func summary(count: Int, saved: Money, earlier: Int) -> String {
+        if count > 0 {
+            var s = "忍住 \(count) 次，省下 \(saved.rounded)"
+            if earlier > 0, let m = board.main { s += "，「\(m.name)」提前 \(earlier >= 14 ? "\(earlier / 7) 周" : "\(earlier) 天")" }
+            return s + "。"
+        }
+        return board.monthDepositDays.isEmpty ? "这个月还没投币，今天来一枚？" : "每投一次币，这里亮一格。"
+    }
+}
+
+// MARK: - 小零件
+
+/// 小猪头上冒的「+3 天」。
+struct PiggyBubble: View {
+    var text: String?
+    var body: some View {
+        if let text {
+            Text(text)
+                .font(.caption.weight(.bold)).monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(Color.kit(0xD9557A, 0xE86A8E), in: Capsule())
+                .transition(.scale(scale: 0.4, anchor: .bottom).combined(with: .opacity))
+                .offset(y: -6)
         }
     }
 }
 
-/// 小卡里的小进度环（中间写百分比）。
-struct MiniRing: View {
-    let fraction: Double
-    var color: Color
+/// 粗进度条。
+struct PiggyProgress: View {
+    var fraction: Double
     var body: some View {
-        let f = min(max(fraction, 0), 1)
-        ZStack {
-            Circle().stroke(Color.sunken, lineWidth: 6)
-            Circle().trim(from: 0, to: f).stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("\(Int((f * 100).rounded()))%").font(.system(size: 11, weight: .semibold, design: .rounded)).monospacedDigit()
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.sunken)
+                Capsule().fill(LinearGradient(colors: [Color.kit(0xF6A5B5, 0xE88DA0), Color.kit(0xF2B33D, 0xFFC94D)], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(8, geo.size.width * min(max(fraction, 0), 1)))
+            }
         }
+        .frame(height: 10)
         .accessibilityHidden(true)
     }
 }
 
-/// 赶得上是粉色（原来的颜色），赶不上橙色，存够了绿色。
-func ringColor(_ g: GoalForecast) -> Color {
-    switch g.pace {
-    case .done: .income
-    case .behind, .stalled: .warn
-    case .onTrack: Color.kit(0xF4607A, 0xFF7A90)
-    }
-}
-
-/// 大卡名字旁边的小标签：「赶得上」「晚 3 个月」「最近没存」。
-struct PaceTag: View {
-    let goal: GoalForecast
+struct GoalIconBadge: View {
+    var symbol: String
+    var color: Color
     var body: some View {
-        let g = goal
-        let text: String
-        let fg: Color
-        let bg: Color
-        switch g.pace {
-        case .done: text = "存够了"; fg = .income; bg = .incomeSoft
-        case .behind: text = g.monthsLate.map { $0 > 0 ? "晚 \($0) 个月" : "过期了" } ?? "赶不上"; fg = .warn; bg = .warnSoft
-        case .stalled: text = "最近没存"; fg = .warn; bg = .warnSoft
-        case .onTrack: text = g.deadline == nil ? "没定日子" : "赶得上"; fg = .fg2; bg = .sunken
-        }
-        return Text(text).font(.caption2.weight(.semibold)).foregroundStyle(fg)
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(bg, in: Capsule())
+        Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 26, height: 26)
+            .background(color.opacity(0.15), in: Circle())
+            .accessibilityHidden(true)
     }
 }
 
-/// 小卡的底色、圆角和读屏文字（大小两种小卡共用）。
-private struct TileChrome: ViewModifier {
-    let label: String
-    func body(content: Content) -> some View {
-        content
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(label)
+/// 图标和文字之间留一样宽，几行对齐。
+struct PiggyLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            configuration.icon.foregroundStyle(Color.fg3).frame(width: 18)
+            configuration.title
+        }
+    }
+}
+
+/// 目标右上角的「⋯」：存一笔、取出、设成大目标、钱存在哪、改、删。
+struct PiggyGoalMenu: View {
+    @Environment(LedgerModel.self) var model
+    let goal: PiggyGoal
+    var onMoney: (PiggyMoney.Kind) -> Void
+    @State private var confirmDelete = false
+    @State private var editing: Goal?
+
+    var body: some View {
+        Menu {
+            if !goal.forecast.isDone {
+                Button { onMoney(.deposit) } label: { Label("存一笔…", systemImage: "plus.circle") }
+            }
+            if !goal.forecast.locked && goal.forecast.saved.cents > 0 {
+                Button { onMoney(.withdraw) } label: { Label("取出…", systemImage: "arrow.uturn.up") }
+            }
+            if !goal.isMain && !goal.forecast.isDone {
+                Button { model.perform { try $0.setMainGoal(goal.id, author: model.author) } } label: {
+                    Label("设成大目标", systemImage: "star")
+                }
+            }
+            if let g = model.ledger.goals.first(where: { $0.id == goal.id }) {
+                Button { editing = g } label: { Label("改名字、金额、存在哪…", systemImage: "pencil") }
+            }
+            Button(role: .destructive) { confirmDelete = true } label: { Label("删掉…", systemImage: "trash") }
+        } label: {
+            Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
+        }
+        .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+        .accessibilityLabel("\(goal.name) 的操作")
+        .confirmationDialog("删掉目标「\(goal.name)」？", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("删掉", role: .destructive) { model.perform { try $0.removeGoal(goal.id, author: model.author) } }
+        } message: { Text("在现有账户里划出的存钱记录一起删，账户余额不变。删错了可以撤销。") }
+        .sheet(item: $editing) { g in
+            NavigationStack { GoalEditor(goal: g) }
+                .environment(model)
+                #if os(macOS)
+                .frame(width: 460, height: 480)
+                #endif
+        }
+    }
+}
+
+/// 目标的图标：挑过的用挑的，没挑过按名字猜。
+func goalSymbol(_ p: PiggyGoal) -> String { p.icon ?? GoalIcons.guess(p.name) }
+
+func stashSymbol(_ s: GoalStash?) -> String {
+    switch s {
+    case .jar: "archivebox"
+    case .card: "creditcard"
+    case .spot: "mappin.and.ellipse"
+    case nil: "questionmark.circle"
+    }
+}
+
+func stashText(_ p: PiggyGoal) -> String {
+    guard let s = p.stash else { return "还没记钱存在哪：点 ⋯ 记一下" }
+    return "存在：" + (p.stashNote ?? s.label)
+}
+
+func arrivalText(_ p: PiggyGoal) -> String {
+    let f = p.forecast
+    if f.isDone { return "已经存够了 🎉" }
+    if let a = p.arrival {
+        var s = "\(a.year) 年 \(a.month) 月 \(a.day) 日到手"
+        if let due = f.deadline, a > due {
+            let late = due.days(until: a)
+            s += "，比定的晚 \(late >= 45 ? "\(late / 30) 个月" : "\(late) 天")"
+        } else if f.deadline != nil, f.monthlyPace.cents > 0 {
+            s += "，赶得上"
+        }
+        return s
+    }
+    if let due = f.deadline, due < .today { return "定的 \(due.year) 年 \(due.month) 月已经过了，改个日子吧" }
+    return "最近没在存，存一笔就能算出哪天到手"
+}
+
+/// 目标图标：引导第一步给的几个，加上按名字猜。
+enum GoalIcons {
+    struct Preset: Hashable { var symbol: String; var name: String }
+    static let presets: [Preset] = [
+        Preset(symbol: "laptopcomputer", name: "换新电脑"), Preset(symbol: "airplane", name: "去旅行"),
+        Preset(symbol: "cross.case", name: "应急金"), Preset(symbol: "gift", name: "给家人的礼物"),
+        Preset(symbol: "iphone", name: "换手机"), Preset(symbol: "house", name: "买房首付"),
+        Preset(symbol: "car", name: "买车"), Preset(symbol: "graduationcap", name: "学习充电"),
+        Preset(symbol: "camera", name: "相机"), Preset(symbol: "gamecontroller", name: "游戏机"),
+        Preset(symbol: "bicycle", name: "自行车"), Preset(symbol: "star", name: "一个心愿"),
+    ]
+
+    static func guess(_ name: String) -> String {
+        let n = name.lowercased()
+        let rules: [([String], String)] = [
+            (["电脑", "laptop", "mac"], "laptopcomputer"), (["旅", "机票", "度假"], "airplane"), (["应急", "备用"], "cross.case"),
+            (["礼物", "生日"], "gift"), (["手机", "iphone"], "iphone"), (["房", "首付"], "house"), (["车"], "car"),
+            (["学", "课"], "graduationcap"), (["相机"], "camera"), (["游戏", "switch"], "gamecontroller"),
+            (["店", "装修"], "storefront"), (["锁", "存钱罐"], "lock.shield"), (["宝宝", "孩子"], "figure.and.child.holdinghands"),
+        ]
+        for (keys, symbol) in rules where keys.contains(where: { n.contains($0) }) { return symbol }
+        return "star"
     }
 }
