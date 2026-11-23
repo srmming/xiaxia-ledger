@@ -280,7 +280,7 @@ struct DemoBuilder {
     mutating func plans() {
         let P = Self.P, S = Self.S
         if let gResult = try? l.addGoal(name: "应急金", bookID: P, target: eur(5000), deadline: demoDay(demoShift(end.yearMonth, 6), 30),
-                                       savingsAccountID: "pot", icon: "cross.case", stash: .card, stashNote: "Revolut 储蓄罐",
+                                       savingsAccountID: "pot", icon: "cross.case", stash: .card, stashNote: "银行 app 里的储蓄罐",
                                        today: demoDay(months[0], 2), author: "你") { goalPot = gResult.0.id }
         stamp(demoDay(months[0], 2))
         if let gResult = try? l.addGoal(name: "店面重新装修", bookID: S, target: eur(6000), deadline: demoDay(demoShift(end.yearMonth, 9), 1),
