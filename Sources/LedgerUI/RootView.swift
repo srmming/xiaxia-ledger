@@ -490,7 +490,8 @@ public struct XiaxiaScene: Scene {
         // -XiaxiaChat：一打开就展开右边的夏夏对话栏（检查对话栏、截图用）。
         if args.contains("-XiaxiaChat") { model.chat.open = true }
         // 引导里选了「打开内置夏夏」：每次打开都展开对话栏。
-        if XiaxiaChatState.chosenOn, !model.chat.available.isEmpty { model.chat.open = true }
+        // 示例数据不连 AI：别一打开就摆个用不了的对话栏，挤窄页面。
+        if XiaxiaChatState.chosenOn, model.chatReady { model.chat.open = true }
         #endif
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }

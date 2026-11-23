@@ -412,7 +412,10 @@ func subscriptionIcon(_ name: String, category: String?) -> String {
         (["宽带", "网费", "fibra", "internet"], "网费"),
         (["保险", "seguro", "insurance"], "保险"),
         (["读书", "书", "kindle", "阅读", "杂志", "报"], "书"),
-        (["云", "cloud", "icloud", "drive", "软件", "字体", "font", "app", "系统", "会员费", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
+        (["云", "cloud", "icloud", "drive", "网盘", "存储"], "数码"),
+        (["收银", "pos", "刷卡"], "设备"),
+        (["字体", "font", "设计", "canva", "figma"], "文具"),
+        (["软件", "app", "系统", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
     ]
     for (words, icon) in rules where words.contains(where: { n.contains($0) }) { return icon }
     return "订阅"
