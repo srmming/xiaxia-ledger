@@ -147,6 +147,8 @@ struct MonthStepper: View {
             }
         }
         .buttonStyle(.borderless)
+        // 截图用：-XiaxiaMonthPanel 1 一打开就弹出选月份的面板。
+        .onAppear { if UserDefaults.standard.bool(forKey: "XiaxiaMonthPanel") { picking = true } }
     }
 }
 
