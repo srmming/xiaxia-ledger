@@ -11,13 +11,13 @@ struct Columns<Main: View, Side: View>: View {
 
     var body: some View {
         let wide = width >= breakpoint
-        let side = min(sideWidth, max(300, (width * 0.42).rounded()))
+        let sideW = min(sideWidth, max(300, (width * 0.42).rounded()))
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: Kit.gap)) : AnyLayout(VStackLayout(alignment: .leading, spacing: Kit.gap))
         layout {
             VStack(alignment: .leading, spacing: Kit.gap) { main() }
                 .frame(maxWidth: .infinity, alignment: .top)
             VStack(alignment: .leading, spacing: Kit.gap) { side() }
-                .frame(width: wide ? side : nil)
+                .frame(width: wide ? sideW : nil)
                 .frame(maxWidth: wide ? nil : .infinity, alignment: .top)
         }
         .background { WidthReader(width: $width) }
