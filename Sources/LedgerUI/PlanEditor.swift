@@ -57,7 +57,7 @@ struct NewPlanSheet: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("新计划")
+        .navigationTitle(kind == .goal ? "新目标" : kind == .installment ? "记分期" : "记借款")
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }

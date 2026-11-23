@@ -32,6 +32,8 @@ private func euroAxis(_ v: Double) -> String { Money(cents: Int64(v * 100)).roun
 struct SpendingPaceChart: View {
     let status: MonthStatus
     var height: CGFloat = 210
+    /// 矮的图（窗口很小时的总览）：纵轴只留两个刻度，不写「今天 / 上月这天」标注，免得挤在一起压住线。
+    private var compact: Bool { height < 100 }
 
     var body: some View {
         let days = status.month.dayCount
@@ -74,6 +76,7 @@ struct SpendingPaceChart: View {
                     PointMark(x: .value("日", t.day), y: .value("花掉", t.amount))
                         .foregroundStyle(Color.brand).symbolSize(50)
                         .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                            if !compact {
                             VStack(alignment: .trailing, spacing: 1) {
                                 Text("\(status.isCurrent ? "今天" : "月底") \(Money(cents: Int64(t.amount * 100)).rounded)")
                                     .font(.caption2.weight(.semibold)).foregroundStyle(.primary)
@@ -84,6 +87,7 @@ struct SpendingPaceChart: View {
                             .fixedSize()
                             .padding(.horizontal, 4).padding(.vertical, 2)
                             .background(Color.cardBackground.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                            }
                         }
                 }
             }
@@ -95,7 +99,7 @@ struct SpendingPaceChart: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { v in
+                AxisMarks(position: .leading, values: .automatic(desiredCount: compact ? 2 : 4)) { v in
                     AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
                     AxisValueLabel { if let d = v.as(Double.self) { Text(euroAxis(d)) } }
                 }

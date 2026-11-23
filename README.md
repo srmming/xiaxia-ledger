@@ -84,4 +84,4 @@ swift run XiaxiaLedgerApp -XiaxiaDemo                   # app 的示例模式用
 
 ## 许可
 
-MIT
+闭源，保留所有权利，见 [LICENSE](LICENSE)。未经作者许可不得使用、复制或分发。

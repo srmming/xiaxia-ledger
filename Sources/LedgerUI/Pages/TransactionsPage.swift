@@ -488,7 +488,7 @@ struct TransactionDetail: View {
                 }
                 Spacer()
                 #if os(macOS)
-                Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏", systemImage: "sparkles") }
+                Button { model.askAbout(tx) } label: { Label("问夏夏", systemImage: "sparkles") }
                     .buttonStyle(.soft).help("在右边的对话栏里问夏夏这一笔")
                 #endif
             }

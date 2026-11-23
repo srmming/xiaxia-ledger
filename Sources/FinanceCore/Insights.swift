@@ -67,7 +67,7 @@ public struct Insight: Identifiable, Hashable, Codable, Sendable {
     enum CodingKeys: String, CodingKey { case id, month, bookID, kind, title, body, metric, page, author, createdAt, dismissedAt }
 
     /// 能写给的页面。
-    public static let pages = ["overview", "spending", "trends", "wealth", "plans"]
+    public static let pages = ["overview", "spending", "trends", "wealth", "plans", "debts"]
 }
 
 public enum InsightError: Error, LocalizedError, Equatable {

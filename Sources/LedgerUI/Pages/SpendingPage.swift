@@ -5,13 +5,17 @@ import SwiftUI
 struct SpendingPage: View {
     @Environment(LedgerModel.self) var model
     @State var byChange = false
+    /// 页面能看到的大小（不算滚动）。窗口矮（比如 1000×612）：圆环小一点、排行少列三类；窗口窄：右栏收窄，仍然左右两栏，一屏放下。
+    @State private var viewport = CGSize(width: 1000, height: 800)
+    private var short: Bool { Viewport.isShort(viewport) }
+    private var narrow: Bool { viewport.width < 900 }
 
     var body: some View {
         let month = model.shownMonth
         let now = model.summary(month)
-        let before = model.summary(month.previous)
         let totals = Reports.categoryTotals([now], expense: true)
-        let previous = Dictionary(Reports.categoryTotals([before], expense: true).map { ($0.name, $0.amount) }, uniquingKeysWith: { a, _ in a })
+        // 对比上个月（ming 2026-11-23）：看本月时比上月同期（1 号到今天），看以前的月就比整个上个月。
+        let previous = previousByCategory(month)
         Group {
             if totals.isEmpty {
                 KitEmptyState(symbol: "chart.pie", title: "\(month.month) 月还没花钱",
@@ -20,19 +24,38 @@ struct SpendingPage: View {
                     .kitCard()
             } else {
                 VStack(alignment: .leading, spacing: Kit.gap) {
-                    // 商户放在圆环下面，和右边的分类排行差不多高，不留一大块空。
-                    Columns(sideWidth: 440, breakpoint: 760) {
+                    // ming 2026-11-23：「花得最多的商户」不要了，一屏放下：左边圆环 + 夏夏，右边分类排行（带上月对比）。
+                    Columns(sideWidth: 440) {
                         donutCard(month: month, now: now, totals: totals, previous: previous)
                         XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
                                    question: "\(month.month) 月钱主要花在哪了？哪些可以省？")
-                        merchantsCard(month: month)
                     } side: {
-                        rankingCard(totals: totals, previous: previous, total: now.expense.magnitude)
+                        rankingCard(month: month, totals: totals, previous: previous, total: now.expense.magnitude)
                     }
                 }
             }
         }
         .kitPage()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
+    }
+
+    /// 看本月：上个月 1 号到同一天；看以前的月：整个上个月。
+    private var sameDay: Int? {
+        let today = LocalDate.today
+        return model.shownMonth == today.yearMonth ? today.day : nil
+    }
+
+    /// 「上月同期」或「10 月」。
+    private func previousName(_ month: YearMonth) -> String {
+        sameDay == nil ? "\(month.previous.month) 月" : "上月同期"
+    }
+
+    private func previousByCategory(_ month: YearMonth) -> [String: Money] {
+        let prev = month.previous
+        var txs = model.baseTransactions
+        if let day = sameDay { txs = txs.filter { $0.date.yearMonth != prev || $0.date.day <= day } }
+        let summary = Summaries.monthly(txs, month: prev, bookID: model.selectedBookID, hiddenAccounts: model.hiddenAccounts)
+        return Dictionary(Reports.categoryTotals([summary], expense: true).map { ($0.name, $0.amount) }, uniquingKeysWith: { a, _ in a })
     }
 
     private func donutCard(month: YearMonth, now: MonthlySummary, totals: [(name: String, amount: Money)], previous: [String: Money]) -> some View {
@@ -42,7 +65,7 @@ struct SpendingPage: View {
         let topBefore = previous[top.name] ?? .zero
         let diff = top.amount - topBefore
         return VStack(spacing: 14) {
-            CategoryDonut(slices: CategoryDonut.slices(totals), centerLabel: "\(month.month) 月花掉", total: now.expense.magnitude, size: 250)
+            CategoryDonut(slices: CategoryDonut.slices(totals), centerLabel: "\(month.month) 月花掉", total: now.expense.magnitude, size: short ? 180 : 250)
                 .id(month)
             if status.lastMonthSameDaySpent.cents > 0 {
                 Text(delta.isExpense ? "比上月同期少花 \(delta.magnitude.rounded)" : "比上月同期多花 \(delta.rounded)")
@@ -52,12 +75,12 @@ struct SpendingPage: View {
                     .background(delta.isExpense ? Color.incomeSoft : Color.sunken, in: Capsule())
             }
             (Text(top.name == totals[0].name ? "" : "房租之外，") + em(top.name) + Text("是最大的一块")
-             + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? "，和 \(month.previous.month) 月差不多。"
-                    : "，比 \(month.previous.month) 月\(diff.isExpense ? "少" : "多") \(diff.magnitude.rounded)。"))
+             + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? "，和\(previousName(month))差不多。"
+                    : "，比\(previousName(month))\(diff.isExpense ? "少" : "多") \(diff.magnitude.rounded)。"))
                 .font(.body).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .kitCard(padding: 24)
+        .kitCard(padding: short ? 16 : 24)
     }
 
     /// 夏夏先说的一句：比上个月多花最多的那一类（没有就说最大的一块）。
@@ -66,19 +89,21 @@ struct SpendingPage: View {
             .filter { !$0.diff.isExpense && $0.diff.cents >= 1000 && previous[$0.name] != nil }
             .sorted { $0.diff > $1.diff }
         if let up = rises.first {
-            return model.voiced("\(up.name)比 \(month.previous.month) 月多花了 \(up.diff.rounded)，是涨得最多的一类。", .bad)
+            return model.voiced("\(up.name)比\(previousName(month))多花了 \(up.diff.rounded)，是涨得最多的一类。", .bad)
         }
         let top = totals[0]
         return previous.isEmpty ? model.voiced("\(month.month) 月花得最多的是\(top.name)，\(top.amount.rounded)。", .neutral)
-            : model.voiced("各类都没比 \(month.previous.month) 月多花，最大的一块还是\(top.name)。", .good)
+            : model.voiced("各类都没比\(previousName(month))多花，最大的一块还是\(top.name)。", .good)
     }
 
-    private func rankingCard(totals: [(name: String, amount: Money)], previous: [String: Money], total: Money) -> some View {
+    private func rankingCard(month: YearMonth, totals: [(name: String, amount: Money)], previous: [String: Money], total: Money) -> some View {
         let all = totals.map { CategorySlice(name: $0.name, amount: $0.amount) }
         let rows = byChange
             ? all.sorted { abs(($0.amount - (previous[$0.name] ?? .zero)).cents) > abs(($1.amount - (previous[$1.name] ?? .zero)).cents) }
             : all
-        let maxAmount = Double(totals.first?.amount.cents ?? 1)
+        // 条的满格按这个月和上个月里最大的那个算，上个月的竖线不会跑出条外。
+        let shownNames = Set(rows.prefix(short ? 7 : 10).map(\.name))
+        let maxAmount = Double(max(totals.first?.amount.cents ?? 1, previous.filter { shownNames.contains($0.key) }.values.map(\.cents).max() ?? 0, 1))
         return VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "分类排行") {
                 Picker("排序", selection: $byChange) {
@@ -87,7 +112,7 @@ struct SpendingPage: View {
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
             }
-            ForEach(Array(rows.prefix(10))) { c in
+            ForEach(Array(rows.prefix(short ? 7 : 10))) { c in
                 SectionLink(section: .transactions, filter: TransactionFilter(category: c.name)) {
                     HStack(spacing: 10) {
                         CategoryIcon(category: c.name, size: 28)
@@ -95,49 +120,66 @@ struct SpendingPage: View {
                             HStack {
                                 Text(c.name).font(.callout)
                                 Spacer()
-                                if byChange {
-                                    let d = c.amount - (previous[c.name] ?? .zero)
-                                    Text(d.isExpense ? "少 \(d.magnitude.rounded)" : "多 \(d.rounded)").font(.caption)
-                                        .foregroundStyle(d.isExpense ? Color.income : Color.fg2)
-                                } else {
-                                    Text("\(Int((Double(c.amount.cents) / Double(max(total.cents, 1)) * 100).rounded()))%")
-                                        .font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
-                                }
+                                Text("\(Int((Double(c.amount.cents) / Double(max(total.cents, 1)) * 100).rounded()))%")
+                                    .font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
                             }
                             Bar(fraction: Double(c.amount.cents) / maxAmount, color: CategoryStyle.color(c.name), height: 5)
+                                .overlay(alignment: .leading) {
+                                    // 上个月（同期）花到哪：一根细竖线。
+                                    if let p = previous[c.name], p.cents > 0 {
+                                        GeometryReader { g in
+                                            Capsule().fill(Color.primary.opacity(0.7)).frame(width: 2, height: 11)
+                                                .offset(x: min(g.size.width - 2, max(0, g.size.width * Double(p.cents) / maxAmount - 1)), y: -3)
+                                        }
+                                    }
+                                }
                         }
-                        Text(c.amount.ui).font(.kitAmount).frame(minWidth: 86, alignment: .trailing)
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(c.amount.ui).font(.kitAmount)
+                            change(c.amount, before: previous[c.name])
+                        }
+                        .frame(minWidth: narrow ? 70 : 86, alignment: .trailing)
                     }
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())
                 }
                 .hoverHighlight()
-                .accessibilityLabel("\(c.name) \(c.amount.spoken)")
+                .accessibilityLabel("\(c.name) \(c.amount.spoken)，\(changeWords(c.amount, before: previous[c.name], month: month))")
                 .accessibilityHint("看这个分类的流水")
+            }
+            if !previous.isEmpty {
+                HStack(spacing: 6) {
+                    Capsule().fill(Color.primary.opacity(0.7)).frame(width: 2, height: 11)
+                    Text(sameDay.map { "竖线是\(month.previous.month) 月 1–\($0) 日花到哪；右边是比那时多了还是少了" }
+                         ?? "竖线是 \(month.previous.month) 月花到哪；右边是比 \(month.previous.month) 月多了还是少了")
+                }
+                .font(.caption).foregroundStyle(Color.fg2)
+                .padding(.top, 4)
+                .accessibilityHidden(true)
             }
         }
         .kitCard()
     }
 
-    private func merchantsCard(month: YearMonth) -> some View {
-        let list = model.topMerchants(month)
-        return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader("花得最多的商户").padding(.bottom, 6)
-            ForEach(list) { m in
-                HStack(spacing: 12) {
-                    Monogram(text: m.name, color: Color.fg3.opacity(0.6), size: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(m.name).font(.callout.weight(.medium)).lineLimit(1)
-                        Text(m.category == nil ? "未分类 · \(m.count) 笔" : m.category == m.name ? "\(m.count) 笔" : "\(m.category!) · \(m.count) 笔").font(.caption).foregroundStyle(Color.fg2)
-                    }
-                    Spacer()
-                    Text(m.amount.ui).font(.kitAmount)
-                }
-                .padding(.vertical, 6)
-                .accessibilityElement(children: .combine)
-                if m.id != list.last?.id { Divider().padding(.leading, 42) }
+    /// 金额下面一行：比上个月（同期）多了红色 ↑、少了绿色 ↓，上个月没有就写「上月没有」。
+    @ViewBuilder private func change(_ now: Money, before: Money?) -> some View {
+        if let before, before.cents > 0 {
+            let d = now - before
+            if d.magnitude.cents < 100 {
+                Text("持平").font(.caption).foregroundStyle(Color.fg3)
+            } else {
+                Text("\(d.isExpense ? "↓" : "↑") \(d.magnitude.rounded)").font(.caption.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(d.isExpense ? Color.income : Color.alert)
             }
+        } else {
+            Text("上月没有").font(.caption).foregroundStyle(Color.fg3)
         }
-        .kitCard()
+    }
+
+    private func changeWords(_ now: Money, before: Money?, month: YearMonth) -> String {
+        guard let before, before.cents > 0 else { return "\(previousName(month))没有" }
+        let d = now - before
+        if d.magnitude.cents < 100 { return "和\(previousName(month))差不多" }
+        return "比\(previousName(month))\(d.isExpense ? "少" : "多") \(d.magnitude.rounded)"
     }
 }

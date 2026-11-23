@@ -206,9 +206,9 @@ struct TxRow: View {
         .accessibilityElement(children: .combine)
         #if os(macOS)
         .contextMenu {
-            Button { model.chat.ask(about: tx, model: model) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
+            Button { model.askAbout(tx) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
         }
-        .accessibilityAction(named: "问夏夏这一笔") { model.chat.ask(about: tx, model: model) }
+        .accessibilityAction(named: "问夏夏这一笔") { model.askAbout(tx) }
         #endif
     }
 

@@ -68,7 +68,9 @@ struct BigMoney: View {
 
     var body: some View {
         let text = money.balance
-        let parts = text.replacingOccurrences(of: " €", with: "").split(separator: ",", maxSplits: 1)
+        // 金额格式里 € 前面是不换行空格（U+00A0），连空格一起去掉，不然会出现「,42 € €」。
+        let parts = text.replacingOccurrences(of: "€", with: "").trimmingCharacters(in: .whitespaces)
+            .split(separator: ",", maxSplits: 1)
         let whole = String(parts.first ?? "")
         let cents = parts.count > 1 ? "," + parts[1] : ""
         (Text(whole).foregroundColor(color)
@@ -353,6 +355,7 @@ extension View {
 struct ToastView: View {
     let toast: LedgerModel.Toast
     let undo: () -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         HStack(spacing: 12) {
@@ -361,6 +364,15 @@ struct ToastView: View {
             Text(toast.text).font(.subheadline).lineLimit(2)
             if toast.changeID != nil {
                 Button("撤销", action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+            }
+            if let label = toast.actionLabel, let url = toast.actionURL {
+                Button(label) {
+                    openURL(url) { opened in
+                        if !opened, let web = toast.fallbackURL { openURL(web) }
+                    }
+                }
+                .font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+                .accessibilityIdentifier("toast.action")
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 11)

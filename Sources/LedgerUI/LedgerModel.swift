@@ -11,8 +11,10 @@ public enum AppSheet: String, Identifiable, Hashable {
     case newCategory
     /// 连上你的 AI（Mac 第一次打开、设置里）。
     case connectAI
-    /// 计划页「新计划」：存钱目标、分期、借款。
+    /// 目标页「新目标」：存钱目标（也能切到分期、借款）。
     case plan
+    /// 欠款与分期页：直接打开登记分期 / 借款。
+    case newInstallment, newDebt
     public var id: String { rawValue }
 }
 
@@ -26,6 +28,11 @@ public final class LedgerModel {
         public var isError = false
         /// 停留几秒；不填按有没有撤销决定（3 秒 / 10 秒）。
         public var seconds: Double? = nil
+        /// 提示里的一个按钮（比如「打开 Claude」）：由用户自己点，不替用户跳走。
+        public var actionLabel: String? = nil
+        public var actionURL: URL? = nil
+        /// 按钮的链接打不开时改开这个（Claude app 没装 → 网页版）。
+        public var fallbackURL: URL? = nil
     }
 
     public let store: any LedgerStore
@@ -57,6 +64,10 @@ public final class LedgerModel {
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?
+    /// 第一次打开的开始引导（夏夏带着建账本、账户、连 AI）正在显示。
+    public var showWelcome = false
+    /// 从「问夏夏」的「去连接」进引导：跳过账本、账户，直接到连 AI 那一步。
+    public var welcomeAtAI = false
     /// 做完一件事后底部的提示。
     public var toast: Toast?
     /// 这次打开 app 以来自己做的改动，⌥⌘Z 从最后一条往回撤。
@@ -202,9 +213,11 @@ public final class LedgerModel {
         let change = try body(&copy)
         try store.save(copy)
         lastStamp = store.changeStamp()
+        let oldIDs = Set(ledger.transactions.map(\.id))
         ledger = copy
         cache = nil; authorCache = nil
         dropMissingSelection()
+        revealAdded(copy.transactions.filter { !oldIDs.contains($0.id) })
         if change.canUndo { undoStack.append(change.id) }
         if !quiet { toast = Toast(text: change.summary, changeID: change.canUndo ? change.id : nil) }
         return change
@@ -230,6 +243,13 @@ public final class LedgerModel {
         } catch {
             toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
         }
+    }
+
+    /// 刚记的流水不在正在看的月份 / 账本里：跳过去，免得记了却「没出来」。
+    func revealAdded(_ added: [FinanceCore.Transaction]) {
+        guard let latest = added.map(\.date).max() else { return }
+        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = nil }
+        if !added.contains(where: { $0.date.yearMonth == shownMonth }) { selectedMonth = latest.yearMonth }
     }
 
     /// 正在看的账本被删了：回到「全部」。
@@ -403,7 +423,12 @@ public final class LedgerModel {
 
 extension LedgerModel {
     /// 预览和截图用的内存账本，数字全是编的。
-    public static func demo() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.demo)) }
+    /// persona：截图时看不同性格（-XiaxiaPersona cheer），只改内存里的示例账本。
+    public static func demo(persona: Persona? = nil) -> LedgerModel {
+        var l = Ledger.demo
+        if let persona { l.profile.persona = persona }
+        return LedgerModel(store: InMemoryLedgerStore(l))
+    }
     /// 空账本：看第一次打开的样子。
     public static func empty() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.fresh)) }
 }

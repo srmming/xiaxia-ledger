@@ -26,6 +26,37 @@ enum Clipboard {
 
 extension LedgerModel {
     /// 现在看的是哪儿：给 AI 的话前面带上，AI 就知道你在问哪个月、哪个账本。
+    /// 没开内置夏夏时，所有「问夏夏」都是复制好提示词交给用户自己的 AI，提示统一用这两句（ming 2026-11-23 定的说法）。
+    static let copiedForAI = "提示词已经复制，可以发给你的 AI"
+
+    /// 没开内置夏夏时「问夏夏」的统一做法：复制好（带上这一页的情况），在 app 里停一会儿提示，
+    /// 旁边给个「打开 Claude」按钮让用户自己点。不自动跳走：跳走了用户看不到提示，会以为没反应。
+    func handOffToAI(_ text: String, page: String? = nil) {
+        let full = page.map { contextLine(page: $0) + text } ?? text
+        Clipboard.copy(full)
+        var t = Toast(text: Self.copiedForAI, changeID: nil, seconds: 8)
+        #if os(macOS)
+        // Mac 上装了 Claude 桌面版才给按钮；用 Codex、ChatGPT 的人只看提示，自己去粘。
+        if let app = URL(string: "claude://"), NSWorkspace.shared.urlForApplication(toOpen: app) != nil {
+            t.actionLabel = "打开 Claude"; t.actionURL = app
+        }
+        #else
+        t.actionLabel = "打开 Claude"
+        t.actionURL = URL(string: "claude://")
+        t.fallbackURL = URL(string: "https://claude.ai/new")
+        #endif
+        toast = t
+    }
+
+    /// 「问夏夏这一笔」：开着内置夏夏就放进对话栏，没开就复制好交给用户的 AI。
+    func askAbout(_ tx: Transaction) {
+        #if os(macOS)
+        if chatReady { chat.ask(about: tx, model: self); return }
+        #endif
+        selectedTransactionID = tx.id
+        handOffToAI("这一笔：\(tx.date.month) 月 \(tx.date.day) 日「\(Merchant.display(tx.description))」\(tx.amount.formatted)，帮我看看", page: (section ?? .overview).rawValue)
+    }
+
     func contextLine(page: String) -> String {
         var line = "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
         line += "请你当「夏夏」，用「\(ledger.profile.persona.label)」的口吻回答。"
@@ -41,9 +72,16 @@ extension LedgerModel {
         switch section {
         case .plans:
             return [AIPrompt(kind: "目标", text: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够"),
-                    AIPrompt(kind: "欠款", text: "帮我记一笔欠款：朋友借了我 300 €，下个月还"),
+                    AIPrompt(kind: "存钱", text: "往我的存钱目标里存 100 €"),
+                    AIPrompt(kind: "问问题", text: "照现在的速度，我的存钱目标来得及吗？")]
+        case .debts:
+            return [AIPrompt(kind: "欠款", text: "帮我记一笔欠款：朋友借了我 300 €，下个月还"),
                     AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣"),
-                    AIPrompt(kind: "订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本")]
+                    AIPrompt(kind: "还款", text: "朋友还了我 100 €，帮我记上")]
+        case .subscriptions:
+            return [AIPrompt(kind: "找订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本"),
+                    AIPrompt(kind: "省钱", text: "看看我的订阅，哪些很久没用、可以停掉？"),
+                    AIPrompt(kind: "登记", text: "帮我登记一个订阅：每月 9,99 € 的音乐会员，每月 5 号从银行卡扣")]
         case .spending:
             return [AIPrompt(kind: "问问题", text: "\(m)钱主要花在哪了？哪些可以省？"), record,
                     AIPrompt(kind: "整理", text: "帮我看看\(m)有没有分错类的流水")]
@@ -65,7 +103,7 @@ extension LedgerModel {
     /// 只有 Claude 桌面版的人（最常见的新用户）对话栏答不了，例句就复制去 Claude，别塞进一个用不了的对话栏里丢掉。
     var chatReady: Bool {
         #if os(macOS)
-        !chat.available.isEmpty && !(store is InMemoryLedgerStore)
+        chat.enabled && !chat.available.isEmpty && !(store is InMemoryLedgerStore)
         #else
         false
         #endif
@@ -91,13 +129,7 @@ struct AskAIAction {
             return
         }
         #endif
-        let full = page.map { model.contextLine(page: $0) + text } ?? text
-        Clipboard.copy(full)
-        model.toast = .init(text: open ? "已复制，在 Claude 里粘贴就行" : "已复制", changeID: nil)
-        guard open, let app = URL(string: "claude://") else { return }
-        openURL(app) { accepted in
-            if !accepted, let web = URL(string: "https://claude.ai/new") { openURL(web) }
-        }
+        model.handOffToAI(text, page: page)
     }
 }
 
