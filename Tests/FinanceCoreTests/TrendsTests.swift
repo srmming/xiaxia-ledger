@@ -25,7 +25,7 @@ final class TrendsTests: XCTestCase {
         XCTAssertEqual(out[0].since, YearMonth(year: 2026, month: 7))
         XCTAssertEqual(out[0].extra, Money(cents: 80_00))
         XCTAssertTrue(Trends.creeping(Array(months.prefix(2))).isEmpty, "不到 3 个月不找")
-        XCTAssertEqual(Trends.averageSaved(months), Money(cents: (2000_00 * 5 - 1020_00 - 992_00 - 1064_00 - 1106_00 - 1198_00) / 5))
+        XCTAssertEqual(Trends.averageSaved(months), Money(cents: 924_00), "五个月一共存下 4.620 €")
         XCTAssertEqual(Trends.averageSaved([]), .zero)
     }
 
