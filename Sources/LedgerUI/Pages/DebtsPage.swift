@@ -27,12 +27,13 @@ struct DebtsPage: View {
                 AskAICard(title: "跟夏夏说一句也能记", note: nil, page: "欠款与分期", prompts: model.prompts(for: .debts))
             }
         } else {
+            // ming 2026-11-23：分期没还完的也是欠款。按「我欠的 / 欠我的」分两边，分期和借来的钱放在一起。
             VStack(alignment: .leading, spacing: Kit.gap) {
                 totalsCard(installments: installments, debts: debts)
-                Columns(sideWidth: 400, breakpoint: 780) {
-                    installmentsCard(installments)
+                Columns(sideWidth: 320, breakpoint: 640) {
+                    iOweCard(installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
                 } side: {
-                    debtsCard(debts)
+                    owedToMeCard(debts.filter { $0.direction == .theyOweMe })
                 }
             }
         }
@@ -71,8 +72,16 @@ struct DebtsPage: View {
     }
 
     @ViewBuilder private func figures(_ o: Obligations) -> some View {
-        figure("我还欠", o.iOwe, note: "借来的 + 分期没还完", color: o.iOwe.cents > 0 ? .primary : .fg2)
+        figure("我还欠", o.iOwe, note: oweNote(o), color: o.iOwe.cents > 0 ? .primary : .fg2)
         figure("别人欠我", o.owedToMe, note: "借出去还没收回", color: o.owedToMe.cents > 0 ? .income : .fg2)
+    }
+
+    /// 「分期 989 € + 借款 250 €」：我还欠的是哪几块。
+    private func oweNote(_ o: Obligations) -> String {
+        var parts: [String] = []
+        if o.installments.cents > 0 { parts.append("分期 \(o.installments.rounded)") }
+        if o.borrowed.cents > 0 { parts.append("借款 \(o.borrowed.rounded)") }
+        return parts.isEmpty ? "什么都不欠" : parts.joined(separator: " + ")
     }
 
     private func figure(_ label: String, _ money: Money, note: String, color: Color) -> some View {
@@ -118,30 +127,47 @@ struct DebtsPage: View {
         }
     }
 
-    // MARK: 分期
+    // MARK: 我欠的（分期 + 借来的）
 
-    private func installmentsCard(_ list: [InstallmentStatus]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeader("分期")
-            if list.isEmpty {
-                Text("没有在还的分期。分期买东西时点「记分期」，每期扣款就不会算成花销。")
+    private func iOweCard(installments: [InstallmentStatus], borrowed: [DebtStatus]) -> some View {
+        let total = installments.reduce(Money.zero) { $0 + $1.remaining } + borrowed.reduce(Money.zero) { $0 + $1.outstanding }
+        return VStack(alignment: .leading, spacing: 4) {
+            header("我欠的", total)
+            if installments.isEmpty && borrowed.isEmpty {
+                Text("什么都不欠。分期买东西点「记分期」，跟别人借钱点「记借款」。")
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
-            ForEach(list, id: \.id) { i in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(i.name).font(.callout.weight(.medium)).lineLimit(1)
-                        Spacer()
-                        Text("还剩 \(i.remaining.rounded)").font(.kitAmount)
-                        PlanRowMenu(target: .installment(i.id), name: i.name)
-                    }
-                    SegmentedProgress(done: i.paidCount, total: i.count)
-                    Text(installmentNote(i)).font(.caption).foregroundStyle(Color.fg2)
-                }
-                .accessibilityElement(children: .contain)
+            ForEach(installments, id: \.id) { i in
+                installmentRow(i)
+                if i.id != installments.last?.id || !borrowed.isEmpty { Divider().padding(.leading, 44) }
+            }
+            ForEach(borrowed, id: \.id) { d in
+                debtRow(d)
+                if d.id != borrowed.last?.id { Divider().padding(.leading, 42) }
             }
         }
         .kitCard()
+    }
+
+    private func installmentRow(_ i: InstallmentStatus) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            CategoryIcon(category: "分期", size: 32)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(i.name).font(.callout.weight(.medium)).lineLimit(1)
+                    Text("分期").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg2)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(Color.sunken, in: Capsule())
+                    Spacer()
+                    Text("还剩 \(i.remaining.rounded)").font(.kitAmount)
+                    PlanRowMenu(target: .installment(i.id), name: i.name)
+                }
+                SegmentedProgress(done: i.paidCount, total: i.count)
+                Text(installmentNote(i)).font(.caption).foregroundStyle(Color.fg2)
+            }
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .contain)
     }
 
     private func installmentNote(_ i: InstallmentStatus) -> String {
@@ -153,38 +179,38 @@ struct DebtsPage: View {
         return parts.joined(separator: " · ")
     }
 
-    // MARK: 借款往来
+    // MARK: 欠我的
 
-    private func debtsCard(_ debts: [DebtStatus]) -> some View {
-        let mine = debts.filter { $0.direction == .iOweThem }
-        let theirs = debts.filter { $0.direction == .theyOweMe }
-        return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader("借款往来").padding(.bottom, 2)
-            if debts.isEmpty {
-                Text("没有没还清的借款。借给别人或跟别人借时点「记借款」。")
+    private func owedToMeCard(_ list: [DebtStatus]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            header("欠我的", list.reduce(Money.zero) { $0 + $1.outstanding })
+            if list.isEmpty {
+                Text("没有借出去还没收回的钱。借给别人时点「记借款」。")
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
-            group("我欠的", mine)
-            group("欠我的", theirs)
+            ForEach(list, id: \.id) { d in
+                debtRow(d)
+                if d.id != list.last?.id { Divider().padding(.leading, 42) }
+            }
         }
         .kitCard()
     }
 
-    @ViewBuilder private func group(_ title: String, _ list: [DebtStatus]) -> some View {
-        if !list.isEmpty {
-            HStack {
-                Text(title).font(.kitSection)
-                Spacer()
-                Text(list.reduce(Money.zero) { $0 + $1.outstanding }.rounded).font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
+    private func header(_ title: String, _ total: Money) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            SectionHeader(title)
+            Spacer()
+            if total.cents > 0 {
+                Text(total.rounded).font(.callout.weight(.semibold)).foregroundStyle(Color.fg2).monospacedDigit()
             }
-            .padding(.top, 8).padding(.bottom, 2)
-            ForEach(list, id: \.id) { d in
-                HStack(spacing: 6) {
-                    DebtRow(debt: d)
-                    PlanRowMenu(target: .debt(d.id), name: d.counterparty)
-                }
-                if d.id != list.last?.id { Divider().padding(.leading, 42) }
-            }
+        }
+        .padding(.bottom, 2)
+    }
+
+    private func debtRow(_ d: DebtStatus) -> some View {
+        HStack(spacing: 6) {
+            DebtRow(debt: d)
+            PlanRowMenu(target: .debt(d.id), name: d.counterparty)
         }
     }
 }

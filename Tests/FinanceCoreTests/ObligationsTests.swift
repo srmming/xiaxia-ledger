@@ -32,6 +32,9 @@ final class ObligationsTests: XCTestCase {
         XCTAssertEqual(oct.owedToMe.cents, 20000)
         XCTAssertEqual(oct.iOwe.cents, 50000 + 50000)
         XCTAssertEqual(oct.net.cents, 20000 - 100000)
+        // 我还欠的拆开：分期 500 + 借来的 500
+        XCTAssertEqual(oct.installments.cents, 50000)
+        XCTAssertEqual(oct.borrowed.cents, 50000)
         // 借之前什么都没有
         XCTAssertTrue(Plans.obligations(l, asOf: d(8, 31)).isEmpty)
     }
