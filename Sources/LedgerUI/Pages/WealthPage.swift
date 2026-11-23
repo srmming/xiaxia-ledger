@@ -97,7 +97,7 @@ struct WealthPage: View {
         let hasShop = model.ledger.books.contains(where: \.isBusiness)
         let sentence: Text = {
             if free.cents < 0 {
-                return Text(tr("手头的钱还不够还欠的，差 ")) + em(free.magnitude.rounded, .bad) + Text("。")
+                return Text(tr("手头的钱还不够还欠的，差 ")) + em(free.magnitude.rounded, .bad) + Text(tr("。"))
             }
             if let months = w.months(monthlySpend: spend) {
                 return Text(tr("够花 ")) + em(tr("\(WealthBreakdown.monthsText(months)) 个月"), .good)
