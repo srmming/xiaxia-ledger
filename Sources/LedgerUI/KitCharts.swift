@@ -321,8 +321,7 @@ struct NetWorthChart: View {
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
         // 横轴用序号（0、1、2…），比用文字分类稳：隔 3 个月标一次，最后一个月一定标。
-        .chartXScale(domain: 0...max(points.count - 1, 1))
-        .chartXScale(range: .plotDimension(endPadding: 10))
+        .chartXScale(domain: 0...max(points.count - 1, 1), range: .plotDimension(endPadding: 10))
         .chartXAxis {
             AxisMarks(values: MonthAxisTicks.indices(count: points.count, every: labelEvery)) { v in
                 AxisValueLabel(anchor: .top) {
