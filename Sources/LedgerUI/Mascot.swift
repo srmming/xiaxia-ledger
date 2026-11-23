@@ -113,6 +113,16 @@ extension Persona {
     }
 }
 
+/// 角色用女生版还是男生版（设置里选，存在这台设备上）。男生版的图叫 `<角色>-boy-<动作>.webp`，没有就用女生版。
+enum MascotLook: String, CaseIterable, Identifiable {
+    case girl, boy
+    var id: String { rawValue }
+    var label: String { self == .girl ? "女生" : "男生" }
+    static let storageKey = "mascotLook"
+    /// 男生版的图在不在（还没画好时设置里不显示这个开关）。
+    static var boyAvailable: Bool { MascotImages.has("xiaxia-boy-idle") }
+}
+
 /// 读图（带缓存，读一次就留着）。
 enum MascotImages {
     private static let lock = NSLock()
@@ -139,9 +149,16 @@ enum MascotImages {
     static func has(_ key: String) -> Bool { image(key) != nil }
 
     /// 这个角色这个动作实际用哪张图：没有就退回待机图。
-    static func key(_ character: MascotCharacter, _ pose: MascotPose) -> String {
-        let k = "\(character.rawValue)-\(pose.rawValue)"
-        return has(k) ? k : "\(character.rawValue)-idle"
+    static func key(_ character: MascotCharacter, _ pose: MascotPose, look: MascotLook = .girl) -> String {
+        let p = prefix(character, look)
+        let k = "\(p)-\(pose.rawValue)"
+        return has(k) ? k : "\(p)-idle"
+    }
+
+    /// 图名前缀：男生版有图就用 `xiaxia-boy`，否则 `xiaxia`。
+    static func prefix(_ character: MascotCharacter, _ look: MascotLook) -> String {
+        if look == .boy, has("\(character.rawValue)-boy-idle") { return "\(character.rawValue)-boy" }
+        return character.rawValue
     }
 }
 
@@ -157,6 +174,9 @@ struct MascotView: View {
     var animated = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(MascotLook.storageKey) private var lookRaw = MascotLook.girl.rawValue
+    private var look: MascotLook { MascotLook(rawValue: lookRaw) ?? .girl }
+    private var prefix: String { MascotImages.prefix(character, look) }
     /// 每个形象的节奏错开一点，几个一起出现时不会齐步走。
     @State private var seed = Double.random(in: 0...10)
 
@@ -179,14 +199,14 @@ struct MascotView: View {
             }
         }
         .frame(width: size, height: size)
-        .id("\(character.rawValue)-\(pose.rawValue)-\(face)")
+        .id("\(prefix)-\(pose.rawValue)-\(face)")
         .transition(.asymmetric(insertion: .scale(scale: 0.85).combined(with: .opacity), removal: .opacity))
         .accessibilityHidden(true)
     }
 
     // MARK: 用哪一帧
 
-    private var baseKey: String { MascotImages.key(character, pose) }
+    private var baseKey: String { MascotImages.key(character, pose, look: look) }
 
     /// 眨眼：大约每 3.7 秒眨一下，偶尔连眨两下。只有待机图有闭眼帧。
     private func blinking(_ t: Double) -> Bool {
@@ -198,7 +218,7 @@ struct MascotView: View {
         return n % 3 == 0 && p > 0.24 && p < 0.34
     }
 
-    private var talkKeyAvailable: Bool { MascotImages.has("\(character.rawValue)-talk") && baseKey.hasSuffix("-idle") }
+    private var talkKeyAvailable: Bool { MascotImages.has("\(prefix)-talk") && baseKey.hasSuffix("-idle") }
 
     /// 说话：不规则地一张一合，像在念字。
     private func mouthOpen(_ t: Double) -> Bool {
@@ -208,9 +228,9 @@ struct MascotView: View {
     }
 
     private func frameKey(_ t: Double) -> String {
-        if mouthOpen(t) { return "\(character.rawValue)-talk" }
-        if blinking(t), MascotImages.has("\(character.rawValue)-blink"), baseKey.hasSuffix("-idle") {
-            return "\(character.rawValue)-blink"
+        if mouthOpen(t) { return "\(prefix)-talk" }
+        if blinking(t), MascotImages.has("\(prefix)-blink"), baseKey.hasSuffix("-idle") {
+            return "\(prefix)-blink"
         }
         return baseKey
     }
@@ -252,7 +272,7 @@ struct MascotView: View {
     @ViewBuilder
     private func faceView(_ t: Double) -> some View {
         let key = frameKey(t)
-        let f = MascotData.faces[baseKey] ?? MascotData.faces["\(character.rawValue)-idle"] ?? (0.5, 0.4, 0.4)
+        let f = MascotData.faces[baseKey] ?? MascotData.faces["\(prefix)-idle"] ?? (0.5, 0.4, 0.4)
         let scale = 1 / f.size
         let tilt = t > 0 ? 2.5 * sin(t * 2 * .pi / 5) : 0
         ZStack {

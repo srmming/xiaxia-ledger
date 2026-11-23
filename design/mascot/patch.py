@@ -4,7 +4,7 @@ from PIL import Image, ImageFilter, ImageDraw
 base=Image.open(sys.argv[1]).convert('RGBA'); var=Image.open(sys.argv[2]).convert('RGBA').resize(base.size)
 x0,y0,x1,y1=map(int,sys.argv[4:8])
 A=np.asarray(base).astype(np.float32); 
-pad=60
+pad=50
 ref=A[y0-pad:y1+pad, x0-pad:x1+pad,:3]
 best=None
 V=np.asarray(var).astype(np.float32)
@@ -13,8 +13,8 @@ h,w=ref.shape[:2]; m=np.ones((h,w),np.float32); m[pad:-pad,pad:-pad]=0.15
 for s in [0.99,0.995,1.0,1.005,1.01]:
   vs=np.asarray(var.resize((round(base.size[0]*s),round(base.size[1]*s)),Image.LANCZOS)).astype(np.float32)
   off=(vs.shape[0]-A.shape[0])//2
-  for dy in range(-14,15,2):
-    for dx in range(-14,15,2):
+  for dy in range(-40,41,2):
+    for dx in range(-40,41,2):
       yy=y0-pad+dy+off; xx=x0-pad+dx+off
       if yy<0 or xx<0: continue
       win=vs[yy:yy+h, xx:xx+w,:3]
