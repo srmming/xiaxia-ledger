@@ -490,7 +490,7 @@ extension LedgerModel {
     @discardableResult
     public func wipe(_ scope: WipeScope) throws -> URL? {
         var backup: URL?
-        if let file = ledgerFileURL { backup = try LedgerBackup.make(of: file, label: tr("删除前")) }
+        if let file = ledgerFileURL { backup = try LedgerBackup.make(of: file, label: "删除前") }
         var copy = ledger
         try copy.wipe(scope, author: author, backupNote: backup.map { "\(LedgerBackup.folderName)/\($0.lastPathComponent)" })
         try store.save(copy)
@@ -509,7 +509,7 @@ extension LedgerModel {
     /// 从备份恢复：先把现在的账本也备份一份，再把备份里的内容存回来。
     public func restore(_ item: LedgerBackup.Item) throws {
         let old = try LedgerBackup.load(item.url)
-        if let file = ledgerFileURL { try LedgerBackup.make(of: file, label: tr("恢复前")) }
+        if let file = ledgerFileURL { try LedgerBackup.make(of: file, label: "恢复前") }
         try store.save(old)
         lastStamp = store.changeStamp()
         ledger = old

@@ -40,9 +40,9 @@ public enum AppUpdateSupport {
         guard let url = (store as? MigratingStore)?.primary.url ?? (store as? SQLiteLedgerStore)?.url else { return nil }
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else { return nil }
-        let folder = url.deletingLastPathComponent().appendingPathComponent(tr("更新前备份"))
+        let folder = url.deletingLastPathComponent().appendingPathComponent("更新前备份")
         let f = DateFormatter(); f.dateFormat = "yyyyMMdd-HHmmss"; f.locale = Locale(identifier: "en_US_POSIX")
-        let dest = folder.appendingPathComponent(tr("ledger-\(f.string(from: Date()))-更新到\(toVersion).sqlite"))
+        let dest = folder.appendingPathComponent("ledger-\(f.string(from: Date()))-更新到\(toVersion).sqlite")
         do {
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
             try fm.copyItem(at: url, to: dest)
