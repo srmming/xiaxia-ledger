@@ -27,8 +27,8 @@ settings:
     # Sparkle 更新签名的公钥（不是秘密）。第一次在 ming 的 Mac 上跑 Sparkle 的 generate_keys 生成后填这里。
     XIAXIA_SPARKLE_PUBLIC_KEY: ajRgl6g9W0Bsi+K/pjud0yYHoq9ezdaY64qlM9hIgSQ=
     # 自动更新的网址前缀（只改这一处）：<前缀>/appcast.xml 是更新清单，<前缀>/download/xiaxia-ledger-<版本>.dmg 是安装包。
-    # 官网域名定了就换成 https://<域名>；之前先用只放安装包的公开仓库 srmming/xiaxia-ledger-releases。
-    XIAXIA_UPDATE_BASE: https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main
+    # 官网 xiaxia.ming95.com（官网线程部署，site/deploy.sh 上传 dist/）。
+    XIAXIA_UPDATE_BASE: https://xiaxia.ming95.com
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_LANGUAGE: zh-Hans
