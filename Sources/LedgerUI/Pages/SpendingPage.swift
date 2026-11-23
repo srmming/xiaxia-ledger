@@ -30,7 +30,7 @@ struct SpendingPage: View {
                     // ming 2026-11-23：夏夏卡放最上面，跟总览一样是一叠卡，专讲花销（哪类花多了、主要花在哪、怎么省）。
                     let nudges = Nudges.spending(month: month.month, current: totals, previous: previous, previousName: previousName(month),
                                                  transactions: model.expenseTransactions(month, bookID: model.selectedBookID),
-                                                 currency: model.ledger.baseCurrency)
+                                                 currency: model.ledger.baseCurrency, total: now.expense.magnitude)
                     let insights = [model.ledger.insight(forPage: "spending", month: month, bookID: model.selectedBookID)].compactMap { $0 }
                     if nudges.isEmpty && insights.isEmpty {
                         XiaxiaSays(page: "spending", pageName: "花销", sentence: xiaxia(month: month, totals: totals, previous: previous),
@@ -106,10 +106,10 @@ struct SpendingPage: View {
 
             if chartStyle == "bar" {
                 CompareBars(current: totals, previous: previous, currentName: "\(month.month) 月", previousName: prevLabel,
-                            height: short ? 150 : 220)
+                            height: short ? 110 : 220)
                     .id(month)
             } else {
-                let size: CGFloat = short ? 130 : narrow ? 160 : 190
+                let size: CGFloat = short ? 110 : narrow ? 150 : 180
                 HStack(alignment: .top, spacing: short ? 16 : 28) {
                     VStack(spacing: 6) {
                         ZStack {
@@ -128,14 +128,35 @@ struct SpendingPage: View {
                     }
                     .id(month)
                 }
+                // 图例：两个圆环里的颜色各是哪一类（按这个月从多到少，上个月才有的排后面）。
+                let names = legendNames(totals, prevTotals)
+                FlowLayout(spacing: 10) {
+                    ForEach(names, id: \.self) { n in
+                        HStack(spacing: 4) {
+                            Circle().fill(n == "其它" ? Color.fg3 : CategoryStyle.color(n)).frame(width: 8, height: 8)
+                            Text(n).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        }
+                    }
+                }
+                .accessibilityHidden(true)
             }
+            if !short {
             (Text(top.name == totals[0].name ? "" : "房租之外，") + em(top.name) + Text("是最大的一块")
              + Text(topBefore.cents == 0 ? "。" : diff.magnitude.cents < 100 ? "，和\(previousName(month))差不多。"
                     : "，比\(previousName(month))\(diff.isExpense ? "少" : "多") \(diff.magnitude.rounded)。"))
                 .font(.body).multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity)
         .kitCard(padding: short ? 16 : 24)
+    }
+
+    /// 两个圆环画到的分类：这个月的前 6 类、上个月的前 6 类，再加「其它」。
+    private func legendNames(_ now: [(name: String, amount: Money)], _ before: [(name: String, amount: Money)]) -> [String] {
+        var names = now.prefix(6).map(\.name)
+        for n in before.prefix(6).map(\.name) where !names.contains(n) { names.append(n) }
+        if now.count > 6 || before.count > 6 { names.append("其它") }
+        return names
     }
 
     /// 夏夏先说的一句：比上个月多花最多的那一类（没有就说最大的一块）。
@@ -157,7 +178,7 @@ struct SpendingPage: View {
             ? all.sorted { abs(($0.amount - (previous[$0.name] ?? .zero)).cents) > abs(($1.amount - (previous[$1.name] ?? .zero)).cents) }
             : all
         // 条的满格按这个月和上个月里最大的那个算，上个月的竖线不会跑出条外。
-        let shownNames = Set(rows.prefix(short ? 5 : 8).map(\.name))
+        let shownNames = Set(rows.prefix(short ? 4 : 8).map(\.name))
         let maxAmount = Double(max(totals.first?.amount.cents ?? 1, previous.filter { shownNames.contains($0.key) }.values.map(\.cents).max() ?? 0, 1))
         return VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "分类排行") {
@@ -167,7 +188,7 @@ struct SpendingPage: View {
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
             }
-            ForEach(Array(rows.prefix(short ? 5 : 8))) { c in
+            ForEach(Array(rows.prefix(short ? 4 : 8))) { c in
                 SectionLink(section: .transactions, filter: TransactionFilter(category: c.name)) {
                     HStack(spacing: 10) {
                         CategoryIcon(category: c.name, size: 28)
@@ -202,7 +223,13 @@ struct SpendingPage: View {
                 .accessibilityLabel("\(c.name) \(c.amount.spoken)，\(changeWords(c.amount, before: previous[c.name], month: month))")
                 .accessibilityHint("看这个分类的流水")
             }
-            if !previous.isEmpty {
+            let shownCount = min(rows.count, short ? 4 : 8)
+            if rows.count > shownCount {
+                SectionLink(section: .transactions) {
+                    Text("还有 \(rows.count - shownCount) 类，在流水里看 ›").font(.caption).foregroundStyle(Color.brand)
+                }
+            }
+            if !previous.isEmpty, !short {
                 HStack(spacing: 6) {
                     Capsule().fill(Color.primary.opacity(0.7)).frame(width: 2, height: 11)
                     Text(sameDay.map { "竖线是\(month.previous.month) 月 1–\($0) 日花到哪；右边是比那时多了还是少了" }

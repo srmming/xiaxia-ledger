@@ -89,10 +89,11 @@ public enum Nudges {
     /// - current / previous: 分类 → 花掉多少（正数）。previous 是上个月（看本月时是上月同期）。
     /// - previousName:「上月同期」或「10 月」。transactions: 这个月的支出流水，用来找「主要花在哪家」。
     public static func spending(month: Int, current: [(name: String, amount: Money)], previous: [String: Money],
-                                previousName: String, transactions: [Transaction], currency: String) -> [Nudge] {
+                                previousName: String, transactions: [Transaction], currency: String, total shown: Money? = nil) -> [Nudge] {
         let now = current.filter { $0.amount.cents > 0 }.sorted { $0.amount > $1.amount }
         guard let top = now.first else { return [] }
-        let total = now.reduce(Int64(0)) { $0 + $1.amount.cents }
+        // total：页面上写的「这个月花掉」（退款抵掉之后的数）。传了就用它，卡片和图上的数才对得上。
+        let total = shown?.magnitude.cents ?? now.reduce(Int64(0)) { $0 + $1.amount.cents }
         let before = previous.filter { $0.value.cents > 0 }
         let prevTotal = before.values.reduce(Int64(0)) { $0 + $1.cents }
         func m(_ cents: Int64) -> String { short(Money(cents: cents), currency) }
