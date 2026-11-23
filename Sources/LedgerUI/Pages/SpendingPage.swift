@@ -77,7 +77,7 @@ struct SpendingPage: View {
         let prevTotal = previous.values.reduce(Money.zero) { $0 + $1 }
         let prevTotals = previous.map { (name: $0.key, amount: $0.value) }.filter { $0.amount.cents > 0 }.sorted { $0.amount > $1.amount }
         let delta = thisTotal - prevTotal
-        let top = totals.first { ![tr("房租"), tr("店租"), tr("住房"), tr("住房房租")].contains($0.name) } ?? totals[0]
+        let top = totals.first { !["房租", "店租", "住房", "住房房租"].contains($0.name) } ?? totals[0]
         let topBefore = previous[top.name] ?? .zero
         let diff = top.amount - topBefore
         let prevLabel = sameDay.map { tr("\(month.previous.month) 月 1–\($0) 日") } ?? tr("\(month.previous.month) 月")

@@ -288,8 +288,8 @@ struct XiaxiaMemorySettings: View {
     /// 「你说的 · 11 月 23 日 · Claude 记下」。
     private func meta(_ n: Memory.Note) -> String {
         var parts = [n.source.label, n.date.friendly]
-        if n.source != .written { parts.append(Self.who(n.author) + tr("记下")) }
-        if let e = n.editedBy { parts.append(Self.who(e) + tr("改过")) }
+        if n.source != .written { parts.append(tr("\(Self.who(n.author))记下")) }
+        if let e = n.editedBy { parts.append(tr("\(Self.who(e))改过")) }
         if let r = n.reviewOn { parts.append(tr("\(r.friendly)回头看")) }
         return parts.joined(separator: " · ")
     }

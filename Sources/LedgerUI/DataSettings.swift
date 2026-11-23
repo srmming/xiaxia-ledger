@@ -162,7 +162,7 @@ struct DataSettingsPane: View {
     // MARK: 动作
 
     private func wipe() {
-        guard typed.trimmingCharacters(in: .whitespacesAndNewlines) == "删除" else {
+        guard typed.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(tr("删除")) == .orderedSame else {
             model.toast = .init(text: tr("没有删：要输入「删除」两个字才行"), changeID: nil, isError: true)
             return
         }

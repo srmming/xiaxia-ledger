@@ -32,7 +32,7 @@ extension LedgerModel {
         let args = ProcessInfo.processInfo.arguments
         // -XiaxiaFreshAI：假装是一台还没连过 AI 的新电脑（看引导里「没配置好」的样子），同样只写假主目录。
         let fresh = args.contains("-XiaxiaFreshAI")
-        guard let fin = BundledFin.path ?? (usesSampleData ? tr("/Applications/夏夏账本.app/Contents/MacOS/fin") : nil) else { return nil }
+        guard let fin = BundledFin.path ?? (usesSampleData ? "/Applications/夏夏账本.app/Contents/MacOS/fin" : nil) else { return nil }
         guard usesSampleData || fresh else { return AIConnector(fin: fin) }
         let noTools = args.contains("-XiaxiaNoTools")
         let fake = FileManager.default.temporaryDirectory
@@ -55,7 +55,7 @@ extension LedgerModel {
                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
             }
             try? c.connect(.claudeDesktop)
-            try? AIConnector(home: fake, fin: tr("/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin"), appFolders: c.appFolders).connect(.hermes)
+            try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
         }
         return c
     }
@@ -63,7 +63,7 @@ extension LedgerModel {
     nonisolated(unsafe) private static var freshHomeReset = false
 
     /// 「一键复制配置提示词」：粘给任何 AI，它自己配好。
-    var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? tr("/Applications/夏夏账本.app/Contents/MacOS/fin")) }
+    var aiSetupPrompt: String { AIConnector.setupPrompt(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin") }
 
     /// 有没有任何 AI 连过账本：写过账、握过手、或者配置里已经有了。
     var anyAIConnected: Bool {

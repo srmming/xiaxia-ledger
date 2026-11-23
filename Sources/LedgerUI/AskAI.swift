@@ -112,7 +112,7 @@ extension LedgerModel {
 
     /// 连别的 AI 工具时粘进它的 MCP 设置里的那段。
     var mcpConfig: String {
-        AIConnector.configSnippet(fin: aiConnector?.fin ?? tr("/Applications/夏夏账本.app/Contents/MacOS/fin"))
+        AIConnector.configSnippet(fin: aiConnector?.fin ?? "/Applications/夏夏账本.app/Contents/MacOS/fin")
     }
 }
 
