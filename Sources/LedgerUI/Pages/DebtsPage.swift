@@ -64,6 +64,15 @@ struct DebtsPage: View {
         let o = Plans.debtOverview(model.ledger, today: .today, bookID: model.selectedBookID)
         let ob = Plans.obligations(model.ledger, asOf: .today, bookID: model.selectedBookID)
         return VStack(alignment: .leading, spacing: short ? 8 : 14) {
+            #if os(iOS)
+            // iPhone 窄：三个数一排放小一号，两个按钮挪到下面一排。
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 14) { figures(o, ob, small: true) }
+                HStack(alignment: .top, spacing: 12) { figures(o, ob, tiny: true) }
+                VStack(alignment: .leading, spacing: 10) { figures(o, ob, small: true) }
+            }
+            addButtons
+            #else
             HStack(alignment: .top) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 32) { figures(o, ob) }
@@ -73,6 +82,7 @@ struct DebtsPage: View {
                 Spacer(minLength: 12)
                 addButtons
             }
+            #endif
             if !o.payoffs.isEmpty {
                 if short {
                     // 窗口矮：时间线只留一行字（哪个月全部还清 + 每笔哪个月清），一屏放下。
@@ -87,12 +97,12 @@ struct DebtsPage: View {
         .accessibilityElement(children: .contain)
     }
 
-    @ViewBuilder private func figures(_ o: DebtPlans.Overview, _ ob: Obligations, small: Bool = false) -> some View {
-        figure("我欠的", o.iOwe, note: oweNote(ob), color: o.iOwe.cents > 0 ? .primary : .fg2, small: small)
+    @ViewBuilder private func figures(_ o: DebtPlans.Overview, _ ob: Obligations, small: Bool = false, tiny: Bool = false) -> some View {
+        figure("我欠的", o.iOwe, note: oweNote(ob), color: o.iOwe.cents > 0 ? .primary : .fg2, small: small, tiny: tiny)
         figure("欠我的", o.owedToMe, note: o.incomingThisMonth.cents > 0 ? "这个月该收回 \(o.incomingThisMonth.rounded)" : "借出去还没收回",
-               color: o.owedToMe.cents > 0 ? .income : .fg2, small: small)
+               color: o.owedToMe.cents > 0 ? .income : .fg2, small: small, tiny: tiny)
         figure("本月要还", o.dueThisMonth, note: o.dueThisMonth.cents > 0 ? "到 \(LocalDate.today.month) 月底" : "这个月没有要还的",
-               color: o.dueThisMonth.cents > 0 ? .warn : .fg2, small: small)
+               color: o.dueThisMonth.cents > 0 ? .warn : .fg2, small: small, tiny: tiny)
     }
 
     /// 「分期 989 € + 借款 250 €」：我还欠的是哪几块。
@@ -103,11 +113,11 @@ struct DebtsPage: View {
         return parts.isEmpty ? "什么都不欠" : parts.joined(separator: " + ")
     }
 
-    private func figure(_ label: String, _ money: Money, note: String, color: Color, small: Bool) -> some View {
+    private func figure(_ label: String, _ money: Money, note: String, color: Color, small: Bool, tiny: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(Color.fg2)
             Text(money.rounded)
-                .font(.system(size: small ? 26 : 32, weight: .bold, design: .rounded)).monospacedDigit()
+                .font(.system(size: tiny ? 21 : small ? 26 : 32, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(color)
                 .contentTransition(.numericText(value: Double(money.cents)))
                 .fixedSize()

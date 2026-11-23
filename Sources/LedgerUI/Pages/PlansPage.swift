@@ -117,7 +117,22 @@ struct GoalsBoard: View {
 
     // MARK: 小卡格子
 
-    private var perRow: Int { 3 }
+    /// iPhone 窄，一排 2 个；Mac 一排 3 个。
+    private var perRow: Int {
+        #if os(iOS)
+        2
+        #else
+        3
+        #endif
+    }
+    /// iPhone 上小卡一律用紧凑样式（「还差 2.000 €」一行，不会被挤没）。
+    private var compactTiles: Bool {
+        #if os(iOS)
+        true
+        #else
+        short
+        #endif
+    }
     private var rowsPerPage: Int {
         #if os(iOS)
         2
@@ -145,7 +160,7 @@ struct GoalsBoard: View {
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: perRow), spacing: 10) {
                 ForEach(slice) { g in
-                    GoalTile(goal: g, compact: short)
+                    GoalTile(goal: g, compact: compactTiles)
                         .draggable(g.id.uuidString) { GoalTile(goal: g).frame(width: 160).environment(model) }
                         .dropDestination(for: String.self) { items, _ in
                             guard let raw = items.first, let id = UUID(uuidString: raw), id != g.id else { return false }
