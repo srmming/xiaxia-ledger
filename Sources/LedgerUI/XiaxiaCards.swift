@@ -89,13 +89,13 @@ struct XiaxiaCards: View {
                                 let depth = CGFloat(k + 1) - (k == 0 ? progress : progress * 0.5)
                                 peek
                                     .scaleEffect(x: 1 - 0.025 * depth, y: 1, anchor: .bottom)
-                                    .offset(y: 7 * depth)
+                                    .offset(y: 10 * depth)
                                     .rotationEffect(.degrees(reduceMotion ? 0 : (k == 0 ? -0.25 : 0.35) * Double(depth)), anchor: .bottom)
-                                    .opacity(1 - 0.28 * Double(depth))
+                                    .opacity(1 - 0.22 * Double(depth))
                             }
                         }
                     }
-                    .padding(.bottom, CGFloat(behind) * 7)
+                    .padding(.bottom, CGFloat(behind) * 10)
                     .gesture(swipe(list, index))
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                     .accessibilityAction(named: "下一张") { flip(list, index, by: 1) }
@@ -138,9 +138,10 @@ struct XiaxiaCards: View {
     /// 后面那几张只画卡的样子（和夏夏卡同样的底色和描边），不画内容。
     private var peek: some View {
         let shape = RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous)
+        // 比上面那张亮一点、描边更明显：深色底上也一眼看出「后面还有」。
         return shape.fill(Color.cardBackground)
-            .overlay(shape.fill(Color.aiSoft.opacity(0.6)))
-            .overlay(shape.strokeBorder(Color.aiLine, lineWidth: 1))
+            .overlay(shape.fill(Color.ai.opacity(0.16)))
+            .overlay(shape.strokeBorder(Color.ai.opacity(0.45), lineWidth: 1))
     }
 
     private func swipe(_ list: [Item], _ index: Int) -> some Gesture {
