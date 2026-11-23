@@ -31,6 +31,8 @@ struct XiaxiaCards: View {
     let nudges: [Nudge]
     /// AI 写的意见：本月点评在前，再是「夏夏建议」里别的没看过的，排在 app 算的后面。
     let insights: [Insight]
+    /// 「接着问」时告诉 AI 用户在看哪一页。
+    var page = "总览"
     @State private var current: String?
     /// 手指（或鼠标）正拖着的距离：松手、拖到一半卡片被换掉，都会自己回到 0，卡不会停在半路。
     @GestureState private var live: CGFloat = 0
@@ -227,7 +229,7 @@ struct XiaxiaCards: View {
                 }
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    Button { ask(n.question, page: "总览") } label: {
+                    Button { ask(n.question, page: page) } label: {
                         Label(n.question, systemImage: "sparkles").lineLimit(1)
                     }
                     .buttonStyle(.softAI)
@@ -250,6 +252,7 @@ struct XiaxiaCards: View {
         case .unusual: .think
         case .upcoming: .worried
         case .praise: .celebrate
+        case .info: .calm
         }
     }
 
