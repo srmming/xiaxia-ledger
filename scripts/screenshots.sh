@@ -88,6 +88,7 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 32-memory-lessons -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab lesson
   snap 33-memory-empty -XiaxiaEmpty 1 -XiaxiaSheet memory
   snap 34-memory-dark -XiaxiaDemo 1 -XiaxiaSheet memory -xiaxia.appearance dark
+  snap 35-memory-in-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage memory
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

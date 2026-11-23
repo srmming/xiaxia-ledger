@@ -73,4 +73,19 @@ final class MemoryFlowTests: XCTestCase {
         search.typeText("姐姐")
         XCTAssertTrue(find(app, "还给姐姐的钱不算花销").waitForExistence(timeout: 5), "搜「姐姐」没搜到")
     }
+
+    /// 设置里一眼找得到「夏夏的记忆」，点进去就是记忆页（2026-11-23 新设置页：一级列表 → 二级页）。
+    func testMemoryEntryInSettings() {
+        let app = launch("-XiaxiaDemo")
+        let settings = app.buttons["设置"].firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 15), "没有「设置」")
+        settings.tap()
+        let row = app.buttons["settings.memory"].firstMatch
+        for _ in 0..<4 where !row.isHittable { app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "设置里没有「夏夏的记忆」")
+        XCTAssertTrue(row.label.contains("记得"), "「夏夏的记忆」那一行没写记得几件事：\(row.label)")
+        row.tap()
+        XCTAssertTrue(app.buttons["memory-add"].firstMatch.waitForExistence(timeout: 5), "点进去不是记忆页")
+        XCTAssertTrue(button(app, "记得的事").exists, "记忆页没有三格切换")
+    }
 }
