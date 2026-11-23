@@ -320,7 +320,8 @@ struct WelcomeView: View {
                     .accessibilityIdentifier("welcome.back")
             }
         }
-        .padding(padding)
+        // 上下留白比左右少：每一页都要在一屏里放下，不用往下滚。
+        .padding(.horizontal, padding).padding(.vertical, wide ? 32 : padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -921,6 +922,14 @@ struct WelcomeView: View {
             return
         }
         model.welcomeAtAI = false
+        // 截图、检查用：启动参数 -XiaxiaWelcomeStep aim|books|accounts|ai|chat 直接停在那一页（不用点）。
+        let jump: [String: Step] = ["aim": .aim, "books": .books, "accounts": .accounts, "ai": .ai, "chat": .chat]
+        if let name = UserDefaults.standard.string(forKey: "XiaxiaWelcomeStep"), let target = jump[name] {
+            if target == .aim { pickedAim = "save" }
+            step = target
+            await say("（检查用：直接到这一页）", pose: .idle)
+            return
+        }
         await say("嗨，我是夏夏！", pose: .hello)
     }
 
