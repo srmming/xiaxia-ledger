@@ -85,6 +85,10 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 25-add -XiaxiaDemo 1 -XiaxiaSheet add
   snap 26-add-empty -XiaxiaEmpty 1 -XiaxiaSheet add
   snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  # 连接体检（2026-11-23）：橙 = 写好了等重开、红 = 夏夏账本换了位置、灰 = 还没连、ChatGPT 连不了 → 换 Codex
+  snap 27-connect-ai-states -XiaxiaEmpty 1 -XiaxiaAIStates 1 -XiaxiaSheet connectAI
+  snap 28-connect-ai-states-dark -XiaxiaEmpty 1 -XiaxiaAIStates 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  snap 29-settings-ai -XiaxiaDemo 1 -XiaxiaAIStates 1 -XiaxiaSection settings -XiaxiaSettingsPage ai
   snap 30-memory -XiaxiaDemo 1 -XiaxiaSheet memory
   snap 31-memory-rules -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab rule
   snap 32-memory-lessons -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab lesson

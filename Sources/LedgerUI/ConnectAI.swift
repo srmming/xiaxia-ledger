@@ -1,5 +1,8 @@
 import FinanceCore
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 // 「连上你的 AI」：Mac 第一次打开时弹出，设置里也能再打开。
 // 夏夏账本自带 fin（MCP 服务），这里找出这台 Mac 装了哪些 AI 工具，点一下帮它们写好 MCP 配置，
@@ -45,7 +48,16 @@ extension LedgerModel {
                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
             }
         }
-        return AIConnector(home: fake, fin: fin, appFolders: [fake.appendingPathComponent("Applications")])
+        let c = AIConnector(home: fake, fin: fin, appFolders: [fake.appendingPathComponent("Applications")])
+        if args.contains("-XiaxiaAIStates") {
+            // 截图看各种状态：Claude 桌面版写好了（等重开）、Hermes 以前连过但夏夏账本换了位置、Codex 装了没连、装了 ChatGPT。
+            for dir in [".hermes", "Applications/ChatGPT.app"] {
+                try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+            }
+            try? c.connect(.claudeDesktop)
+            try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+        }
+        return c
     }
 
     nonisolated(unsafe) private static var freshHomeReset = false
@@ -92,9 +104,7 @@ struct ConnectAIView: View {
     @State private var installed: Set<AIApp> = []
     @State private var connected: Set<AIApp> = []
     @State private var repair: Set<AIApp> = []
-    @State private var picked: Set<AIApp> = []
-    @State private var results: [AIApp: String] = [:]
-    @State private var errors: [AIApp: String] = [:]
+    @State private var unsupported: [UnsupportedAI] = []
     @State private var handshakes: [String: Date] = [:]
     @State private var firstLoad = true
 
@@ -106,7 +116,7 @@ struct ConnectAIView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Image(systemName: "sparkles").font(.system(size: 30, weight: .semibold)).foregroundStyle(Color.ai)
                         .accessibilityHidden(true)
-                    Text("连上你的 AI").font(.title2.weight(.bold))
+                    Text("连接你的 AI").font(.title2.weight(.bold))
                     Text("夏夏账本靠 AI 记账：你跟 AI 说「今天买菜花了 23 €」，它就记进这本账，还能帮你导入对账单、写月报。连一次就好。")
                         .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     Text("账本只在你自己的电脑和 iCloud 里，不经过我们的服务器。")
@@ -121,7 +131,7 @@ struct ConnectAIView: View {
                         .foregroundStyle(Color.alert)
                 }
             } else {
-                if shownApps.isEmpty && !firstLoad {
+                if shownApps.isEmpty && unsupported.isEmpty && !firstLoad {
                     // 这台 Mac 上一个 AI 都没有：先告诉他装哪个，别先给一排「没找到」和用不上的「连上」说明。
                     otherSection
                     selfSetupSection
@@ -134,7 +144,7 @@ struct ConnectAIView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("连上你的 AI")
+        .navigationTitle("连接你的 AI")
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -153,89 +163,19 @@ struct ConnectAIView: View {
         }
     }
 
-    // MARK: ① 选要连的 AI
+    // MARK: ① 每个 AI 一个「连接」
 
     private var toolsSection: some View {
         Section {
-            // 只列这台 Mac 上有的；没找到的合成一行小字，新用户不用对着一排灰色的「没找到」发愁。
-            ForEach(shownApps) { app in toolRow(app) }
-            if !missingApps.isEmpty {
-                Text((shownApps.isEmpty ? "这台 Mac 上没找到：" : "没找到：") + missingApps.map(\.name).joined(separator: "、"))
-                    .font(.caption).foregroundStyle(Color.fg2)
-            }
-            if !results.isEmpty || !errors.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(AIApp.allCases.filter { results[$0] != nil }) { app in
-                        Label("\(app.name) 写好了：\(results[app]!)才会用上", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(Color.income)
-                    }
-                    ForEach(AIApp.allCases.filter { errors[$0] != nil }) { app in
-                        Label("\(app.name)：\(errors[app]!)", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Color.alert)
-                    }
-                }
-                .font(.callout)
-            }
-            if !installed.isEmpty || !repair.isEmpty {
-            HStack {
-                Spacer()
-                Button(action: connectPicked) {
-                    Label(picked.isEmpty ? "连上" : "连上选中的 \(picked.count) 个", systemImage: "link")
-                }
-                .buttonStyle(AISolidButtonStyle())
-                .disabled(picked.isEmpty)
-                .keyboardShortcut(.defaultAction)
-            }
-            }
+            AIHealthList(showMissing: true)
         } header: {
-            Text("① 选要连的 AI")
+            Text("① 点「连接」，夏夏账本帮你配好")
         } footer: {
-            footnote("点「连上」会在这些工具的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。")
+            footnote("点「连接」会在这个 AI 的设置里加上「夏夏账本」这一项，别的设置不动；改之前留一份备份（.bak-xiaxia）。写好后夏夏账本自己测一次能不能读到账本。")
         }
     }
 
     private var shownApps: [AIApp] { AIApp.allCases.filter { installed.contains($0) || connected.contains($0) || repair.contains($0) } }
-    private var missingApps: [AIApp] { AIApp.allCases.filter { !shownApps.contains($0) } }
-
-    private func toolRow(_ app: AIApp) -> some View {
-        let isOn = Binding(get: { picked.contains(app) }, set: { on in if on { picked.insert(app) } else { picked.remove(app) } })
-        return HStack(spacing: 12) {
-            Image(systemName: symbol(app)).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 28, height: 28)
-                .background(installed.contains(app) ? Color.ai : Color.fg3.opacity(0.5), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(app.name).font(.body.weight(.medium))
-                Text(status(app)).font(.caption).foregroundStyle(connected.contains(app) ? Color.income : Color.fg2)
-            }
-            Spacer(minLength: 8)
-            if connected.contains(app) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income).font(.title3)
-                    .accessibilityLabel("已连上")
-            } else if installed.contains(app) || repair.contains(app) {
-                Toggle("连 \(app.name)", isOn: isOn).labelsHidden().toggleStyle(.switch)
-            }
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func status(_ app: AIApp) -> String {
-        if connected.contains(app) {
-            if let seen = lastHandshake(app) { return "已连上 · \(seen.friendly) 用过账本" }
-            return results[app] != nil ? "已连上 · \(app.afterConnect)" : "已连上"
-        }
-        if repair.contains(app) { return "以前连过，但夏夏账本换了位置，要重新连" }
-        return installed.contains(app) ? "这台 Mac 上有" : "这台 Mac 上没找到"
-    }
-
-    private func symbol(_ app: AIApp) -> String {
-        switch app {
-        case .claudeDesktop: "bubble.left.and.text.bubble.right.fill"
-        case .claudeCode, .codex, .gemini, .hermes: "terminal.fill"
-        case .cursor: "chevron.left.forwardslash.chevron.right"
-        }
-    }
 
     // MARK: 或者让 AI 自己配
 
@@ -244,7 +184,7 @@ struct ConnectAIView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("复制配置提示词，粘给任何一个 AI，它会自己把夏夏账本配好").font(.body)
-                    Text("Claude Code、Codex、Hermes 这类能执行命令的 AI 会一次把这台 Mac 上所有 AI 都配好（连同使用说明），最后自己读一次账本确认；不能执行命令的 AI 会告诉你粘到哪儿。")
+                    Text("它会自己配、自己测，测到能读到账本为止；要你点「允许」的地方，它会弹选项问你，不用你自己翻设置。接不了的 AI（比如网页版）会直接告诉你换哪个。")
                         .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
@@ -368,143 +308,288 @@ struct ConnectAIView: View {
         handshakes.filter { $0.value >= openedAt.addingTimeInterval(-5) }.max { $0.value < $1.value }.map { ($0.key, $0.value) }
     }
 
-    private func lastHandshake(_ app: AIApp) -> Date? {
-        handshakes.filter { AIApp.from(clientName: $0.key) == app }.map(\.value).max()
-    }
-
-    private var anyGreen: Bool { !connected.isEmpty || newHandshake != nil || newAIChange != nil }
+        private var anyGreen: Bool { !connected.isEmpty || newHandshake != nil || newAIChange != nil }
 
     private func refresh() {
         guard let c = connector else { return }
-        let before = installed
         installed = Set(AIApp.allCases.filter { c.isInstalled($0) })
         connected = Set(AIApp.allCases.filter { c.isConnected($0) })
         repair = Set(AIApp.allCases.filter { c.needsRepair($0) })
+        unsupported = c.unsupportedInstalled()
         if !model.usesSampleData { handshakes = AIConnections.load() }
-        if firstLoad {
-            // 默认勾上装了但还没连的
-            picked = installed.union(repair).subtracting(connected)
-            firstLoad = false
-        } else {
-            // 开着这一页时刚装好的 AI，也默认勾上
-            picked.formUnion(installed.subtracting(before).subtracting(connected))
-            picked.subtract(connected)
-        }
+        firstLoad = false
         model.refreshIfChanged()
-    }
-
-    private func connectPicked() {
-        guard let c = connector else { return }
-        for app in AIApp.allCases where picked.contains(app) {
-            do {
-                try AISetup(connector: c).connect(app)
-                results[app] = app.afterConnect
-                errors[app] = nil
-            } catch {
-                errors[app] = error.localizedDescription
-                results[app] = nil
-            }
-        }
-        picked.removeAll()
-        refresh()
-        if !results.isEmpty { model.toast = .init(text: "写好了，重开一次 AI 工具就能用", changeID: nil) }
     }
 }
 
 /// iPhone 设置里：AI 在 Mac 上连。
 struct ConnectAIPhoneNote: View {
     var body: some View {
-        Text("AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，设置 →「连上你的 AI」。连好后 AI 记的账会同步到这里。")
+        Text("AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，设置 →「连接你的 AI」。连好后 AI 记的账会同步到这里。")
             .font(.caption).foregroundStyle(Color.fg2)
     }
 }
 
-/// 设置页「AI 连接（MCP）」：每个 AI 工具连没连、最近一次用账本是什么时候；没连的一键连上。
+/// 设置页「AI 连接」：每个 AI 一个圆点和「连接」按钮（同一套 AIHealthList），再加上握过手的别的工具（比如 Cherry Studio）。
 struct AIStatusRows: View {
     @Environment(LedgerModel.self) var model
-    @State private var rows: [(app: AIApp, installed: Bool, connected: Bool, repair: Bool)] = []
     @State private var handshakes: [String: Date] = [:]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let shown = rows.filter { $0.installed || $0.connected || $0.repair }
-            if shown.isEmpty {
-                line(symbol: "sparkles", color: .fg3, title: "这台 Mac 上没找到能自动连的 AI 工具", detail: "点下面「连上你的 AI」看看别的办法") { EmptyView() }
-            }
-            ForEach(shown, id: \.app) { r in
-                line(symbol: r.connected ? "checkmark" : "link", color: r.connected ? .income : .fg3, title: r.app.name, detail: detail(r),
-                     mascot: .of(r.app)) {
-                    if !r.connected {
-                        Button(r.repair ? "重新连" : "连上") { connect(r.app) }.buttonStyle(.softAI)
-                    }
-                }
-            }
-            // 握手过、但不是上面能自动连的工具（比如 Cherry Studio）
+            AIHealthList(showMissing: false)
             ForEach(otherClients, id: \.self) { name in
-                line(symbol: "checkmark", color: .income, title: name, detail: "已连上 · \(handshakes[name]!.friendly) 用过账本",
-                     mascot: .of(author: name)) { EmptyView() }
+                AIHealthRowLayout(mascot: .of(author: name), level: .good, title: name,
+                                  status: "连上了 · \(handshakes[name]!.friendly) 用过账本", fix: nil) { EmptyView() }
             }
         }
         .task {
-            while !Task.isCancelled { refresh(); try? await Task.sleep(for: .seconds(3)) }
+            while !Task.isCancelled {
+                if !model.usesSampleData { handshakes = AIConnections.load() }
+                try? await Task.sleep(for: .seconds(3))
+            }
         }
     }
 
     private var otherClients: [String] {
         handshakes.keys.filter { AIApp.from(clientName: $0) == nil && $0 != "AI" }.sorted()
     }
+}
 
-    private func detail(_ r: (app: AIApp, installed: Bool, connected: Bool, repair: Bool)) -> String {
-        let seen = handshakes.filter { AIApp.from(clientName: $0.key) == r.app }.map(\.value).max()
-        if r.connected { return seen.map { "已连上 · \($0.friendly) 用过账本" } ?? "已连上 · 还没用过（\(r.app.afterConnect)）" }
-        if r.repair { return "以前连过，夏夏账本换了位置，要重新连" }
-        return "装了，还没连"
+/// 每个 AI 一行：圆点（绿 = 用过账本 / 橙 = 写好了等重开 / 红 = 有问题 / 灰 = 还没连）、一句大白话、一个按钮。
+/// 点「连接」由 app 自己写配置，写完马上自测一次（像 AI 那样启动记账服务读一次账本）。规则在 FinanceCore/AIHealth。
+struct AIHealthList: View {
+    @Environment(LedgerModel.self) var model
+    @Environment(\.openURL) var openURL
+    /// 没找到的 AI 合成一行小字列出来。
+    var showMissing: Bool
+
+    @State private var installed: Set<AIApp> = []
+    @State private var connected: Set<AIApp> = []
+    @State private var repair: Set<AIApp> = []
+    @State private var unsupported: [UnsupportedAI] = []
+    @State private var handshakes: [String: Date] = [:]
+    @State private var tests: [AIApp: AISelfTestResult] = [:]
+    @State private var testing: Set<AIApp> = []
+    @State private var errors: [AIApp: String] = [:]
+
+    private var connector: AIConnector? { model.aiConnector }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if shown.isEmpty && unsupported.isEmpty {
+                AIHealthRowLayout(mascot: nil, level: .idle, title: "这台 Mac 上没找到能连的 AI",
+                                  status: "装一个 Claude 桌面版或 Codex，这里会自动认出来", fix: nil) { EmptyView() }
+            }
+            ForEach(shown) { app in row(app) }
+            ForEach(unsupported) { u in
+                AIHealthRowLayout(mascot: .star, level: .idle, title: u.name, status: "连不了电脑上的账本", fix: u.advice) {
+                    Button(u.alternativeTitle) { if let url = URL(string: u.alternativeURL) { openURL(url) } }
+                        .buttonStyle(.softAI)
+                }
+            }
+            if showMissing, !missing.isEmpty, !(shown.isEmpty && unsupported.isEmpty) {
+                Text("没找到：" + missing.map(\.name).joined(separator: "、"))
+                    .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
+            }
+        }
+        .task {
+            // 每 2 秒看一眼：装了哪些、写没写好、AI 有没有真的来读账本。
+            var first = true
+            while !Task.isCancelled {
+                refresh()
+                if first {
+                    first = false
+                    // 打开时把已经写好的都自测一遍，坏了的马上变红。
+                    for app in connected where tests[app] == nil { runTest(app) }
+                }
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
     }
 
-    private func line<Trailing: View>(symbol: String, color: Color, title: String, detail: String, mascot: MascotCharacter? = nil,
-                                      @ViewBuilder trailing: () -> Trailing) -> some View {
-        HStack(spacing: 12) {
-            if let mascot {
-                // 每个 AI 工具一个小伙伴头像，右下角小圆点表示连没连
-                MascotView(mascot, size: 32, face: true, animated: false)
-                    .saturation(color == .income ? 1 : 0.35)
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: symbol).font(.system(size: 7, weight: .heavy)).foregroundStyle(.white)
-                            .frame(width: 14, height: 14).background(color, in: Circle())
-                            .overlay(Circle().strokeBorder(Color.pageBackground, lineWidth: 1.5))
-                            .offset(x: 3, y: 3)
-                    }
-                    .accessibilityHidden(true)
-            } else {
-                Image(systemName: symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                    .frame(width: 26, height: 26).background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                    .accessibilityHidden(true)
+    private var shown: [AIApp] { AIApp.allCases.filter { installed.contains($0) || connected.contains($0) || repair.contains($0) } }
+    private var missing: [AIApp] { AIApp.allCases.filter { !shown.contains($0) } }
+
+    private func lastSeen(_ app: AIApp) -> Date? {
+        handshakes.filter { AIApp.from(clientName: $0.key) == app }.map(\.value).max()
+    }
+
+    @ViewBuilder private func row(_ app: AIApp) -> some View {
+        let h = health(app)
+        AIHealthRowLayout(mascot: .of(app), level: testing.contains(app) ? .waiting : h.level, title: app.name,
+                          status: testing.contains(app) ? "正在测能不能读到账本…" : h.title, fix: errors[app] ?? h.fix) {
+            if testing.contains(app) {
+                ProgressView().controlSize(.small)
+            } else if !connected.contains(app) {
+                Button(repair.contains(app) ? "重新连接" : "连接") { connect(app) }
+                    .buttonStyle(AISolidButtonStyle())
+                    .accessibilityIdentifier("connect.\(app.cliName)")
+            } else if h.level == .problem {
+                Button("再连一次") { connect(app) }.buttonStyle(.softAI)
+            } else if h.level == .waiting, AIRelauncher.canRelaunch(app) {
+                Button("帮我重开 \(app == .claudeDesktop ? "Claude" : app.name)") { AIRelauncher.relaunch(app) }
+                    .buttonStyle(.softAI)
+                    .help("先退出再打开，新设置才会生效。没发完的话会留在 \(app.name) 里")
+            } else if h.level == .good {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.income).font(.title3)
+                    .accessibilityLabel("已连上")
             }
+        }
+    }
+
+    private func health(_ app: AIApp) -> AIHealth {
+        guard let c = connector else { return AIHealth(level: .problem, title: "这个版本没带记账服务") }
+        return c.health(app, selfTest: tests[app], lastSeen: lastSeen(app))
+    }
+
+    private func refresh() {
+        guard let c = connector else { return }
+        installed = Set(AIApp.allCases.filter { c.isInstalled($0) })
+        let now = Set(AIApp.allCases.filter { c.isConnected($0) })
+        // 别处（fin setup、AI 自己配）刚写好的，也测一次
+        for app in now.subtracting(connected) where tests[app] == nil && !firstPass { runTest(app) }
+        connected = now
+        repair = Set(AIApp.allCases.filter { c.needsRepair($0) })
+        unsupported = c.unsupportedInstalled()
+        if !model.usesSampleData { handshakes = AIConnections.load() }
+        firstPass = false
+    }
+
+    @State private var firstPass = true
+
+    private func connect(_ app: AIApp) {
+        guard let c = connector else { return }
+        do {
+            try AISetup(connector: c).connect(app)
+            errors[app] = nil
+        } catch {
+            errors[app] = error.localizedDescription
+            tests[app] = nil
+            return
+        }
+        refresh()
+        runTest(app)
+    }
+
+    /// 后台自测，不卡界面。示例数据时只看假主目录，不启动真的记账服务。
+    private func runTest(_ app: AIApp) {
+        guard let c = connector, !testing.contains(app) else { return }
+        if model.usesSampleData {
+            tests[app] = AISelfTestResult(ok: true, message: "示例数据，不测")
+            return
+        }
+        testing.insert(app)
+        Task { @MainActor in
+            #if os(macOS)
+            let r = await Task.detached(priority: .userInitiated) { c.selfTest(app) }.value
+            #else
+            let r = AISelfTestResult(ok: false, message: "AI 在 Mac 上连")
+            #endif
+            tests[app] = r
+            testing.remove(app)
+            model.toast = .init(text: r.ok ? "\(app.name) 写好了，自测能读到账本。\(app.afterConnect)就能用"
+                                           : "\(app.name) 写好了，但自测没过：\(r.message)",
+                                changeID: nil, isError: !r.ok)
+        }
+    }
+}
+
+/// 一行的样子：头像 + 右下角圆点、名字、一句状态、一句下一步，右边按钮。
+struct AIHealthRowLayout<Trailing: View>: View {
+    var mascot: MascotCharacter?
+    var level: AIHealth.Level
+    var title: String
+    var status: String
+    var fix: String?
+    @ViewBuilder var trailing: () -> Trailing
+
+    private var color: Color {
+        switch level {
+        case .good: .income
+        case .waiting: .warn
+        case .problem: .alert
+        case .idle: .fg3
+        }
+    }
+
+    private var symbol: String {
+        switch level {
+        case .good: "checkmark"
+        case .waiting: "clock"
+        case .problem: "exclamationmark"
+        case .idle: "link"
+        }
+    }
+
+    private var spoken: String {
+        switch level {
+        case .good: "已连上"
+        case .waiting: "等重开"
+        case .problem: "有问题"
+        case .idle: "还没连"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Group {
+                if let mascot {
+                    MascotView(mascot, size: 32, face: true, animated: false)
+                        .saturation(level == .good || level == .waiting ? 1 : 0.35)
+                } else {
+                    Image(systemName: "sparkles").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 32, height: 32).background(Color.fg3.opacity(0.5), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: symbol).font(.system(size: 7, weight: .heavy)).foregroundStyle(.white)
+                    .frame(width: 14, height: 14).background(color, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.pageBackground, lineWidth: 1.5))
+                    .offset(x: 3, y: 3)
+            }
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.callout)
-                Text(detail).font(.caption).foregroundStyle(Color.fg2)
+                Text(title).font(.callout.weight(.medium))
+                Text(status).font(.caption).foregroundStyle(level == .problem ? Color.alert : level == .good ? Color.income : Color.fg2)
+                if let fix {
+                    Text(fix).font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             trailing().font(.callout)
         }
         .padding(.vertical, 7)
         .accessibilityElement(children: .combine)
-    }
-
-    private func refresh() {
-        guard let c = model.aiConnector else { return }
-        rows = AIApp.allCases.map { ($0, c.isInstalled($0), c.isConnected($0), c.needsRepair($0)) }
-        if !model.usesSampleData { handshakes = AIConnections.load() }
-    }
-
-    private func connect(_ app: AIApp) {
-        guard let c = model.aiConnector else { return }
-        do {
-            try AISetup(connector: c).connect(app)
-            model.toast = .init(text: "已连上 \(app.name)，\(app.afterConnect)就能用", changeID: nil)
-        } catch {
-            model.toast = .init(text: error.localizedDescription, changeID: nil, isError: true)
-        }
-        refresh()
+        .accessibilityValue(spoken)
     }
 }
+
+#if os(macOS)
+/// 写好设置后「帮我重开 Claude」：Claude 桌面版要完全退出再打开才会读新设置，新手不知道 ⌘Q。
+enum AIRelauncher {
+    static func running(_ app: AIApp) -> NSRunningApplication? {
+        guard app == .claudeDesktop else { return nil }
+        return NSWorkspace.shared.runningApplications.first {
+            $0.bundleIdentifier == "com.anthropic.claudefordesktop" || ($0.localizedName == "Claude" && $0.bundleURL?.lastPathComponent == "Claude.app")
+        }
+    }
+
+    static func canRelaunch(_ app: AIApp) -> Bool { running(app) != nil }
+
+    static func relaunch(_ app: AIApp) {
+        guard let r = running(app), let url = r.bundleURL else { return }
+        r.terminate()
+        Task { @MainActor in
+            // 等它真的退出（最多 10 秒），再打开
+            for _ in 0..<40 where !r.isTerminated { try? await Task.sleep(for: .milliseconds(250)) }
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        }
+    }
+}
+#else
+enum AIRelauncher {
+    static func canRelaunch(_ app: AIApp) -> Bool { false }
+    static func relaunch(_ app: AIApp) {}
+}
+#endif

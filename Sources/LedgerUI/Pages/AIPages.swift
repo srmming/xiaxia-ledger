@@ -126,10 +126,10 @@ struct NotConnectedCard: View {
             #if os(macOS)
             Text("夏夏账本靠 AI 记账。点一下，帮你把 Claude、Codex 这些 AI 连上这本账。")
                 .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
-            Button { model.sheet = .connectAI } label: { Label("连上你的 AI", systemImage: "link") }
+            Button { model.sheet = .connectAI } label: { Label("连接你的 AI", systemImage: "link") }
                 .buttonStyle(AISolidButtonStyle())
             #else
-            Text("夏夏账本靠 AI 记账。AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，按「连上你的 AI」走一遍，AI 记的账会同步到这里。")
+            Text("夏夏账本靠 AI 记账。AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，按「连接你的 AI」走一遍，AI 记的账会同步到这里。")
                 .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
             #endif
         }
