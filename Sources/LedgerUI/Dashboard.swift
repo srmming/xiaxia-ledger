@@ -175,14 +175,29 @@ extension LedgerModel {
     }
 
     /// 最近 3 个过完的、有花销的月平均每月花多少（正数）。没有过完的月就用这个月到现在的。
-    func averageMonthlySpend() -> Money {
+    func averageMonthlySpend() -> Money { averageMonthlySpend(books: [nil]) }
+
+    /// 家底页「够花几个月」用：有生意账本时只算自己过日子花的。
+    /// 店里的开销用的是店里的钱，「能随便花」里已经不含店里的钱，两边要是同一个口径。没有生意账本就和上面一样。
+    func personalMonthlySpend() -> Money {
+        let personal = ledger.books.filter { !$0.isBusiness }.map(\.id)
+        guard !personal.isEmpty, personal.count < ledger.books.count else { return averageMonthlySpend() }
+        return averageMonthlySpend(books: personal)
+    }
+
+    /// books：把这几个账本的花销加起来算；nil 是全部账本。
+    private func averageMonthlySpend(books: [String?]) -> Money {
         let today = LocalDate.today.yearMonth
         let months = Reports.months(endingAt: today, count: 7)
-        let list = summaries(months, bookID: nil).filter { $0.expense.cents != 0 }
-        let full = Array(list.filter { $0.month < today }.suffix(3))
+        var spent: [YearMonth: Int64] = [:]
+        for b in books {
+            for s in summaries(months, bookID: b) { spent[s.month, default: 0] += s.expense.magnitude.cents }
+        }
+        let list = months.filter { (spent[$0] ?? 0) != 0 }
+        let full = Array(list.filter { $0 < today }.suffix(3))
         let basis = full.isEmpty ? list : full
         guard !basis.isEmpty else { return .zero }
-        return Money(cents: basis.reduce(Int64(0)) { $0 + $1.expense.magnitude.cents } / Int64(basis.count))
+        return Money(cents: basis.reduce(Int64(0)) { $0 + (spent[$1] ?? 0) } / Int64(basis.count))
     }
 
     // MARK: 谁记的

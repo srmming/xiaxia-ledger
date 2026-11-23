@@ -48,6 +48,9 @@ extension Color {
     /// 真的要注意：超支、信用卡快到期。花钱本身不用红色。
     static let alert = kit(0xB8322A, 0xFF6A5F)
     static let alertSoft = kit(0xD33F35, 0xFF6A5F, alpha: 0.10, darkAlpha: 0.15)
+    /// 青蓝 = 店里的钱（家底页）。不用黄色：黄色是「留意」，店里的钱不是坏事。
+    static let shop = kit(0x0B6577, 0x45C2D8)
+    static let shopSoft = kit(0x0E7C92, 0x45C2D8, alpha: 0.10, darkAlpha: 0.15)
     /// 靛蓝 = AI。
     static let ai = kit(0x4644C4, 0x8C89FF)
     static let aiSoft = kit(0x5856D6, 0x8C89FF, alpha: 0.09, darkAlpha: 0.14)

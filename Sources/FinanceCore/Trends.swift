@@ -137,9 +137,9 @@ public struct WealthBreakdown: Equatable, Sendable {
         liquid -= earmarked; saved += earmarked
         if earmarked > 0 {
             if earmarked == wanted {
-                for g in loose { src.saved.append(Source(id: "goal-\(g.goal.id)", name: "划给「\(g.goal.name)」的", amount: g.saved)) }
+                for g in loose { src.saved.append(Source(id: "goal-\(g.goal.id)", name: "卡里划给「\(g.goal.name)」的", amount: g.saved)) }
             } else {
-                src.saved.append(Source(id: "goal-earmarked", name: "划给存钱目标的", amount: Money(cents: earmarked)))
+                src.saved.append(Source(id: "goal-earmarked", name: "卡里划给存钱目标的", amount: Money(cents: earmarked)))
             }
         }
         // 借的钱、分期：给了明细而且加起来对得上就一笔一行，否则只写一行合计。
@@ -230,7 +230,7 @@ extension Nudges {
             if let months = w.months(monthlySpend: monthlySpend) {
                 let text = WealthBreakdown.monthsText(months)
                 out.append(Nudge(kind: months < 1 ? .unusual : months >= 3 ? .praise : .info, key: "wealth-runway",
-                                 title: "能随便花的钱有 \(m(w.spendable))，够你过 \(text) 个月。",
+                                 title: "能随便花的钱够你过 \(text) 个月。",
                                  advice: months < 1 ? "不到一个月的开销，手头偏紧。先别动存着的钱，这个月能少花就少花。"
                                     : months < 3 ? "一般留够 3 个月的开销比较安心，还差 \(m(Money(cents: monthlySpend.cents * 3 - w.spendable.cents)))。"
                                     : "按每月花 \(m(monthlySpend)) 算。超过 3 个月的部分可以挪去存着，别躺在卡里。",

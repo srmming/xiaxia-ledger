@@ -1,12 +1,15 @@
 import FinanceCore
 import SwiftUI
 
-/// 家底：现在能随便花多少、总存款多少、是怎么一步步算出来的。（ming 2026-11-23：家底曲线在趋势页，这里主图是下楼梯图。）
+/// 家底：现在能随便花多少、总存款多少、总存款分在哪几块。（ming 2026-11-23：家底曲线在趋势页，这里主图是「总存款分几块」。）
 struct WealthPage: View {
     @Environment(LedgerModel.self) var model
     @State private var viewport = CGSize(width: 1000, height: 800)
-    /// 下楼梯图里点开的那一步（一次只开一步，一屏放得下）。
-    @State private var expanded: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 主图卡片有多宽：够宽时几张小卡排一行，不够就两列。
+    @State private var heroWidth: CGFloat = 560
+    /// 打开页面时那根条长出来、小卡一张张出现。
+    @State private var shown = false
 
     var body: some View {
         Group {
@@ -23,7 +26,7 @@ struct WealthPage: View {
                 let w = model.wealthBreakdown(model.shownMonth)
                 VStack(alignment: .leading, spacing: Kit.gap) {
                     // 夏夏卡放最上面，说有用的：能随便花的钱够过几个月、欠款还不还得上、比 3 个月前多了还是少了。
-                    let nudges = Nudges.wealth(w, monthlySpend: model.averageMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
+                    let nudges = Nudges.wealth(w, monthlySpend: model.personalMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
                                                currency: model.ledger.baseCurrency)
                     let insights = [model.ledger.insight(forPage: "wealth", month: model.shownMonth, bookID: nil)].compactMap { $0 }
                     XiaxiaCards(nudges: nudges, insights: insights, page: "家底")
@@ -49,72 +52,85 @@ struct WealthPage: View {
         return v?.cents == 0 ? nil : v
     }
 
-    /// 下楼梯图的一步。
-    private struct Step: Identifiable {
-        enum Kind { case total, minus, result }
+    /// 总存款分成的一块：店里要用 / 存着不动 / 要还的 / 能随便花。
+    private struct Part: Identifiable {
         var id: String
         var label: String
         var amount: Money
-        var kind: Kind
         var color: Color
+        var soft: Color
         var sources: [WealthBreakdown.Source] = []
-        /// 这一步之前、之后还剩多少（画条用）。
-        var before: Int64 = 0
-        var after: Int64 = 0
+        var isResult = false
+        /// 在总存款那根条上占多少（分）。
+        var bar: Int64 = 0
     }
 
-    private func steps(_ w: WealthBreakdown) -> [Step] {
-        var list = [Step(id: "total", label: "一共有（总存款）", amount: w.total, kind: .total, color: .fg2, sources: w.sources.total)]
-        // 「店里要用」只在有只给生意账本用的账户时才有；只有个人账本就没有这一步，不猜。
+    private func parts(_ w: WealthBreakdown) -> [Part] {
+        var list: [Part] = []
+        // 「店里要用」只在有只给生意账本用的账户时才有；只有个人账本就没有这一块，不猜。
         if w.shop.cents > 0 {
-            list.append(Step(id: "shop", label: WealthBreakdown.shopLabel(model.ledger), amount: w.shop, kind: .minus, color: .warn, sources: w.sources.shop))
+            list.append(Part(id: "shop", label: WealthBreakdown.shopLabel(model.ledger), amount: w.shop, color: .shop, soft: .shopSoft,
+                             sources: w.sources.shop, bar: w.shop.cents))
         }
         if w.saved.cents > 0 {
-            list.append(Step(id: "saved", label: "存着不动", amount: w.saved, kind: .minus, color: .ai, sources: w.sources.saved))
+            list.append(Part(id: "saved", label: "存着不动", amount: w.saved, color: .ai, soft: .aiSoft, sources: w.sources.saved, bar: w.saved.cents))
         }
         if w.owed.cents > 0 {
-            list.append(Step(id: "owed", label: "要还的", amount: w.owed, kind: .minus, color: .alert, sources: w.sources.owed))
+            // 要还的是从手头的钱里出的；手头不够时条上最多画到手头那么多。
+            list.append(Part(id: "owed", label: "要还的", amount: w.owed, color: .alert, soft: .alertSoft, sources: w.sources.owed,
+                             bar: max(0, min(w.owed.cents, w.liquid.cents))))
         }
-        list.append(Step(id: "free", label: "能随便花", amount: w.spendable, kind: .result, color: .income))
-        var left = w.total.cents
-        for k in list.indices {
-            switch list[k].kind {
-            case .total: list[k].before = left; list[k].after = left
-            case .minus: list[k].before = left; left -= list[k].amount.cents; list[k].after = left
-            case .result: list[k].before = left; list[k].after = left
-            }
-        }
+        let free = w.spendable
+        list.append(Part(id: "free", label: "能随便花", amount: free, color: free.cents < 0 ? .alert : .income,
+                         soft: free.cents < 0 ? .alertSoft : .incomeSoft, isResult: true, bar: max(0, free.cents)))
         return list
     }
 
-    /// 主图（ming 2026-11-23：「我需要我一看我就能理解」「也要用总存款」）：
-    /// 一个大数字「现在能随便花多少、够花几个月」，下面一张下楼梯图：一共有 − 店里要用 − 存着不动 − 要还的 = 能随便花。点每一步看是哪几个账户。
+    /// 主图（ming 2026-11-23：「我需要我一看我就能理解」「也要用总存款」「要好看 直观」）：
+    /// 一个大数字「现在能随便花多少、够花几个月」；下面一根粗条是总存款，按颜色切成几块；
+    /// 再下面每块一张同色的小卡：店里要用 / 存着不动 / 要还的各是哪几个账户，最后一张绿的就是能随便花的。
     private func heroCard(_ w: WealthBreakdown) -> some View {
         let short = Viewport.isShort(viewport)
-        let list = steps(w)
-        let spend = model.averageMonthlySpend()
+        let list = parts(w)
+        let spend = model.personalMonthlySpend()
         let free = w.spendable
+        let hasShop = model.ledger.books.contains(where: \.isBusiness)
         let sentence: Text = {
             if free.cents < 0 {
-                return Text("手头的钱还不够还欠的，差 ") + em(free.magnitude.rounded, .bad) + Text("。总存款 ") + em(w.total.rounded) + Text("。")
+                return Text("手头的钱还不够还欠的，差 ") + em(free.magnitude.rounded, .bad) + Text("。")
             }
             if let months = w.months(monthlySpend: spend) {
-                return Text("够花 ") + em("\(WealthBreakdown.monthsText(months)) 个月") + Text("（最近每月花 \(spend.rounded)）。总存款 ") + em(w.total.rounded) + Text("。")
+                return Text("够花 ") + em("\(WealthBreakdown.monthsText(months)) 个月", .good)
+                    + Text("，按\(hasShop ? "你自己" : "最近")每月花 \(spend.rounded) 算。")
             }
-            return Text("总存款 ") + em(w.total.rounded) + Text("。记满一个月的开销，就能算出够花几个月。")
+            return Text("记满一个月的开销，就能算出够花几个月。")
         }()
-        return VStack(alignment: .leading, spacing: short ? 10 : 14) {
+        return VStack(alignment: .leading, spacing: short ? 10 : 16) {
             KeyFigure(label: "现在能随便花" + (model.showPrivate ? "（含私房钱）" : ""), money: free,
                       color: free.cents < 0 ? .alert : .primary, sentence: sentence,
                       spoken: "现在能随便花 \(free.spoken)，总存款 \(w.total.spoken)")
             if w.total.cents <= 0 && w.owed.cents == 0 {
-                Text("账户里还没有钱，记了第一笔这里会画出钱是怎么一步步算出来的。").font(.callout).foregroundStyle(Color.fg2)
+                Text("账户里还没有钱，记了第一笔这里会画出钱分在哪几块。").font(.callout).foregroundStyle(Color.fg2)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(list) { step in
-                        stepRow(step, whole: max(1, w.total.cents), short: short)
-                        if step.id != list.last?.id { Divider().opacity(0.5) }
+                VStack(alignment: .leading, spacing: short ? 6 : 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("总存款").font(.callout.weight(.semibold))
+                        Text(w.total.ui).font(.kitAmount)
+                        Spacer(minLength: 8)
+                        Text("所有账户里的钱加起来").font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("总存款 \(w.total.spoken)，所有账户里的钱加起来")
+                    if w.total.cents > 0 { splitBar(list, short: short) }
+                }
+                if list.count == 1 {
+                    Text("没有要留给店里、存着不动或者要还的钱，总存款都能随便花。").font(.callout).foregroundStyle(Color.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if short {
+                    // 窗口矮：每块只留一行（颜色、名字、多少），一屏放下。
+                    VStack(spacing: 4) { ForEach(list) { compactRow($0) } }
+                } else {
+                    tiles(list)
                 }
                 if w.owedToMe.cents > 0 {
                     Text("另外别人还欠你 \(w.owedToMe.rounded)，收回来再算进能花的。")
@@ -123,92 +139,115 @@ struct WealthPage: View {
             }
         }
         .kitCard(padding: 20)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { heroWidth = $0 }
+        .onAppear {
+            if reduceMotion { shown = true } else { withAnimation(.smooth(duration: 0.7)) { shown = true } }
+        }
     }
 
-    private func stepRow(_ step: Step, whole: Int64, short: Bool) -> some View {
-        let open = expanded == step.id
-        let canOpen = !step.sources.isEmpty
-        let sign = step.kind == .minus ? "\u{2212} " : step.kind == .result ? "= " : ""
-        return VStack(alignment: .leading, spacing: 0) {
-            Button {
-                guard canOpen else { return }
-                withAnimation(.snappy) { expanded = open ? nil : step.id }
-            } label: {
-                VStack(alignment: .leading, spacing: short ? 3 : 5) {
-                    HStack(spacing: 8) {
-                        Text(sign + step.label)
-                            .font(step.kind == .minus ? .callout : .callout.weight(.semibold))
-                            .foregroundStyle(step.kind == .result ? Color.income : .primary)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Text((step.kind == .minus ? "\u{2212}" : "") + step.amount.ui).font(.kitAmount)
-                            .foregroundStyle(step.kind == .result ? (step.amount.cents < 0 ? Color.alert : Color.income) : .primary)
-                            .lineLimit(1).fixedSize()
-                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg3)
-                            .rotationEffect(.degrees(open ? 90 : 0))
-                            .opacity(canOpen ? 1 : 0)
-                    }
-                    GeometryReader { g in
-                        let w = g.size.width
-                        let x0 = w * CGFloat(max(0, min(step.after, whole))) / CGFloat(whole)
-                        let x1 = w * CGFloat(max(0, min(step.before, whole))) / CGFloat(whole)
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.sunken)
-                            switch step.kind {
-                            case .total:
-                                Capsule().fill(step.color).frame(width: max(4, x1))
-                            case .minus:
-                                // 还剩下的画淡的，这一步拿走的那一截画深的：一截一截往左退，像下楼梯。
-                                Capsule().fill(Color.fg3.opacity(0.35)).frame(width: max(0, x0))
-                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(step.color)
-                                    .frame(width: max(4, x1 - x0)).offset(x: max(0, min(x0, w - 4)))
-                            case .result:
-                                Capsule().fill(step.color).frame(width: step.amount.cents > 0 ? max(4, x1) : 0)
-                            }
-                        }
-                    }
-                    .frame(height: short ? 6 : 8)
-                    .accessibilityHidden(true)
+    /// 总存款那根粗条：按颜色切成几块，打开页面时从左往右长出来。
+    private func splitBar(_ list: [Part], short: Bool) -> some View {
+        let segs = list.filter { $0.bar > 0 }
+        let sum = CGFloat(max(1, segs.reduce(Int64(0)) { $0 + $1.bar }))
+        let gap: CGFloat = 3
+        return GeometryReader { g in
+            let usable = max(0, g.size.width - gap * CGFloat(max(0, segs.count - 1)))
+            HStack(spacing: gap) {
+                ForEach(segs) { p in
+                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(p.color)
+                        .frame(width: max(4, usable * CGFloat(p.bar) / sum))
                 }
-                .padding(.vertical, short ? 5 : 8)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(stepSpoken(step))
-            .accessibilityHint(canOpen ? (open ? "收起来源" : "展开看是哪几个账户") : "")
-            .accessibilityIdentifier("wealth.step.\(step.id)")
-            if open {
+            .frame(width: g.size.width, alignment: .leading)
+        }
+        .frame(height: short ? 14 : 20)
+        .clipShape(Capsule())
+        .mask(alignment: .leading) { Rectangle().scaleEffect(x: shown ? 1 : 0.02, anchor: .leading) }
+        .accessibilityHidden(true)
+    }
+
+    /// 每块一张同色小卡。主栏够宽就排一行，不够就两列；最后一行只剩一张时让它占满。
+    private func tiles(_ list: [Part]) -> some View {
+        let cols = heroWidth >= 760 ? list.count : 2
+        let rows = stride(from: 0, to: list.count, by: cols).map { Array(list[$0..<min($0 + cols, list.count)]) }
+        return Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { r, row in
+                GridRow {
+                    ForEach(Array(row.enumerated()), id: \.element.id) { c, p in
+                        tile(p)
+                            .gridCellColumns(row.count == 1 ? cols : 1)
+                            .opacity(shown ? 1 : 0)
+                            .offset(y: shown ? 0 : 8)
+                            .animation(reduceMotion ? nil : .smooth(duration: 0.45).delay(0.12 + 0.07 * Double(r * cols + c)), value: shown)
+                    }
+                }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func tile(_ p: Part) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(p.color).frame(width: 10, height: 10)
+                Text((p.isResult ? "= " : "") + p.label).font(.caption.weight(.semibold))
+                    .foregroundStyle(p.isResult ? p.color : Color.fg2).lineLimit(1)
+            }
+            Text((p.isResult ? "" : "\u{2212} ") + p.amount.balance)
+                .font(.system(.title3, design: .rounded).weight(.bold)).monospacedDigit()
+                .foregroundStyle(p.isResult ? p.color : .primary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            if p.isResult {
+                Text(p.amount.cents < 0 ? "手头的钱不够还，先还最快到期的。" : "总存款减掉前面几块，剩下的。")
+                    .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            } else {
+                // 4 项以内全列出来；再多就列前 3 项，剩下的合成一行。
+                let all = p.sources.count <= 4
                 VStack(spacing: 2) {
-                    ForEach(step.sources.prefix(6)) { src in
-                        HStack(spacing: 8) {
-                            Circle().fill(step.color).frame(width: 5, height: 5)
-                            Text(src.name).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
-                            Spacer(minLength: 8)
-                            Text(src.amount.ui).font(.caption).monospacedDigit().foregroundStyle(Color.fg2)
-                        }
-                    }
-                    if step.sources.count > 6 {
-                        let rest = step.sources.dropFirst(6).reduce(Money.zero) { $0 + $1.amount }
-                        HStack(spacing: 8) {
-                            Circle().fill(step.color).frame(width: 5, height: 5)
-                            Text("还有 \(step.sources.count - 6) 项").font(.caption).foregroundStyle(Color.fg2)
-                            Spacer(minLength: 8)
-                            Text(rest.ui).font(.caption).monospacedDigit().foregroundStyle(Color.fg2)
-                        }
+                    ForEach(p.sources.prefix(all ? 4 : 3)) { sourceLine($0.name, $0.amount) }
+                    if !all {
+                        sourceLine("还有 \(p.sources.count - 3) 项", p.sources.dropFirst(3).reduce(Money.zero) { $0 + $1.amount })
                     }
                 }
-                .padding(.leading, 4).padding(.trailing, 20).padding(.bottom, 8)
-                .transition(.opacity)
             }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(p.soft, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            if p.isResult { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.color.opacity(0.35), lineWidth: 1) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken(p))
+        .accessibilityIdentifier("wealth.part.\(p.id)")
+    }
+
+    private func sourceLine(_ name: String, _ amount: Money) -> some View {
+        HStack(spacing: 6) {
+            Text(name).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(amount.ui).font(.caption).monospacedDigit().foregroundStyle(Color.fg2).lineLimit(1).fixedSize()
         }
     }
 
-    private func stepSpoken(_ step: Step) -> String {
-        switch step.kind {
-        case .total: "一共有，总存款 \(step.amount.spoken)"
-        case .minus: "减掉\(step.label) \(step.amount.spoken)"
-        case .result: "等于能随便花 \(step.amount.spoken)"
+    private func compactRow(_ p: Part) -> some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous).fill(p.color).frame(width: 10, height: 10)
+            Text((p.isResult ? "= " : "\u{2212} ") + p.label)
+                .font(p.isResult ? .callout.weight(.semibold) : .callout)
+                .foregroundStyle(p.isResult ? p.color : .primary).lineLimit(1)
+            Spacer(minLength: 8)
+            Text(p.amount.balance).font(.kitAmount).foregroundStyle(p.isResult ? p.color : .primary).lineLimit(1).fixedSize()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken(p))
+        .accessibilityIdentifier("wealth.part.\(p.id)")
+    }
+
+    private func spoken(_ p: Part) -> String {
+        if p.isResult { return "等于能随便花 \(p.amount.spoken)" }
+        let from = p.sources.prefix(4).map { "\($0.name) \($0.amount.spoken)" }.joined(separator: "，")
+        return "减掉\(p.label) \(p.amount.spoken)" + (from.isEmpty ? "" : "：\(from)")
     }
 
     /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
@@ -220,7 +259,7 @@ struct WealthPage: View {
                     XiaIcon(.debt, size: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("欠款与分期").font(.callout.weight(.medium))
-                        Text("我还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded) · 要还的已经从上面减掉了")
+                        Text("借的钱和分期还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded)")
                             .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
                     }
                     Spacer()
