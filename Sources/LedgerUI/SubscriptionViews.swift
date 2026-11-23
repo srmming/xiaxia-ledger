@@ -20,7 +20,7 @@ struct SubscriptionsPage: View {
             SubscriptionsXiaxia()
             if model.subscriptionStatus.contains(where: { $0.cancelledOn == nil }) { SubscriptionTotalsStrip(compact: short) }
             Columns(sideWidth: 340) {
-                SubscriptionsCard(part: .list, maxRows: short ? 5 : 11, compact: short)
+                SubscriptionsCard(part: .list, maxRows: short ? 4 : 11, compact: short)
             } side: {
                 if !soon.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
