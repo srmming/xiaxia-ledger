@@ -36,6 +36,10 @@ struct XiaxiaSays: View {
     let sentence: String
     /// 「让夏夏细说」时问的问题。
     let question: String
+    /// 按钮上的字（欠款页催款时是「帮我写句提醒」）。
+    var action: String = "让夏夏细说"
+    /// 问完要不要让 AI 顺手给这一页写条意见（帮忙写提醒消息时不用）。
+    var asksInsight = true
 
     var body: some View {
         if let insight = model.ledger.insight(forPage: page, month: model.shownMonth, bookID: model.selectedBookID) {
@@ -48,8 +52,8 @@ struct XiaxiaSays: View {
                         Text(sentence).font(.body).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 8) {
                             Button {
-                                ask(question + " 说完用 add_insight 写一条给「\(pageName)」页的意见（page=\(page)）。", page: pageName)
-                            } label: { Label("让夏夏细说", systemImage: "sparkles") }
+                                ask(asksInsight ? question + " 说完用 add_insight 写一条给「\(pageName)」页的意见（page=\(page)）。" : question, page: pageName)
+                            } label: { Label(action, systemImage: "sparkles") }
                                 .buttonStyle(.softAI)
                                 .accessibilityHint("复制一段话并打开 Claude")
                             Spacer()
