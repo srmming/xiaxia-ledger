@@ -54,9 +54,12 @@ public struct WealthBreakdown: Equatable, Sendable {
     public var owedToMe: Money
     /// 欠款：信用卡欠的、账户透支的、我借的、分期没还完的。
     public var owed: Money
+    /// saved 里有多少是「钱还在银行卡里、但已经划给存钱目标」的（所以「能随时用的」比账户余额加起来少这么多）。
+    public var earmarked: Money
 
-    public init(liquid: Money, saved: Money, shop: Money, owedToMe: Money, owed: Money) {
+    public init(liquid: Money, saved: Money, shop: Money, owedToMe: Money, owed: Money, earmarked: Money = .zero) {
         self.liquid = liquid; self.saved = saved; self.shop = shop; self.owedToMe = owedToMe; self.owed = owed
+        self.earmarked = earmarked
     }
 
     /// 我有的（不减欠款）。
@@ -83,7 +86,7 @@ public struct WealthBreakdown: Equatable, Sendable {
         let earmarked = min(liquid, goals.filter { $0.goal.savingsAccountID == nil }.reduce(Int64(0)) { $0 + max(0, $1.saved.cents) })
         liquid -= earmarked; saved += earmarked
         return WealthBreakdown(liquid: Money(cents: liquid), saved: Money(cents: saved), shop: Money(cents: shop),
-                               owedToMe: obligations.owedToMe, owed: Money(cents: owed) + obligations.iOwe)
+                               owedToMe: obligations.owedToMe, owed: Money(cents: owed) + obligations.iOwe, earmarked: Money(cents: earmarked))
     }
 
     /// 只在生意账本里用的账户（有流水、而且全都记在生意账本上）。

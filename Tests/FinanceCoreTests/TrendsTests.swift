@@ -62,6 +62,7 @@ final class TrendsTests: XCTestCase {
                                      obligations: Obligations(owedToMe: Money(cents: 50_00), iOwe: Money(cents: 250_00), installments: Money(cents: 100_00)))
         XCTAssertEqual(w.liquid, Money(cents: 1600_00), "银行卡 2000 + 现金 100，划给「电脑」目标 500")
         XCTAssertEqual(w.saved, Money(cents: 2400_00), "储蓄罐 1500 + 旅行钱包 400 + 划给目标的 500")
+        XCTAssertEqual(w.earmarked, Money(cents: 500_00))
         XCTAssertEqual(w.shop, Money(cents: 800_00))
         XCTAssertEqual(w.owed, Money(cents: 550_00), "信用卡 300 + 借的和分期 250")
         XCTAssertEqual(w.owedToMe, Money(cents: 50_00))

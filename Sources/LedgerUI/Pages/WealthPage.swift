@@ -60,7 +60,7 @@ struct WealthPage: View {
     private func heroCard(_ w: WealthBreakdown) -> some View {
         let short = Viewport.isShort(viewport)
         let parts = [
-            Part(name: "能随时用的", hint: "银行卡、现金、钱包", amount: w.liquid, color: .income),
+            Part(name: "能随时用的", hint: w.earmarked.cents > 0 ? "银行卡、现金、钱包（不含划给目标的 \(w.earmarked.rounded)）" : "银行卡、现金、钱包", amount: w.liquid, color: .income),
             Part(name: "存着的", hint: "存款、存钱目标里的钱", amount: w.saved, color: .ai),
             Part(name: "店里的", hint: "只在生意账本里用的账户", amount: w.shop, color: .brand),
             Part(name: "别人欠我的", hint: "借出去还没还的", amount: w.owedToMe, color: .warn),
@@ -94,7 +94,7 @@ struct WealthPage: View {
                             RoundedRectangle(cornerRadius: 3, style: .continuous).fill(p.color).frame(width: 12, height: 12)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(p.name).font(.callout.weight(.medium))
-                                if !short { Text(p.hint).font(.caption).foregroundStyle(Color.fg2).lineLimit(1) }
+                                if !short, parts.count <= 4 || p.id == "能随时用的" { Text(p.hint).font(.caption).foregroundStyle(Color.fg2).lineLimit(1) }
                             }
                             Spacer(minLength: 8)
                             Text("\(Int((Double(p.amount.cents) / whole * 100).rounded()))%").font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
@@ -102,7 +102,7 @@ struct WealthPage: View {
                                 .foregroundStyle(p.minus ? Color.alert : .primary)
                                 .frame(minWidth: 96, alignment: .trailing)
                         }
-                        .padding(.vertical, short ? 3 : 6)
+                        .padding(.vertical, short ? 3 : parts.count > 4 ? 4 : 6)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(p.name)\(p.minus ? "，要减掉" : "") \(p.amount.spoken)")
                         if p.id != parts.last?.id { Divider() }
@@ -140,7 +140,8 @@ struct WealthPage: View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
-        let short = Viewport.isShort(viewport)
+        // 账户多（7 个以上）也按矮窗口的排法：不分组写标题、每行收紧，一屏放下。
+        let short = Viewport.isShort(viewport) || model.visibleAccounts.count > 6
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "账户") {
                 Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
@@ -210,9 +211,9 @@ struct WealthPage: View {
         // 只在一个账本里用就写账本名，几个账本混用就都写上，每个账户都是同一种写法。
         if !books.isEmpty { parts.append(books.sorted().map { model.bookName($0) }.joined(separator: " + ")) }
         if let i = a.institution, i != a.name { parts.append(i) }
-        if let d = model.ledger.lastStatementDate[a.id] { parts.append("对账到 \(d.short)") }
+        if let d = model.ledger.lastStatementDate[a.id], !Viewport.isShort(viewport) { parts.append("对账到 \(d.short)") }
         // 什么都没有时写账户类型；窗口够高时上面已经有类型的小标题，或者名字本身就是类型（「银行卡」），就不再写一遍。
-        if parts.isEmpty { return Viewport.isShort(viewport) && a.kind.label != a.name ? a.kind.label : "" }
+        if parts.isEmpty { return (Viewport.isShort(viewport) || model.visibleAccounts.count > 6) && a.kind.label != a.name ? a.kind.label : "" }
         return parts.joined(separator: " · ")
     }
 }

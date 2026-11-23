@@ -52,11 +52,12 @@ struct TrendsPage: View {
                         .pickerStyle(.segmented).labelsHidden().fixedSize()
                         .accessibilityIdentifier("trends.span")
                     }
-                    KeyFigure(label: "近 \(basis.count) 个月，平均每月\(avg.isExpense ? "超支" : "存下")", money: avg.magnitude,
+                    KeyFigure(label: "\(full.isEmpty ? "近 \(basis.count) 个月" : "过完的 \(basis.count) 个月（不算还没过完的这个月）")，平均每月\(avg.isExpense ? "超支" : "存下")", money: avg.magnitude,
                               color: avg.isExpense ? .alert : .primary, sentence: sentence,
                               spoken: "近 \(basis.count) 个月平均每月\(avg.isExpense ? "超支" : "存下") \(avg.magnitude.spoken)")
-                    SavedBars(summaries: list, average: avg, height: short ? 130 : 210)
+                    SavedBars(summaries: list, average: avg, height: short ? 92 : 210)
                         .id(span)
+                    if !short {
                     HStack(spacing: 14) {
                         HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(Color.income).frame(width: 10, height: 10); Text("存下") }
                         HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(Color.alert).frame(width: 10, height: 10); Text("花得比挣得多") }
@@ -64,6 +65,7 @@ struct TrendsPage: View {
                     }
                     .font(.caption).foregroundStyle(Color.fg2)
                     .accessibilityHidden(true)
+                    }
                 }
                 .kitCard(padding: short ? 16 : 20)
             } side: {
@@ -86,7 +88,7 @@ struct TrendsPage: View {
                 (Text("现在 ") + em(now.rounded) + Text("，比 \(series[0].month.month) 月底")
                  + em("\(diff.isExpense ? "少" : "多")了 \(diff.magnitude.rounded)", diff.isExpense ? .bad : .good) + Text("。"))
                     .font(.callout)
-                NetWorthChart(points: series, height: short ? 80 : 120)
+                NetWorthChart(points: series, height: short ? 64 : 120, labelEvery: series.count <= 6 ? 1 : 2)
             } else {
                 Text("记满两个月，这里会画出家底（所有的钱减掉欠款）每个月的变化。")
                     .font(.callout).foregroundStyle(Color.fg2)
