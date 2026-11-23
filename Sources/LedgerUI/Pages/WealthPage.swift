@@ -22,7 +22,8 @@ struct WealthPage: View {
                     heroCard
                     XiaxiaSays(page: "wealth", pageName: "家底", sentence: xiaxia,
                                question: "看看我的家底：钱放得合不合理？月底的钱够不够还信用卡？")
-                    debtsCard
+                    // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
+                    if !Viewport.isShort(viewport) { debtsCard }
                 } side: {
                     accountsCard
                 }
@@ -100,6 +101,7 @@ struct WealthPage: View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
+        let short = Viewport.isShort(viewport)
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "账户") {
                 Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
@@ -110,8 +112,11 @@ struct WealthPage: View {
             ForEach(kinds, id: \.self) { kind in
                 let list = model.visibleAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
-                    Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
-                        .padding(.bottom, 4)
+                    // 窗口矮：不分组写标题（图标已经看得出是哪种），每行收紧，一屏放下。
+                    if !short {
+                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
+                            .padding(.bottom, 4)
+                    }
                     ForEach(list) { a in
                         let b = balances[a.id] ?? .zero
                         HStack(spacing: 12) {
@@ -130,7 +135,7 @@ struct WealthPage: View {
                                 Text(b.balance).font(.kitAmount).foregroundStyle(b.isExpense ? Color.alert : .primary)
                             }
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, short ? 2 : 6)
                         .accessibilityElement(children: .combine)
                     }
                 }
