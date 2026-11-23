@@ -340,6 +340,7 @@ struct DebtsCommand: ParsableCommand {
         print("我欠别人：")
         if owe.isEmpty { print("  （没有）") }
         for d in owe { print("  \(d.counterparty)\t还欠 \(d.outstanding.formatted)\(d.dueDate.map { "\t\($0) 前还" } ?? "")") }
+        print(debtPlansText(try loadLedger()).trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 
@@ -405,7 +406,33 @@ struct AddCommand: ParsableCommand {
 
 struct DebtCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "debt", abstract: "记欠款、记还款。",
-                                                    subcommands: [DebtAdd.self, DebtRepay.self])
+                                                    subcommands: [DebtAdd.self, DebtRepay.self, DebtPlan.self])
+
+    struct DebtPlan: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "plan", abstract: "给一笔欠款排还款计划（欠款改分期）：每月还多少，或分几期。")
+        @OptionGroup var w: WriteOptions
+        @Argument(help: "对方，如「阿华」。") var who: String
+        @Option(name: .customLong("per-month"), help: "每月还多少。") var perMonth: String?
+        @Option(help: "分几期。") var count: Int?
+        @Option(help: "第一期哪天，默认下个月今天。") var start: String?
+        @Flag(help: "不要计划了。") var clear = false
+
+        func run() throws {
+            var ledger = try loadLedger()
+            let matches = ledger.openDebts(named: who)
+            guard matches.count == 1, let debt = matches.first else {
+                throw ValidationError(matches.isEmpty ? "没找到和「\(who)」有关的没结清借款，先用 fin debts 看看"
+                                                      : "「\(who)」对上了 \(matches.count) 笔借款，名字写完整一点")
+            }
+            let first = try start.map { try parseDate($0) } ?? LocalDate.today.adding(months: 1)
+            let change: ChangeRecord
+            if clear { change = try ledger.clearDebtPlan(debt.id, author: w.who) }
+            else if let perMonth { change = try ledger.planDebt(debt.id, perMonth: try parseMoney(perMonth).magnitude, start: first, author: w.who) }
+            else if let count { change = try ledger.planDebt(debt.id, count: count, start: first, author: w.who) }
+            else { throw ValidationError("加 --per-month（每月还多少）或 --count（分几期）") }
+            try finish(ledger, change, w)
+        }
+    }
 
     struct DebtAdd: ParsableCommand {
         static let configuration = CommandConfiguration(commandName: "add", abstract: "记一笔欠款：别人欠我（--they-owe-me）或我欠别人（--i-owe）。")
@@ -441,6 +468,7 @@ struct DebtCommand: ParsableCommand {
         @Argument(help: "还了多少，正数。") var amount: String
         @Option(help: "钱进/出的账户 id。") var account: String
         @Option(help: "日期，默认今天。") var date: String?
+        @Option(help: "有还款计划时多还 / 少还怎么调：shorten 抵最后几期、lower 之后每期少还、next 差的补到下期、extend 顺延一期。") var adjust: String?
 
         func run() throws {
             var ledger = try loadLedger()
@@ -449,8 +477,12 @@ struct DebtCommand: ParsableCommand {
                 throw ValidationError(matches.isEmpty ? "没找到和「\(who)」有关的没结清借款，先用 fin debts 看看"
                                                       : "「\(who)」对上了 \(matches.count) 笔借款，名字写完整一点")
             }
+            let how = try adjust.map { t -> RepayAdjust in
+                guard let x = RepayAdjust(text: t) else { throw ValidationError("--adjust 只能是 shorten / lower / next / extend") }
+                return x
+            }
             let change = try ledger.repay(debtID: debt.id, amount: try parseMoney(amount).magnitude,
-                                          date: try parseDate(date), accountID: account, author: w.who)
+                                          date: try parseDate(date), accountID: account, adjust: how, author: w.who)
             try finish(ledger, change, w)
         }
     }

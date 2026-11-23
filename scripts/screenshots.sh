@@ -29,6 +29,8 @@ if [ -n "$IOS_APP" ]; then
   ios 3-trends -XiaxiaDemo -XiaxiaSection trends
   ios 4-wealth -XiaxiaDemo -XiaxiaSection wealth
   ios 5-plans -XiaxiaDemo -XiaxiaSection plans
+  ios 5b-subscriptions -XiaxiaDemo -XiaxiaSection subscriptions
+  ios 5c-debts -XiaxiaDemo -XiaxiaSection debts
   ios 6-ai -XiaxiaDemo -XiaxiaSection insights
   ios 7-add -XiaxiaDemo -XiaxiaSheet add
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
@@ -89,6 +91,17 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 33-memory-empty -XiaxiaEmpty 1 -XiaxiaSheet memory
   snap 34-memory-dark -XiaxiaDemo 1 -XiaxiaSheet memory -xiaxia.appearance dark
   snap 35-memory-in-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage memory
+  # 目标、订阅、欠款与分期三页（2026-11-23）：大窗口、最小窗口（一屏放下）、深色、空账本
+  snap 40-plans -XiaxiaDemo 1 -XiaxiaSection plans
+  snap 41-subscriptions -XiaxiaDemo 1 -XiaxiaSection subscriptions
+  snap 42-debts -XiaxiaDemo 1 -XiaxiaSection debts
+  snap 43-plans-small -XiaxiaDemo 1 -XiaxiaSection plans -XiaxiaWindowSize 1000x612
+  snap 44-subscriptions-small -XiaxiaDemo 1 -XiaxiaSection subscriptions -XiaxiaWindowSize 1000x612
+  snap 45-debts-small -XiaxiaDemo 1 -XiaxiaSection debts -XiaxiaWindowSize 1000x612
+  snap 46-debts-dark -XiaxiaDemo 1 -XiaxiaSection debts -xiaxia.appearance dark
+  snap 47-plans-dark -XiaxiaDemo 1 -XiaxiaSection plans -xiaxia.appearance dark
+  snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
+  snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

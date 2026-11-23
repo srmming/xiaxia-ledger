@@ -75,6 +75,8 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 **借钱和还钱**（「借给阿华 500」「阿华还了 100」）
 先 `fin debts` 看有没有这个人的账。借出：`fin debt add 阿华 500 --they-owe-me --account cash`；借入用 `--i-owe`；以前的旧账没有对应流水就不填 `--account`。还款：`fin debt repay 阿华 100 --account cash`。
 
+**欠款改分期**（我欠的、欠我的都行）：用户说「这笔分 6 个月还」「每月还 100」时 `fin debt plan 阿华 --count 6` / `--per-month 100`（MCP：`plan_debt`），会自动排好每期日期和金额，`fin debts` 能看到第几期、下一期哪天还多少、哪个月全部还清。有计划的欠款记还款时，多还了要用选项框问用户：多出来的「抵最后几期（早点还清）」还是「之后每期少还一点」；少还或这期没还，问「差的补到下一期」还是「顺延一期」。MCP 的 `repay_debt` 不带 `adjust` 时会先告诉你差多少、每种调法哪天还清，不会写入；用户选了再带 `adjust` 调。别人欠的到期没还，可以俏皮提醒用户去要。
+
 **自己账户之间转钱 / 取现**（「从银行卡取了 50 现金」）
 新记：`fin transfer move 50 --from-account daily --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from shop --to personal --account daily`（MCP：`book_transfer`）。
 

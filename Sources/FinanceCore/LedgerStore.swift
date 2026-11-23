@@ -89,7 +89,11 @@ public enum LedgerStores {
     /// 问系统要 iCloud 容器（只有带 iCloud 权限的正式版 app 能拿到；第一次会建好文件夹）。
     /// 会访问磁盘、可能慢一点，只在启动时调一次。
     public static func ubiquityDocuments() -> URL? {
+        #if canImport(Darwin)
         FileManager.default.url(forUbiquityContainerIdentifier: containerID)?.appendingPathComponent("Documents")
+        #else
+        nil  // Linux 上只为了编译和跑核心测试
+        #endif
     }
 
     /// 这个 app 签名时带没带 iCloud 容器权限。Mac 上没签名的开发版也能从系统拿到容器文件夹，
