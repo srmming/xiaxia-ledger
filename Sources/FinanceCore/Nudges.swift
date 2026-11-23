@@ -169,14 +169,12 @@ public enum Nudges {
                              question: "「\(top.name)」这笔花得值不值？"))
         }
         // 4. 少花得最多的一类：夸一句。
-        if let down = downs.first(where: { canSave($0.name) }), out.first?.kind != .praise || downs.count > 1 {
-            let d = out.first?.kind == .praise ? downs.dropFirst().first(where: { canSave($0.name) }) : down
-            if let d {
-                out.append(Nudge(kind: .praise, key: "spend-down-\(d.name)",
-                                 title: "「\(d.name)」比\(previousName)少花了 \(m(-d.diff))。",
-                                 advice: "照这样保持，一年能多留下大约 \(m(-d.diff * 12))。",
-                                 question: "还有哪一类能像「\(d.name)」这样省下来？"))
-            }
+        let mentioned = out.first?.kind == .praise ? downs.first?.name : nil   // 第一张已经说过的那类不再说一遍
+        if let d = downs.first(where: { canSave($0.name) && $0.name != mentioned }) {
+            out.append(Nudge(kind: .praise, key: "spend-down-\(d.name)",
+                             title: "「\(d.name)」比\(previousName)少花了 \(m(-d.diff))。",
+                             advice: "照这样保持，一年能多留下大约 \(m(-d.diff * 12))。",
+                             question: "还有哪一类能像「\(d.name)」这样省下来？"))
         }
         return Array(out.prefix(4))
     }

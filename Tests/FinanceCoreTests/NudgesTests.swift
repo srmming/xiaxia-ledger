@@ -95,18 +95,19 @@ extension NudgesTests {
 
     func testSpendingNudgesCompareWithLastMonth() {
         let txs = [spend(d(11, 3), 31_00, "Glovo", "餐饮"), spend(d(11, 9), 31_00, "Glovo", "餐饮"), spend(d(11, 15), 31_00, "Glovo", "餐饮"),
-                   spend(d(11, 16), 27_00, "Mercadona", "餐饮"), spend(d(11, 5), 20_00, "Metro", "交通"), spend(d(11, 1), 700_00, "房东", "房租")]
-        let current = [(name: "房租", amount: Money(cents: 700_00)), (name: "餐饮", amount: Money(cents: 120_00)), (name: "交通", amount: Money(cents: 20_00))]
-        let previous = ["房租": Money(cents: 700_00), "餐饮": Money(cents: 60_00), "交通": Money(cents: 50_00)]
+                   spend(d(11, 16), 27_00, "Mercadona", "餐饮"), spend(d(11, 5), 20_00, "Zara", "购物"), spend(d(11, 1), 700_00, "房东", "房租")]
+        let current = [(name: "房租", amount: Money(cents: 700_00)), (name: "餐饮", amount: Money(cents: 120_00)), (name: "购物", amount: Money(cents: 20_00))]
+        let previous = ["房租": Money(cents: 700_00), "餐饮": Money(cents: 60_00), "购物": Money(cents: 50_00)]
         let out = Nudges.spending(month: 11, current: current, previous: previous, previousName: "上月同期", transactions: txs, currency: "EUR")
-        XCTAssertEqual(out.map(\.key), ["spend-total", "spend-up-餐饮", "spend-down-交通"])
+        XCTAssertEqual(out.map(\.key), ["spend-total", "spend-up-餐饮", "spend-down-购物"])
+        guard out.count == 3 else { return }
         XCTAssertEqual(out[0].kind, .unusual)
         XCTAssertTrue(out[0].title.contains("多花了 30 €"), out[0].title)
         XCTAssertTrue(out[0].advice.contains("「餐饮」（多 60 €）"), out[0].advice)
         XCTAssertTrue(out[1].title.contains("「餐饮」比上月同期多花了 60 €"))
         XCTAssertTrue(out[1].advice.contains("主要花在「Glovo」，3 笔共 93 €") && out[1].advice.contains("少花 2 次"), out[1].advice)
         XCTAssertEqual(out[2].kind, .praise)
-        XCTAssertTrue(out[2].title.contains("「交通」比上月同期少花了 30 €"))
+        XCTAssertTrue(out[2].title.contains("「购物」比上月同期少花了 30 €"))
     }
 
     func testSpendingNudgesNewLedgerAndOneBigItem() {
@@ -115,6 +116,7 @@ extension NudgesTests {
         let current = [(name: "保健品", amount: Money(cents: 204_00)), (name: "餐饮", amount: Money(cents: 20_00))]
         let out = Nudges.spending(month: 11, current: current, previous: [:], previousName: "上月同期", transactions: txs, currency: "EUR")
         XCTAssertEqual(out.map(\.key), ["spend-total", "spend-share-保健品"])
+        guard out.count == 2 else { return }
         XCTAssertTrue(out[0].title.contains("花了 224 €") && out[0].advice.contains("还没有记录"), "\(out[0])")
         XCTAssertTrue(out[1].title.contains("91%") && out[1].advice.contains("一笔 204 € 的大件"), "\(out[1])")
         XCTAssertTrue(Nudges.spending(month: 11, current: [], previous: [:], previousName: "10 月", transactions: [], currency: "EUR").isEmpty)
@@ -125,6 +127,7 @@ extension NudgesTests {
         let previous = ["餐饮": Money(cents: 150_00), "购物": Money(cents: 70_00)]
         let out = Nudges.spending(month: 10, current: current, previous: previous, previousName: "9 月", transactions: [], currency: "EUR")
         XCTAssertEqual(out.map(\.key), ["spend-total", "spend-down-购物"])
+        guard out.count == 2 else { return }
         XCTAssertEqual(out[0].kind, .praise)
         XCTAssertTrue(out[0].title.contains("比9 月少花了 80 €") && out[0].advice.contains("「餐饮」，少花了 50 €"), "\(out[0])")
     }
