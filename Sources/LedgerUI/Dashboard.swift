@@ -159,8 +159,12 @@ extension LedgerModel {
     /// 钱在哪：到这个月底为止，能随时用的 / 存着的 / 店里的 / 别人欠我的 / 欠款。口径和 netWorthSeries 一样，net 就是那条曲线的最后一个点。
     func wealthBreakdown(_ month: YearMonth) -> WealthBreakdown {
         let end = LocalDate(year: month.year, month: month.month, day: month.dayCount)
-        var balances: [String: Money] = [:]
-        for t in baseTransactions where t.date <= end { balances[t.accountID, default: .zero] = balances[t.accountID, default: .zero] + t.amount }
+        // 看本月：用和下面账户列表一样的余额（外币按今天的汇率），分项加起来才和列表对得上。看以前的月份：按到那个月底的流水算。
+        var balances = self.balances
+        if end < LocalDate.today {
+            balances = [:]
+            for t in baseTransactions where t.date <= end { balances[t.accountID, default: .zero] = balances[t.accountID, default: .zero] + t.amount }
+        }
         let saved = Dictionary(Plans.goals(ledger).map { ($0.id, $0.saved) }, uniquingKeysWith: { a, _ in a })
         return WealthBreakdown.make(accounts: visibleAccounts, balances: balances,
                                     goals: ledger.goals.map { (goal: $0, saved: saved[$0.id] ?? .zero) },
