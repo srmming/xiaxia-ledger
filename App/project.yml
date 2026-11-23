@@ -13,6 +13,10 @@ packages:
   swift-argument-parser:
     url: https://github.com/apple/swift-argument-parser
     from: 1.5.0
+  # Mac 版自动更新（App Store 以外的 Mac app 通用做法）。只给 Mac 用，iPhone 不带。
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
 settings:
   base:
     # iCloud 同步要用的权限只在正式签名时带上：xcodebuild … XIAXIA_ICLOUD=YES。
@@ -20,6 +24,8 @@ settings:
     XIAXIA_ENTITLEMENTS_YES_iOS: Entitlements/iOS.entitlements
     XIAXIA_ENTITLEMENTS_YES_macOS: Entitlements/macOS.entitlements
     MARKETING_VERSION: "0.1.0"
+    # Sparkle 更新签名的公钥（不是秘密）。第一次在 ming 的 Mac 上跑 Sparkle 的 generate_keys 生成后填这里。
+    XIAXIA_SPARKLE_PUBLIC_KEY: ""
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_LANGUAGE: zh-Hans
@@ -87,12 +93,20 @@ targets:
         link: false
         copy:
           destination: executables
+      - package: Sparkle
+        product: Sparkle
     info:
       path: Generated/macOS-Info.plist
       properties:
         CFBundleDisplayName: $(PRODUCT_NAME)
         CFBundleDevelopmentRegion: zh-Hans
         LSApplicationCategoryType: public.app-category.finance
+        # 自动更新：每天看一次 appcast，有新版弹窗，点一下装好（docs/DISTRIBUTE.md「自动更新」）。
+        # 更新包用 EdDSA 签名，私钥只在 ming 的 Mac 钥匙串里，这里是公钥。
+        SUFeedURL: https://raw.githubusercontent.com/srmming/xiaxia-ledger-releases/main/appcast.xml
+        SUPublicEDKey: $(XIAXIA_SPARKLE_PUBLIC_KEY)
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
         NSUbiquitousContainers:
           iCloud.com.srmming.xiaxia-ledger:
             NSUbiquitousContainerIsDocumentScopePublic: true

@@ -79,3 +79,30 @@ bash scripts/release-local.sh --iphone    # iPhone：装到用线连着的那台
 ## 发版前
 
 每次发版前按 [CHECKLIST.md](CHECKLIST.md) 从头跑一遍，其中「8. 连 AI 引导」一节专门查这一页说的流程。
+
+## 发给别人 + 自动更新（2026-11-23 起）
+
+仓库改成私有以后，别人下不到仓库里的东西，所以安装包和更新信息放在一个**只放安装包的公开仓库** `srmming/xiaxia-ledger-releases`（没有源代码）：
+
+- `appcast.xml`：最新版本的清单。别人的 app 里写着它的地址（`SUFeedURL`），每天看一次，有新版就弹「有新版本」，点「安装更新」，app 自己下载、换好、重开。菜单「夏夏账本 → 检查更新…」可以手动查。
+- `updates/XiaxiaLedger-<版本>.dmg`：安装包，只留最近 3 个。
+- 更新包用 Sparkle 的 EdDSA 密钥签名：私钥只在 ming 的 Mac 钥匙串里（Sparkle 的 `generate_keys` 生成），公钥写在 `App/project.yml` 的 `XIAXIA_SPARKLE_PUBLIC_KEY`。私钥丢了，旧版就收不到新版的更新，要让大家重新下载一次，所以钥匙串要和 Mac 一起备份。
+
+发一个新版只要一句（在 Mac 的仓库目录）：
+
+```
+bash scripts/release-share.sh 0.2.1            # 编译 → Developer ID 签名 → 公证 → dmg → 写 appcast → 推到 xiaxia-ledger-releases
+bash scripts/release-share.sh 0.2.1 --adhoc    # 还没有 Developer ID 证书时：临时签名，别人第一次打开要多点一步
+```
+
+版本号每次要比上次大（0.2.0 → 0.2.1）。给别人的包**不带 iCloud 权限**：账本放在对方 iCloud 云盘的「夏夏账本」文件夹（开了 iCloud 云盘时）或「应用程序支持」里，app 和 AI 都读这一份；少了的只是「iPhone 和 Mac 同步」（要开发者账号给每台设备签 iCloud 权限，以后再做）。
+
+### 第一次要 ming 本人点的（按顺序，大约 15 分钟）
+
+1. **建只放安装包的公开仓库**：打开 <https://github.com/new>，名字填 `xiaxia-ledger-releases`，选 **Public**，勾「Add a README file」，点 Create。然后终端：`git clone https://github.com/srmming/xiaxia-ledger-releases ~/xiaxia-ledger-releases`。
+2. **Developer ID 证书**：Xcode → 设置（⌘,）→ Accounts → 选你的 Apple ID → Manage Certificates… → 左下「+」→ **Developer ID Application**。
+3. **公证用的 App 专用密码**：<https://account.apple.com> → 登录与安全 → App 专用密码 → 生成（名字 xiaxia-notary），复制，然后终端：
+   `xcrun notarytool store-credentials xiaxia-notary --apple-id <你的 Apple ID 邮箱> --team-id U33A8DX2JT`，提示输密码时粘贴。
+4. **第一次签名时钥匙串弹窗**：问 codesign 能不能用密钥，输开机密码，点「始终允许」。
+
+做完告诉 Claude，Claude 跑 `release-share.sh 0.2.0`，出来的 dmg 双击就能开、以后自动更新。
