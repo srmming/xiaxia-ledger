@@ -901,7 +901,7 @@ struct WelcomeView: View {
         withAnimation(.smooth(duration: 0.35)) { step = next }
     }
 
-    private var canGoBack: Bool { step == .books || step == .accounts || step == .ai || (step == .chat && !celebrated) }
+    private var canGoBack: Bool { step == .aim || step == .books || step == .accounts || step == .ai || (step == .chat && !celebrated) }
 
     private func goBack() {
         switch step {
