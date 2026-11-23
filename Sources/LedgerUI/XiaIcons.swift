@@ -244,6 +244,7 @@ extension AppSection {
         case .trends: .navTrends
         case .wealth: .navWealth
         case .plans: .navPlans
+        case .subscriptions: .subscription
         case .insights: .navXiaxia
         case .changes: .navChanges
         case .transactions: .navTransactions

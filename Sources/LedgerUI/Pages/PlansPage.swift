@@ -48,9 +48,6 @@ struct PlansPage: View {
                         newPlanButton
                     }
                     .kitCard()
-                    #if os(macOS)
-                    SubscriptionsCard()
-                    #endif
                     AskAICard(title: "想加目标、记欠款、记分期？", note: nil, page: "计划", prompts: model.prompts(for: .plans))
                 }
             } else {
@@ -65,9 +62,6 @@ struct PlansPage: View {
                                question: "看看我的存钱目标、分期和借款：照现在的速度来得及吗？要怎么调整？")
                     if goals.count > 1 { otherGoals(Array(goals.dropFirst())) }
                 } side: {
-                    #if os(macOS)
-                    SubscriptionsCard()
-                    #endif
                     if !installments.isEmpty { installmentsCard(installments) }
                     if !debts.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {

@@ -6,7 +6,7 @@ import AppKit
 
 /// 9 个页面，每页回答一个问题。前 5 页是「看」，夏夏建议和改动记录是「AI 做了什么」，最后是流水和设置。
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "计划"
+    case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "计划", subscriptions = "订阅"
     case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
     public var id: String { rawValue }
 
@@ -17,6 +17,7 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .trends: "chart.bar.fill"
         case .wealth: "wallet.bifold.fill"
         case .plans: "target"
+        case .subscriptions: "arrow.triangle.2.circlepath"
         case .insights: "sparkles"
         case .changes: "clock.arrow.circlepath"
         case .transactions: "list.bullet.rectangle.portrait.fill"
@@ -25,7 +26,7 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// 工具栏要不要月份和账本切换（AI、改动记录、设置不按月看）。
-    var usesMonth: Bool { ![.insights, .changes, .settings].contains(self) }
+    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions].contains(self) }
     var usesBook: Bool { ![.insights, .changes, .settings, .wealth].contains(self) }
 
     @ViewBuilder var screen: some View {
@@ -35,6 +36,7 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .trends: TrendsPage()
         case .wealth: WealthPage()
         case .plans: PlansPage()
+        case .subscriptions: SubscriptionsPage()
         case .insights: InsightsPage()
         case .changes: ChangesPage()
         case .transactions: TransactionsPage()
@@ -42,7 +44,8 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans]
+    /// Mac 侧栏「看」：订阅单独一页（ming 2026-11-23）。iPhone 底栏放不下，订阅还在计划页「订阅」那一格。
+    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans, .subscriptions]
     static let ai: [AppSection] = [.insights, .changes]
     static let records: [AppSection] = [.transactions]
 }
@@ -344,6 +347,7 @@ struct PhoneRoot: View {
             switch model.section ?? .overview {
             case .trends: return .spending
             case .changes, .settings: return .insights
+            case .subscriptions: return .plans
             case .transactions: return .overview
             default: return model.section ?? .overview
             }
@@ -475,7 +479,7 @@ public struct XiaxiaScene: Scene {
         }
         let sections: [String: AppSection] = [
             "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
-            "plans": .plans, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
+            "plans": .plans, "subscriptions": .subscriptions, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
             "transactions": .transactions, "settings": .settings,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
@@ -530,7 +534,8 @@ public struct XiaxiaScene: Scene {
                 .keyboardShortcut(.rightArrow, modifiers: .command)
                 Button("重新读取账本") { model.reload() }.keyboardShortcut("r", modifiers: .command)
                 Divider()
-                ForEach(Array(AppSection.allCases.enumerated()), id: \.element) { i, s in
+                // ⌘1…⌘9：只有九个数字键，多出来的页（设置有 ⌘,）不给数字快捷键。
+                ForEach(Array(AppSection.allCases.prefix(9).enumerated()), id: \.element) { i, s in
                     Button(s.rawValue) { model.section = s }
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }

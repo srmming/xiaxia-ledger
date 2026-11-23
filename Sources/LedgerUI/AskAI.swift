@@ -73,8 +73,11 @@ extension LedgerModel {
         case .plans:
             return [AIPrompt(kind: "目标", text: "帮我建一个 2.000 € 的存钱目标，明年 6 月前存够"),
                     AIPrompt(kind: "欠款", text: "帮我记一笔欠款：朋友借了我 300 €，下个月还"),
-                    AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣"),
-                    AIPrompt(kind: "订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本")]
+                    AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣")]
+        case .subscriptions:
+            return [AIPrompt(kind: "找订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本"),
+                    AIPrompt(kind: "省钱", text: "看看我的订阅，哪些很久没用、可以停掉？"),
+                    AIPrompt(kind: "登记", text: "帮我登记一个订阅：每月 9,99 € 的音乐会员，每月 5 号从银行卡扣")]
         case .spending:
             return [AIPrompt(kind: "问问题", text: "\(m)钱主要花在哪了？哪些可以省？"), record,
                     AIPrompt(kind: "整理", text: "帮我看看\(m)有没有分错类的流水")]

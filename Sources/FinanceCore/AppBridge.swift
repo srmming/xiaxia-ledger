@@ -25,7 +25,7 @@ public enum AppBridge {
     /// 页面的英文名（给 AI 用）和 app 里的中文名。
     public static let pages: [(key: String, name: String)] = [
         ("overview", "总览"), ("spending", "花销"), ("trends", "趋势"), ("wealth", "家底"), ("plans", "计划"),
-        ("insights", "夏夏建议"), ("changes", "改动记录"), ("transactions", "流水"), ("settings", "设置"),
+        ("subscriptions", "订阅"), ("insights", "夏夏建议"), ("changes", "改动记录"), ("transactions", "流水"), ("settings", "设置"),
     ]
 
     /// 「overview」「总览」都认，返回中文名；认不出返回 nil。

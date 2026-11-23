@@ -1,9 +1,45 @@
 import FinanceCore
 import SwiftUI
 
-// 订阅（计划页）：每月固定在扣多少、下次哪天扣、快到的和涨价的标出来；流水里像订阅的列在下面，点「加上」确认后登记。
+// 订阅（Mac 侧栏单独一页「订阅」，iPhone 在计划页「订阅」那一格）：每月固定在扣多少、下次哪天扣、快到的和涨价的标出来；流水里像订阅的列在下面，点「加上」确认后登记。
 
-/// 订阅卡片。Mac 在计划页右栏，iPhone 在计划页「订阅」那一格。
+/// 订阅页（Mac）。ming 2026-11-23：「订阅要单独拆解出来」「放在一个导航页上面」。
+/// 左边是订阅清单（大字是每月一共在扣多少），右边是 7 天内要扣的和问夏夏。
+struct SubscriptionsPage: View {
+    @Environment(LedgerModel.self) var model
+
+    var body: some View {
+        let book = model.selectedBookID
+        let soon = model.subscriptionStatus
+            .filter { $0.cancelledOn == nil && $0.isDueSoon && (book == nil || $0.bookID == nil || $0.bookID == book) }
+        Columns(sideWidth: 360, breakpoint: 780) {
+            SubscriptionsCard()
+        } side: {
+            if !soon.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader("7 天内要扣")
+                    ForEach(soon) { s in
+                        HStack(spacing: 10) {
+                            CategoryIcon(category: s.category ?? "订阅")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
+                                Text(s.daysLeft == 0 ? "今天扣" : "\(s.daysLeft ?? 0) 天后扣").font(.caption).foregroundStyle(Color.fg2)
+                            }
+                            Spacer(minLength: 8)
+                            Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .kitCard()
+            }
+            AskAICard(title: "让夏夏帮你看订阅", note: nil, page: "订阅", prompts: model.prompts(for: .subscriptions))
+        }
+        .kitPage()
+    }
+}
+
+/// 订阅卡片。Mac 在「订阅」页，iPhone 在计划页「订阅」那一格。
 struct SubscriptionsCard: View {
     @Environment(LedgerModel.self) var model
     @State private var editing: SubscriptionDraft?
