@@ -213,6 +213,8 @@ public enum MemoryError: Error, LocalizedError, Equatable {
 public struct MemoryHit: Codable, Sendable {
     public var memory: Memory
     public var score: Int
+
+    public init(memory: Memory, score: Int) { self.memory = memory; self.score = score }
 }
 
 /// 每月整理时列出来的一项。
@@ -236,6 +238,10 @@ public struct MemoryTidyItem: Identifiable, Hashable, Codable, Sendable {
     public var reason: Reason
     /// 给人看的原因。
     public var why: String
+
+    public init(memoryID: UUID, noteID: UUID? = nil, title: String, text: String, reason: Reason, why: String) {
+        self.memoryID = memoryID; self.noteID = noteID; self.title = title; self.text = text; self.reason = reason; self.why = why
+    }
 
     public var id: String { memoryID.uuidString + (noteID?.uuidString ?? "") }
     /// 能不能一键清掉（行数太多的要让夏夏并，不能直接清）。
