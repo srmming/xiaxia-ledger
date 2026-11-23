@@ -42,7 +42,8 @@
 注意：重复记账是 app 打开时自动记上的。导入银行对账单前先看一眼 `fin repeat list` / `list_recurring`：对账单里的房租、话费如果已经被重复记账记过，导完要把重复的那一笔删掉（或者跟用户商量把那条重复记账停掉，以后以对账单为准），别让一笔钱算两次。
 
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
-| 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
+| 还款 | `fin debt repay 阿华 100 --account cash [--adjust shorten｜lower｜next｜extend]` | `repay_debt`（有计划又多还/少还时先不带 `adjust` 调一次看选项） |
+| 欠款改分期（排还款计划） | `fin debt plan 阿华 --per-month 100｜--count 6 [--start 2026-12-20]`；`--clear` 取消 | `plan_debt`；改某一期 `edit_debt_plan`；这期没还 `skip_debt_payment` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |
 | 新建分类 / 换图标 | 只有 MCP | `add_category`（可带 `icon`）、`set_category_icon`；图标名先用 `list_category_icons` 查 |
 | 分账本 | `fin assign --book shop <编号…>` | `assign_book` |

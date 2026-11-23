@@ -174,13 +174,35 @@ enum MCPTools {
             "note": prop("string", "备注"),
             "author": author, "dry_run": dryRun,
         ], required: ["counterparty", "direction", "amount"], readOnly: false),
-        tool("repay_debt", "记一笔还款。对方名字要能唯一对上一笔没还清的借款。", [
+        tool("repay_debt", "记一笔还款。对方名字要能唯一对上一笔没还清的借款。这笔有还款计划、又比这期该还的多或少时，先不填 adjust 调一次（会告诉你差多少、每种调法哪天还清，不会写入），用选项框问用户选哪种，再带 adjust 调。", [
             "counterparty": prop("string", "对方"),
             "amount": prop("string", "还了多少，正数"),
             "account": prop("string", "钱进 / 出的账户 id"),
             "date": prop("string", "日期，默认今天"),
+            "adjust": ["type": "string", "enum": ["shorten", "lower", "next", "extend", "none"],
+                       "description": "有计划时多还 / 少还怎么调：多还 shorten = 抵最后几期（早点还清）、lower = 之后每期少还；少还 next = 差的补到下一期、extend = 顺延一期（差的放到最后）；none = 计划不动"],
             "author": author, "dry_run": dryRun,
         ], required: ["counterparty", "amount", "account"], readOnly: false),
+        tool("plan_debt", "给一笔欠款排还款计划（欠款改分期，我欠的、欠我的都行）：填每月还多少（per_month）或分几期（count），自动算每期日期和金额。已经有计划的会重排。", [
+            "counterparty": prop("string", "对方"),
+            "per_month": prop("string", "每月还多少，如 125"),
+            "count": prop("integer", "分几期"),
+            "start": prop("string", "第一期哪天，如 2026-12-20；默认下个月今天"),
+            "clear": prop("boolean", "true = 不要计划了"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["counterparty"], readOnly: false),
+        tool("edit_debt_plan", "改还款计划里的一期（第几期从 1 数）：差出来的钱从最后几期找补。只能改还没还完的期。", [
+            "counterparty": prop("string", "对方"),
+            "period": prop("integer", "第几期，从 1 数"),
+            "amount": prop("string", "这一期改成多少"),
+            "date": prop("string", "这一期改到哪天（可不填）"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["counterparty", "period", "amount"], readOnly: false),
+        tool("skip_debt_payment", "这一期没还（晚还）：adjust = next（这期的钱补到下一期）或 extend（顺延：这期起每期往后挪一个月）。先问用户选哪个。", [
+            "counterparty": prop("string", "对方"),
+            "adjust": ["type": "string", "enum": ["next", "extend"], "description": "next = 补到下期，extend = 顺延一期"],
+            "author": author, "dry_run": dryRun,
+        ], required: ["counterparty", "adjust"], readOnly: false),
         tool("edit_transaction", "改一笔流水，只填要改的那几项。转账、借款、分期、目标里的流水不能直接改，先 undo 再重新记。", [
             "id": prop("string", "流水 id（前 8 位也行）"),
             "amount": prop("string", "新金额，负数是支出"), "description": prop("string", "新说明"),
@@ -588,7 +610,7 @@ enum MCPTools {
             let txs = try ledger.findTransactions(ids).map(\.id)
             return try commit(try ledger.markAsAccountTransfer(txs, counterAccount: s("counter_account"), author: who))
         case "debts":
-            return try json(Plans.debts(ledger, today: .today, includeClosed: flag("include_closed")))
+            return try json(Plans.debts(ledger, today: .today, includeClosed: flag("include_closed"))) + debtPlansText(ledger)
         case "installments":
             return try json(Plans.installments(ledger))
         case "goals":
@@ -677,8 +699,47 @@ enum MCPTools {
                 throw ToolError(message: matches.isEmpty ? "没找到和这个名字有关的没还清借款，先调 debts 看看"
                                                          : "这个名字对上了 \(matches.count) 笔借款，写完整一点")
             }
-            return try commit(try ledger.repay(debtID: matches[0].id, amount: try money("amount").magnitude,
-                                               date: try date("date") ?? .today, accountID: try req("account"), author: who))
+            let debtID = matches[0].id
+            let amount = try money("amount").magnitude
+            let day = try date("date") ?? .today
+            var adjust: RepayAdjust? = nil
+            if let t = s("adjust"), t != "none" {
+                guard let x = RepayAdjust(text: t) else { throw ToolError(message: "adjust 只能是 shorten / lower / next / extend / none") }
+                adjust = x
+            }
+            if s("adjust") == nil, let p = ledger.repayPreview(debtID, amount: amount, today: day), !p.options.isEmpty {
+                let more = p.difference.cents > 0
+                let lines = p.options.map { "- \($0.adjust.rawValue)：\($0.adjust.label)（\($0.detail)）" }
+                return "还没写入。这笔有还款计划，这期该还 \(p.due.formatted)，这次\(more ? "多" : "少")还了 \(p.difference.magnitude.formatted)。"
+                    + "用选项框问用户怎么调，再带 adjust 调 repay_debt：\n" + lines.joined(separator: "\n") + "\n- none：计划不动"
+            }
+            if let adjust, adjust.isForOverpay != ((ledger.repayPreview(debtID, amount: amount, today: day)?.difference.cents ?? 0) > 0) {
+                throw ToolError(message: adjust.isForOverpay ? "这笔没有多还，shorten / lower 用不上" : "这笔没有少还，next / extend 用不上")
+            }
+            return try commit(try ledger.repay(debtID: debtID, amount: amount, date: day, accountID: try req("account"),
+                                               adjust: adjust, author: who))
+        case "plan_debt", "edit_debt_plan", "skip_debt_payment":
+            let matches = ledger.openDebts(named: try req("counterparty"))
+            guard matches.count == 1 else {
+                throw ToolError(message: matches.isEmpty ? "没找到和这个名字有关的没还清借款，先调 debts 看看"
+                                                         : "这个名字对上了 \(matches.count) 笔借款，写完整一点")
+            }
+            let id = matches[0].id
+            if name == "edit_debt_plan" {
+                return try commit(try ledger.editPlannedPayment(id, index: int("period", 1) - 1, amount: try money("amount").magnitude,
+                                                                date: try date("date"), author: who))
+            }
+            if name == "skip_debt_payment" {
+                guard let x = RepayAdjust(text: try req("adjust")), !x.isForOverpay else { throw ToolError(message: "adjust 只能是 next 或 extend") }
+                return try commit(try ledger.skipPlannedPayment(id, adjust: x, author: who))
+            }
+            if flag("clear") { return try commit(try ledger.clearDebtPlan(id, author: who)) }
+            let start = try date("start") ?? LocalDate.today.adding(months: 1)
+            if s("per_month") != nil {
+                return try commit(try ledger.planDebt(id, perMonth: try money("per_month").magnitude, start: start, author: who))
+            }
+            guard a["count"] != nil else { throw ToolError(message: "填 per_month（每月还多少）或 count（分几期）") }
+            return try commit(try ledger.planDebt(id, count: int("count", 0), start: start, author: who))
         case "categorize", "assign_book":
             guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
             let txs = try ledger.findTransactions(ids).map(\.id)

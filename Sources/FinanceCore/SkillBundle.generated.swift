@@ -80,6 +80,8 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 **借钱和还钱**（「借给阿华 500」「阿华还了 100」）
 先 `fin debts` 看有没有这个人的账。借出：`fin debt add 阿华 500 --they-owe-me --account cash`；借入用 `--i-owe`；以前的旧账没有对应流水就不填 `--account`。还款：`fin debt repay 阿华 100 --account cash`。
 
+**欠款改分期**（我欠的、欠我的都行）：用户说「这笔分 6 个月还」「每月还 100」时 `fin debt plan 阿华 --count 6` / `--per-month 100`（MCP：`plan_debt`），会自动排好每期日期和金额，`fin debts` 能看到第几期、下一期哪天还多少、哪个月全部还清。有计划的欠款记还款时，多还了要用选项框问用户：多出来的「抵最后几期（早点还清）」还是「之后每期少还一点」；少还或这期没还，问「差的补到下一期」还是「顺延一期」。MCP 的 `repay_debt` 不带 `adjust` 时会先告诉你差多少、每种调法哪天还清，不会写入；用户选了再带 `adjust` 调。别人欠的到期没还，可以俏皮提醒用户去要。
+
 **自己账户之间转钱 / 取现**（「从银行卡取了 50 现金」）
 新记：`fin transfer move 50 --from-account daily --to-account cash`（MCP：`account_transfer`）。对账单里已经有的那笔：`fin transfer mark <编号> [--counter-account cash]`（MCP：`mark_account_transfer`；带 `--counter-account` 会在那个账户补记另一半）。店里的钱拿回家（同一账户、换账本）：`fin transfer new 200 --from shop --to personal --account daily`（MCP：`book_transfer`）。
 
@@ -189,7 +191,8 @@ context 的记忆里出现「该整理了」时，找个不打断用户的时候
 注意：重复记账是 app 打开时自动记上的。导入银行对账单前先看一眼 `fin repeat list` / `list_recurring`：对账单里的房租、话费如果已经被重复记账记过，导完要把重复的那一笔删掉（或者跟用户商量把那条重复记账停掉，以后以对账单为准），别让一笔钱算两次。
 
 | 借出 / 借入 | `fin debt add 阿华 500 --they-owe-me｜--i-owe [--account cash] [--due …] [--note …] [--book personal]` | `add_debt`（`direction`: `they_owe_me` / `i_owe`） |
-| 还款 | `fin debt repay 阿华 100 --account cash` | `repay_debt` |
+| 还款 | `fin debt repay 阿华 100 --account cash [--adjust shorten｜lower｜next｜extend]` | `repay_debt`（有计划又多还/少还时先不带 `adjust` 调一次看选项） |
+| 欠款改分期（排还款计划） | `fin debt plan 阿华 --per-month 100｜--count 6 [--start 2026-12-20]`；`--clear` 取消 | `plan_debt`；改某一期 `edit_debt_plan`；这期没还 `skip_debt_payment` |
 | 改分类 | `fin categorize --category 餐饮 <编号…>` | `categorize` |
 | 新建分类 / 换图标 | 只有 MCP | `add_category`（可带 `icon`）、`set_category_icon`；图标名先用 `list_category_icons` 查 |
 | 分账本 | `fin assign --book shop <编号…>` | `assign_book` |
