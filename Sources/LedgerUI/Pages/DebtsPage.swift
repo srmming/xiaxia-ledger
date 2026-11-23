@@ -30,7 +30,7 @@ struct DebtsPage: View {
             // ming 2026-11-23：分期没还完的也是欠款。按「我欠的 / 欠我的」分两边，分期和借来的钱放在一起。
             VStack(alignment: .leading, spacing: Kit.gap) {
                 totalsCard(installments: installments, debts: debts)
-                Columns(sideWidth: 340, breakpoint: 640) {
+                Columns(sideWidth: 340, breakpoint: 640, sideRatio: 0.42) {
                     iOweCard(installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
                 } side: {
                     owedToMeCard(debts.filter { $0.direction == .theyOweMe })

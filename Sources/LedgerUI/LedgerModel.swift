@@ -423,7 +423,12 @@ public final class LedgerModel {
 
 extension LedgerModel {
     /// 预览和截图用的内存账本，数字全是编的。
-    public static func demo() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.demo)) }
+    /// persona：截图时看不同性格（-XiaxiaPersona cheer），只改内存里的示例账本。
+    public static func demo(persona: Persona? = nil) -> LedgerModel {
+        var l = Ledger.demo
+        if let persona { l.profile.persona = persona }
+        return LedgerModel(store: InMemoryLedgerStore(l))
+    }
     /// 空账本：看第一次打开的样子。
     public static func empty() -> LedgerModel { LedgerModel(store: InMemoryLedgerStore(.fresh)) }
 }

@@ -60,6 +60,7 @@ struct XiaxiaSays: View {
                             MoreLink(title: "夏夏建议", section: .insights)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     // 夏夏本人站在卡片右边，按性格摆动作；大字号时让出位置给文字。
                     if !dynamicTypeSize.isAccessibilitySize {
                         MascotView(.xiaxia, pose: model.persona.mascotPose, size: 92)
