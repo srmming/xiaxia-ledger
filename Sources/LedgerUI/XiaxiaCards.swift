@@ -67,7 +67,7 @@ struct XiaxiaCards: View {
                 card(item, number: index + 1, of: list.count)
                     .id(item.id)
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .scale(scale: 0.97, anchor: .bottom).combined(with: .opacity),
-                                                                      removal: .opacity))
+                                                                      removal: .identity))
                     .offset(x: drag)
                     .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag / 40).clamped(-6, 6)), anchor: .bottom)
                     .background(alignment: .bottom) {
@@ -156,7 +156,7 @@ struct XiaxiaCards: View {
         }
         let out = (step > 0 ? -1 : 1) * (width + 80)
         withAnimation(.easeIn(duration: 0.18)) { drag = out } completion: {
-            var t = Transaction(); t.disablesAnimations = true
+            var t = SwiftUI.Transaction(); t.disablesAnimations = true
             withTransaction(t) { drag = 0 }
             withAnimation(.spring(duration: 0.35, bounce: 0.15)) { current = list[target].id }
         }
