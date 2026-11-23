@@ -49,16 +49,19 @@ struct XiaxiaCards: View {
     var body: some View {
         let list = items
         let index = list.firstIndex { $0.id == current } ?? 0
-        VStack(spacing: 8) {
+        VStack(spacing: 2) {
             ScrollView(.horizontal) {
+                // 几张卡一样高（按最高那张），短的不会下面空一截。
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(list.enumerated()), id: \.element.id) { i, item in
                         card(item, number: i + 1, of: list.count)
+                            .frame(maxHeight: .infinity, alignment: .top)
                             .padding(.vertical, 3).padding(.horizontal, 2)
                             .containerRelativeFrame(.horizontal)
                             .id(item.id)
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.paging)
@@ -142,6 +145,7 @@ struct XiaxiaCards: View {
                 MascotView(.xiaxia, pose: pose(n), size: 80)
                     .accessibilityHidden(true)
             }
+            .frame(maxHeight: .infinity, alignment: .top)
             .aiCard()
         }
         .accessibilityElement(children: .contain)

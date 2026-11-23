@@ -143,9 +143,9 @@ public enum Nudges {
             advice = "最大一笔是 \(t.date.month) 月 \(t.date.day) 日「\(Merchant.display(t.description))」\(short(t.amount, currency))。"
         }
         return Nudge(kind: .unusual, key: b.cat,
-                     title: "这周「\(b.cat)」比平时多 \(b.pct)%，多花了 \(short(Money(cents: b.extra), currency))。",
+                     title: "最近 7 天「\(b.cat)」比平时多 \(b.pct)%，多花了 \(short(Money(cents: b.extra), currency))。",
                      advice: advice,
-                     question: "这周「\(b.cat)」为什么比平时多？")
+                     question: "最近 7 天「\(b.cat)」为什么花得多？")
     }
 
     /// 3 天内要扣的订阅；扣款账户里的钱不够就提醒。

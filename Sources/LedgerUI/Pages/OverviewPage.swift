@@ -38,6 +38,7 @@ struct OverviewPage: View {
             } else {
                 XiaxiaCards(nudges: nudges, insight: insight)
             }
+            // 速度图收矮、最近流水 4 条：1280×800 一屏放得下（ming：「尽量不要上下拉」）。
             Columns {
                 heroCard(status)
                 if model.selectedBookID == nil, model.ledger.books.count > 1 {
@@ -79,7 +80,7 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s)
+                SpendingPaceChart(status: s, height: 170)
             }
         }
         .kitCard(padding: 20)
@@ -120,7 +121,7 @@ struct OverviewPage: View {
 
     private var recentCard: some View {
         // 开账余额、自己账户之间互转不算收支，不占「最近流水」的位置（流水页里都还在）。
-        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(5))
+        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(4))
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: "最近流水") {
                 MoreLink(title: "全部", section: .transactions)
