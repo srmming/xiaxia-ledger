@@ -34,12 +34,16 @@ struct OverviewPage: View {
         return VStack(alignment: .leading, spacing: Kit.gap) {
             // 一张卡说一件事，左右拖动看下一张（ming 2026-11-23）。看以前的月份、又没有 AI 点评时，照旧说一句。
             let nudges = model.overviewNudges(status)
-            let insight = model.ledger.insight(forPage: "overview", month: model.shownMonth, bookID: model.selectedBookID)
-            if nudges.isEmpty && insight == nil {
+            // 卡叠尽量有下一张（ming：「让用户知道下一页还有」）：总览点评在前，再接「夏夏建议」里这个月别的没看过的，最多 6 张。
+            let book = model.selectedBookID
+            let main = model.ledger.insight(forPage: "overview", month: model.shownMonth, bookID: book)
+            let others = model.ledger.insights(month: model.shownMonth, bookID: book).filter { $0.id != main?.id }
+            let insights = Array(([main].compactMap { $0 } + others).prefix(max(0, 6 - nudges.count)))
+            if nudges.isEmpty && insights.isEmpty {
                 XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
                            question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
             } else {
-                XiaxiaCards(nudges: nudges, insight: insight)
+                XiaxiaCards(nudges: nudges, insights: insights)
             }
             // 速度图收矮、最近流水 4 条：1280×800 一屏放得下（ming：「尽量不要上下拉」）。
             // 账本卡收成一行一个、放到右栏最近流水下面（右栏下面原来空着），左边只留结论和速度图。
@@ -47,7 +51,8 @@ struct OverviewPage: View {
                 heroCard(status)
             } side: {
                 recentCard
-                if model.selectedBookID == nil, model.ledger.books.count > 1 { booksCard }
+                // 窗口太矮就不放（上面账本切换也能看各个账本）。
+                if !short, model.selectedBookID == nil, model.ledger.books.count > 1 { booksCard }
             }
         }
     }
@@ -82,7 +87,7 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s, height: short ? 110 : 170)
+                SpendingPaceChart(status: s, height: short ? 84 : 170)
             }
         }
         .kitCard(padding: 20)

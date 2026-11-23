@@ -29,13 +29,25 @@ struct XiaxiaCards: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let nudges: [Nudge]
-    let insight: Insight?
+    /// AI 写的意见：本月点评在前，再是「夏夏建议」里别的没看过的，排在 app 算的后面。
+    let insights: [Insight]
     @State private var current: String?
-    /// 上面那张跟手移动的距离；松手过线就飞出去，下面那张补上来。
-    @State private var drag: CGFloat = 0
+    /// 手指（或鼠标）正拖着的距离：松手、拖到一半卡片被换掉，都会自己回到 0，卡不会停在半路。
+    @GestureState private var live: CGFloat = 0
+    /// 翻页时上面那张往外飞的距离；飞完换成下一张，再回到 0。
+    @State private var fly: CGFloat = 0
+    private var drag: CGFloat { live + fly }
     @State private var width: CGFloat = 800
     /// 「知道了」：当天不再显示这一张（第二天情况变了会重新算）。存成「id@日期」一行一个。
-    @AppStorage("xiaxia.nudgesDismissed") private var dismissedRaw = ""
+    @AppStorage("xiaxia.nudgesDismissed") private var storedDismissed = ""
+    /// 示例账本、开发版：「知道了」只记在内存里，不写进和正式版共用的设置（不然示例里点过的会把真账本那边也藏掉，反过来也一样）。
+    @State private var memoryDismissed = ""
+    private static let ephemeral = ProcessInfo.processInfo.arguments.contains("-XiaxiaDemo")
+        || ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"] != nil
+    private var dismissedRaw: String {
+        get { Self.ephemeral ? memoryDismissed : storedDismissed }
+        nonmutating set { if Self.ephemeral { memoryDismissed = newValue } else { storedDismissed = newValue } }
+    }
 
     enum Item: Identifiable {
         case nudge(Nudge), insight(Insight)
@@ -51,7 +63,7 @@ struct XiaxiaCards: View {
         let today = LocalDate.today.description
         let hidden = Set(dismissedRaw.split(separator: "\n").map(String.init))
         var list: [Item] = nudges.filter { !hidden.contains("\($0.id)@\(today)") }.map { .nudge($0) }
-        if let insight { list.append(.insight(insight)) }
+        list += insights.map { .insight($0) }
         return list
     }
 
@@ -113,6 +125,8 @@ struct XiaxiaCards: View {
             }
         }
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.35, bounce: 0.15), value: current)
+        // 卡片少了一张（点了「知道了」）、换了月份：不管飞到哪都放回原位。
+        .onChange(of: list.map(\.id)) { _, _ in fly = 0 }
         .accessibilityIdentifier("xiaxiaCards")
         .onAppear {
             // 截图用：-XiaxiaCard 2 直接停在第 2 张。
@@ -131,17 +145,22 @@ struct XiaxiaCards: View {
 
     private func swipe(_ list: [Item], _ index: Int) -> some Gesture {
         DragGesture(minimumDistance: 14)
-            .onChanged { v in
+            .updating($live) { v, state, _ in
                 guard abs(v.translation.width) > abs(v.translation.height) else { return }
-                // 第一张往右、最后一张往左拉不动太远，像拉到头。
+                // 第一张往右、最后一张往左只拉得动一点点，像拉到头了。
                 let atEdge = (v.translation.width > 0 && index == 0) || (v.translation.width < 0 && index == list.count - 1)
-                drag = atEdge ? v.translation.width / 4 : v.translation.width
+                state = atEdge ? v.translation.width / 4 : v.translation.width
             }
             .onEnded { v in
                 let dx = v.predictedEndTranslation.width
-                if dx < -width * 0.3, index < list.count - 1 { flip(list, index, by: 1) }
-                else if dx > width * 0.3, index > 0 { flip(list, index, by: -1) }
-                else { withAnimation(.spring(duration: 0.3, bounce: 0.2)) { drag = 0 } }
+                let step = dx < -width * 0.3 && index < list.count - 1 ? 1 : dx > width * 0.3 && index > 0 ? -1 : 0
+                if step != 0 {
+                    // 从手指松开的地方接着飞，不先跳回中间。
+                    var t = SwiftUI.Transaction(); t.disablesAnimations = true
+                    withTransaction(t) { fly = v.translation.width }
+                    flip(list, index, by: step)
+                }
+                // 没过线：live 自己弹回 0。
             }
     }
 
@@ -150,14 +169,14 @@ struct XiaxiaCards: View {
         let target = index + step
         guard step != 0, list.indices.contains(target) else { return }
         if reduceMotion {
-            drag = 0
+            fly = 0
             withAnimation(.easeInOut(duration: 0.2)) { current = list[target].id }
             return
         }
         let out = (step > 0 ? -1 : 1) * (width + 80)
-        withAnimation(.easeIn(duration: 0.18)) { drag = out } completion: {
+        withAnimation(.easeIn(duration: 0.18)) { fly = out } completion: {
             var t = SwiftUI.Transaction(); t.disablesAnimations = true
-            withTransaction(t) { drag = 0 }
+            withTransaction(t) { fly = 0 }
             withAnimation(.spring(duration: 0.35, bounce: 0.15)) { current = list[target].id }
         }
     }
