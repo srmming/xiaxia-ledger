@@ -117,6 +117,18 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 61-trends-small -XiaxiaDemo 1 -XiaxiaSection trends -XiaxiaWindowSize 1000x612
   snap 62-trends-dark -XiaxiaDemo 1 -XiaxiaSection trends -xiaxia.appearance dark
   snap 63-trends-empty -XiaxiaEmpty 1 -XiaxiaSection trends
+  # 英文、西班牙语（2026-11-23）：每页一张 + 两张最小窗口，看有没有露中文、字挤掉、一屏放不下
+  n=80
+  for lang in en es; do
+    for page in overview spending trends wealth transactions subscriptions debts insights settings; do
+      snap $n-$lang-$page -XiaxiaDemo 1 -XiaxiaSection $page -xiaxia.language $lang; n=$((n + 1))
+    done
+    snap $n-$lang-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI -xiaxia.language $lang; n=$((n + 1))
+    snap $n-$lang-memory -XiaxiaDemo 1 -XiaxiaSheet memory -xiaxia.language $lang; n=$((n + 1))
+    snap $n-$lang-overview-small -XiaxiaDemo 1 -XiaxiaWindowSize 1000x612 -xiaxia.language $lang; n=$((n + 1))
+    snap $n-$lang-wealth-small -XiaxiaDemo 1 -XiaxiaSection wealth -XiaxiaWindowSize 1000x612 -xiaxia.language $lang; n=$((n + 1))
+    n=100
+  done
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。
