@@ -7,7 +7,10 @@
 | `/` | 官网 | 这个目录 |
 | `/download/xiaxia-ledger.dmg` | 最新版安装包（官网下载按钮） | `scripts/release-share.sh` → `dist/download/` |
 | `/download/xiaxia-ledger-<版本>.dmg` | 每个版本一份，appcast 指向它 | 同上 |
-| `/appcast.xml` | Sparkle 自动更新文件（app 的 SUFeedURL） | 同上 → `dist/appcast.xml` |
+| `/appcast.xml` | Sparkle 自动更新文件（app 的 SUFeedURL），每版带「改了什么」 | 同上 → `dist/appcast.xml` |
+| `/changelog.html` | 更新日志页，每版一段大白话 + 截图 | `python3 scripts/changelog.py site`，数据在 `Sources/LedgerUI/Resources/Changelog.json` |
+
+更新日志只改 `Changelog.json`（新版放最前面，截图放 `assets/changelog/`，只用示例数据），再跑 `python3 scripts/changelog.py site`。app 里「这次更新了什么」和 Mac 更新窗口读的也是它。发版时 `release-share.sh` 会自动检查：没写这一版就按 PR 标题起草一条，记得改成大白话再提交。
 
 官网会读 `/appcast.xml`，自动显示最新版本号和大小。
 

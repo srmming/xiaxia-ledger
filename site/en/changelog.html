@@ -1,0 +1,152 @@
+<!doctype html>
+<!-- 这个文件由 scripts/changelog.py site 生成，别直接改；改 Sources/LedgerUI/Resources/Changelog.json -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog · Xiaxia Ledger</title>
+<meta name="description" content="What changed in each version of Xiaxia Ledger, in plain words.">
+<meta name="theme-color" content="#0f0f14">
+<meta property="og:title" content="Xiaxia Ledger · Changelog">
+<meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/changelog.html">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/changelog.html">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/changelog.html">
+<link rel="icon" type="image/png" href="../assets/app-icon-64.png">
+<link rel="alternate" type="application/rss+xml" title="Xiaxia Ledger updates" href="/appcast.xml">
+<style>
+:root{
+  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#ffffff; --fg:#1d1d1f; --fg2:#55555c; --fg3:#86868b;
+  --line:rgba(0,0,0,.08); --brand:#ff7a3d; --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d0d11;--bg2:#15151b;--card:#1b1b22;--fg:#f5f5f7;--fg2:#b4b4bb;--fg3:#7d7d85;--line:rgba(255,255,255,.09);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4)}
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--fg);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:12px;height:56px;max-width:1120px}
+nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+nav .logo img{width:28px;height:28px;border-radius:7px}
+nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
+nav .links a{text-decoration:none}
+nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
+.btn{display:inline-flex;align-items:center;border-radius:999px;padding:7px 14px;font-weight:600;text-decoration:none;background:var(--brand);color:#fff;font-size:14px}
+.btn:hover{background:#ff6a26}
+header{padding:64px 0 32px}
+header h1{font-size:clamp(32px,5vw,48px);line-height:1.15;letter-spacing:-.02em}
+header p{color:var(--fg2);margin-top:12px;font-size:18px}
+article{display:grid;grid-template-columns:140px 1fr;gap:24px;padding:0 0 40px;position:relative}
+.when{position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:4px}
+.ver{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-size:26px;font-weight:700;text-decoration:none;letter-spacing:-.01em}
+.new{align-self:flex-start;background:var(--brand);color:#fff;border-radius:999px;font-size:12px;font-weight:600;padding:1px 9px}
+time{font-size:14px;color:var(--fg3)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:24px 26px}
+.card h2{font-size:22px;line-height:1.35;letter-spacing:-.01em}
+.sum{color:var(--fg2);margin-top:6px}
+.card ul{margin-top:14px;padding-left:1.2em}
+.card li{margin:6px 0}
+.card li::marker{color:var(--brand)}
+figure{margin-top:20px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bg2)}
+figure img{width:100%;max-height:440px;object-fit:cover;object-position:top}
+figure.art{border:0;background:none;border-radius:0}
+figure.art img{width:180px;margin:0 auto}
+footer{padding:28px 0 40px;font-size:13px;color:var(--fg3);border-top:1px solid var(--line)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:720px){
+  nav .links a:not(.btn){display:none}
+  nav .links .lang a:not(.btn){display:inline}
+  nav .links{gap:12px}
+  header{padding:40px 0 24px}
+  article{grid-template-columns:1fr;gap:10px}
+  .when{position:static;flex-direction:row;align-items:baseline;gap:10px}
+  .card{padding:18px}
+  .card h2{font-size:19px}
+}
+</style>
+</head>
+<body>
+<nav aria-label="Main navigation">
+  <div class="wrap">
+    <a class="logo" href="/en/"><img src="../assets/app-icon-64.png" alt="" width="28" height="28">Xiaxia Ledger</a>
+    <div class="links">
+      <a href="/en/#tour">Tour</a>
+      <a href="/en/#install">Install</a>
+      <a href="changelog.html" aria-current="page">Changelog</a>
+      <span class="lang" aria-label="Language"><a href="/changelog.html" data-lang="zh">中文</a><a href="/en/changelog.html" data-lang="en" aria-current="true">EN</a><a href="/es/changelog.html" data-lang="es">ES</a></span>
+      <a class="btn" href="/download/xiaxia-ledger.dmg">Download</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap">
+<header>
+  <h1>Changelog</h1>
+  <p>What changed in each version, in plain words. The installed app shows a reminder in the bottom-left corner when a new version is out; one click updates it.</p>
+</header>
+<article id="v0.2.4">
+  <div class="when"><a class="ver" href="#v0.2.4">0.2.4</a><span class="new">Latest</span><time datetime="2026-11-23">23 November 2026</time></div>
+  <div class="card">
+    <h2>Net worth page redesigned: see what you can freely spend right now</h2>
+    <p class="sum">Open Net worth and the biggest number is the money you can freely spend today, plus how many months it would last.</p>
+    <ul><li>The biggest number is “free to spend now”: total savings minus what the shop needs, what you keep saved and what you owe. The rest is yours.</li><li>Below it you see how many months that money lasts, based on your own monthly spending; with a business ledger only personal spending counts.</li><li>Total savings is now one thick coloured bar, one colour per part, with small cards below listing the accounts and goals behind each part.</li></ul>
+    <figure><img src="../assets/changelog/0.2.4.webp" alt="Screenshot of version 0.2.4 (sample data)" loading="eager"></figure>
+  </div>
+</article>
+<article id="v0.2.3">
+  <div class="when"><a class="ver" href="#v0.2.3">0.2.3</a><time datetime="2026-11-23">23 November 2026</time></div>
+  <div class="card">
+    <h2>New “Data” section in Settings: try a demo, delete data, restore from a backup</h2>
+    <p class="sum">See what every page looks like with data before you log anything; deleting always makes a backup first, so a mistake can be undone.</p>
+    <ul><li>Demo data: explore every page with a made-up year of entries. Click and edit freely; leave the demo and your own ledger is back.</li><li>Delete data: remove just part of it or everything. A copy of the ledger is saved first.</li><li>Restore from a backup: pick one of the copies kept before updates and before deletions.</li></ul>
+    <figure><img src="../assets/changelog/0.2.3.webp" alt="Screenshot of version 0.2.3 (sample data)" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.2">
+  <div class="when"><a class="ver" href="#v0.2.2">0.2.2</a><time datetime="2026-11-23">23 November 2026</time></div>
+  <div class="card">
+    <h2>Spending, Trends and Net worth redesigned; new Goals, Subscriptions and Debts &amp; instalments pages</h2>
+    <p class="sum">The money pages were laid out again to fit on one screen, and three new pages look after savings goals, subscriptions and debts.</p>
+    <ul><li>Spending now compares with last month; switch between pie and bars in one click.</li><li>New month picker: see at a glance which months were heavy or light, and jump there with a click.</li><li>Goals shows whether you&#x27;re saving fast enough, Subscriptions finds the ones wasting money, and Debts &amp; instalments sorts what you owe and what you&#x27;re owed.</li><li>Logging from a photo of a receipt uses the date on the receipt instead of today.</li></ul>
+    <figure><img src="../assets/tour-spending.webp" alt="Screenshot of version 0.2.2 (sample data)" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.1">
+  <div class="when"><a class="ver" href="#v0.2.1">0.2.1</a><time datetime="2026-11-23">23 November 2026</time></div>
+  <div class="card">
+    <h2>Xiaxia now has a boy version, and remembers your habits</h2>
+    <p class="sum">On first launch you can pick the girl or boy set and name your assistant; Xiaxia has also started keeping notes.</p>
+    <ul><li>Xiaxia and the three companions have a boy version. Choose on first launch and change it any time in Settings.</li><li>You can rename the assistant and change what it calls you.</li><li>Xiaxia&#x27;s memory: it keeps the rules you set and your habits. See and edit them in Settings → Xiaxia&#x27;s memory.</li><li>A new app icon: Xiaxia&#x27;s face.</li></ul>
+    <figure class="art"><img src="../assets/xiaxia-boy-cheer.webp" alt="Screenshot of version 0.2.1 (sample data)" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.0">
+  <div class="when"><a class="ver" href="#v0.2.0">0.2.0</a><time datetime="2026-11-23">23 November 2026</time></div>
+  <div class="card">
+    <h2>The first version you can download</h2>
+    <p class="sum">Download it straight from the website. It is notarised by Apple, so a double-click opens it, and the app tells you when a new version is out.</p>
+    <ul><li>Download the dmg from the website and drag it to Applications.</li><li>First launch walks you through connecting your own AI (Claude, Codex and others); to log something, just tell it.</li><li>When a new version is out you get a reminder in the bottom-left corner; one click updates, and the ledger is backed up first.</li></ul>
+    
+  </div>
+</article>
+</main>
+<footer>
+  <div class="wrap">
+    <span>© 2026 Xiaxia Ledger</span>
+    <span>Amounts and names in the screenshots are sample data; screenshots show the Chinese interface.</span>
+  </div>
+</footer>
+<script>
+document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}})});
+</script>
+</body>
+</html>
