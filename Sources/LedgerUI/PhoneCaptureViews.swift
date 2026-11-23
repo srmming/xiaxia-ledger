@@ -273,49 +273,81 @@ struct CameraPicker: UIViewControllerRepresentable {
 
 // MARK: - 总览最上面：待记录
 
-/// 「待记录 · N 句」：手机上随手记、还没入账的。Mac 上给「同步今天的」（交给夏夏），iPhone 上说明会跟着 iCloud 到电脑。
+/// 「待记录 · N 句」：手机上随手记、还没入账的。总览要一屏看完（ming），所以只占一行：头像 + 几句预览 + 按钮，
+/// 点「看看」弹出整张清单，点一条自己记上。Mac 上多一个「同步今天的」（交给夏夏）。
 struct PendingCapturesCard: View {
     @Environment(LedgerModel.self) var model
-    @State private var open: Capture?
+    @State private var showList = false
     @State private var hidden = false
 
     var body: some View {
         let list = model.ledger.pendingCaptures
         if !list.isEmpty && !hidden {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
-                    XiaxiaAvatar(size: 40)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("待记录 · \(list.count) 句")).font(.headline)
-                        Text(subtitle).font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 0)
+            HStack(alignment: .center, spacing: 10) {
+                XiaxiaAvatar(size: 34)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(tr("待记录 · \(list.count) 句")).font(.headline)
+                    Text(preview(list)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
                 }
-                VStack(spacing: 6) {
-                    ForEach(list.suffix(4).reversed()) { c in
-                        Button { open = c } label: { CaptureRow(capture: c) }.buttonStyle(.plain)
-                    }
-                    if list.count > 4 {
-                        Text(tr("还有 \(list.count - 4) 句")).font(.caption).foregroundStyle(Color.fg2)
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { showList = true }
                 #if os(macOS)
-                HStack(spacing: 8) {
-                    Button { model.syncPhoneNotes() } label: { Label(tr("同步今天的"), systemImage: "sparkles") }
-                        .buttonStyle(.borderedProminent).tint(Color.aiSolid)
-                        .accessibilityIdentifier("syncPhoneNotes")
-                    Button(tr("先不管")) { withAnimation(.snappy) { hidden = true } }.buttonStyle(.soft)
-                }
+                Button(tr("看看")) { showList = true }.buttonStyle(.soft)
+                Button { model.syncPhoneNotes() } label: { Label(tr("同步今天的"), systemImage: "sparkles") }
+                    .buttonStyle(.borderedProminent).tint(Color.aiSolid)
+                    .accessibilityIdentifier("syncPhoneNotes")
+                Button { withAnimation(.snappy) { hidden = true } } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless).foregroundStyle(Color.fg3).help(tr("先不管"))
+                #else
+                Button(tr("看看")) { showList = true }.buttonStyle(.soft)
                 #endif
             }
             .aiCard()
-            .sheet(item: $open) { c in
-                NavigationStack { CaptureDetail(capture: c) }.environment(model)
+            .accessibilityIdentifier("pendingCaptures")
+            .sheet(isPresented: $showList) {
+                NavigationStack { PendingCapturesList() }.environment(model)
                     #if os(macOS)
-                    .frame(minWidth: 460, minHeight: 560)
+                    .frame(minWidth: 480, minHeight: 520)
                     #endif
             }
         }
+    }
+
+    private func preview(_ list: [Capture]) -> String {
+        list.suffix(3).reversed().map { "「\($0.title)」" }.joined(separator: " ")
+    }
+}
+
+/// 待记录整张清单：上面一句说明，下面一条条，点开自己记上。
+struct PendingCapturesList: View {
+    @Environment(LedgerModel.self) var model
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        let list = model.ledger.pendingCaptures
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(subtitle).font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
+                ForEach(list.reversed()) { c in
+                    NavigationLink { CaptureDetail(capture: c) } label: { CaptureRow(capture: c) }.buttonStyle(.plain)
+                }
+                if list.isEmpty {
+                    Label(tr("都记好了"), systemImage: "checkmark.circle.fill").foregroundStyle(Color.income).padding(.top, 8)
+                }
+                #if os(macOS)
+                if !list.isEmpty {
+                    Button { dismiss(); model.syncPhoneNotes() } label: { Label(tr("同步今天的"), systemImage: "sparkles") }
+                        .buttonStyle(.borderedProminent).tint(Color.aiSolid).padding(.top, 6)
+                }
+                #endif
+            }
+            .padding(16)
+        }
+        .background(Color.pageBackground)
+        .navigationTitle(tr("待记录"))
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button(tr("完成")) { dismiss() } } }
     }
 
     private var subtitle: String {

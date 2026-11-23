@@ -119,5 +119,7 @@ extension L10n {
         "选择 iCloud 云盘里的「夏夏账本」文件夹": "Elegir la carpeta «夏夏账本» de iCloud Drive",
         "金额": "Importe",
         "金额看不懂": "Importe no válido",
+        "看看": "Ver",
+        "都记好了": "Todo registrado",
     ]
 }
