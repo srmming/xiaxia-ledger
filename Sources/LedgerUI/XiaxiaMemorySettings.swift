@@ -18,6 +18,12 @@ struct XiaxiaMemorySettings: View {
     @State var renameText = ""
     @State var tidying = false
     @State var error: String?
+    /// Mac 上面板一打开，系统会把光标塞给第一个输入框。搜索框先关一下，等面板出来再开，光标就不会被它抢走。
+    #if os(macOS)
+    @State var searchReady = false
+    #else
+    @State var searchReady = true
+    #endif
 
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -60,6 +66,12 @@ struct XiaxiaMemorySettings: View {
         .frame(maxWidth: 720, alignment: .leading)
         .frame(maxWidth: .infinity)
         .kitPage()
+        #if os(macOS)
+        .task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            searchReady = true
+        }
+        #endif
         .sheet(item: $editor) { mode in
             // 记完跳到它所在的那一格，不然记了却「没出来」。
             NavigationStack { MemoryEditor(mode: mode) { saved in kind = saved; query = "" } }
@@ -142,6 +154,7 @@ struct XiaxiaMemorySettings: View {
         let search = HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").foregroundStyle(Color.fg3).accessibilityHidden(true)
             TextField("搜记忆", text: $query).textFieldStyle(.plain).accessibilityIdentifier("memory-search")
+                .disabled(!searchReady)
             if !query.isEmpty {
                 Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(Color.fg3).accessibilityLabel("清空搜索")
@@ -275,10 +288,15 @@ struct XiaxiaMemorySettings: View {
     /// 「你说的 · 11 月 23 日 · Claude 记下」。
     private func meta(_ n: Memory.Note) -> String {
         var parts = [n.source.label, n.date.friendly]
-        if n.source != .written { parts.append("\(n.author) 记下") }
-        if let e = n.editedBy { parts.append("\(e) 改过") }
+        if n.source != .written { parts.append(Self.who(n.author) + "记下") }
+        if let e = n.editedBy { parts.append(Self.who(e) + "改过") }
         if let r = n.reviewOn { parts.append("\(r.friendly)回头看") }
         return parts.joined(separator: " · ")
+    }
+
+    /// 「Claude 记下」中间留个空；「你记下」不留。
+    private static func who(_ name: String) -> String {
+        name.unicodeScalars.last.map { $0.isASCII } == true ? name + " " : name
     }
 
     private func menu(_ m: Memory) -> some View {

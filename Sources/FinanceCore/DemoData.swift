@@ -724,8 +724,9 @@ struct DemoBuilder {
         memo(.topic, "工资", "明年 1 月起每月涨 120 €。", .said, by: "Claude", on: demoDay(months[11], 6),
              quote: "老板说明年一月给我涨一百二", reviewOn: nextJan)
         memo(.topic, "房租", "合同签到明年 8 月底，到期可能要涨。", .said, by: "Codex", on: demoDay(months[9], 2), links: ["category:房租"])
-        memo(.topic, "阿杰借的钱", "他说月底前把剩下的 200 € 还清。", .said, by: "你", on: demoDay(months[10], 5),
-             reviewOn: demoDay(months[11], 28), links: ["person:阿杰"])
+        let ajDue = demoDay(months[11], 28)
+        memo(.topic, "阿杰借的钱", "他说 \(ajDue.year) 年 \(ajDue.month) 月底前把剩下的 200 € 还清。", .said, by: "你", on: demoDay(months[10], 5),
+             reviewOn: ajDue, links: ["person:阿杰"])
         memo(.topic, "FitPlan 健身 App", "试用完觉得不值，已经退了，不用再提醒续费。", .said, by: "Claude", on: demoDay(months[8], 21),
              links: ["subscription:FitPlan 健身 App"])
         memo(.topic, "夏天去海边", "夏天想去海边玩一周，预算 800 € 左右。", .said, by: "Claude", on: demoDay(months[1], 15))
