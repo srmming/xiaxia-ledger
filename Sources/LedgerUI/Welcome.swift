@@ -181,6 +181,8 @@ struct WelcomeView: View {
     @State private var confetti = false
     /// 内置夏夏用哪个 AI 回答（ChatEngine 的 rawValue；只在 Mac 有）。
     @State private var chatPick: String?
+    /// 内容区不够高：每页收紧一些，保证不用往下滚。
+    @State private var tight = false
 
     /// 示例账本、假装新电脑时 AI 不会真的来：给一个「演示」入口看连上之后的样子。
     private var isPretend: Bool {
@@ -193,7 +195,8 @@ struct WelcomeView: View {
             Group {
                 if wide {
                     HStack(spacing: 0) {
-                        let heroWidth = min(geo.size.width * 0.4, 560)
+                        // 左边夏夏让出位置：右边内容至少留 640 宽，窄窗口里选项、步骤条才不会被裁掉。
+                        let heroWidth = max(180, min(geo.size.width * 0.4, 560, geo.size.width - 112 - 640))
                         hero(mascot: min(geo.size.height * 0.58, heroWidth * 0.72))
                             .frame(width: heroWidth)
                             .clipped()
@@ -291,7 +294,12 @@ struct WelcomeView: View {
     private func content(padding: CGFloat, wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 28) {
-                stepper(big: wide)
+                // 放得下就每一步都写字；放不下只写当前这一步，别的只留圆点。
+                ViewThatFits(in: .horizontal) {
+                    stepper(big: wide, allLabels: true)
+                    stepper(big: false, allLabels: true)
+                    stepper(big: false, allLabels: false)
+                }
                 if step != .done {
                     Button("以后再说") { model.finishWelcome() }
                         .buttonStyle(.borderless).foregroundStyle(Color.fg2)
@@ -303,7 +311,7 @@ struct WelcomeView: View {
             GeometryReader { area in
                 ScrollView {
                     page
-                        .environment(\.welcomeBig, wide)
+                        .environment(\.welcomeBig, wide && !tight)
                         .frame(maxWidth: 780, alignment: .leading)
                         .frame(maxWidth: .infinity, minHeight: area.size.height, alignment: .leading)
                         .id(pageKey)
@@ -312,6 +320,8 @@ struct WelcomeView: View {
                                                 removal: .opacity.animation(.easeOut(duration: 0.08))))
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                // 窗口矮（比如最小的 1000×612）：标题、演示、选项都收小一号，按钮留在一屏里。
+                .onGeometryChange(for: Bool.self) { $0.size.height < 520 } action: { tight = $0 }
             }
             if canGoBack {
                 Button { goBack() } label: { Label("返回", systemImage: "chevron.left") }
@@ -334,7 +344,7 @@ struct WelcomeView: View {
         return names
     }
 
-    private func stepper(big: Bool) -> some View {
+    private func stepper(big: Bool, allLabels: Bool) -> some View {
         let dot: CGFloat = big ? 34 : 26
         return HStack(spacing: big ? 14 : 8) {
             ForEach(Array(stepNames.enumerated()), id: \.offset) { i, name in
@@ -355,9 +365,11 @@ struct WelcomeView: View {
                         }
                     }
                     .frame(width: dot, height: dot)
-                    Text(name).font((big ? Font.title3 : .subheadline).weight(current ? .semibold : .regular))
-                        .foregroundStyle(current ? Color.ai : Color.fg2)
-                        .lineLimit(1).fixedSize()
+                    if allLabels || current {
+                        Text(name).font((big ? Font.title3 : .subheadline).weight(current ? .semibold : .regular))
+                            .foregroundStyle(current ? Color.ai : Color.fg2)
+                            .lineLimit(1).fixedSize()
+                    }
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("第 \(number) 步，\(name)" + (done ? "，完成" : current ? "，正在这一步" : ""))
@@ -413,7 +425,7 @@ struct WelcomeView: View {
                     customAim = text
                     if pickedAim == "custom" { Task { await say("好，我记住了！", pose: .cheer) } } else { pickAim("custom") }
                 }
-                if let aimText {
+                if let aimText, !tight {
                     HStack(spacing: 10) {
                         Image(systemName: "flag.checkered").foregroundStyle(Color.ai)
                         Text("我的目标：").foregroundStyle(Color.fg2)
@@ -589,22 +601,24 @@ struct WelcomeView: View {
             // 演示和说明并排放，一屏看完不用往下滚（ming：「不要让我下拉」）。窗口窄就把演示收窄，再窄只留演示。
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 24) {
-                    ChatDemo(engineName: name).frame(width: 300)
+                    ChatDemo(engineName: name, height: tight ? 120 : 196).frame(width: 300)
                     chatSide(name, pick: pick, engines: engines).frame(minWidth: 220, idealWidth: 240, maxWidth: 400, alignment: .leading)
                 }
                 HStack(alignment: .top, spacing: 18) {
-                    ChatDemo(engineName: name).frame(width: 250)
+                    ChatDemo(engineName: name, height: tight ? 120 : 196).frame(width: 250)
                     chatSide(name, pick: pick, engines: engines).frame(minWidth: 190, idealWidth: 200, maxWidth: 400, alignment: .leading)
                 }
-                ChatDemo(engineName: name).frame(width: 300)
+                ChatDemo(engineName: name, height: tight ? 120 : 196).frame(width: 300)
             }
         } buttons: {
             primary("用内置夏夏", symbol: "bubble.left.and.text.bubble.right", id: "welcome.chat.on") { Task { await chooseChat(true) } }
             secondary("先不用") { Task { await chooseChat(false) } }
         } extras: {
+            if !tight {
             Text("选「先不用」右边就不出现，「问夏夏」会把问题复制好打开 Claude。以后在「设置」里随时能开。")
                 .font(.callout).foregroundStyle(Color.fg3)
                 .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -640,8 +654,11 @@ struct WelcomeView: View {
                 .background(Color.aiSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                if !tight {
+                    Text(detail).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                }
             }
+            .frame(minHeight: 32)
         }
         .accessibilityElement(children: .combine)
     }
@@ -763,7 +780,7 @@ struct WelcomeView: View {
             FlowLayout(spacing: 12) { buttonsView }.padding(.top, 4)
             FlowLayout(spacing: 16) { extrasView }
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, tight ? 4 : 16)
         }
     }
 
@@ -791,10 +808,10 @@ struct WelcomeView: View {
                 } else {
                     Image(systemName: symbol).font(.subheadline)
                 }
-                Text(title).font(.title3.weight(.medium))
+                Text(title).font((tight ? Font.body : .title3).weight(.medium))
             }
             .foregroundStyle(on ? Color.white : Color.primary)
-            .padding(.horizontal, 18).padding(.vertical, 11)
+            .padding(.horizontal, tight ? 14 : 18).padding(.vertical, tight ? 8 : 11)
             .background(on ? Color.aiSolid : Color.pageBackground, in: Capsule())
             .overlay(Capsule().strokeBorder(on ? Color.clear : Color.fg3.opacity(0.22), lineWidth: 1))
             .scaleEffect(on ? 1.03 : 1)
@@ -1293,6 +1310,8 @@ struct ConfettiView: View {
 /// 引导里的内置夏夏演示：照右边聊天栏的样子，一句一句冒出来，放完停一会儿再从头放。
 struct ChatDemo: View {
     var engineName: String
+    /// 对话那一块的高度（窗口矮时收小，旧的几句会从上面滚出去，跟真聊天一样）。
+    var height: CGFloat = 196
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0
     @State private var typing = false
@@ -1329,7 +1348,7 @@ struct ChatDemo: View {
                 }
             }
             .padding(14)
-            .frame(height: 196, alignment: .bottom)
+            .frame(height: height, alignment: .bottom)
             .clipped()
             Divider()
             HStack {
