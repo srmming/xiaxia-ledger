@@ -44,6 +44,10 @@ public final class LedgerModel {
     public var loadError: String?
     public var isLoading = true
     /// app 里的写入记在谁名下：设置里填的名字，没填就用这台设备的用户名。
+    /// 助手现在叫什么（默认「夏夏」），和把界面文字里的「夏夏」换成这个名字。
+    var xiaName: String { ledger.profile.xiaName }
+    func xia(_ text: String) -> String { ledger.profile.renamed(text) }
+
     public var author: String = LedgerModel.defaultAuthor {
         didSet { UserDefaults.standard.set(author, forKey: "xiaxia.userName") }
     }

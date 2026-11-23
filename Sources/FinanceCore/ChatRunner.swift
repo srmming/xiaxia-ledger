@@ -267,18 +267,20 @@ public enum ChatRunner {
     }
 
     /// 给 AI 的话：先交代身份和规矩，再带上用户在看哪、最近几句，最后是这一句。
-    public static func prompt(question: String, voice: String, aim: String?, where view: String, history: [(user: Bool, text: String)]) -> String {
+    public static func prompt(question: String, voice: String, aim: String?, where view: String, history: [(user: Bool, text: String)],
+                              name: String = Profile.defaultAssistantName, callUser: String? = nil) -> String {
         var p = """
-        你是「夏夏」，夏夏账本 app 里的记账助手，用户正在 app 右边的对话栏里跟你说话。
+        你是「\(name)」，夏夏账本 app 里的记账助手，用户正在 app 右边的对话栏里跟你说话。
         - 用 xiaxia-ledger 这组工具查账、记账；先调 context 看账本和账户。用户说「这笔」「这里」时调 current_view。
         - 拿不准的（哪个账户、哪个账本、什么分类）先问一句，别猜；信息齐全的单笔可以直接记。记完一句话说清记了什么；别把改动编号、id 这类内部编码说给用户。
         - 想让用户在 app 里看到某几笔或某一页时用 open_in_app。
         - 口吻：\(voice) 回答用中文，短一点，三五句以内，不用 Markdown 表格。
         """
+        if let callUser { p += "\n- 称呼用户「\(callUser)」。" }
         if let aim { p += "\n- 用户的目标：\(aim)。" }
         p += "\n\n用户现在在看：\(view)"
         if !history.isEmpty {
-            p += "\n\n前面聊过的（最近几句）：\n" + history.suffix(6).map { ($0.user ? "用户：" : "夏夏：") + $0.text }.joined(separator: "\n")
+            p += "\n\n前面聊过的（最近几句）：\n" + history.suffix(6).map { ($0.user ? "用户：" : "\(name)：") + $0.text }.joined(separator: "\n")
         }
         p += "\n\n用户这一句：\(question)"
         return p

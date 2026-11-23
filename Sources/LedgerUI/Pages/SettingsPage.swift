@@ -133,7 +133,7 @@ struct SettingsPage: View {
         Button { pane = p } label: {
             HStack(spacing: 14) {
                 Image(systemName: symbol).font(.system(size: 17)).frame(width: 26)
-                Text(title).font(.body)
+                Text(model.xia(title)).font(.body)
                 Spacer(minLength: 12)
                 value().font(.callout).foregroundStyle(Color.fg2).lineLimit(1)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
@@ -332,6 +332,9 @@ struct SettingsPaneView: View {
                     }
                 }
                 #endif
+                group("名字和称呼", note: "助手在 app 里和 AI 回答里都用这个名字自称、这样叫你。跟着账本同步。") {
+                    NameSettingsRows()
+                }
                 group("夏夏怎么跟你说话", note: "夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。") {
                     PersonaPicker()
                 }
@@ -426,5 +429,55 @@ struct SettingsPaneView: View {
         }
         .padding(.vertical, 9)
         .contentShape(Rectangle())
+    }
+}
+
+/// 设置 → 夏夏偏好 →「名字和称呼」：改助手的名字、它怎么叫你。回车或离开输入框就存（进改动记录，能撤销）。
+struct NameSettingsRows: View {
+    @Environment(LedgerModel.self) var model
+    @State private var name = ""
+    @State private var call = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            row("名字", placeholder: Profile.defaultAssistantName, text: $name, id: "settings.assistantName")
+            Divider()
+            row("怎么叫你", placeholder: "不填就叫「你」", text: $call, id: "settings.callUser")
+        }
+        .onAppear { load() }
+        .onChange(of: focused) { _, f in if !f { save() } }
+        .onDisappear { save() }
+    }
+
+    private func row(_ title: String, placeholder: String, text: Binding<String>, id: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title).font(.callout)
+            Spacer(minLength: 12)
+            TextField(placeholder, text: text)
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 220)
+                .focused($focused)
+                .onSubmit { save() }
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(id)
+        }
+        .padding(.vertical, 9)
+    }
+
+    private func load() {
+        name = model.ledger.profile.assistantName ?? ""
+        call = model.ledger.profile.userCallName ?? ""
+    }
+
+    private func save() {
+        let p = model.ledger.profile
+        var n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if n == Profile.defaultAssistantName { n = "" }
+        let c = call.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (n.isEmpty ? nil : n) != p.assistantName || (c.isEmpty ? nil : c) != p.userCallName else { return }
+        model.perform { try $0.setNames(assistant: n, callUser: c, author: model.author) }
+        load()
     }
 }

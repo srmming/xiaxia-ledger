@@ -40,6 +40,9 @@ public struct LedgerContext: Codable, Sendable {
     public var persona: String
     /// 用户想让夏夏帮他做到什么。给意见时围着它说。
     public var aim: String?
+    /// 助手的名字（用户可以改，默认「夏夏」）和怎么称呼用户（nil = 就叫「你」）。
+    public var assistantName: String
+    public var callUser: String?
     public var rules: [String]
 
     public static let rules: [String] = [
@@ -61,7 +64,7 @@ public struct LedgerContext: Codable, Sendable {
         "拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。",
         "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
         "不动钱、不碰银行密码；银行数据只读。",
-        "app 里的 AI 叫「夏夏」。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。",
+        "app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。",
     ]
 
     public init(ledger: Ledger) {
@@ -101,6 +104,8 @@ public struct LedgerContext: Codable, Sendable {
         persona = ledger.profile.persona.label
         voice = ledger.profile.persona.instruction
         aim = ledger.profile.aim
+        assistantName = ledger.profile.xiaName
+        callUser = ledger.profile.userCallName
         rules = Self.rules
     }
 }

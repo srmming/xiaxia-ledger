@@ -92,11 +92,12 @@ extension SectionHeader where Trailing == EmptyView {
 
 /// 右上角的「全部 ›」小链接：去另一页。
 struct MoreLink: View {
+    @Environment(LedgerModel.self) var model
     let title: String
     let section: AppSection
     var body: some View {
         SectionLink(section: section) {
-            HStack(spacing: 2) { Text(title); Image(systemName: "chevron.right").font(.caption2.weight(.semibold)) }
+            HStack(spacing: 2) { Text(model.xia(title)); Image(systemName: "chevron.right").font(.caption2.weight(.semibold)) }
                 .font(.subheadline).foregroundStyle(Color.brand)
         }
     }
@@ -206,7 +207,7 @@ struct TxRow: View {
         .accessibilityElement(children: .combine)
         #if os(macOS)
         .contextMenu {
-            Button { model.askAbout(tx) } label: { Label("问夏夏这一笔", systemImage: "sparkles") }
+            Button { model.askAbout(tx) } label: { Label(model.xia("问夏夏这一笔"), systemImage: "sparkles") }
         }
         .accessibilityAction(named: "问夏夏这一笔") { model.askAbout(tx) }
         #endif
@@ -374,7 +375,7 @@ struct KitEmptyState: View {
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
                 if let prompt {
-                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? "跟夏夏说" : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
+                    Button { ask(prompt, page: page) } label: { Label(model.chatReady ? model.xia("跟夏夏说") : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)
                 }

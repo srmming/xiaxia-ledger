@@ -63,18 +63,39 @@ public struct Profile: Codable, Hashable, Sendable {
     /// 「你想让夏夏帮你做到什么？」，比如「每个月存下 500 €」。
     public var aim: String?
     public var categories: [CustomCategory]
+    /// 用户给助手起的名字；nil = 默认「夏夏」（ming 2026-11-23：「引导的时候可以改夏夏称呼」）。
+    public var assistantName: String?
+    /// 助手怎么称呼用户，比如「小明」「老板」；nil = 就叫「你」。
+    public var userCallName: String?
 
-    public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = []) {
+    public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = [],
+                assistantName: String? = nil, userCallName: String? = nil) {
         self.persona = persona; self.aim = aim; self.categories = categories
+        self.assistantName = assistantName; self.userCallName = userCallName
     }
 
-    enum CodingKeys: String, CodingKey { case persona, aim, categories }
+    /// 助手现在叫什么（没改过就是「夏夏」）。
+    public var xiaName: String { assistantName ?? Self.defaultAssistantName }
+    public static let defaultAssistantName = "夏夏"
+
+    /// 把一句界面文字里的「夏夏」换成用户起的名字；「夏夏账本」是 app 名，不换。
+    public func renamed(_ text: String) -> String {
+        guard let name = assistantName, name != Self.defaultAssistantName else { return text }
+        let app = "\u{1}"
+        return text.replacingOccurrences(of: "夏夏账本", with: app)
+            .replacingOccurrences(of: Self.defaultAssistantName, with: name)
+            .replacingOccurrences(of: app, with: "夏夏账本")
+    }
+
+    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         persona = try c.decodeIfPresent(Persona.self, forKey: .persona) ?? .gentle
         aim = try c.decodeIfPresent(String.self, forKey: .aim)
         categories = try c.decodeIfPresent([CustomCategory].self, forKey: .categories) ?? []
+        assistantName = try c.decodeIfPresent(String.self, forKey: .assistantName)
+        userCallName = try c.decodeIfPresent(String.self, forKey: .userCallName)
     }
 
     /// 「你的目标」示例，点一下就填。说法通用。
@@ -89,6 +110,26 @@ extension Ledger {
         let old = profile
         profile.persona = persona
         return appendProfileChange("夏夏的说话方式改成「\(persona.label)」", before: old, author: author)
+    }
+
+    /// 给助手改名字、设它怎么称呼你。传空 = 改回默认（「夏夏」/「你」）。名字最多 12 个字。
+    @discardableResult
+    public mutating func setNames(assistant: String?, callUser: String?, author: String) throws -> ChangeRecord {
+        func clean(_ s: String?) -> String? {
+            let t = s?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return t.isEmpty ? nil : String(t.prefix(12))
+        }
+        var a = clean(assistant)
+        if a == Profile.defaultAssistantName { a = nil }
+        let u = clean(callUser)
+        guard profile.assistantName != a || profile.userCallName != u else { throw ManageError.nothingToChange }
+        let old = profile
+        profile.assistantName = a
+        profile.userCallName = u
+        var parts: [String] = []
+        if old.assistantName != a { parts.append("助手改叫「\(a ?? Profile.defaultAssistantName)」") }
+        if old.userCallName != u { parts.append(u.map { "称呼你「\($0)」" } ?? "称呼改回「你」") }
+        return appendProfileChange(parts.joined(separator: "，"), before: old, author: author)
     }
 
     /// 写下（或清掉）你想让夏夏帮你做到什么。

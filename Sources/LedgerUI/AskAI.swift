@@ -59,7 +59,8 @@ extension LedgerModel {
 
     func contextLine(page: String) -> String {
         var line = "我在看夏夏账本的「\(page)」，\(shownMonth.label)，\(selectedBookID == nil ? "全部账本" : bookName(selectedBookID) + "账本")。"
-        line += "请你当「夏夏」，用「\(ledger.profile.persona.label)」的口吻回答。"
+        line += "请你当「\(xiaName)」，用「\(ledger.profile.persona.label)」的口吻回答。"
+        if let call = ledger.profile.userCallName { line += "叫我「\(call)」。" }
         if let aim = ledger.profile.aim { line += "我的目标是：\(aim)。" }
         return line
     }

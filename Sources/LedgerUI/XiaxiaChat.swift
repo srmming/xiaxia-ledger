@@ -122,7 +122,8 @@ public final class XiaxiaChatState {
         draft = ""
         busy = true
         let prompt = ChatRunner.prompt(question: question, voice: model.ledger.profile.persona.instruction, aim: model.ledger.profile.aim,
-                                       where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history)
+                                       where: model.currentView.describe(), history: engine == .claude && session != nil ? [] : history,
+                                       name: model.xiaName, callUser: model.ledger.profile.userCallName)
         let resume = engine == .claude ? session : nil
         let aiModel = self.model   // 这里的参数 model 是账本（LedgerModel），选的 AI 模型是 self.model
         Task {
@@ -152,6 +153,7 @@ extension LedgerModel {
 /// 第一次在 app 里叫 AI 时，macOS 可能问「“夏夏账本”想访问“文稿”文件夹」，不点它 AI 就一直等着（实测卡满 3 分钟）。
 /// 夏夏托着下巴想，旁边是这次帮她查账的 AI 伙伴；等久了提示去点系统的「允许」。
 private struct ThinkingRow: View {
+    @Environment(LedgerModel.self) var model
     var engine: ChatEngine?
     @State private var long = false
     var body: some View {
@@ -162,7 +164,7 @@ private struct ThinkingRow: View {
                     MascotView(MascotCharacter.of(engine), pose: .think, size: 56, animated: false)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("夏夏在想…").font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
+                    Text(model.xia("夏夏在想…")).font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
                     if let engine {
                         Text("\(MascotCharacter.of(engine).name)（\(engine.name)）在帮她查账").font(.caption2).foregroundStyle(Color.fg3)
                     }
@@ -231,7 +233,7 @@ struct XiaxiaChatPanel: View {
     private func header(_ chat: XiaxiaChatState) -> some View {
         HStack(spacing: 8) {
             MascotView(.xiaxia, size: 26, face: true, animated: false)
-            Text("夏夏").font(.headline)
+            Text(model.xiaName).font(.headline)
             Spacer()
             if !chat.available.isEmpty {
                 // 每个 AI 一组：第一项「跟随默认」= 用户在那个 AI 里自己设的模型（不加参数），下面是可以手动换的。
@@ -332,20 +334,20 @@ struct XiaxiaChatPanel: View {
             if !m.fromUser { Spacer(minLength: 40) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel((m.fromUser ? "你：" : "夏夏：") + m.text)
+        .accessibilityLabel((m.fromUser ? "你：" : "\(model.xiaName)：") + m.text)
     }
 
     private func input(_ chat: XiaxiaChatState) -> some View {
         @Bindable var chat = chat
         return HStack(alignment: .bottom, spacing: 8) {
-            TextField("跟夏夏说，比如「午饭 12 欧」", text: $chat.draft, axis: .vertical)
+            TextField(model.xia("跟夏夏说，比如「午饭 12 欧」"), text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .focused($inputFocused)
                 .onSubmit { chat.send(chat.draft, model: model) }
                 .padding(.horizontal, 10).padding(.vertical, 8)
                 .background(Color.sunken, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityLabel("跟夏夏说")
+                .accessibilityLabel(model.xia("跟夏夏说"))
             Button { chat.send(chat.draft, model: model) } label: {
                 Image(systemName: "arrow.up").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
                     .frame(width: 30, height: 30)
