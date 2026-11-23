@@ -89,13 +89,13 @@ struct XiaxiaCards: View {
                                 let depth = CGFloat(k + 1) - (k == 0 ? progress : progress * 0.5)
                                 peek
                                     .scaleEffect(x: 1 - 0.025 * depth, y: 1, anchor: .bottom)
-                                    .offset(y: 7 * depth)
-                                    .rotationEffect(.degrees(reduceMotion ? 0 : (k == 0 ? -0.5 : 0.7) * Double(depth)), anchor: .bottom)
-                                    .opacity(1 - 0.28 * Double(depth))
+                                    .offset(y: 10 * depth)
+                                    .rotationEffect(.degrees(reduceMotion ? 0 : (k == 0 ? -0.25 : 0.35) * Double(depth)), anchor: .bottom)
+                                    .opacity(1 - 0.22 * Double(depth))
                             }
                         }
                     }
-                    .padding(.bottom, CGFloat(behind) * 7)
+                    .padding(.bottom, CGFloat(behind) * 10)
                     .gesture(swipe(list, index))
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                     .accessibilityAction(named: "下一张") { flip(list, index, by: 1) }
@@ -138,9 +138,10 @@ struct XiaxiaCards: View {
     /// 后面那几张只画卡的样子（和夏夏卡同样的底色和描边），不画内容。
     private var peek: some View {
         let shape = RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous)
+        // 比上面那张亮一点、描边更明显：深色底上也一眼看出「后面还有」。
         return shape.fill(Color.cardBackground)
-            .overlay(shape.fill(Color.aiSoft.opacity(0.6)))
-            .overlay(shape.strokeBorder(Color.aiLine, lineWidth: 1))
+            .overlay(shape.fill(Color.ai.opacity(0.16)))
+            .overlay(shape.strokeBorder(Color.ai.opacity(0.45), lineWidth: 1))
     }
 
     private func swipe(_ list: [Item], _ index: Int) -> some Gesture {
@@ -193,44 +194,51 @@ struct XiaxiaCards: View {
 
     @ViewBuilder private func card(_ item: Item, number: Int, of count: Int) -> some View {
         switch item {
-        case .insight(let i): InsightCard(insight: i, bodyLines: 3)
+        case .insight(let i): InsightCard(insight: i, bodyLines: 2, fixedHeight: cardHeight)
         case .nudge(let n): nudgeCard(n, number: number, of: count)
         }
     }
 
+    /// 每张卡一样高（ming 2026-11-23：「固定高度啊，为什么每一条高度不一样」）。字放大时跟着变高。
+    /// 标题最多两行、说明最多两行，按钮钉在卡底；长的点「夏夏建议」看全文。
+    @ScaledMetric(relativeTo: .body) private var cardHeight: CGFloat = 136
+
     private func nudgeCard(_ n: Nudge, number: Int, of count: Int) -> some View {
         AskAIReader { ask in
-            HStack(alignment: .top, spacing: 4) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Label {
-                            Text("夏夏 · \(n.label)")
-                        } icon: {
-                            MascotView(.xiaxia, size: 20, face: true, animated: false)
-                        }
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
-                        Spacer()
-                        if count > 1 { Text("\(number)/\(count)").font(.caption).foregroundStyle(Color.fg2).monospacedDigit() }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label {
+                        Text("夏夏 · \(n.label)")
+                    } icon: {
+                        MascotView(.xiaxia, size: 20, face: true, animated: false)
                     }
-                    Text(n.title.keepingAmountsTogether).font(.headline).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                    Text(n.advice.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
-                        Button { ask(n.question, page: "总览") } label: {
-                            Label(n.question, systemImage: "sparkles").lineLimit(1)
-                        }
-                        .buttonStyle(.softAI)
-                        .accessibilityHint("问夏夏这个问题")
-                        Button { dismiss(n) } label: { Text("知道了").lineLimit(1).fixedSize() }
-                            .buttonStyle(.soft)
-                        Spacer(minLength: 8)
-                        MoreLink(title: "夏夏建议", section: .insights)
-                    }
-                    .padding(.top, 2)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
+                    Spacer()
+                    if count > 1 { Text("\(number)/\(count)").font(.caption).foregroundStyle(Color.fg2).monospacedDigit() }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                MascotView(.xiaxia, pose: pose(n), size: 80)
-                    .accessibilityHidden(true)
+                HStack(alignment: .top, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(n.title.keepingAmountsTogether).font(.headline).lineLimit(2)
+                        Text(n.advice.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    MascotView(.xiaxia, pose: pose(n), size: 64)
+                        .accessibilityHidden(true)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 8) {
+                    Button { ask(n.question, page: "总览") } label: {
+                        Label(n.question, systemImage: "sparkles").lineLimit(1)
+                    }
+                    .buttonStyle(.softAI)
+                    .accessibilityHint("问夏夏这个问题")
+                    Button { dismiss(n) } label: { Text("知道了").lineLimit(1).fixedSize() }
+                        .buttonStyle(.soft)
+                    Spacer(minLength: 8)
+                    MoreLink(title: "夏夏建议", section: .insights)
+                }
             }
+            .frame(height: cardHeight, alignment: .top)
             .aiCard()
         }
         .accessibilityElement(children: .contain)

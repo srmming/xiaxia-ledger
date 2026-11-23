@@ -40,6 +40,8 @@ struct InsightCard: View {
     var showAllLink = true
     /// 总览卡叠里最多几行，免得一张特别长把下面挤出屏幕（全文在「夏夏建议」页）。
     var bodyLines: Int? = nil
+    /// 总览卡叠里每张一样高：按钮钉在卡底，夏夏小一点。
+    var fixedHeight: CGFloat? = nil
     @State var appeared = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -72,16 +74,17 @@ struct InsightCard: View {
                 // 夏夏本人站在文字右边念这条意见；大字号时让出位置给文字。
                 HStack(alignment: .top, spacing: 4) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(insight.title.keepingAmountsTogether).font(large ? .title3.weight(.bold) : .headline).fixedSize(horizontal: false, vertical: true)
+                        Text(insight.title.keepingAmountsTogether).font(large ? .title3.weight(.bold) : .headline).lineLimit(fixedHeight == nil ? nil : 2).fixedSize(horizontal: false, vertical: fixedHeight == nil)
                         if !insight.body.isEmpty {
-                            Text(insight.body.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(bodyLines).fixedSize(horizontal: false, vertical: true)
+                            Text(insight.body.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(bodyLines).fixedSize(horizontal: false, vertical: fixedHeight == nil)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(.xiaxia, pose: pose, size: large ? 120 : 80)
+                        MascotView(.xiaxia, pose: pose, size: large ? 120 : fixedHeight == nil ? 80 : 64)
                     }
                 }
+                if fixedHeight != nil { Spacer(minLength: 0) }
                 // 按钮单独一行、占满整张卡的宽度：和夏夏挤在一行时，iPhone 上「接着问」会被压成竖排。
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 8) { followUp(ask); dismissButton; Spacer(minLength: 8); if showAllLink { MoreLink(title: "夏夏建议", section: .insights) } }
@@ -90,8 +93,9 @@ struct InsightCard: View {
                         if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
                     }
                 }
-                .padding(.top, 2)
+                .padding(.top, fixedHeight == nil ? 2 : 0)
             }
+            .frame(height: fixedHeight, alignment: .top)
             .aiCard()
         }
         .onAppear { if !reduceMotion { appeared = true } }
