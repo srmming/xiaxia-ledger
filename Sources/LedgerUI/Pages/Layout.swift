@@ -5,6 +5,8 @@ import SwiftUI
 struct Columns<Main: View, Side: View>: View {
     var sideWidth: CGFloat = 340
     var breakpoint: CGFloat = 600
+    /// 宽窗口时右栏跟着变宽：右栏至少占这么多比例（nil = 按上面的规则收窄）。
+    var sideRatio: CGFloat? = nil
     @ViewBuilder var main: () -> Main
     @ViewBuilder var side: () -> Side
     @State var width: CGFloat = 1000
@@ -17,7 +19,7 @@ struct Columns<Main: View, Side: View>: View {
             VStack(alignment: .leading, spacing: Kit.gap) { main() }
                 .frame(maxWidth: .infinity, alignment: .top)
             VStack(alignment: .leading, spacing: Kit.gap) { side() }
-                .frame(width: wide ? sideW : nil)
+                .frame(width: wide ? max(sideW, (sideRatio ?? 0) * width) : nil)
                 .frame(maxWidth: wide ? nil : .infinity, alignment: .top)
         }
         .background { WidthReader(width: $width) }

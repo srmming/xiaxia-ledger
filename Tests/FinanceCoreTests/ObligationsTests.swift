@@ -32,6 +32,9 @@ final class ObligationsTests: XCTestCase {
         XCTAssertEqual(oct.owedToMe.cents, 20000)
         XCTAssertEqual(oct.iOwe.cents, 50000 + 50000)
         XCTAssertEqual(oct.net.cents, 20000 - 100000)
+        // 我还欠的拆开：分期 500 + 借来的 500
+        XCTAssertEqual(oct.installments.cents, 50000)
+        XCTAssertEqual(oct.borrowed.cents, 50000)
         // 借之前什么都没有
         XCTAssertTrue(Plans.obligations(l, asOf: d(8, 31)).isEmpty)
     }
@@ -48,5 +51,22 @@ final class ObligationsTests: XCTestCase {
         debt.closed = true
         try l.updateDebt(debt, author: "t")
         XCTAssertEqual(Plans.obligations(l, asOf: d(9, 2)).owedToMe.cents, 0)
+    }
+
+    func testRepaymentPlanSpreadsWhatIOweUntilTheDueMonth() {
+        func debt(_ dir: Debt.Direction, _ cents: Int64, due: LocalDate?, overdue: Bool = false) -> DebtStatus {
+            DebtStatus(id: UUID(), counterparty: "表姐", direction: dir, principal: Money(cents: cents), repaid: .zero,
+                       outstanding: Money(cents: cents), dueDate: due, overdue: overdue)
+        }
+        // 11 月 23 日欠 250，说好 1 月 31 日前还：11、12、1 三个月，每月 83,34
+        let plan = Plans.repaymentPlan(debt(.iOweThem, 25000, due: d(1, 31).adding(months: 12)), today: d(11, 23))
+        XCTAssertEqual(plan?.months, 3)
+        XCTAssertEqual(plan?.perMonth.cents, 8334)
+        // 这个月就到期：一次还清
+        XCTAssertEqual(Plans.repaymentPlan(debt(.iOweThem, 25000, due: d(11, 30)), today: d(11, 23))?.perMonth.cents, 25000)
+        // 没约日期、过期、别人欠我的：没有计划
+        XCTAssertNil(Plans.repaymentPlan(debt(.iOweThem, 25000, due: nil), today: d(11, 23)))
+        XCTAssertNil(Plans.repaymentPlan(debt(.iOweThem, 25000, due: d(11, 1), overdue: true), today: d(11, 23)))
+        XCTAssertNil(Plans.repaymentPlan(debt(.theyOweMe, 25000, due: d(12, 31)), today: d(11, 23)))
     }
 }

@@ -200,7 +200,8 @@ struct DebtRow: View {
     private var detail: String {
         var parts: [String] = []
         if debt.repaid.cents > 0 { parts.append("已还 \(debt.repaid.rounded)") }
-        if let due = debt.dueDate { parts.append(debt.overdue ? "\(due.short) 就该还了" : "\(due.short) 前还") }
+        // 过期的只说过了几天，短一点，窄窗口也一行放得下（哪天到期在夏夏说里有）。
+        if let due = debt.dueDate { parts.append(debt.overdue ? "过期 \(max(1, due.days(until: .today))) 天" : "\(due.short) 前还") }
         return parts.isEmpty ? "还没还" : parts.joined(separator: " · ")
     }
 }

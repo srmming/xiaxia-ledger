@@ -123,7 +123,13 @@ public struct UpcomingCharge: Identifiable, Equatable, Sendable {
 public struct Obligations: Equatable, Sendable {
     public var owedToMe: Money
     public var iOwe: Money
-    public init(owedToMe: Money, iOwe: Money) { self.owedToMe = owedToMe; self.iOwe = iOwe }
+    /// iOwe 里分期没还完的那部分（剩下的是借来的钱）。
+    public var installments: Money
+    public init(owedToMe: Money, iOwe: Money, installments: Money = .zero) {
+        self.owedToMe = owedToMe; self.iOwe = iOwe; self.installments = installments
+    }
+    /// iOwe 里借来还没还的那部分。
+    public var borrowed: Money { iOwe - installments }
     /// 算进家底的那部分：正数是净的别人欠我，负数是净的我欠别人。
     public var net: Money { owedToMe - iOwe }
     public var isEmpty: Bool { owedToMe.cents == 0 && iOwe.cents == 0 }
@@ -178,7 +184,7 @@ public enum Plans {
         func paid(_ ids: [UUID]) -> Int64 {
             ids.compactMap { byID[$0] }.filter { $0.date <= date }.reduce(Int64(0)) { $0 + $1.amount.magnitude.cents }
         }
-        var owedToMe: Int64 = 0, iOwe: Int64 = 0
+        var owedToMe: Int64 = 0, iOwe: Int64 = 0, inst: Int64 = 0
         for d in ledger.debts where !d.closed && d.startDate <= date && (bookID == nil || d.bookID == bookID) {
             let left = max(0, d.principal.cents - paid(d.repaymentIDs))
             if d.direction == .theyOweMe { owedToMe += left } else { iOwe += left }
@@ -186,9 +192,20 @@ public enum Plans {
         for i in ledger.installments where bookID == nil || i.bookID == bookID {
             let start = i.purchaseID.flatMap { byID[$0]?.date } ?? i.firstDate
             guard start <= date else { continue }
-            iOwe += max(0, i.total.cents - paid(i.paidIDs))
+            let left = max(0, i.total.cents - paid(i.paidIDs))
+            iOwe += left
+            inst += left
         }
-        return Obligations(owedToMe: Money(cents: owedToMe), iOwe: Money(cents: iOwe))
+        return Obligations(owedToMe: Money(cents: owedToMe), iOwe: Money(cents: iOwe), installments: Money(cents: inst))
+    }
+
+    /// 还钱计划：欠别人的这笔，从这个月到约定的那个月每月还一样多，每月要还多少（按欧分向上取整）。
+    /// 没约日期、已经过期或已还清时返回 nil（过期的就是马上还）。
+    public static func repaymentPlan(_ d: DebtStatus, today: LocalDate) -> (months: Int, perMonth: Money)? {
+        guard d.direction == .iOweThem, d.outstanding.cents > 0, let due = d.dueDate, !d.overdue, due >= today else { return nil }
+        let months = max(1, (due.year - today.year) * 12 + (due.month - today.month) + 1)
+        let per = (d.outstanding.cents + Int64(months) - 1) / Int64(months)
+        return (months, Money(cents: per))
     }
 
     public static func debts(_ ledger: Ledger, today: LocalDate, includeClosed: Bool = false) -> [DebtStatus] {

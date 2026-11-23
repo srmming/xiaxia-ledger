@@ -444,7 +444,9 @@ public struct XiaxiaScene: Scene {
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
         if useDemo {
-            model = LedgerModel.demo()
+            // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
+            let persona = args.firstIndex(of: "-XiaxiaPersona").flatMap { $0 + 1 < args.count ? Persona(rawValue: args[$0 + 1]) : nil }
+            model = LedgerModel.demo(persona: persona)
         } else if args.contains("-XiaxiaEmpty") {
             model = LedgerModel.empty()
         } else {
