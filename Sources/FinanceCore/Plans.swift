@@ -23,13 +23,17 @@ public struct Debt: Identifiable, Hashable, Codable, Sendable {
     /// 还款流水（借出的话是对方还给我的入账；借入的话是我还出去的支出）。金额取绝对值累加。
     public var repaymentIDs: [UUID]
     public var closed: Bool               // 手动结清（比如对方不用还了）
+    /// 还款计划（ming 2026-11-23「欠款改分期」）：每期哪天、还多少。nil = 没排计划。见 DebtPlan.swift。
+    public var plan: [PlannedPayment]?
+    /// 排计划那时已经还了多少：计划里的每期从这之后开始算。
+    public var planBase: Money?
 
     public init(id: UUID = UUID(), counterparty: String, direction: Direction, principal: Money,
                 bookID: String, startDate: LocalDate, dueDate: LocalDate? = nil, note: String? = nil,
-                repaymentIDs: [UUID] = [], closed: Bool = false) {
+                repaymentIDs: [UUID] = [], closed: Bool = false, plan: [PlannedPayment]? = nil, planBase: Money? = nil) {
         self.id = id; self.counterparty = counterparty; self.direction = direction; self.principal = principal
         self.bookID = bookID; self.startDate = startDate; self.dueDate = dueDate; self.note = note
-        self.repaymentIDs = repaymentIDs; self.closed = closed
+        self.repaymentIDs = repaymentIDs; self.closed = closed; self.plan = plan; self.planBase = planBase
     }
 }
 
@@ -70,14 +74,20 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
     public var contributionIDs: [UUID]
     /// 锁定：存进去就不能动，到期（或达成）前不许取。给以后的「宝宝存钱」小游戏和强制储蓄用。
     public var locked: Bool
+    /// 钉在目标页最上面（ming 2026-11-23「钉一个到最上面」）。
+    public var pinned: Bool
+    /// 用户自己拖出来的顺序（小的在前）。nil = 没拖过，按急不急排。
+    public var rank: Int?
 
     public init(id: UUID = UUID(), name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
-                savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false) {
+                savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false,
+                pinned: Bool = false, rank: Int? = nil) {
         self.id = id; self.name = name; self.bookID = bookID; self.target = target; self.deadline = deadline
         self.savingsAccountID = savingsAccountID; self.contributionIDs = contributionIDs; self.locked = locked
+        self.pinned = pinned; self.rank = rank
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked }
+    enum CodingKeys: String, CodingKey { case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked, pinned, rank }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -89,6 +99,8 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
         savingsAccountID = try c.decodeIfPresent(String.self, forKey: .savingsAccountID)
         contributionIDs = try c.decodeIfPresent([UUID].self, forKey: .contributionIDs) ?? []
         locked = try c.decodeIfPresent(Bool.self, forKey: .locked) ?? false
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        rank = try c.decodeIfPresent(Int.self, forKey: .rank)
     }
 }
 
