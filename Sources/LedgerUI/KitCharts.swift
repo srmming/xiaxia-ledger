@@ -176,6 +176,7 @@ struct CategoryDonut: View {
         .overlay {
             VStack(spacing: 2) {
                 Text(centerLabel).font(.caption).foregroundStyle(Color.fg2)
+                    .lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: size * 0.6)
                 Text(total.rounded).font(.system(size: size * 0.11, weight: .bold, design: .rounded)).monospacedDigit()
                     .contentTransition(.numericText(value: Double(total.cents)))
             }
@@ -243,11 +244,59 @@ struct MonthBars: View {
     }
 }
 
+// MARK: - 每月存下多少
+
+/// 每个月进账减花掉：存下是绿柱，透支是红柱；虚线是平均。正在过的这个月颜色浅一点（还没过完）。
+struct SavedBars: View {
+    let summaries: [MonthlySummary]
+    var average: Money? = nil
+    var height: CGFloat = 220
+
+    var body: some View {
+        let current = LocalDate.today.yearMonth
+        let values = summaries.map { Double($0.net.cents) / 100 }
+        let lo = min(values.min() ?? 0, 0), hi = max(values.max() ?? 1, 1)
+        let pad = max((hi - lo) * 0.12, 10)
+        Chart {
+            ForEach(summaries, id: \.month) { s in
+                BarMark(x: .value("月", s.month.description), y: .value("存下", Double(s.net.cents) / 100), width: .ratio(0.62))
+                    .foregroundStyle(s.net.isExpense ? Color.alert : Color.income)
+                    .opacity(s.month == current ? 0.5 : 1)
+                    .cornerRadius(4)
+            }
+            RuleMark(y: .value("零", 0)).foregroundStyle(Color.fg3.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1))
+            if let average {
+                RuleMark(y: .value("平均", Double(average.cents) / 100))
+                    .foregroundStyle(Color.primary.opacity(0.55))
+                    .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [4, 4]))
+                    .annotation(position: .top, alignment: .trailing, spacing: 2) {
+                        Text("平均 \(average.cents < 0 ? "\u{2212}" : "")\(average.magnitude.rounded)").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg2)
+                    }
+            }
+        }
+        .chartLegend(.hidden)
+        .chartYScale(domain: (lo < 0 ? lo - pad : 0)...(hi + pad))
+        .chartXAxis { MonthAxis(months: summaries.map(\.month), every: summaries.count > 7 ? 2 : 1) }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { v in
+                AxisGridLine().foregroundStyle(Color.fg3.opacity(0.18))
+                AxisValueLabel { if let d = v.as(Double.self) { Text(euroAxis(d)) } }
+            }
+        }
+        .frame(height: height)
+        .revealFromLeading()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("近 \(summaries.count) 个月每月存下多少的柱状图：\(summaries.filter { !$0.net.isExpense }.count) 个月存下了钱，\(summaries.filter { $0.net.isExpense }.count) 个月花得比挣得多。")
+    }
+}
+
 // MARK: - 净资产曲线
 
 struct NetWorthChart: View {
     let points: [NetWorthPoint]
     var height: CGFloat = 200
+    /// 横轴隔几个月标一次。
+    var labelEvery = 3
 
     var body: some View {
         let values = points.map { Double($0.value.cents) / 100 }
@@ -273,9 +322,9 @@ struct NetWorthChart: View {
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
         // 横轴用序号（0、1、2…），比用文字分类稳：隔 3 个月标一次，最后一个月一定标。
-        .chartXScale(domain: 0...max(points.count - 1, 1))
+        .chartXScale(domain: 0...max(points.count - 1, 1), range: .plotDimension(endPadding: 10))
         .chartXAxis {
-            AxisMarks(values: MonthAxisTicks.indices(count: points.count, every: 3)) { v in
+            AxisMarks(values: MonthAxisTicks.indices(count: points.count, every: labelEvery)) { v in
                 AxisValueLabel(anchor: .top) {
                     if let i = v.as(Int.self), points.indices.contains(i) { Text(points[i].month.shortLabel).fixedSize() }
                 }

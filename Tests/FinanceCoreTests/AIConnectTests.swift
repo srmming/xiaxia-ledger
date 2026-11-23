@@ -271,6 +271,27 @@ final class AIConnectTests: XCTestCase {
         XCTAssertTrue(dry.contains { $0.what.contains("Gemini") && $0.changed })
     }
 
+    func testRefreshInstalledOnlyTouchesWhatWeInstalled() throws {
+        // 没装过：什么都不碰
+        try write(".codex/AGENTS.md", "# 别人的\n")
+        XCTAssertTrue(setup.refreshInstalled().isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: setup.skillFolder.path))
+        XCTAssertEqual(try read(".codex/AGENTS.md"), "# 别人的\n")
+        // 装过，然后 app 更新：旧的 skill 和提示词段换成新的，别的内容不动
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
+        try write(".claude/CLAUDE.md", "# 我的\n")
+        _ = setup.install([.claudeCode])
+        try write(".agents/skills/fin/SKILL.md", "旧说明\n")
+        try write(".claude/CLAUDE.md", "# 我的\n\n\(AISetup.promptStart)\n旧提示词\n\(AISetup.promptEnd)\n")
+        let steps = setup.refreshInstalled()
+        XCTAssertEqual(steps.count, 2, "\(steps)")
+        XCTAssertTrue(try read(".agents/skills/fin/SKILL.md").contains("name: fin"))
+        let md = try read(".claude/CLAUDE.md")
+        XCTAssertTrue(md.hasPrefix("# 我的\n") && md.contains("## 夏夏账本") && !md.contains("旧提示词"))
+        XCTAssertEqual(try read(".codex/AGENTS.md"), "# 别人的\n", "没装过提示词的文件不加")
+        XCTAssertTrue(setup.refreshInstalled().isEmpty, "已经是新的就不改")
+    }
+
     func testSetupReplacesOldBlockAndOldLink() throws {
         // 以前 install-global.sh 装的：skill 是指向仓库的链接，提示词标记带旧说明
         let repoSkill = home.appendingPathComponent("repo/skills/fin")

@@ -93,6 +93,25 @@ public struct AISetup: Sendable {
         return steps
     }
 
+    /// app 更新后：之前装过的使用说明（skill）和提示词换成新版的。只动夏夏账本自己装的：
+    /// skill 目录里有标记文件才换；提示词文件里已经有夏夏账本那段才换那一段。没装过的一概不碰。
+    @discardableResult
+    public func refreshInstalled() -> [Step] {
+        let fm = FileManager.default
+        var steps: [Step] = []
+        if fm.fileExists(atPath: skillFolder.appendingPathComponent(Self.marker).path) {
+            let step = installSkillFolder(dryRun: false)
+            if step.changed { steps.append(step) }
+        }
+        for app in AIApp.allCases {
+            guard let file = promptFile(app), let text = try? String(contentsOf: file, encoding: .utf8),
+                  Self.blockRange(text) != nil else { continue }
+            let step = writePrompt(file, app: app, dryRun: false)
+            if step.changed { steps.append(step) }
+        }
+        return steps
+    }
+
     /// app 里点「连上」：写 MCP（写不成就报错），再顺手装好 skill 和提示词（这些写不成不算失败）。
     public func connect(_ app: AIApp) throws {
         try connector.connect(app)

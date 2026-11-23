@@ -105,22 +105,106 @@ private struct HoverHighlight: ViewModifier {
     }
 }
 
-/// 上个月 / 下个月。
+/// 顶上的月份按钮：左右箭头一个月一个月切；点中间的月份弹出小面板，选年、点哪个月跳哪个月（ming 2026-11-23：「只能左右滑动有点问题」）。
+/// 不在本月时旁边多一个「回到本月」。compact：iPhone 顶栏用，只有中间那个按钮。
 struct MonthStepper: View {
     @Binding var month: YearMonth
     var latest: YearMonth = LocalDate.today.yearMonth
+    /// 有记录的月份：面板里加小点。
+    var recorded: Set<YearMonth> = []
+    var compact = false
+    @State private var picking = false
 
     var body: some View {
         HStack(spacing: 0) {
-            Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                .accessibilityLabel("上个月")
-            Text(month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
-                .frame(minWidth: 110)
-            Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                .accessibilityLabel("下个月")
-                .disabled(month >= latest)
+            if !compact {
+                Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle()) }
+                    .accessibilityLabel("上个月")
+            }
+            Button { picking = true } label: {
+                HStack(spacing: 3) {
+                    Text(compact ? "\(month.month) 月" : month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Color.fg3)
+                }
+                .frame(minWidth: compact ? nil : 110, minHeight: 28).contentShape(Rectangle())
+            }
+            .foregroundStyle(.primary)
+            .accessibilityLabel("\(month.label)，选月份")
+            .accessibilityIdentifier("month.pick")
+            .popover(isPresented: $picking, arrowEdge: .bottom) {
+                MonthPanel(month: $month, latest: latest, recorded: recorded) { picking = false }
+                    .presentationCompactAdaptation(.popover)
+            }
+            if !compact {
+                Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle()) }
+                    .accessibilityLabel("下个月")
+                    .disabled(month >= latest)
+                if month != latest {
+                    Button { month = latest } label: { Text("回到本月").font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 28).contentShape(Rectangle()) }
+                        .foregroundStyle(Color.brand)
+                        .accessibilityIdentifier("month.today")
+                }
+            }
         }
         .buttonStyle(.borderless)
+        // 截图用：-XiaxiaMonthPanel 1 一打开就弹出选月份的面板。
+        .onAppear { if UserDefaults.standard.bool(forKey: "XiaxiaMonthPanel") { picking = true } }
+    }
+}
+
+/// 选月份的小面板：上面切年份，下面 12 个月格子，有记录的月份带小点，最下面「回到本月」。还没到的月份点不了。
+struct MonthPanel: View {
+    @Binding var month: YearMonth
+    let latest: YearMonth
+    let recorded: Set<YearMonth>
+    var done: () -> Void
+    @State private var year = 0
+
+    var body: some View {
+        let y = year == 0 ? month.year : year
+        let firstYear = min(recorded.map(\.year).min() ?? latest.year, month.year, latest.year)
+        VStack(spacing: 12) {
+            HStack {
+                Button { year = y - 1 } label: { Image(systemName: "chevron.left").frame(width: 32, height: 32).contentShape(Rectangle()) }
+                    .disabled(y <= firstYear).accessibilityLabel("上一年")
+                Spacer()
+                Text(verbatim: "\(y) 年").font(.headline).monospacedDigit()
+                Spacer()
+                Button { year = y + 1 } label: { Image(systemName: "chevron.right").frame(width: 32, height: 32).contentShape(Rectangle()) }
+                    .disabled(y >= latest.year).accessibilityLabel("下一年")
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(1...12, id: \.self) { m in
+                    let ym = YearMonth(year: y, month: m)
+                    let picked = ym == month
+                    Button { month = ym; done() } label: {
+                        VStack(spacing: 3) {
+                            Text("\(m) 月").font(.callout.weight(picked ? .bold : .regular)).monospacedDigit()
+                            Circle().fill(recorded.contains(ym) ? (picked ? Color.white : Color.brand) : Color.clear).frame(width: 4, height: 4)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .foregroundStyle(picked ? Color.white : ym > latest ? Color.fg3.opacity(0.5) : Color.primary)
+                        .background(picked ? Color.brand : ym == latest ? Color.brandSoft : Color.sunken.opacity(0.6),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(Rectangle())
+                    }
+                    .disabled(ym > latest)
+                    .accessibilityLabel("\(y) 年 \(m) 月" + (recorded.contains(ym) ? "，有记录" : "") + (picked ? "，正在看" : ""))
+                }
+            }
+            HStack {
+                HStack(spacing: 4) { Circle().fill(Color.brand).frame(width: 4, height: 4); Text("有记录") }
+                    .font(.caption).foregroundStyle(Color.fg2).accessibilityHidden(true)
+                Spacer()
+                Button { month = latest; done() } label: { Text("回到本月").font(.callout.weight(.semibold)) }
+                    .foregroundStyle(Color.brand)
+                    .disabled(month == latest)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(14)
+        .frame(width: 268)
+        .accessibilityIdentifier("month.panel")
     }
 }
 
