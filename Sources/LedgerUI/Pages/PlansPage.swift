@@ -163,7 +163,7 @@ struct PiggyGoalsBoard: View {
         #if os(iOS)
         150
         #else
-        short ? 150 : 200
+        short ? 120 : 150
         #endif
     }
 
@@ -336,15 +336,28 @@ struct PiggyMainCard: View {
     var body: some View {
         let p = goal
         let f = p.forecast
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: 20) {
-                pig(p)
-                details(p, f)
-            }
+        Group {
+            #if os(iOS)
             VStack(alignment: .leading, spacing: 12) {
                 pig(p).frame(maxWidth: .infinity)
                 details(p, f)
             }
+            #else
+            // Mac：小猪放左边、名字和「还差」放右边，下面整行写日子和按钮——一屏放得下小目标
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 16) {
+                    pig(p)
+                    VStack(alignment: .leading, spacing: 8) {
+                        titleRow(p, f)
+                        amountRow(f, savedInline: false)
+                        PiggyProgress(fraction: Double(f.percent) / 100)
+                        Text("已存 \(f.saved.rounded) / \(f.target.rounded) · \(f.percent)%").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
+                    }
+                }
+                infoLines(p)
+                buttons(p)
+            }
+            #endif
         }
         .kitCard(padding: 18)
         .accessibilityElement(children: .contain)
@@ -373,33 +386,47 @@ struct PiggyMainCard: View {
 
     private func details(_ p: PiggyGoal, _ f: GoalForecast) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 8) {
-                GoalIconBadge(symbol: goalSymbol(p), color: Color.kit(0xE07A90, 0xF08AA0))
-                Text(p.name).font(.title3.weight(.semibold)).lineLimit(1)
-                KitTag(text: "大目标", color: Color.kit(0xB4445C, 0xFF9AB0), background: Color.kit(0xF26A86, 0xF26A86, alpha: 0.12, darkAlpha: 0.2))
-                if f.locked { Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.fg3).accessibilityLabel("锁定的") }
-                Spacer(minLength: 0)
-                PiggyGoalMenu(goal: p, onMoney: onMoney)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(f.left.cents > 0 ? "还差" : "存够了").font(.callout).foregroundStyle(Color.fg2)
-                Text(f.left.cents > 0 ? f.left.rounded : f.target.rounded)
-                    .font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text("已存 \(f.saved.rounded) / \(f.target.rounded)").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
-            }
+            titleRow(p, f)
+            amountRow(f, savedInline: true)
             PiggyProgress(fraction: Double(f.percent) / 100)
-            VStack(alignment: .leading, spacing: 5) {
-                Label { Text(arrivalText(p)).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "calendar") }
-                if let d = p.perDay {
-                    Label { Text("每天存 \(d.ui)，\(habit.phrase(perDay: d))") } icon: { Image(systemName: "cup.and.saucer") }
-                }
-                Label { Text(stashText(p)).foregroundStyle(p.stash == nil ? Color.warn : Color.primary) } icon: { Image(systemName: stashSymbol(p.stash)) }
-            }
-            .font(.callout)
-            .labelStyle(PiggyLabelStyle())
+            infoLines(p)
             buttons(p)
         }
+    }
+
+    private func titleRow(_ p: PiggyGoal, _ f: GoalForecast) -> some View {
+        HStack(spacing: 8) {
+            GoalIconBadge(symbol: goalSymbol(p), color: Color.kit(0xE07A90, 0xF08AA0))
+            Text(p.name).font(.title3.weight(.semibold)).lineLimit(1)
+            KitTag(text: "大目标", color: Color.kit(0xB4445C, 0xFF9AB0), background: Color.kit(0xF26A86, 0xF26A86, alpha: 0.12, darkAlpha: 0.2))
+            if f.locked { Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.fg3).accessibilityLabel("锁定的") }
+            Spacer(minLength: 0)
+            PiggyGoalMenu(goal: p, onMoney: onMoney)
+        }
+    }
+
+    private func amountRow(_ f: GoalForecast, savedInline: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(f.left.cents > 0 ? "还差" : "存够了").font(.callout).foregroundStyle(Color.fg2)
+            Text(f.left.cents > 0 ? f.left.rounded : f.target.rounded)
+                .font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+            if savedInline {
+                Text("已存 \(f.saved.rounded) / \(f.target.rounded)").font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
+            }
+        }
+    }
+
+    private func infoLines(_ p: PiggyGoal) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label { Text(arrivalText(p)).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "calendar") }
+            if let d = p.perDay {
+                Label { Text("每天存 \(d.ui)，\(habit.phrase(perDay: d))") } icon: { Image(systemName: "cup.and.saucer") }
+            }
+            Label { Text(stashText(p)).foregroundStyle(p.stash == nil ? Color.warn : Color.primary) } icon: { Image(systemName: stashSymbol(p.stash)) }
+        }
+        .font(.callout)
+        .labelStyle(PiggyLabelStyle())
     }
 
     private func buttons(_ p: PiggyGoal) -> some View {
@@ -643,6 +670,9 @@ struct PiggyMonthCard: View {
             }
             let cell: CGFloat = compact ? 14 : 18
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(cell), spacing: 4), count: 7), alignment: .leading, spacing: 4) {
+                ForEach(Array(["一", "二", "三", "四", "五", "六", "日"].enumerated()), id: \.offset) { _, w in
+                    Text(w).font(.system(size: cell * 0.55)).foregroundStyle(Color.fg3).frame(width: cell, height: cell * 0.8)
+                }
                 ForEach(0..<(first + days), id: \.self) { i in
                     if i < first {
                         Color.clear.frame(width: cell, height: cell)
