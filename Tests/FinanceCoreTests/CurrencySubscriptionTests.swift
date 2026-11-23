@@ -181,6 +181,8 @@ final class SubscriptionTests: XCTestCase {
             txs.append(Transaction(date: d(2026, m, 5), amount: Money(cents: -5480), description: "ABONO TRANSPORTE", accountID: "card"))
         }
         for m in [1, 4, 7, 10] { txs.append(Transaction(date: d(2026, m, 20), amount: Money(cents: -61200), description: "AEAT IVA TRIMESTRAL", accountID: "card")) }
+        // 进货：每周去花市进一次，日子和金额都很规律，但分类是「花材」，是买东西不是订阅
+        for w in 0..<8 { txs.append(Transaction(date: d(2026, 9, 28).adding(days: w * 7), amount: Money(cents: -28343), description: "VIVERO MAYOR", accountID: "card", category: "花材")) }
         // 健身房：停了（最后一次是 6 月）
         for m in 2...6 { txs.append(Transaction(date: d(2026, m, 10), amount: Money(cents: -2990), description: "GYMFIT", accountID: "card")) }
         l.transactions = txs

@@ -20,7 +20,7 @@ struct SubscriptionsPage: View {
                     SectionHeader("7 天内要扣")
                     ForEach(soon) { s in
                         HStack(spacing: 10) {
-                            CategoryIcon(category: s.category ?? "订阅")
+                            CategoryIcon(category: subscriptionIcon(s.name, category: s.category))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
                                 Text(s.daysLeft == 0 ? "今天扣" : "\(s.daysLeft ?? 0) 天后扣").font(.caption).foregroundStyle(Color.fg2)
@@ -137,7 +137,7 @@ struct SubscriptionsCard: View {
 
     private func row(_ s: SubscriptionStatus) -> some View {
         HStack(spacing: 12) {
-            CategoryIcon(category: s.category ?? "订阅")
+            CategoryIcon(category: subscriptionIcon(s.name, category: s.category))
             VStack(alignment: .leading, spacing: 3) {
                 Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
                     .foregroundStyle(s.cancelledOn == nil ? Color.primary : Color.fg3)
@@ -201,7 +201,7 @@ struct SubscriptionsCard: View {
 
     private func candidateRow(_ c: SubscriptionCandidate) -> some View {
         HStack(spacing: 12) {
-            CategoryIcon(category: c.category ?? "订阅", size: 28)
+            CategoryIcon(category: subscriptionIcon(c.name, category: c.category), size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.name).font(.callout).lineLimit(1)
                 Text("\(c.cycle.label) \(c.amount.ui(in: c.currency)) · 扣过 \(c.count) 次，最近 \(c.lastDate.short)")
@@ -396,4 +396,24 @@ extension LedgerModel {
         let hidden = hiddenAccounts
         return Subscriptions.detect(ledger).filter { !hidden.contains($0.accountID) }
     }
+}
+
+/// 订阅的图标：分类写的是笼统的「订阅」（或没写）时，按名字猜一个更具体的，免得一排全是同一个圆圈。
+/// 视频会员 → 电影，音乐 → 音乐，健身 → 健身房，网站域名 → 网站，云盘、软件、字体、系统月费 → 软件。
+func subscriptionIcon(_ name: String, category: String?) -> String {
+    if let c = category, !c.isEmpty, c != "订阅" { return c }
+    let n = name.lowercased()
+    let rules: [([String], String)] = [
+        (["视频", "影视", "video", "stream", "netflix", "disney", "hbo", "youtube", "爱奇艺", "腾讯视频", "优酷", "bilibili", "b站"], "电影"),
+        (["音乐", "music", "spotify", "tune", "网易云", "qq音乐"], "音乐"),
+        (["健身", "gym", "fit", "瑜伽", "yoga"], "健身房"),
+        (["网站", "域名", "domain", "hosting", "服务器"], "网站"),
+        (["手机", "话费", "流量", "电话", "sim"], "通讯"),
+        (["宽带", "网费", "fibra", "internet"], "网费"),
+        (["保险", "seguro", "insurance"], "保险"),
+        (["读书", "书", "kindle", "阅读", "杂志", "报"], "书"),
+        (["云", "cloud", "icloud", "drive", "软件", "字体", "font", "app", "系统", "会员费", "adobe", "office", "chatgpt", "claude", "ai "], "软件"),
+    ]
+    for (words, icon) in rules where words.contains(where: { n.contains($0) }) { return icon }
+    return "订阅"
 }
