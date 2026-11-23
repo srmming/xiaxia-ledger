@@ -195,6 +195,17 @@ final class AIConnectTests: XCTestCase {
         XCTAssertTrue(p.contains("summary"), "要让 AI 最后调一次只读的 summary 确认")
         XCTAssertTrue(p.contains(#""command" : "/Applications/夏夏账本.app/Contents/MacOS/fin""#), "不能跑命令的 AI 要有能粘的配置")
         for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.name)) }
+        // ming 2026-11-23：配置时问要不要定时问（每天 / 每周），用提问工具问；告诉用户能拍小票。
+        XCTAssertTrue(p.contains("每天晚上") && p.contains("每周一次") && p.contains("AskUserQuestion") && p.contains("拍小票"))
+    }
+
+    func testPromptMakesLedgerTheEntryPoint() {
+        let block = AISetup.promptBlock
+        for word in ["唯一入口", "小票", "AskUserQuestion", "定时"] { XCTAssertTrue(block.contains(word), word) }
+        let skill = SkillBundle.files.first { $0.path == "SKILL.md" }?.text ?? ""
+        for word in ["唯一入口", "拍小票", "AskUserQuestion", "定时问一问"] { XCTAssertTrue(skill.contains(word), word) }
+        // 通用版：不写具体某个人的名字和店名。
+        for word in ["ming", "Miora"] { XCTAssertFalse(block.contains(word) || skill.contains(word), word) }
     }
 
     func testWelcomeSentenceAndGuide() {
