@@ -18,6 +18,11 @@ BUILD="${TMPDIR:-/tmp}/xiaxia-share"
 RELEASES="${XIAXIA_RELEASES_DIR:-$HOME/xiaxia-ledger-releases}"
 BUILDNO="$(date +%Y%m%d%H%M)"
 
+# 更新日志（Sources/LedgerUI/Resources/Changelog.json）：没有这一版就按 PR 标题起草一条。要先于编译：app 里「这次更新了什么」读的就是它。
+python3 "$REPO/scripts/changelog.py" add "$VERSION"
+python3 "$REPO/scripts/changelog.py" check "$VERSION"
+python3 "$REPO/scripts/changelog.py" site
+
 cd "$REPO/App"
 xcodegen generate >/dev/null
 COMMON=(-project XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Release
@@ -109,6 +114,12 @@ if [ -n "$KEY" ]; then
   GEN="$(find "$BUILD/dd/SourcePackages/artifacts" -path '*/bin/generate_appcast' -type f | head -1)"
   [ -x "$GEN" ] || { echo "没找到 Sparkle 的 generate_appcast"; exit 1; }
   ARCH="$(mktemp -d)"; cp "$REPO"/dist/download/xiaxia-ledger-*.dmg "$ARCH/"
+  # 每个 dmg 旁边放一份同名 .html，generate_appcast 会把它嵌进 appcast：更新窗口里就显示「新版改了什么」。
+  mkdir -p "$REPO/dist/release-notes"
+  for d in "$ARCH"/xiaxia-ledger-*.dmg; do
+    v="$(basename "$d" .dmg)"; v="${v#xiaxia-ledger-}"
+    python3 "$REPO/scripts/changelog.py" notes "$v" "${d%.dmg}.html" 2>/dev/null && cp "${d%.dmg}.html" "$REPO/dist/release-notes/$v.html" || true
+  done
   # 不出增量包：generate_appcast 在临时目录里生成 .delta，跑完就删了不会上传，appcast 却会指向它（线上 404）。
   "$GEN" --maximum-deltas 0 --download-url-prefix "$BASE/download/" -o "$REPO/dist/appcast.xml" "$ARCH"
   rm -rf "$ARCH"
@@ -143,4 +154,6 @@ MD
     # 只传 dist/appcast.xml、dist/download/、dist/release-notes/；服务器设置在 site/deploy.env（不进仓库）或环境变量 XIAXIA_SSH / XIAXIA_DIR / XIAXIA_DOMAIN。
     (cd "$REPO" && bash site/deploy.sh --release) ;;
 esac
-echo "发布好了：别人的 app 一天内左下角会提醒更新到 $VERSION"
+echo "发布好了：别人的 app 下次打开（或一天内）左下角会提醒更新到 $VERSION"
+git -C "$REPO" diff --quiet -- Sources/LedgerUI/Resources/Changelog.json site/changelog.html || \
+  echo "⚠︎ 更新日志有改动（Sources/LedgerUI/Resources/Changelog.json、site/changelog.html），记得提交到仓库"

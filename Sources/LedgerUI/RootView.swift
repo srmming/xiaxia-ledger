@@ -99,6 +99,19 @@ public struct RootView: View {
             }
             .animation(.snappy, value: model.activity)
         }
+        #if os(macOS)
+        .overlay(alignment: .bottomTrailing) {
+            // 更新后第一次打开：右下角「这次更新了什么」，不挡操作。
+            ZStack {
+                if !model.showWelcome, model.loadError == nil, !WhatsNewState.shared.entries.isEmpty {
+                    WhatsNewCard(state: WhatsNewState.shared)
+                        .padding(20)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: WhatsNewState.shared.entries)
+        }
+        #endif
         .task { await model.watch() }
         .sensoryFeedback(trigger: model.toast) { _, new in
             guard let new else { return nil }
@@ -139,6 +152,9 @@ public struct RootView: View {
             model.showWelcomeIfNeeded()          // 空账本第一次打开：夏夏带着走一遍
             try? await Task.sleep(for: .seconds(0.6))
             if !model.showWelcome { model.showAISetupIfNeeded() }
+            #if os(macOS)
+            WhatsNewState.shared.checkOnLaunch(hasData: !model.ledger.transactions.isEmpty) // 刚更新完：右下角说说这次改了什么
+            #endif
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.sheet == nil { model.refreshIfChanged() }

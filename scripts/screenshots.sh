@@ -102,6 +102,11 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 47-plans-dark -XiaxiaDemo 1 -XiaxiaSection plans -xiaxia.appearance dark
   snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
   snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
+  # 更新后第一次打开右下角的「这次更新了什么」（假装从 0.2.2 升上来）+ 左下角「有新版本」提示条
+  snap 50-whats-new -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1
+  snap 51-whats-new-dark -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1 -xiaxia.appearance dark
+  snap 52-whats-new-small -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.3 -XiaxiaUpdatePreview 1 -XiaxiaWindowSize 1000x612
+  snap 53-settings-update -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaUpdatePreview 1
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。
