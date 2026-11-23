@@ -122,21 +122,26 @@ public enum CashForecast {
         // 能少花的：固定开销（房租、税、还款……）不算，按平均每月花多少排，最多 3 样。
         var cats: [String: Int64] = [:]
         for f in basis { for (k, v) in f.byCategory where v.cents > 0 { cats[k, default: 0] += v.cents } }
-        let levers = cats
-            .filter { !Subscriptions.fixedCostCategories.contains($0.key) && !Subscriptions.fixedCostCategories.contains($0.key.lowercased()) }
-            .map { (name: $0.key, monthly: $0.value / n) }
-            .filter { $0.monthly > 0 }
-            .sorted { $0.monthly == $1.monthly ? $0.name < $1.name : $0.monthly > $1.monthly }
-            .prefix(3)
-            .map { Lever(category: $0.name, monthly: Money(cents: $0.monthly),
-                         halfSaves: Money(cents: Int64((Double($0.monthly) / 2 * monthsLeft).rounded())), rising: rising.contains($0.name)) }
+        let fixed = Subscriptions.fixedCostCategories
+        var picked: [(name: String, monthly: Int64)] = []
+        for (name, total) in cats where !fixed.contains(name) && !fixed.contains(name.lowercased()) {
+            let monthly: Int64 = total / n
+            if monthly > 0 { picked.append((name: name, monthly: monthly)) }
+        }
+        picked.sort { a, b in a.monthly == b.monthly ? a.name < b.name : a.monthly > b.monthly }
+        var levers: [Lever] = []
+        for p in picked.prefix(3) {
+            let saves = Int64((Double(p.monthly) / 2 * monthsLeft).rounded())
+            levers.append(Lever(category: p.name, monthly: Money(cents: p.monthly), halfSaves: Money(cents: saves),
+                                rising: rising.contains(p.name)))
+        }
 
         let monthEnd = now.cents + restIncome - restSpend
         return Result(today: today, now: now, monthEnd: Money(cents: monthEnd), yearEnd: ahead.last?.value ?? now,
                       yearEndDate: yearEndDate, monthlyIncome: Money(cents: avgIncome), monthlySpend: Money(cents: avgSpend),
                       basisMonths: basis.count, restIncome: Money(cents: restIncome), restSpend: Money(cents: restSpend),
                       past: history.filter { $0.date < today } + [Point(date: today, value: now)],
-                      ahead: ahead, thrifty: thrifty, levers: Array(levers), monthsLeft: monthsLeft)
+                      ahead: ahead, thrifty: thrifty, levers: levers, monthsLeft: monthsLeft)
     }
 
     /// 直接从流水算（app 和 fin 共用）：最近 12 个整月的进出、哪几类在悄悄变多。
