@@ -15,7 +15,10 @@
 
 1. 域名的 A 记录指向 VPS 的 IP。
 2. `cp site/deploy.env.example site/deploy.env`，填 ssh 别名和域名。
-3. `ssh <别名> 'sudo bash -s <域名>' < site/server/setup.sh`：装 Caddy、自动配 HTTPS。
+3. 干净的服务器：`ssh <别名> 'sudo bash -s <域名>' < site/server/setup.sh`，装 Caddy、自动配 HTTPS。
+   已经跑着 Coolify 的服务器（现在用的 contabo-plus6）：`ssh <别名> 'bash -s <域名>' < site/server/setup-coolify.sh`，起一个 nginx 小容器，让 Coolify 的 Traefik 代理并签证书，不改 Coolify 自己的配置。
+
+现在线上：https://xiaxia.ming95.com （contabo-plus6，网页在 /var/www/xiaxia，容器 xiaxia-site）。
 
 ## 以后
 
