@@ -798,7 +798,7 @@ struct WelcomeView: View {
         withAnimation(.smooth(duration: 0.35)) { step = next }
     }
 
-    private var canGoBack: Bool { step == .books || step == .accounts || step == .ai }
+    private var canGoBack: Bool { step == .books || step == .accounts || step == .ai || (step == .chat && !celebrated) }
 
     private func goBack() {
         switch step {
@@ -813,6 +813,7 @@ struct WelcomeView: View {
                 checking = nil
                 go(.accounts)
             }
+        case .chat: go(.ai)
         case .hello, .done: break
         }
     }
