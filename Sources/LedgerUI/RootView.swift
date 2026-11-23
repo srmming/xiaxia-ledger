@@ -288,7 +288,10 @@ struct MacToolbar: ToolbarContent {
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
+            // 照 ming 的稿：「记一笔」是橙色实心（系统的醒目按钮样式 + 品牌橙，工具栏不会切掉它的底色）。
             Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.brand)
                 .help("记一笔（⌘N）")
             Button { model.toggleChat() } label: {
                 Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
