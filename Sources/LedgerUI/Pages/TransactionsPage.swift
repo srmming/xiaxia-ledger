@@ -357,7 +357,7 @@ struct SectionLink<L: View>: View {
             Group {
                 if section == .transactions { TransactionsPage(filter: filter ?? TransactionFilter()) } else { section.screen }
             }
-            .navigationTitle(section.rawValue)
+            .navigationTitle(section.title)
         } label: { label() }
         .buttonStyle(.plain)
         #endif
