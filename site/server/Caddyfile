@@ -1,0 +1,26 @@
+# Caddy 会自动申请和续期 HTTPS 证书（Let's Encrypt），不用手动配。
+# 把下面的域名换成真的，放到 /etc/caddy/Caddyfile。
+xiaxia.example.com {
+	root * /var/www/xiaxia
+	encode zstd gzip
+	file_server
+
+	# 自动更新文件和「最新版」安装包不能被缓存，否则别人拿到旧版本
+	@fresh path /appcast.xml /download/xiaxia-ledger.dmg /index.html /
+	header @fresh Cache-Control "no-cache"
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=604800"
+	@dmg path /download/*.dmg
+	header @dmg Content-Type "application/x-apple-diskimage"
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# 不带 www 和带 www 都能打开
+www.xiaxia.example.com {
+	redir https://xiaxia.example.com{uri} permanent
+}

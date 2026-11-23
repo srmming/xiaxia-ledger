@@ -25,3 +25,5 @@ ledger.json
 # XcodeGen 生成的工程和 Info.plist
 App/*.xcodeproj/
 App/Generated/
+
+site/deploy.env

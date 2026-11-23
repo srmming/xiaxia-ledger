@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>夏夏账本 · 看一眼就知道钱去哪了</title>
+<meta name="description" content="夏夏账本：Mac 上的原生记账 app。图表一眼看清收支、家底和欠款；记账直接跟你的 AI 说一句。账本存在你自己的电脑上。">
+<meta name="theme-color" content="#0f0f14">
+<meta property="og:title" content="夏夏账本">
+<meta property="og:description" content="看一眼就知道钱去哪了。记账，跟 AI 说一句就行。">
+<meta property="og:image" content="assets/og.png">
+<link rel="icon" type="image/png" href="assets/app-icon-64.png">
+<link rel="apple-touch-icon" href="assets/app-icon-256.png">
+<link rel="alternate" type="application/rss+xml" title="夏夏账本更新" href="/appcast.xml">
+<style>
+:root{
+  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#ffffff; --fg:#1d1d1f; --fg2:#55555c; --fg3:#86868b;
+  --line:rgba(0,0,0,.08); --brand:#ff7a3d; --brand2:#ff9a5c; --ai:#5b5bd6; --ai-soft:rgba(91,91,214,.1);
+  --green:#1fa463; --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
+  --hero1:#14131c; --hero2:#231d3a;
+  --r:22px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d0d11;--bg2:#15151b;--card:#1b1b22;--fg:#f5f5f7;--fg2:#b4b4bb;--fg3:#7d7d85;--line:rgba(255,255,255,.09);
+    --ai:#8b8bff;--ai-soft:rgba(139,139,255,.14);--green:#3ccf86;--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4)}
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.round{font-family:ui-rounded,"SF Pro Rounded",-apple-system,"PingFang SC",sans-serif}
+
+/* nav */
+nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:12px;height:56px}
+nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+nav .logo img{width:28px;height:28px;border-radius:7px}
+nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
+nav .links a{text-decoration:none}
+nav .links a:hover{color:var(--fg)}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:12px 22px;font-weight:600;text-decoration:none;
+  background:var(--brand);color:#fff;transition:transform .15s,box-shadow .15s,background .15s;border:0;cursor:pointer;font-size:16px}
+.btn:hover{background:#ff6a26;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,122,61,.35)}
+.btn.small{padding:7px 14px;font-size:14px}
+.btn.ghost{background:transparent;color:inherit;border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--bg2);box-shadow:none}
+.btn svg{width:18px;height:18px}
+@media (max-width:720px){nav .links a:not(.btn){display:none}}
+
+/* hero */
+.hero{background:radial-gradient(1200px 600px at 70% -10%,#3a2d6b 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#3b2113 0%,transparent 55%),linear-gradient(180deg,var(--hero1),var(--hero2));
+  color:#f5f5f7;padding:88px 0 0;overflow:hidden;position:relative}
+.hero .wrap:not(.shotwrap){display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(38px,5.6vw,64px);line-height:1.12;letter-spacing:-.02em;font-weight:700}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#ffb27a,#ff7a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:20px;color:#c9c8d3;margin:20px 0 32px;max-width:520px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.hero .ghost{color:#fff;border-color:rgba(255,255,255,.2)}
+.hero .ghost:hover{background:rgba(255,255,255,.08)}
+.hero .meta{margin-top:14px;font-size:13px;color:#9b9aa8}
+.hero .mascot{justify-self:center;width:min(380px,90%);filter:drop-shadow(0 24px 40px rgba(0,0,0,.45));animation:bob 5s ease-in-out infinite}
+.bubble{position:absolute;background:rgba(255,255,255,.96);color:#1d1d1f;border-radius:18px 18px 18px 6px;padding:10px 14px;font-size:14px;font-weight:500;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);white-space:nowrap;z-index:2}
+.hero .mwrap{position:relative;display:grid;place-items:center}
+.hero .mwrap .bubble{top:8%;left:-4%;animation:pop 6s ease-in-out infinite}
+.shot-mac{margin:64px auto 0;max-width:1040px;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 -10px 80px rgba(120,90,255,.18),0 30px 80px rgba(0,0,0,.6);
+  border:1px solid rgba(255,255,255,.12);border-bottom:0;background:#1c1c1e;max-height:min(640px,62vw)}
+.shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a;border-bottom:1px solid rgba(255,255,255,.06)}
+.shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
+@media (max-width:860px){.hero{padding-top:56px}.hero .wrap:not(.shotwrap){grid-template-columns:1fr}.hero .mascot{width:240px}.hero .mwrap{order:-1}.hero .mwrap .bubble{left:0}}
+
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+@keyframes pop{0%,8%{opacity:0;transform:translateY(6px) scale(.96)}14%,86%{opacity:1;transform:none}94%,100%{opacity:0;transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+
+section{padding:96px 0}
+.eyebrow{font-size:14px;font-weight:600;color:var(--brand);letter-spacing:.04em}
+h2{font-size:clamp(30px,4vw,44px);line-height:1.18;letter-spacing:-.015em;margin:8px 0 14px}
+.sub{color:var(--fg2);font-size:19px;max-width:640px}
+.center{text-align:center}.center .sub{margin:0 auto}
+
+/* features */
+.feats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.feat{background:var(--card);border-radius:var(--r);padding:26px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.feat .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px}
+.feat .ic svg{width:24px;height:24px}
+.feat h3{font-size:19px;margin-bottom:6px}
+.feat p{color:var(--fg2);font-size:15px}
+@media (max-width:960px){.feats{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.feats{grid-template-columns:1fr}}
+
+/* tour */
+.tour{background:var(--bg2)}
+.tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:32px 0 28px;gap:2px;flex-wrap:wrap;justify-content:center}
+.tabs button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:15px;font-weight:500;padding:8px 18px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--fg);color:var(--bg)}
+.tour .frame{max-width:1000px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#1c1c1e;aspect-ratio:1600/1196}
+.tour .frame img{width:100%;height:100%;object-fit:cover;transition:opacity .25s}
+.tour .cap{margin-top:18px;color:var(--fg2);font-size:16px;min-height:52px}
+
+/* ai chat */
+.ai{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.chat .who{font-size:12px;color:var(--fg3);margin-bottom:2px}
+.msg{max-width:86%;padding:10px 14px;border-radius:18px;font-size:15px}
+.msg.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:6px}
+.msg.bot{align-self:flex-start;background:var(--bg2);border-bottom-left-radius:6px}
+.msg.bot b{color:var(--ai)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.tools span{font-size:14px;padding:6px 12px;border-radius:999px;background:var(--ai-soft);color:var(--ai);font-weight:500}
+@media (max-width:860px){.ai{grid-template-columns:1fr}}
+
+/* cast */
+.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:48px}
+.who-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;text-align:center;box-shadow:var(--shadow);transition:transform .2s}
+.who-card:hover{transform:translateY(-4px)}
+.who-card img{width:100%;aspect-ratio:1;object-fit:contain;margin-bottom:8px}
+.who-card:nth-child(odd) img{animation:bob 5.5s ease-in-out infinite}
+.who-card:nth-child(even) img{animation:bob 6.2s ease-in-out infinite reverse}
+.who-card h3{font-size:18px}
+.who-card .tag{font-size:12px;color:var(--ai);background:var(--ai-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px}
+.who-card p{font-size:14px;color:var(--fg2)}
+.who-card.lead .tag{color:var(--brand);background:rgba(255,122,61,.12)}
+.cast-note{margin-top:20px;font-size:14px;color:var(--fg3);text-align:center}
+@media (max-width:860px){.cast{grid-template-columns:1fr 1fr}}
+
+/* iphone */
+.phones{display:flex;gap:20px;justify-content:center;margin-top:44px;flex-wrap:wrap}
+.phone{width:220px;border-radius:36px;padding:8px;background:#111;box-shadow:var(--shadow)}
+.phone img{border-radius:29px}
+@media (max-width:560px){.phone{width:46%}.phone:nth-child(3){display:none}}
+
+/* install */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px;counter-reset:s}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;box-shadow:var(--shadow)}
+.step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--fg);color:var(--bg);font-weight:700;margin-bottom:14px}
+.step h3{font-size:18px;margin-bottom:6px}
+.step p{font-size:15px;color:var(--fg2)}
+kbd,.k{font-family:inherit;font-size:13px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 22px}
+details{border-bottom:1px solid var(--line);padding:14px 0}
+details:last-child{border-bottom:0}
+summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--fg3);font-weight:400;font-size:22px;line-height:1}
+details[open] summary::after{content:"–"}
+details p,details ol{color:var(--fg2);font-size:15px;margin-top:8px}
+details ol{padding-left:20px}
+@media (max-width:860px){.steps{grid-template-columns:1fr}}
+
+/* download band */
+.band{background:radial-gradient(700px 300px at 50% 0%,#3a2d6b,transparent 70%),linear-gradient(180deg,var(--hero2),var(--hero1));color:#f5f5f7;text-align:center;padding:96px 0 104px;position:relative;overflow:hidden}
+.band img.m{width:150px;margin:0 auto 10px;animation:bob 5s ease-in-out infinite}
+.band h2{color:#fff}
+.band .sub{color:#c9c8d3;margin:0 auto 30px}
+.band .req{margin-top:16px;font-size:13px;color:#9b9aa8}
+footer{padding:28px 0 40px;font-size:13px;color:var(--fg3)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<nav aria-label="主导航">
+  <div class="wrap">
+    <a class="logo" href="#top"><img src="assets/app-icon-64.png" alt="" width="28" height="28">夏夏账本</a>
+    <div class="links">
+      <a href="#tour">看看界面</a>
+      <a href="#ai">连上 AI</a>
+      <a href="#cast">夏夏</a>
+      <a href="#install">怎么装</a>
+      <a class="btn small dl" href="/download/xiaxia-ledger.dmg">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <h1>看一眼，<br>就知道<em>钱去哪了</em>。</h1>
+      <p class="lead">夏夏账本是 Mac 上的原生记账 app。图表帮你看清收支、家底和欠款；记账直接跟你的 AI 说一句，夏夏还会给你出主意。</p>
+      <div class="cta">
+        <a class="btn dl" href="/download/xiaxia-ledger.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.3zM13.9 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
+          下载 Mac 版
+        </a>
+        <a class="btn ghost" href="#tour">先看看界面</a>
+      </div>
+      <p class="meta"><span class="ver">免费下载</span> · 需要 macOS 14 Sonoma 或更新</p>
+    </div>
+    <div class="mwrap">
+      <span class="bubble">这个月还能剩 813 €，比上月多哦 ✨</span>
+      <img class="mascot" src="assets/xiaxia-hello.webp" alt="夏夏：蓝头发的鲸鱼娘，在挥手打招呼" width="380" height="380">
+    </div>
+  </div>
+  <div class="wrap shotwrap">
+    <div class="shot-mac" aria-hidden="true">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <img src="assets/mac-overview.webp" alt="" width="1600" height="1196" fetchpriority="high">
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="center">
+  <div class="wrap">
+    <p class="eyebrow">为什么用夏夏账本</p>
+    <h2>记账不累，看账不烦。</h2>
+    <p class="sub">它最擅长的是「看」：打开就知道这个月过得怎么样。记账这件事，交给你已经在用的 AI。</p>
+    <div class="feats" style="text-align:left">
+      <div class="feat">
+        <div class="ic" style="background:rgba(255,122,61,.12);color:var(--brand)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg></div>
+        <h3>一屏看清</h3>
+        <p>这个月还剩多少、花钱快不快、钱花在哪、家底涨了没，每页一个重点，不用上下翻。</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:var(--ai-soft);color:var(--ai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+        <h3>说一句就记上</h3>
+        <p>「午饭 12,50」「把这张对账单导进来」，跟 Claude、ChatGPT Codex 等 AI 说就行，它帮你记、帮你分类。</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:rgba(31,164,99,.12);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg></div>
+        <h3>夏夏给你出主意</h3>
+        <p>多出来的钱放哪、哪个订阅悄悄涨价了、谁的钱该催了，夏夏看着你的账本提醒你。</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:rgba(120,120,128,.14);color:var(--fg2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>账本在你自己手里</h3>
+        <p>账本是你 Mac 上的一个文件，不传到我们的服务器，也不需要银行密码。每次改动都有记录，随时能撤销。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tour center" id="tour">
+  <div class="wrap">
+    <p class="eyebrow">看看界面</p>
+    <h2>原生 Mac app，深浅色都好看。</h2>
+    <p class="sub">苹果原生组件做的，窗口拉大拉小都是一屏看完。下面的数字全是示例数据。</p>
+    <div class="tabs" role="tablist" aria-label="选择页面">
+      <button role="tab" aria-selected="true" data-img="assets/mac-overview.webp" data-cap="总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。">总览</button>
+      <button role="tab" aria-selected="false" data-img="assets/mac-spending.webp" data-cap="花销：钱都花在哪了，每个分类和上个月比多了还是少了。">花销</button>
+      <button role="tab" aria-selected="false" data-img="assets/mac-debts.webp" data-cap="欠款与分期：我欠谁、谁欠我、分期还剩几期，夏夏帮你排还钱计划，也会俏皮地帮你催款。">欠款与分期</button>
+    </div>
+    <div class="frame"><img id="tourImg" src="assets/mac-overview.webp" alt="夏夏账本「总览」页截图（示例数据）" width="1600" height="1196" loading="lazy"></div>
+    <p class="cap" id="tourCap" aria-live="polite">总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。</p>
+    <p class="sub" style="font-size:16px">还有趋势、家底、存钱目标、订阅、流水和改动记录。支持多个账本（比如「个人」和「我的小店」）和多种货币。</p>
+  </div>
+</section>
+
+<section id="ai">
+  <div class="wrap ai">
+    <div>
+      <p class="eyebrow">连上 AI</p>
+      <h2>你已经在用的 AI，<br>就是你的记账员。</h2>
+      <p class="sub">第一次打开夏夏账本，它会找出你 Mac 上装了的 AI 工具，勾好点「连上」就行。连好以后，在 AI 里说话，账就记进夏夏账本；你在 app 里看。</p>
+      <div class="tools" aria-label="能自动连上的 AI 工具">
+        <span>Claude 桌面版</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>Hermes Agent</span>
+      </div>
+      <p style="margin-top:18px;color:var(--fg3);font-size:14px">别的 AI 也行：在设置里点「一键复制配置提示词」，粘给它，它会自己接好。用 DeepSeek、通义千问、Kimi 的，可以通过 Hermes Agent 或 Cherry Studio 连。</p>
+    </div>
+    <div class="chat" role="img" aria-label="示例对话：用户说午饭花了 12,50，AI 回复已记进账本并告诉本月餐饮总额">
+      <div class="msg me">中午和同事吃拉面 12,50，信用卡付的</div>
+      <div class="msg bot"><div class="who">Claude · 已连上夏夏账本</div>记好了：<b>餐饮 −12,50 €</b>（信用卡，今天）。这个月吃饭一共 186,40 €，比上月同期少 23 €，继续保持～</div>
+      <div class="msg me">这个月还能花多少？</div>
+      <div class="msg bot">按你的存钱目标，到月底还能花 <b>813,56 €</b>，平均每天 116 €。房租已经扣过了，放心。</div>
+    </div>
+  </div>
+</section>
+
+<section class="center" id="cast" style="background:var(--bg2)">
+  <div class="wrap">
+    <p class="eyebrow">认识一下</p>
+    <h2>夏夏和她的 AI 伙伴们</h2>
+    <p class="sub">账本里的小角色会眨眼、会说话。你连的是哪个 AI，就由哪个伙伴来陪你。</p>
+    <div class="cast">
+      <div class="who-card lead"><img src="assets/xiaxia-cheer.webp" alt="夏夏" loading="lazy" width="300" height="300"><h3>夏夏</h3><span class="tag">主角</span><p>抱着小算盘的鲸鱼娘，帮你看账、给你出主意，偶尔毒舌一下。</p></div>
+      <div class="who-card"><img src="assets/orange-idle.webp" alt="小橘" loading="lazy" width="300" height="300"><h3>小橘</h3><span class="tag">Claude 的伙伴</span><p>温柔细心，帮你记账、整理分类。</p></div>
+      <div class="who-card"><img src="assets/lilac-idle.webp" alt="小紫" loading="lazy" width="300" height="300"><h3>小紫</h3><span class="tag">Codex 的伙伴</span><p>动作麻利，导入对账单、对账交给她。</p></div>
+      <div class="who-card"><img src="assets/star-idle.webp" alt="小星" loading="lazy" width="300" height="300"><h3>小星</h3><span class="tag">Gemini 和其它 AI</span><p>好奇心满满，什么 AI 来了都能接上。</p></div>
+    </div>
+    <p class="cast-note">也有男生版，在设置里「女生 / 男生」一键切换。</p>
+  </div>
+</section>
+
+<section class="center">
+  <div class="wrap">
+    <p class="eyebrow">iPhone 版</p>
+    <h2>手机上也能看，正在打磨中。</h2>
+    <p class="sub">iPhone 和 Mac 通过 iCloud 看同一本账。iPhone 版还没公开下载，做好了会在这里通知。</p>
+    <div class="phones">
+      <div class="phone"><img src="assets/overview-ios.webp" alt="iPhone 总览页（示例数据）" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><img src="assets/ai-ios.webp" alt="iPhone 夏夏点评页（示例数据）" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><img src="assets/dark-ios.webp" alt="iPhone 深色模式（示例数据）" loading="lazy" width="700" height="1522"></div>
+    </div>
+  </div>
+</section>
+
+<section id="install" style="background:var(--bg2)">
+  <div class="wrap">
+    <div class="center">
+      <p class="eyebrow">怎么装</p>
+      <h2>三步装好，一分钟。</h2>
+      <p class="sub">需要 macOS 14 Sonoma 或更新的系统。看系统版本：点屏幕左上角  →「关于本机」。</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>下载并拖进「应用程序」</h3><p>点上面的下载按钮，打开下载好的 <span class="k">xiaxia-ledger.dmg</span>，把「夏夏账本」图标拖到旁边的「应用程序」文件夹。</p></div>
+      <div class="step"><h3>第一次打开</h3><p>在「应用程序」里双击「夏夏账本」。Mac 会问「这是从互联网下载的 app，确定要打开吗」，点<b>打开</b>。以后就和普通 app 一样了。</p></div>
+      <div class="step"><h3>连上你的 AI</h3><p>第一次打开会弹出「连上你的 AI」，点<b>连上</b>，按提示重开一下 AI 工具，再对它说一句「记一笔：咖啡 3,20」试试。</p></div>
+    </div>
+    <div class="help">
+      <details>
+        <summary>打不开，提示「无法验证开发者」或「已损坏」怎么办？</summary>
+        <ol>
+          <li>先关掉那个提示框。</li>
+          <li>打开「系统设置」→「隐私与安全性」，拉到最下面。</li>
+          <li>看到「已阻止使用"夏夏账本"」，点旁边的<b>仍要打开</b>，输入开机密码。</li>
+        </ol>
+        <p>还是不行，就把 dmg 删掉重新下载一次（下载没完成也会这样）。</p>
+      </details>
+      <details>
+        <summary>没有弹出「连上你的 AI」，或者我想以后再连？</summary>
+        <p>随时可以在 app 的「设置」→「AI 连接」里重新打开引导。也可以点「一键复制配置提示词」，粘给任何一个 AI，它会一步步帮你接好。</p>
+      </details>
+      <details>
+        <summary>我还没装任何 AI 工具。</summary>
+        <p>推荐先装 <a href="https://claude.ai/download" rel="noopener">Claude 桌面版</a>（有免费额度）。用 DeepSeek 的可以装 Hermes Agent；用通义千问、Kimi 的可以装 Cherry Studio。不连 AI 也能在 app 里手动「记一笔」。</p>
+      </details>
+      <details>
+        <summary>我的账本数据存在哪？安全吗？</summary>
+        <p>账本存在你自己的 Mac 上（开了 iCloud 云盘就跟着 iCloud 走），我们没有服务器，看不到你的账。注意：你让 AI 读账时，账目会发给你用的那个 AI 服务商，和你平时跟它聊天一样。夏夏账本不碰银行密码，对账单是你自己导出来交给它的。</p>
+      </details>
+      <details>
+        <summary>怎么更新？</summary>
+        <p>有新版本时 app 会自己提醒你，点「安装更新」就行，账本不受影响。也可以回这个网页重新下载覆盖安装。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <img class="m" src="assets/xiaxia-idle.webp" alt="" width="150" height="150" loading="lazy">
+    <h2>今天就开始，让夏夏帮你管钱。</h2>
+    <p class="sub">下载、拖进「应用程序」、连上 AI，就这么简单。</p>
+    <a class="btn dl" href="/download/xiaxia-ledger.dmg">下载 Mac 版</a>
+    <p class="req"><span class="ver">免费下载</span> · macOS 14 Sonoma 或更新</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 夏夏账本</span>
+    <span>界面里的金额和人名都是示例数据。</span>
+  </div>
+</footer>
+
+<script>
+// 截图切换
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  const img=document.getElementById('tourImg');
+  img.style.opacity=.2;
+  const n=new Image();n.onload=()=>{img.src=b.dataset.img;img.alt='夏夏账本「'+b.textContent+'」页截图（示例数据）';img.style.opacity=1};n.src=b.dataset.img;
+  document.getElementById('tourCap').textContent=b.dataset.cap;
+}));
+// 从自动更新文件读最新版本号和大小，读不到就保持「免费下载」
+fetch('/appcast.xml',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
+  const d=new DOMParser().parseFromString(t,'application/xml');
+  const item=d.querySelector('item'); if(!item) return;
+  const enc=item.querySelector('enclosure');
+  const SP='http://www.andymatuschak.org/xml-namespaces/sparkle';
+  const ver=(item.getElementsByTagNameNS(SP,'shortVersionString')[0]||{}).textContent||(enc&&enc.getAttributeNS(SP,'shortVersionString'));
+  const len=enc&&+enc.getAttribute('length');
+  if(!ver) return;
+  const txt='版本 '+ver+(len?' · '+(len/1048576).toFixed(0)+' MB':'')+' · 免费';
+  document.querySelectorAll('.ver').forEach(e=>e.textContent=txt);
+}).catch(()=>{});
+</script>
+</body>
+</html>
