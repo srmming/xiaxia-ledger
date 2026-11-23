@@ -9,6 +9,8 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "目标", subscriptions = "订阅", debts = "欠款与分期"
     case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
     public var id: String { rawValue }
+    /// 显示给人看的名字（跟着界面语言）。rawValue 是中文，留给 AI 和存储用，不变。
+    public var title: String { trKey(rawValue) }
 
     var symbol: String {
         switch self {
@@ -58,14 +60,18 @@ public struct RootView: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.scenePhase) var scenePhase
 
-    public init() {}
+    public init() { L10n.load() }
 
     @AppStorage("xiaxia.appearance") var appearance = "auto"
+    /// 界面语言（设置 → 隐私与外观里选）。换了就整个界面重画一遍。
+    @AppStorage(L10n.defaultsKey) var language = L10n.fallbackChoice.rawValue
     /// 主窗口有多高（Mac 上弹出的面板不能比它高）。
     @State private var windowHeight: CGFloat = 900
 
     public var body: some View {
         @Bindable var model = model
+        // 先把语言用上，下面的界面才按新语言画（放在 onChange 里会晚一拍）。
+        let _ = (L10n.choice = AppLanguage(rawValue: language) ?? L10n.fallbackChoice)
         Group {
             if let error = model.loadError {
                 LoadErrorView(error: error)
@@ -77,6 +83,8 @@ public struct RootView: View {
                 layout.transition(.opacity)
             }
         }
+        .id(language)
+        .environment(\.locale, (AppLanguage(rawValue: language) ?? L10n.fallbackChoice).locale)
         .animation(.smooth, value: model.showWelcome)
         .tint(Color.brand)
         #if os(macOS)
@@ -231,9 +239,9 @@ struct MacRoot: View {
         @Bindable var model = model
         NavigationSplitView {
             List(selection: $model.section) {
-                Section("看") { ForEach(AppSection.look) { row($0) } }
+                Section(tr("看")) { ForEach(AppSection.look) { row($0) } }
                 Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
-                Section("记录") { ForEach(AppSection.records) { row($0) } }
+                Section(tr("记录")) { ForEach(AppSection.records) { row($0) } }
                 Section { row(.settings) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
@@ -247,7 +255,7 @@ struct MacRoot: View {
                 NavigationStack {
                     section.screen
                         .safeAreaInset(edge: .top, spacing: 0) { DemoBanner() }
-                        .navigationTitle(section.rawValue)
+                        .navigationTitle(section.title)
                         .toolbar { MacToolbar(model: model, section: section) }
                 }
                 .id(section)
@@ -266,7 +274,7 @@ struct MacRoot: View {
     }
 
     private func row(_ s: AppSection) -> some View {
-        Label { Text(model.xia(s.rawValue)) } icon: { s.glyph.image(size: 18) }
+        Label { Text(model.xia(s.title)) } icon: { s.glyph.image(size: 18) }
             .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
             .tag(s)
     }
@@ -322,7 +330,7 @@ struct MacToolbar: ToolbarContent {
         }
         ToolbarItemGroup(placement: .primaryAction) {
             // 照 ming 的稿：「记一笔」是橙色实心（系统的醒目按钮样式 + 品牌橙，工具栏不会切掉它的底色）。
-            Button { model.sheet = .add } label: { Label { Text("记一笔") } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
+            Button { model.sheet = .add } label: { Label { Text(tr("记一笔")) } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.brand)
                 .help("记一笔（⌘N）")
@@ -386,12 +394,12 @@ struct PhoneRoot: View {
 
     var body: some View {
         TabView(selection: tab) {
-            page(.overview, title: "总览") { OverviewPage() }
-            page(.spending, title: "收支") {
+            page(.overview, title: tr("总览")) { OverviewPage() }
+            page(.spending, title: tr("收支")) {
                 VStack(spacing: 0) {
                     Picker("看什么", selection: $flowsTab) {
                         Text("花在哪").tag(0)
-                        Text("趋势").tag(1)
+                        Text(tr("趋势")).tag(1)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal, Kit.side).padding(.bottom, 6)
@@ -399,15 +407,15 @@ struct PhoneRoot: View {
                 }
                 .background(Color.pageBackground)
             }
-            page(.wealth, title: "家底") { WealthPage() }
-            page(.plans, title: "计划") { PlansPage() }
+            page(.wealth, title: tr("家底")) { WealthPage() }
+            page(.plans, title: tr("计划")) { PlansPage() }
             page(.insights, title: "夏夏") { InsightsPage() }
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SettingsPage()
-                    .navigationTitle("设置")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { showSettings = false } } }
+                    .navigationTitle(tr("设置"))
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("完成")) { showSettings = false } } }
             }
             .environment(model)
         }
@@ -454,7 +462,7 @@ struct PhoneRoot: View {
                         .accessibilityLabel("设置")
                     }
                 }
-                .navigationDestination(for: AppSection.self) { s in s.screen.navigationTitle(s.rawValue) }
+                .navigationDestination(for: AppSection.self) { s in s.screen.navigationTitle(s.title) }
         }
         .tabItem { Label { Text(title) } icon: { section.glyph.image(size: 25) } }
         .tag(section)
@@ -577,7 +585,7 @@ public struct XiaxiaScene: Scene {
                 Divider()
                 // ⌘1…⌘9：只有九个数字键，多出来的页（设置有 ⌘,）不给数字快捷键。
                 ForEach(Array(AppSection.allCases.prefix(9).enumerated()), id: \.element) { i, s in
-                    Button(s.rawValue) { model.section = s }
+                    Button(s.title) { model.section = s }
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }
             }

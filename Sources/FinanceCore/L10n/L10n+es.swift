@@ -1,0 +1,41 @@
+extension L10n {
+    /// 西班牙语。键和 L10n+en.swift 一模一样（测试会查两张表的键是否一致）。
+    static let es: [String: String] = [
+        // 侧栏和底栏
+        "总览": "Resumen",
+        "花销": "Gastos",
+        "趋势": "Tendencias",
+        "家底": "Patrimonio",
+        "目标": "Objetivos",
+        "计划": "Planes",
+        "订阅": "Suscripciones",
+        "欠款与分期": "Deudas y plazos",
+        "夏夏建议": "Consejos de Xiaxia",
+        "改动记录": "Historial de cambios",
+        "流水": "Movimientos",
+        "设置": "Ajustes",
+        "看": "Ver",
+        "记录": "Registros",
+        "收支": "Ingresos y gastos",
+        "记一笔": "Añadir",
+        "完成": "Listo",
+        // 设置
+        "管理 AI 连接": "Conexiones de IA",
+        "账本与账户": "Libros y cuentas",
+        "同步与币种": "Sincronización y moneda",
+        "夏夏偏好": "Preferencias de Xiaxia",
+        "夏夏的记忆": "Memoria de Xiaxia",
+        "隐私与外观": "Privacidad y apariencia",
+        "记账人": "Tu nombre",
+        "数据": "Datos",
+        "隐私": "Privacidad",
+        "显示私房钱": "Mostrar ahorros privados",
+        "外观": "Apariencia",
+        "跟随系统": "Sistema",
+        "浅色": "Claro",
+        "深色": "Oscuro",
+        "语言": "Idioma",
+        "界面语言": "Idioma de la app",
+        "英文和西班牙语还在翻译，没翻到的地方先显示中文。": "El inglés y el español aún se están traduciendo. Lo que falte se muestra en chino.",
+    ]
+}
