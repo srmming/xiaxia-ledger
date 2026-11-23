@@ -8,6 +8,8 @@ extension LedgerModel {
     /// 打开 app 时把到日子的重复记账记上（房租每月 1 号……）。底部提示能撤销。
     func postDueRecurring() {
         struct NothingDue: Error {}
+        // iPhone 接着 iCloud 文件夹时不自动补：Mac 那边会补，两边都补就记重了。
+        guard !(store is PhoneSyncStore) else { return }
         guard loadError == nil, ledger.recurring.contains(where: { !$0.paused && $0.nextDate <= .today }) else { return }
         _ = try? edit { l in
             guard let change = l.postDueRecurring(author: author) else { throw NothingDue() }

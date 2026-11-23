@@ -622,3 +622,34 @@ public struct CaptureBrief: Codable, Sendable {
         }
     }
 }
+
+extension LedgerFiles {
+    /// 导出报销清单：在 base 下建「报销清单-日期」文件夹，放报销清单.csv（Excel 能开）和每张凭证的副本。
+    /// 返回文件夹和里面的文件（第一个是 CSV）。app 的「导出报销单」和 fin / MCP 都用这个。
+    public static func exportReimbursements(_ items: [ReimbursementItem], ledger: Ledger, attachments: URL?,
+                                            into base: URL, now: Date = Date()) throws -> (folder: URL, files: [URL]) {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX")
+        var dir = base.appendingPathComponent("报销清单-\(f.string(from: now))")
+        var n = 2
+        while FileManager.default.fileExists(atPath: dir.path) {
+            dir = base.appendingPathComponent("报销清单-\(f.string(from: now))-\(n)"); n += 1
+        }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let csv = dir.appendingPathComponent("报销清单.csv")
+        // 开头加 BOM，Excel 才认得中文。
+        try Data(("\u{FEFF}" + ledger.reimbursementCSV(items)).utf8).write(to: csv)
+        var files = [csv]
+        if let attachments {
+            for i in items {
+                for (k, a) in i.paperwork.attachments.enumerated() {
+                    let ext = (a.file as NSString).pathExtension
+                    let name = "\(i.transaction.date)-\(i.transaction.description.prefix(20))-\(a.kind.label)\(k + 1).\(ext)"
+                        .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+                    let target = dir.appendingPathComponent(name)
+                    if (try? FileManager.default.copyItem(at: attachments.appendingPathComponent(a.file), to: target)) != nil { files.append(target) }
+                }
+            }
+        }
+        return (dir, files)
+    }
+}

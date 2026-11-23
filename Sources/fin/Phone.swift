@@ -142,24 +142,9 @@ func exportReimbursements(_ ledger: Ledger, status: ReimburseStatus?, into folde
     guard !items.isEmpty else { return "「\((status ?? .toSubmit).label)」里没有要导出的。" }
     let base = folder ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         ?? URL(fileURLWithPath: NSHomeDirectory())
-    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX")
-    let dir = base.appendingPathComponent("报销清单-\(f.string(from: Date()))")
-    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    try Data(("\u{FEFF}" + ledger.reimbursementCSV(items)).utf8).write(to: dir.appendingPathComponent("报销清单.csv"))
-    var copied = 0
-    if let att = attachmentsFolder() {
-        for i in items {
-            for (n, a) in i.paperwork.attachments.enumerated() {
-                let src = att.appendingPathComponent(a.file)
-                let ext = (a.file as NSString).pathExtension
-                let name = "\(i.transaction.date)-\(i.transaction.description.prefix(20))-\(a.kind.label)\(n + 1).\(ext)"
-                    .replacingOccurrences(of: "/", with: "-")
-                if (try? FileManager.default.copyItem(at: src, to: dir.appendingPathComponent(name))) != nil { copied += 1 }
-            }
-        }
-    }
+    let r = try LedgerFiles.exportReimbursements(items, ledger: ledger, attachments: attachmentsFolder(), into: base)
     let total = items.reduce(Money.zero) { $0 + $1.transaction.amount.magnitude }
-    return "已导出 \(items.count) 笔、合计 \(total.formatted)、\(copied) 张凭证到：\(dir.path)"
+    return "已导出 \(items.count) 笔、合计 \(total.formatted)、\(r.files.count - 1) 张凭证到：\(r.folder.path)"
 }
 
 // MARK: - 命令行

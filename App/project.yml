@@ -48,6 +48,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
+        # 「记一笔 → 拍小票」用相机；照片只存进账本旁边的「附件」文件夹，不上传任何地方。
+        NSCameraUsageDescription: 拍小票或发票，存成一条待记录，之后补进账本、挂到那一笔上。
         NSUbiquitousContainers:
           iCloud.com.srmming.xiaxia-ledger:
             NSUbiquitousContainerIsDocumentScopePublic: true

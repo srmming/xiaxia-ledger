@@ -182,6 +182,10 @@ public enum LedgerStores {
     /// iPhone 上没有容器（没开 iCloud）时用本机的账本。
     public static func appStore() -> any LedgerStore {
         if ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"]?.isEmpty == false { return defaultStore() }
+        #if os(iOS)
+        // iPhone 选过 iCloud 云盘里的「夏夏账本」文件夹：和 Mac 看同一本账，手机上的改动写成小纸条（见 PhoneSync.swift）。
+        if let folder = PhoneFolderLink.resolve() { return phoneStore(folder) }
+        #endif
         if hasICloudEntitlement, let docs = ubiquityDocuments() {
             try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
             #if os(macOS)
@@ -201,6 +205,14 @@ public enum LedgerStores {
         }
         return defaultStore()
     }
+
+    /// iPhone 接 iCloud 文件夹用的账本；本地副本放在 Application Support。
+    public static func phoneStore(_ folder: URL) -> PhoneSyncStore {
+        PhoneSyncStore(folder: folder, device: "iPhone", cache: appSupportFolder.appendingPathComponent("iCloud 副本/ledger.sqlite"))
+    }
+
+    /// iPhone 本机的账本（没接 iCloud 文件夹时用的那本）。
+    public static func localPhoneStore() -> any LedgerStore { sqlite(appSupportFolder.appendingPathComponent("ledger.sqlite")) }
 
     static func sqlite(_ url: URL) -> any LedgerStore {
         #if canImport(SQLite3)

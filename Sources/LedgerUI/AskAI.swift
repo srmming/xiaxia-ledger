@@ -79,6 +79,10 @@ extension LedgerModel {
             return [AIPrompt(kind: "欠款", text: "帮我记一笔欠款：朋友借了我 300 €，下个月还"),
                     AIPrompt(kind: "分期", text: "帮我记一个分期：手机 1.200 €，分 12 期从信用卡扣"),
                     AIPrompt(kind: "还款", text: "朋友还了我 100 €，帮我记上")]
+        case .reimburse:
+            return [AIPrompt(kind: "报销", text: "看看我还有哪些报销没提交、哪些在等钱"),
+                    AIPrompt(kind: "导出", text: "把待提交的报销整理成表格，连小票一起导出"),
+                    AIPrompt(kind: "同步", text: "同步今天手机上记的")]
         case .subscriptions:
             return [AIPrompt(kind: "找订阅", text: "帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本"),
                     AIPrompt(kind: "省钱", text: "看看我的订阅，哪些很久没用、可以停掉？"),

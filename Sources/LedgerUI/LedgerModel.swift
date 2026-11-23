@@ -442,6 +442,9 @@ public final class LedgerModel {
 
 extension LedgerModel {
     /// 换一个账本来看：页面、月份、选中的东西都回到开头。
+    /// 换一本账（iPhone 接上 / 断开 iCloud 文件夹时）。
+    public func useStore(_ new: any LedgerStore) { switchStore(to: new) }
+
     private func switchStore(to new: any LedgerStore) {
         store = new
         selectedBookID = nil
