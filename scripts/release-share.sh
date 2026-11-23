@@ -32,6 +32,7 @@ xcodebuild -project XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configura
   -destination 'generic/platform=macOS' -derivedDataPath "$BUILD/dd" \
   MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILDNO" XIAXIA_ICLOUD=NO \
   CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+  ${XIAXIA_SPARKLE_PUBLIC_KEY:+XIAXIA_SPARKLE_PUBLIC_KEY="$XIAXIA_SPARKLE_PUBLIC_KEY"} \
   build | grep -E "error:|BUILD" || true
 APP="$BUILD/dd/Build/Products/Release/夏夏账本.app"
 test -x "$APP/Contents/MacOS/fin" || { echo "编译失败"; exit 1; }
