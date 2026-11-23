@@ -31,7 +31,7 @@ final class MCPServer {
     static let instructions = """
     夏夏账本：用户自己的记账本（Mac 上的本地文件，app 和这个 MCP 读写同一份），可以有好几个账本（个人、家庭、店……）。app 里的 AI 叫「夏夏」。
     用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、谁欠我钱、还款、分期、存钱目标时用这些工具。
-    1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天、统计口径、夏夏的说话方式（voice）和用户的目标（aim）都在里面。账户 id、账本 id 只用 context 里有的，别猜。
+    1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天、统计口径、夏夏的说话方式（voice）和用户的目标（aim）都在里面。账户 id、账本 id 只用 context 里有的，别猜。context 里还有夏夏的记忆（memory：用户定的规矩照做，目录里有相关话题就用 memory 工具读出来）、每月固定进出（regulars）和问什么用哪个工具（toolGuide）。用户说「记住……」「以后都……」用 remember 记下来。
     2. 拿不准的（哪个账户、哪个账本、什么分类、是不是自己账户之间转钱）先在对话里问用户，确认后再写。
     3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。用户发来银行 Excel / PDF、支付宝或微信账单、别的记账 App 导出的文件：你自己读懂，整理成 rows 用 import_rows 导入（标准 CSV 文件路径也可以用 import_statement）。
     4. 写完告诉用户记了什么和改动编号；写错用 undo 撤销。
@@ -384,7 +384,7 @@ enum MCPTools {
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
-    ] + currencySubsTools
+    ] + currencySubsTools + memoryTools
 
     static func json<T: Encodable>(_ v: T) throws -> String {
         let e = JSONEncoder()
@@ -820,6 +820,7 @@ enum MCPTools {
             return try commit(try ledger.undo(changeID: hits[0].id, author: who))
         default:
             if let text = try MCPTools.callCurrencySubs(name, a, who: who) { return text }
+            if let text = try MCPTools.callMemory(name, a, who: who) { return text }
             throw ToolError(message: "没有这个工具：\(name)")
         }
     }

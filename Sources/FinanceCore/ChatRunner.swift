@@ -267,7 +267,9 @@ public enum ChatRunner {
     }
 
     /// 给 AI 的话：先交代身份和规矩，再带上用户在看哪、最近几句，最后是这一句。
-    public static func prompt(question: String, voice: String, aim: String?, where view: String, history: [(user: Bool, text: String)]) -> String {
+    /// `memory` 是 `MemoryBrief(ledger:).promptText`：用户定的规矩全文加其它记忆的标题，省得每次先调一轮工具才知道。
+    public static func prompt(question: String, voice: String, aim: String?, where view: String, history: [(user: Bool, text: String)],
+                              memory: String? = nil) -> String {
         var p = """
         你是「夏夏」，夏夏账本 app 里的记账助手，用户正在 app 右边的对话栏里跟你说话。
         - 用 xiaxia-ledger 这组工具查账、记账；先调 context 看账本和账户。用户说「这笔」「这里」时调 current_view。
@@ -276,6 +278,9 @@ public enum ChatRunner {
         - 口吻：\(voice) 回答用中文，短一点，三五句以内，不用 Markdown 表格。
         """
         if let aim { p += "\n- 用户的目标：\(aim)。" }
+        p += "\n- 问什么用哪个工具：" + toolCrib
+        p += "\n- 记忆：用户说「记住……」「以后都……」「别再……」就用 remember 记下来，记完说一句记了什么；说「忘掉」用 forget_memory。数字不记（工资、房租这些每次现算）。"
+        if let memory, !memory.isEmpty { p += "\n\n" + memory }
         p += "\n\n用户现在在看：\(view)"
         if !history.isEmpty {
             p += "\n\n前面聊过的（最近几句）：\n" + history.suffix(6).map { ($0.user ? "用户：" : "夏夏：") + $0.text }.joined(separator: "\n")
@@ -283,6 +288,10 @@ public enum ChatRunner {
         p += "\n\n用户这一句：\(question)"
         return p
     }
+}
+extension ChatRunner {
+    /// 一行小抄：免得问收入去翻支出、问余额去加流水。完整版在 context 的 toolGuide。
+    static let toolCrib = "收入 / 支出 / 结余 / 某分类花了多少 → summary（只问收入就只答收入）；工资、每月固定进出 → regulars；找某几笔 → list_transactions；账户里有多少 → accounts；订阅 → subscriptions；欠款 → debts；存钱进度 → goals。"
 }
 /// 另一个线程读出来的 stderr，读完（信号量）之后才取。
 private final class DataBox: @unchecked Sendable { var data = Data() }

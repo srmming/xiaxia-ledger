@@ -46,9 +46,13 @@ if [ -n "$IOS_APP" ]; then
   ios 15-new-plan -XiaxiaDemo -XiaxiaSheet plan
   ios 16-empty-plans -XiaxiaEmpty -XiaxiaSection plans
   ios 17-new-category -XiaxiaDemo -XiaxiaSheet newCategory
+  ios 30-memory -XiaxiaDemo -XiaxiaSheet memory
+  ios 31-memory-rules -XiaxiaDemo -XiaxiaSheet memory -XiaxiaMemoryTab rule
+  ios 32-memory-empty -XiaxiaEmpty -XiaxiaSheet memory
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
   ios 18-categories-dark -XiaxiaDemo -XiaxiaSheet categories
   ios 19-spending-dark -XiaxiaDemo -XiaxiaSection spending
+  ios 33-memory-dark -XiaxiaDemo -XiaxiaSheet memory
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
 fi
 
@@ -79,6 +83,12 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 25-add -XiaxiaDemo 1 -XiaxiaSheet add
   snap 26-add-empty -XiaxiaEmpty 1 -XiaxiaSheet add
   snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  snap 30-memory -XiaxiaDemo 1 -XiaxiaSheet memory
+  snap 31-memory-rules -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab rule
+  snap 32-memory-lessons -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab lesson
+  snap 33-memory-empty -XiaxiaEmpty 1 -XiaxiaSheet memory
+  snap 34-memory-dark -XiaxiaDemo 1 -XiaxiaSheet memory -xiaxia.appearance dark
+  snap 35-memory-in-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage memory
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。
@@ -115,5 +125,6 @@ if [ -n "$MAC_APP" ] && [ -z "${CI:-}" ]; then
   mac 13-accounts -XiaxiaDemo 1 -XiaxiaSheet accounts
   mac 20-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI
   mac 14-new-plan -XiaxiaDemo 1 -XiaxiaSheet plan
+  mac 30-memory -XiaxiaDemo 1 -XiaxiaSheet memory
 fi
 ls -la "$OUT"
