@@ -311,6 +311,16 @@ struct SettingsPaneView: View {
                             .multilineTextAlignment(.trailing).textSelection(.enabled)
                             .help(ledgerLocation(model.store))
                     }
+                    #if os(iOS)
+                    // 手机和电脑看同一本账：选 iCloud 云盘里的「夏夏账本」文件夹（ming 2026-11-23「记得支持 iCloud」）。
+                    NavigationLink { PhoneSyncSettings() } label: {
+                        item(symbol: "laptopcomputer.and.iphone", color: Color.kit(0x0A84FF, 0x409CFF), title: tr("和电脑同步")) {
+                            Text(model.isPhoneLinked ? tr("已接上") : tr("没接上")).foregroundStyle(Color.fg2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.phoneSync")
+                    #endif
                 }
                 #if os(macOS)
                 if AppUpdateSupport.isAvailable || AppUpdateSupport.preview {

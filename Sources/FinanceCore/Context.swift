@@ -48,6 +48,10 @@ public struct LedgerContext: Codable, Sendable {
     /// 每月固定进出（工资、房租、话费……），从最近 12 个月的流水现算。用户问「工资多少」「每月固定要花多少」先看这里。
     public var regulars: [String]
     /// 问什么用哪个工具。
+    /// 手机上记的、还没入账的待记录有几条（用户说「同步今天的」时用 phone_notes 处理）。
+    public var phoneNotesPending: Int
+    /// 报销还没拿回来的钱（待提交 + 已提交）。
+    public var reimbursementOutstanding: String
     public var toolGuide: [String]
     public var rules: [String]
 
@@ -84,6 +88,7 @@ public struct LedgerContext: Codable, Sendable {
         "订阅 → subscriptions；谁欠谁 → debts；分期 → installments；存钱进度 → goals。",
         "要一段能直接读给用户的月度总结 → monthly_report。",
         "用户说「这笔」「这页」「我在看的」→ current_view。",
+        "「同步今天的」「手机上记的」→ phone_notes，再逐条 resolve_phone_note / link_phone_note / dismiss_phone_note；报销 → reimbursements。",
         "聊到 memory.index 里有的话题、或要做导入 / 对账 / 月报之前 → memory（填 id 或 query）把那条读出来。",
     ]
 
@@ -128,6 +133,8 @@ public struct LedgerContext: Codable, Sendable {
         callUser = ledger.profile.userCallName
         memory = MemoryBrief(ledger: ledger)
         regulars = Regulars.lines(ledger)
+        phoneNotesPending = ledger.pendingCaptures.count
+        reimbursementOutstanding = ledger.reimbursementSummary.outstanding.formatted
         toolGuide = Self.toolGuide
         rules = Self.rules
     }

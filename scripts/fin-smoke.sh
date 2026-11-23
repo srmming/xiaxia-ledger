@@ -438,6 +438,37 @@ export XIAXIA_LEDGER_PATH="$REAL_TMP"
 "$FIN" demo --out "$WORK/demo/a.json" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.json" --end 2026-11-20 >/dev/null
 cmp -s "$WORK/demo/a.json" "$WORK/demo/b.json" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
 
+echo; echo "===== 手机记的：小纸条收进账本、入账、挂小票、报销（SQLite 账本在临时「夏夏账本」文件夹） ====="
+JSON_TMP="$XIAXIA_LEDGER_PATH"
+PHONE_DIR="$WORK/夏夏账本"; mkdir -p "$PHONE_DIR/手机记的"
+export XIAXIA_LEDGER_PATH="$PHONE_DIR/ledger.sqlite"
+run account add card "示例卡" --kind bank
+CARD=card
+# 假装 iPhone 写了一张纸条：说了一句、拍了一张小票
+printf 'fake-jpeg' > "$WORK/receipt.jpg"
+mkdir -p "$PHONE_DIR/附件"; cp "$WORK/receipt.jpg" "$PHONE_DIR/附件/smoke-photo.jpg"
+cat > "$PHONE_DIR/手机记的/20261123-120000-000-smoke.json" <<'NOTE'
+{"id":"20261123-120000-000-smoke","device":"iPhone","createdAt":"2026-11-23T12:00:00Z","summary":"待记录：午饭 10 欧",
+ "captures":[{"id":"11111111-2222-3333-4444-555555555555","kind":"text","text":"午饭 10 欧","guess":{"amount":{"cents":-1000}},
+   "createdAt":"2026-11-23T12:00:00Z","device":"iPhone","status":"pending"},
+  {"id":"66666666-2222-3333-4444-555555555555","kind":"photo","text":"","photo":"smoke-photo.jpg",
+   "createdAt":"2026-11-23T12:01:00Z","device":"iPhone","status":"pending"}]}
+NOTE
+run phone
+[ -f "$PHONE_DIR/手机记的/已收/20261123-120000-000-smoke.json" ] || { echo "↳ 纸条没挪进「已收」"; FAILS=$((FAILS + 1)); }
+run phone resolve 11111111 -10 "午饭" --account "$CARD" --book personal --category 餐饮 --date 2026-11-23
+run phone resolve 66666666 -5,50 "咖啡小票" --account "$CARD" --book personal
+expect_fail phone resolve 11111111 -10 "午饭" --account "$CARD" --book personal
+TXID="$(first_id --query 咖啡小票)"
+run receipt "$TXID" "$WORK/receipt.jpg" --invoice
+run reimburse set toSubmit "$TXID" --to "示例公司"
+run reimburse
+run reimburse export --folder "$WORK/export"
+ls "$WORK/export"/报销清单-*/报销清单.csv >/dev/null 2>&1 || { echo "↳ 没导出 CSV"; FAILS=$((FAILS + 1)); }
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"phone_notes","arguments":{"all":true}}}' | "$FIN" mcp | head -c 400; echo
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"reimbursements","arguments":{}}}' | "$FIN" mcp | grep -q "待提交" || { echo "↳ MCP reimbursements 不对"; FAILS=$((FAILS + 1)); }
+export XIAXIA_LEDGER_PATH="$JSON_TMP"
+
 rm -rf "$WORK"
 echo; echo "意外失败：$FAILS 处"
 [ "$FAILS" -eq 0 ]

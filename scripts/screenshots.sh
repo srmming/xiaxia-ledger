@@ -33,6 +33,12 @@ if [ -n "$IOS_APP" ]; then
   ios 5c-debts -XiaxiaDemo -XiaxiaSection debts
   ios 6-ai -XiaxiaDemo -XiaxiaSection insights
   ios 7-add -XiaxiaDemo -XiaxiaSheet add
+  # 手机随手记、报销、和电脑同步（2026-11-23）
+  ios 5d-reimburse -XiaxiaDemo -XiaxiaSection reimburse
+  ios 5f-phone-sync -XiaxiaDemo -XiaxiaSection settings -XiaxiaSettingsPage sync
+  xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
+  ios 5e-reimburse-dark -XiaxiaDemo -XiaxiaSection reimburse
+  xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
   xcrun simctl ui "$DEVICE" appearance dark 2>/dev/null || true
   ios 20-add-dark -XiaxiaDemo -XiaxiaSheet add
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
@@ -111,6 +117,13 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
   snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
   # 更新后第一次打开右下角的「这次更新了什么」（假装从 0.2.2 升上来）+ 左下角「有新版本」提示条
+  # 手机随手记的「待记录」卡、报销页（2026-11-23）
+  snap 80-reimburse -XiaxiaDemo 1 -XiaxiaSection reimburse
+  snap 81-reimburse-small -XiaxiaDemo 1 -XiaxiaSection reimburse -XiaxiaWindowSize 1000x612
+  snap 82-reimburse-dark -XiaxiaDemo 1 -XiaxiaSection reimburse -xiaxia.appearance dark
+  snap 83-reimburse-empty -XiaxiaEmpty 1 -XiaxiaSection reimburse
+  snap 84-overview-small -XiaxiaDemo 1 -XiaxiaWindowSize 1000x612
+  snap 85-transactions -XiaxiaDemo 1 -XiaxiaSection transactions
   snap 50-whats-new -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1
   snap 51-whats-new-dark -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1 -xiaxia.appearance dark
   snap 52-whats-new-small -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.3 -XiaxiaUpdatePreview 1 -XiaxiaWindowSize 1000x612
@@ -131,12 +144,9 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   # 英文、西班牙语（2026-11-23）：每页一张 + 两张最小窗口，看有没有露中文、字挤掉、一屏放不下
   n=80
   for lang in en es; do
-    for page in overview spending trends wealth transactions plans subscriptions debts insights settings; do
+    for page in overview spending wealth plans subscriptions settings; do
       snap $n-$lang-$page -XiaxiaDemo 1 -XiaxiaSection $page -xiaxia.language $lang; n=$((n + 1))
     done
-    snap $n-$lang-connect-ai -XiaxiaEmpty 1 -XiaxiaSheet connectAI -xiaxia.language $lang; n=$((n + 1))
-    snap $n-$lang-memory -XiaxiaDemo 1 -XiaxiaSheet memory -xiaxia.language $lang; n=$((n + 1))
-    snap $n-$lang-overview-small -XiaxiaDemo 1 -XiaxiaWindowSize 1000x612 -xiaxia.language $lang; n=$((n + 1))
     snap $n-$lang-wealth-small -XiaxiaDemo 1 -XiaxiaSection wealth -XiaxiaWindowSize 1000x612 -xiaxia.language $lang; n=$((n + 1))
     n=100
   done

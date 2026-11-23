@@ -37,7 +37,7 @@ public enum AppUpdateSupport {
     @discardableResult
     public static func backupLedger(toVersion: String) -> URL? {
         let store = LedgerStores.appStore()
-        guard let url = (store as? MigratingStore)?.primary.url ?? (store as? SQLiteLedgerStore)?.url else { return nil }
+        guard let url = ledgerFileURL(store) else { return nil }
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else { return nil }
         let folder = url.deletingLastPathComponent().appendingPathComponent("更新前备份")

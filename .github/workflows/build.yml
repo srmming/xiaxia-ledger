@@ -20,7 +20,7 @@ jobs:
   build:
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 60  # 截图越来越多（2026-11-23 四个改动一起加），40 分钟跑到 Mac 截图就被掐断
     steps:
       - uses: actions/checkout@v4
       - name: 工具版本

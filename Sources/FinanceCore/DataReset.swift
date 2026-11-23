@@ -71,6 +71,8 @@ extension Ledger {
             // 自己加的分类是跟着账本内容走的，一起清；名字、性格、称呼留着。
             fresh.profile.categories = []
             fresh.currency = currency
+            // 收过的手机纸条编号留着，免得清空后把「已收」里的旧纸条又收回来。
+            fresh.appliedNotes = appliedNotes
             let change = ChangeRecord(kind: .delete, summary: "清空了全部数据（\(count.text)）\(tail)", transactionIDs: [],
                                       author: author, createdAt: now)
             fresh.changes = [change]
@@ -113,11 +115,7 @@ public enum LedgerBackup {
 
     /// 这个存储对应的账本文件；内存账本没有文件。
     public static func fileURL(of store: any LedgerStore) -> URL? {
-        #if canImport(SQLite3)
-        if let m = store as? MigratingStore { return m.primary.url }
-        if let s = store as? SQLiteLedgerStore { return s.url }
-        #endif
-        return (store as? JSONFileLedgerStore)?.url
+        ledgerFileURL(store)
     }
 
     public static func folder(for file: URL) -> URL { file.deletingLastPathComponent().appendingPathComponent(folderName) }

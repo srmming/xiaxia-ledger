@@ -246,6 +246,7 @@ extension AppSection {
         case .plans: .navPlans
         case .subscriptions: .subscription
         case .debts: .debt
+        case .reimburse: .reimburse
         case .insights: .navXiaxia
         case .changes: .navChanges
         case .transactions: .navTransactions

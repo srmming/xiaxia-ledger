@@ -40,6 +40,7 @@ final class MCPServer {
     7. 用户说「这笔」「这个月」「我在看的这个」时，先用 current_view 看用户在 app 里停在哪、选中了哪一笔。答完想让用户在 app 里看到，用 open_in_app 让 app 跳过去、圈出那几笔。
     8. 用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时：先调用 welcome，照它返回的步骤带用户走。
     9. 用用户说话的语言回答（用户说中文就用中文）。不要主动报账本里有几笔、有哪些账户，用户问了再说。
+    10. 用户说「同步今天的」「把手机上记的入账」：用 phone_notes 看手机上记的待记录，逐条理解金额、日期、账户、分类，和已有流水去重（重复的用 link_phone_note），能确定的用 resolve_phone_note 入账，拿不准的先问用户；小票用小票上的日期，超过两个月先问。做完说记了几笔、还剩几条没处理。报销用 reimbursements / set_reimbursement。
     """
     let protocolVersion = "2025-06-18"
 
@@ -392,7 +393,7 @@ enum MCPTools {
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
-    ] + goalTools + currencySubsTools + memoryTools
+    ] + goalTools + currencySubsTools + memoryTools + phoneTools
 
     static func json<T: Encodable>(_ v: T) throws -> String {
         let e = JSONEncoder()
@@ -852,6 +853,7 @@ enum MCPTools {
             if let text = try MCPTools.callGoals(name, a, who: who) { return text }
             if let text = try MCPTools.callCurrencySubs(name, a, who: who) { return text }
             if let text = try MCPTools.callMemory(name, a, who: who) { return text }
+            if let text = try MCPTools.callPhone(name, a, who: who) { return text }
             throw ToolError(message: "没有这个工具：\(name)")
         }
     }

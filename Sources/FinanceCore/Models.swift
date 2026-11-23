@@ -183,6 +183,8 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     public enum Kind: String, Codable, Sendable {
         case add, edit, categorize, assignBook, transfer, importBatch, debt, repay, account, delete, installment, installmentPayment, goal, goalDeposit, remove, opening
         case currency, subscription
+        /// 待记录（手机随手记）入账 / 对上 / 不记；挂小票发票、改报销状态。
+        case capture, paperwork
 
         /// 读到不认识的（更新版本加的）当成「改」，不让整本账打不开。
         public init(from decoder: Decoder) throws {
@@ -248,6 +250,12 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 夏夏的记忆改之前的样子；这次新记的话题（撤销时删掉）。
     public var memories: [Memory]?
     public var addedMemoryIDs: [UUID]?
+    /// 待记录改之前的样子；这次新记的待记录（撤销时删掉）。
+    public var captures: [Capture]?
+    public var addedCaptureIDs: [UUID]?
+    /// 小票发票、报销状态改之前的样子；这次新建的（撤销时删掉）。
+    public var paperwork: [Paperwork]?
+    public var addedPaperworkIDs: [UUID]?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,
@@ -280,6 +288,12 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var recurring: [Recurring] = []
     /// 夏夏的记忆：规矩、记得的事、做事经验（见 Memory.swift）。
     public var memories: [Memory] = []
+    /// 待记录：手机上说的一句话、拍的小票，还没入账（见 PhoneCapture.swift）。
+    public var captures: [Capture] = []
+    /// 每笔账挂的小票 / 发票和报销状态，按流水 id。
+    public var paperwork: [Paperwork] = []
+    /// 已经收进账本的手机小纸条（见 PhoneSync.swift），免得收两次。
+    public var appliedNotes: [String] = []
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:]
 
@@ -292,6 +306,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
         case currency, subscriptions
         case memories
+        case captures, paperwork, appliedNotes
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -312,6 +327,9 @@ public struct Ledger: Codable, Sendable, Equatable {
         subscriptions = try c.decodeIfPresent([Subscription].self, forKey: .subscriptions) ?? []
         recurring = try c.decodeIfPresent([Recurring].self, forKey: .recurring) ?? []
         memories = try c.decodeIfPresent([Memory].self, forKey: .memories) ?? []
+        captures = try c.decodeIfPresent([Capture].self, forKey: .captures) ?? []
+        paperwork = try c.decodeIfPresent([Paperwork].self, forKey: .paperwork) ?? []
+        appliedNotes = try c.decodeIfPresent([String].self, forKey: .appliedNotes) ?? []
     }
 
     /// 新建账本时的默认结构：两个账本，没有任何流水。

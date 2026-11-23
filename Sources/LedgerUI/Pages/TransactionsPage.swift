@@ -492,6 +492,7 @@ struct TransactionDetail: View {
                     .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
                 #endif
             }
+            PaperworkSection(tx: tx)
             TransactionActions(tx: tx)
         }
         .kitCard()

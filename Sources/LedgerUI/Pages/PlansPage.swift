@@ -20,6 +20,7 @@ struct PlansPage: View {
                 Text(tr("目标")).tag(0)
                 Text(tr("订阅")).tag(1)
                 Text(tr("欠款")).tag(2)
+                Text(tr("报销")).tag(3)
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("plansTab")
@@ -32,12 +33,21 @@ struct PlansPage: View {
                           prompts: [AIPrompt(kind: tr("订阅"), text: tr("帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本"))])
             case 2:
                 DebtsPage(embedded: true)
+            case 3:
+                ReimbursementPage(embedded: true)
             default:
                 PiggyGoalsBoard(short: false)
             }
         }
         .kitPage()
-        .onAppear { if model.section == .debts { tab = 2 } else if model.section == .subscriptions { tab = 1 } }
+        .onAppear {
+            switch model.section {
+            case .debts: tab = 2
+            case .subscriptions: tab = 1
+            case .reimburse: tab = 3
+            default: break
+            }
+        }
         #else
         PiggyGoalsBoard(short: short).kitPage()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
