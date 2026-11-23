@@ -28,3 +28,4 @@ App/Generated/
 
 site/deploy.env
 .build-linux/
+__pycache__/

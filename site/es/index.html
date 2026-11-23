@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xiaxia Ledger · Mira de un vistazo adónde se fue tu dinero</title>
+<meta name="description" content="Xiaxia Ledger: una app nativa de finanzas para Mac. Los gráficos muestran de un vistazo tus ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA. Tu libro se queda en tu ordenador.">
+<meta name="theme-color" content="#0f0f14">
+<meta property="og:title" content="Xiaxia Ledger">
+<meta property="og:description" content="Mira de un vistazo adónde se fue tu dinero. Para apuntarlo, díselo a tu IA.">
+<meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/">
+<link rel="alternate" hreflang="x-default" href="https://xiaxia.ming95.com/en/">
+<link rel="icon" type="image/png" href="../assets/app-icon-64.png">
+<link rel="apple-touch-icon" href="../assets/app-icon-256.png">
+<link rel="alternate" type="application/rss+xml" title="Novedades de Xiaxia Ledger" href="/appcast.xml">
+<style>
+:root{
+  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#ffffff; --fg:#1d1d1f; --fg2:#55555c; --fg3:#86868b;
+  --line:rgba(0,0,0,.08); --brand:#ff7a3d; --brand2:#ff9a5c; --ai:#5b5bd6; --ai-soft:rgba(91,91,214,.1);
+  --green:#1fa463; --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
+  --hero1:#14131c; --hero2:#231d3a;
+  --r:22px;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d0d11;--bg2:#15151b;--card:#1b1b22;--fg:#f5f5f7;--fg2:#b4b4bb;--fg3:#7d7d85;--line:rgba(255,255,255,.09);
+    --ai:#8b8bff;--ai-soft:rgba(139,139,255,.14);--green:#3ccf86;--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4)}
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.round{font-family:ui-rounded,"SF Pro Rounded",-apple-system,"PingFang SC",sans-serif}
+
+/* nav */
+nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:12px;height:56px}
+nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+nav .logo img{width:28px;height:28px;border-radius:7px}
+nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
+nav .links a{text-decoration:none}
+nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:12px 22px;font-weight:600;text-decoration:none;
+  background:var(--brand);color:#fff;transition:transform .15s,box-shadow .15s,background .15s;border:0;cursor:pointer;font-size:16px}
+.btn:hover{background:#ff6a26;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,122,61,.35)}
+.btn.small{padding:7px 14px;font-size:14px}
+.btn.ghost{background:transparent;color:inherit;border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--bg2);box-shadow:none}
+.btn svg{width:18px;height:18px}
+@media (max-width:720px){nav .links a:not(.btn){display:none} nav .links .lang a:not(.btn){display:inline} nav .links{gap:12px}}
+
+/* hero */
+.hero{background:radial-gradient(1200px 600px at 70% -10%,#3a2d6b 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#3b2113 0%,transparent 55%),linear-gradient(180deg,var(--hero1),var(--hero2));
+  color:#f5f5f7;padding:88px 0 0;overflow:hidden;position:relative}
+.hero .wrap:not(.shotwrap){display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(38px,5.6vw,64px);line-height:1.12;letter-spacing:-.02em;font-weight:700}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#ffb27a,#ff7a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{font-size:20px;color:#c9c8d3;margin:20px 0 32px;max-width:520px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.hero .ghost{color:#fff;border-color:rgba(255,255,255,.2)}
+.hero .ghost:hover{background:rgba(255,255,255,.08)}
+.hero .meta{margin-top:14px;font-size:13px;color:#9b9aa8}
+.hero .mascot{justify-self:center;width:min(380px,90%);filter:drop-shadow(0 24px 40px rgba(0,0,0,.45));animation:bob 5s ease-in-out infinite}
+.bubble{position:absolute;background:rgba(255,255,255,.96);color:#1d1d1f;border-radius:18px 18px 18px 6px;padding:10px 14px;font-size:14px;font-weight:500;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);white-space:nowrap;z-index:2}
+.hero .mwrap{position:relative;display:grid;place-items:center}
+.hero .mwrap .bubble{top:8%;left:-4%;animation:pop 6s ease-in-out infinite}
+.shot-mac{margin:64px auto 0;max-width:1040px;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 -10px 80px rgba(120,90,255,.18),0 30px 80px rgba(0,0,0,.6);
+  border:1px solid rgba(255,255,255,.12);border-bottom:0;background:#1c1c1e;max-height:min(640px,62vw)}
+.shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a;border-bottom:1px solid rgba(255,255,255,.06)}
+.shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
+@media (max-width:860px){.hero{padding-top:56px}.hero .wrap:not(.shotwrap){grid-template-columns:1fr}.hero .mascot{width:240px}.hero .mwrap{order:-1}.hero .mwrap .bubble{left:0;top:-22px;max-width:calc(100vw - 40px)}}
+
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+@keyframes pop{0%,8%{opacity:0;transform:translateY(6px) scale(.96)}14%,86%{opacity:1;transform:none}94%,100%{opacity:0;transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+
+section{padding:96px 0}
+.eyebrow{font-size:14px;font-weight:600;color:var(--brand);letter-spacing:.04em}
+h2{font-size:clamp(30px,4vw,44px);line-height:1.18;letter-spacing:-.015em;margin:8px 0 14px}
+.sub{color:var(--fg2);font-size:19px;max-width:640px}
+.center{text-align:center}.center .sub{margin:0 auto}
+
+/* features */
+.feats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.feat{background:var(--card);border-radius:var(--r);padding:26px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.feat .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px}
+.feat .ic svg{width:24px;height:24px}
+.feat h3{font-size:19px;margin-bottom:6px}
+.feat p{color:var(--fg2);font-size:15px}
+@media (max-width:960px){.feats{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.feats{grid-template-columns:1fr}}
+
+/* tour */
+.tour{background:var(--bg2)}
+.tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:32px 0 28px;gap:2px;flex-wrap:wrap;justify-content:center}
+.tabs button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:15px;font-weight:500;padding:8px 18px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--fg);color:var(--bg)}
+.tour .frame{max-width:1000px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#1c1c1e;aspect-ratio:16/10}
+.tour .frame img{width:100%;height:100%;object-fit:cover;transition:opacity .25s}
+.tour .cap{margin-top:18px;color:var(--fg2);font-size:16px;min-height:52px}
+
+/* ai chat */
+.ai{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.chat .who{font-size:12px;color:var(--fg3);margin-bottom:2px}
+.msg{max-width:86%;padding:10px 14px;border-radius:18px;font-size:15px}
+.msg.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:6px}
+.msg.bot{align-self:flex-start;background:var(--bg2);border-bottom-left-radius:6px}
+.msg.bot b{color:var(--ai)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.tools span{font-size:14px;padding:6px 12px;border-radius:999px;background:var(--ai-soft);color:var(--ai);font-weight:500}
+@media (max-width:860px){.ai{grid-template-columns:1fr}}
+
+/* cast */
+.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:48px}
+.who-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;text-align:center;box-shadow:var(--shadow);transition:transform .2s}
+.who-card:hover{transform:translateY(-4px)}
+.who-card img{width:100%;aspect-ratio:1;object-fit:contain;margin-bottom:8px}
+.who-card:nth-child(odd) img{animation:bob 5.5s ease-in-out infinite}
+.who-card:nth-child(even) img{animation:bob 6.2s ease-in-out infinite reverse}
+.who-card h3{font-size:18px}
+.who-card .tag{font-size:12px;color:var(--ai);background:var(--ai-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px}
+.who-card p{font-size:14px;color:var(--fg2)}
+.who-card.lead .tag{color:var(--brand);background:rgba(255,122,61,.12)}
+.cast-note{margin-top:20px;font-size:14px;color:var(--fg3);text-align:center}
+@media (max-width:860px){.cast{grid-template-columns:1fr 1fr}}
+
+/* iphone */
+.phones{display:flex;gap:20px;justify-content:center;margin-top:44px;flex-wrap:wrap}
+.phone{width:220px;border-radius:36px;padding:8px;background:#111;box-shadow:var(--shadow)}
+.phone img{border-radius:29px}
+@media (max-width:560px){.phone{width:46%}.phone:nth-child(3){display:none}}
+
+/* install */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px;counter-reset:s}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;box-shadow:var(--shadow)}
+.step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--fg);color:var(--bg);font-weight:700;margin-bottom:14px}
+.step h3{font-size:18px;margin-bottom:6px}
+.step p{font-size:15px;color:var(--fg2)}
+kbd,.k{font-family:inherit;font-size:13px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 22px}
+details{border-bottom:1px solid var(--line);padding:14px 0}
+details:last-child{border-bottom:0}
+summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--fg3);font-weight:400;font-size:22px;line-height:1}
+details[open] summary::after{content:"–"}
+details p,details ol{color:var(--fg2);font-size:15px;margin-top:8px}
+details ol{padding-left:20px}
+@media (max-width:860px){.steps{grid-template-columns:1fr}}
+
+/* download band */
+.band{background:radial-gradient(700px 300px at 50% 0%,#3a2d6b,transparent 70%),linear-gradient(180deg,var(--hero2),var(--hero1));color:#f5f5f7;text-align:center;padding:96px 0 104px;position:relative;overflow:hidden}
+.band img.m{width:150px;margin:0 auto 10px;animation:bob 5s ease-in-out infinite}
+.band h2{color:#fff}
+.band .sub{color:#c9c8d3;margin:0 auto 30px}
+.band .req{margin-top:16px;font-size:13px;color:#9b9aa8}
+footer{padding:28px 0 40px;font-size:13px;color:var(--fg3)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<nav aria-label="Navegación principal">
+  <div class="wrap">
+    <a class="logo" href="#top"><img src="../assets/app-icon-64.png" alt="" width="28" height="28">Xiaxia Ledger</a>
+    <div class="links">
+      <a href="#tour">Recorrido</a>
+      <a href="#ai">Conecta tu IA</a>
+      <a href="#cast">Xiaxia</a>
+      <a href="#install">Instalar</a>
+      <a href="changelog.html">Novedades</a>
+      <span class="lang" aria-label="Language"><a href="/" data-lang="zh">中文</a><a href="/en/" data-lang="en">EN</a><a href="/es/" data-lang="es" aria-current="true">ES</a></span>
+      <a class="btn small dl" href="/download/xiaxia-ledger.dmg">Descargar</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <h1>Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>.</h1>
+      <p class="lead">Xiaxia Ledger es una app nativa de finanzas para Mac. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja.</p>
+      <div class="cta">
+        <a class="btn dl" href="/download/xiaxia-ledger.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.3zM13.9 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
+          Descargar para Mac
+        </a>
+        <a class="btn ghost" href="#tour">Ver el recorrido</a>
+      </div>
+      <p class="meta"><span class="ver">Descarga gratuita</span> · Requiere macOS 14 Sonoma o posterior</p>
+    </div>
+    <div class="mwrap">
+      <span class="bubble">Este mes te sobran 813 €, más que el pasado ✨</span>
+      <img class="mascot" src="../assets/xiaxia-hello.webp" alt="Xiaxia: una chica ballena de pelo azul que saluda" width="380" height="380">
+    </div>
+  </div>
+  <div class="wrap shotwrap">
+    <div class="shot-mac" aria-hidden="true">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <img src="../assets/mac-overview.webp" alt="" width="1600" height="1196" fetchpriority="high">
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="center">
+  <div class="wrap">
+    <p class="eyebrow">Por qué Xiaxia Ledger</p>
+    <h2>Apuntar no cansa. Mirar no agobia.</h2>
+    <p class="sub">Lo que mejor hace es enseñarte: la abres y sabes cómo va el mes. Deja el apuntar a la IA que ya usas.</p>
+    <div class="feats" style="text-align:left">
+      <div class="feat">
+        <div class="ic" style="background:rgba(255,122,61,.12);color:var(--brand)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg></div>
+        <h3>Todo en una pantalla</h3>
+        <p>Cuánto queda este mes, a qué ritmo gastas, en qué se va, si tu patrimonio ha crecido. Una idea por página, sin desplazarte.</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:var(--ai-soft);color:var(--ai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+        <h3>Lo dices y queda apuntado</h3>
+        <p>«Comida 12,50», «importa este extracto»: díselo a Claude, ChatGPT Codex u otra IA y lo apunta y lo clasifica por ti.</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:rgba(31,164,99,.12);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg></div>
+        <h3>Xiaxia te aconseja</h3>
+        <p>Dónde poner el dinero que sobra, qué suscripción ha subido sin avisar, quién te debe: Xiaxia mira tu libro y te lo recuerda.</p>
+      </div>
+      <div class="feat">
+        <div class="ic" style="background:rgba(120,120,128,.14);color:var(--fg2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Tu libro es tuyo</h3>
+        <p>El libro es un archivo en tu Mac. No se sube a nuestros servidores ni necesita la contraseña del banco. Cada cambio queda registrado y se puede deshacer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tour center" id="tour">
+  <div class="wrap">
+    <p class="eyebrow">Recorrido</p>
+    <h2>Una app nativa de Mac, bonita en claro y en oscuro.</h2>
+    <p class="sub">Hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino.</p>
+    <div class="tabs" role="tablist" aria-label="Elige una página">
+      <button role="tab" aria-selected="true" data-img="../assets/tour-overview.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
+      <button role="tab" aria-selected="false" data-img="../assets/tour-spending.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
+      <button role="tab" aria-selected="false" data-img="../assets/tour-trends.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
+      <button role="tab" aria-selected="false" data-img="../assets/tour-wealth.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
+      <button role="tab" aria-selected="false" data-img="../assets/tour-debts.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
+    </div>
+    <div class="frame"><img id="tourImg" src="../assets/tour-overview.webp" alt="Captura de la página Resumen de Xiaxia Ledger (datos de ejemplo)" width="1600" height="1000" loading="lazy"></div>
+    <p class="cap" id="tourCap" aria-live="polite">Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.</p>
+    <p class="sub" style="font-size:16px">También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas.</p>
+  </div>
+</section>
+
+<section id="ai">
+  <div class="wrap ai">
+    <div>
+      <p class="eyebrow">Conecta tu IA</p>
+      <h2>La IA que ya usas<br>es tu contable.</h2>
+      <p class="sub">La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; marca las que quieras y pulsa Conectar. Después, habla con tu IA y queda en el libro; tú lo miras en la app.</p>
+      <div class="tools" aria-label="Herramientas de IA que se conectan solas">
+        <span>Claude Desktop</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>Hermes Agent</span>
+      </div>
+      <p style="margin-top:18px;color:var(--fg3);font-size:14px">Otras IA también valen: en Ajustes, copia el texto de configuración, pégaselo a tu IA y se conecta sola. Si usas DeepSeek, Qwen o Kimi, conéctalas con Hermes Agent o Cherry Studio.</p>
+    </div>
+    <div class="chat" role="img" aria-label="Conversación de ejemplo: el usuario dice que la comida costó 12,50; la IA responde que está apuntado y da el total de comida del mes">
+      <div class="msg me">Ramen con un compañero al mediodía, 12,50, con tarjeta de crédito</div>
+      <div class="msg bot"><div class="who">Claude · conectado a Xiaxia Ledger</div>Apuntado: <b>Comida −12,50 €</b> (tarjeta de crédito, hoy). En comida llevas 186,40 € este mes, 23 € menos que a estas alturas del mes pasado. ¡Sigue así!</div>
+      <div class="msg me">¿Cuánto puedo gastar todavía este mes?</div>
+      <div class="msg bot">Con tu objetivo de ahorro, puedes gastar <b>813,56 €</b> hasta fin de mes, unos 116 € al día. El alquiler ya está pagado, tranquilo.</div>
+    </div>
+  </div>
+</section>
+
+<section class="center" id="cast" style="background:var(--bg2)">
+  <div class="wrap">
+    <p class="eyebrow">Te presento a</p>
+    <h2>Xiaxia y sus compañeros de IA</h2>
+    <p class="sub">Los personajes de la app parpadean y hablan. Según la IA que conectes, te acompaña su compañero. Hay un juego de chicas y otro de chicos; cámbialo cuando quieras en Ajustes.</p>
+    <div class="tabs look" role="tablist" aria-label="Elige el estilo de los personajes">
+      <button role="tab" aria-selected="true" data-look="girl">Chicas</button>
+      <button role="tab" aria-selected="false" data-look="boy">Chicos</button>
+    </div>
+    <div class="cast" style="margin-top:8px">
+      <div class="who-card lead"><img src="../assets/xiaxia-cheer.webp" data-girl="../assets/xiaxia-cheer.webp" data-boy="../assets/xiaxia-boy-cheer.webp" alt="Xiaxia" loading="lazy" width="300" height="300"><h3>Xiaxia</h3><span class="tag">Protagonista</span><p data-girl="Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada." data-boy="Un chico ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarado.">Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada.</p></div>
+      <div class="who-card"><img src="../assets/orange-idle.webp" data-girl="../assets/orange-idle.webp" data-boy="../assets/orange-boy-idle.webp" alt="Xiaoju" loading="lazy" width="300" height="300"><h3>Xiaoju</h3><span class="tag">Compañero de Claude</span><p>Amable y cuidadoso: apunta por ti y ordena tus categorías.</p></div>
+      <div class="who-card"><img src="../assets/lilac-idle.webp" data-girl="../assets/lilac-idle.webp" data-boy="../assets/lilac-boy-idle.webp" alt="Xiaozi" loading="lazy" width="300" height="300"><h3>Xiaozi</h3><span class="tag">Compañero de Codex</span><p>Rápido y eficaz: importar extractos y conciliar es cosa suya.</p></div>
+      <div class="who-card"><img src="../assets/star-idle.webp" data-girl="../assets/star-idle.webp" data-boy="../assets/star-boy-idle.webp" alt="Xiaoxing" loading="lazy" width="300" height="300"><h3>Xiaoxing</h3><span class="tag">Gemini y otras IA</span><p>Lleno de curiosidad: se entiende con cualquier IA que llegue.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="center">
+  <div class="wrap">
+    <p class="eyebrow">iPhone</p>
+    <h2>También en el móvil. Aún la estamos puliendo.</h2>
+    <p class="sub">El iPhone y el Mac ven el mismo libro mediante iCloud. La app de iPhone aún no se puede descargar; lo anunciaremos aquí cuando esté lista.</p>
+    <div class="phones">
+      <div class="phone"><img src="../assets/overview-ios.webp" alt="Página Resumen en iPhone (datos de ejemplo)" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><img src="../assets/ai-ios.webp" alt="Página con los comentarios de Xiaxia en iPhone (datos de ejemplo)" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><img src="../assets/dark-ios.webp" alt="iPhone en modo oscuro (datos de ejemplo)" loading="lazy" width="700" height="1522"></div>
+    </div>
+  </div>
+</section>
+
+<section id="install" style="background:var(--bg2)">
+  <div class="wrap">
+    <div class="center">
+      <p class="eyebrow">Instalar</p>
+      <h2>Tres pasos, un minuto.</h2>
+      <p class="sub">Requiere macOS 14 Sonoma o posterior. Para ver tu versión, pulsa  en la esquina superior izquierda → Acerca de este Mac.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Descarga y arrastra a Aplicaciones</h3><p>Pulsa el botón de descarga de arriba, abre el <span class="k">xiaxia-ledger.dmg</span> descargado y arrastra el icono 夏夏账本 a la carpeta Aplicaciones que aparece al lado.</p></div>
+      <div class="step"><h3>Ábrela por primera vez</h3><p>En Aplicaciones, haz doble clic en 夏夏账本. El Mac pregunta si quieres abrir una app descargada de internet; pulsa <b>Abrir</b>. A partir de ahí funciona como cualquier otra app.</p></div>
+      <div class="step"><h3>Conecta tu IA</h3><p>Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b>, reinicia tu herramienta de IA cuando lo pida y prueba a decirle «Apunta: café 3,20».</p></div>
+    </div>
+    <div class="help">
+      <details>
+        <summary>No se abre y dice que no se puede verificar el desarrollador o que está dañada. ¿Qué hago?</summary>
+        <ol>
+          <li>Primero cierra ese aviso.</li>
+          <li>Abre Ajustes del Sistema → Privacidad y seguridad y baja hasta el final.</li>
+          <li>Donde dice que se ha bloqueado 夏夏账本, pulsa <b>Abrir igualmente</b> e introduce la contraseña del Mac.</li>
+        </ol>
+        <p>¿Sigue sin ir? Borra el dmg y descárgalo otra vez (una descarga incompleta también lo provoca).</p>
+      </details>
+      <details>
+        <summary>No ha salido «Conecta tu IA», o prefiero conectarla más tarde.</summary>
+        <p>Puedes volver a abrir la guía cuando quieras en Ajustes → Conexiones de IA. O copia el texto de configuración y pégaselo a cualquier IA; te guiará paso a paso.</p>
+      </details>
+      <details>
+        <summary>Todavía no tengo ninguna herramienta de IA.</summary>
+        <p>Te recomendamos empezar por <a href="https://claude.ai/download" rel="noopener">Claude Desktop</a> (tiene plan gratuito). Si usas DeepSeek, instala Hermes Agent; si usas Qwen o Kimi, Cherry Studio. Sin IA también puedes añadir apuntes a mano en la app.</p>
+      </details>
+      <details>
+        <summary>¿Dónde se guarda mi libro? ¿Es seguro?</summary>
+        <p>El libro está en tu propio Mac (o en iCloud Drive si lo usas). No tenemos servidor y no vemos tus cuentas. Ojo: cuando dejas que una IA lea el libro, esos apuntes van al proveedor de esa IA, igual que cualquier conversación con ella. Xiaxia Ledger nunca toca contraseñas bancarias; los extractos los exportas y entregas tú.</p>
+      </details>
+      <details>
+        <summary>¿Cómo se actualiza?</summary>
+        <p>La app te avisa cuando hay versión nueva; pulsa Instalar actualización y tu libro no se toca. También puedes descargarla de nuevo aquí e instalarla encima.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <img class="m" src="../assets/xiaxia-idle.webp" alt="" width="150" height="150" loading="lazy">
+    <h2>Empieza hoy y deja que Xiaxia te ayude con tu dinero.</h2>
+    <p class="sub">Descarga, arrastra a Aplicaciones, conecta tu IA. Así de fácil.</p>
+    <a class="btn dl" href="/download/xiaxia-ledger.dmg">Descargar para Mac</a>
+    <p class="req"><span class="ver">Descarga gratuita</span> · macOS 14 Sonoma o posterior</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Xiaxia Ledger · <a href="changelog.html">Novedades</a></span>
+    <span>Los importes y nombres de las capturas son datos de ejemplo.</span>
+  </div>
+</footer>
+
+<script>
+// remember the chosen language
+document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
+// tour tabs
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  const img=document.getElementById('tourImg');
+  img.style.opacity=.2;
+  const n=new Image();n.onload=()=>{img.src=b.dataset.img;img.alt='Captura de Xiaxia Ledger: '+b.textContent+' (datos de ejemplo)';img.style.opacity=1};n.src=b.dataset.img;
+  document.getElementById('tourCap').textContent=b.dataset.cap;
+}));
+// girls / boys
+document.querySelectorAll('.look button').forEach(b=>b.addEventListener('click',()=>{
+  const look=b.dataset.look;
+  document.querySelectorAll('.look button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('#cast [data-'+look+']').forEach(el=>{
+    if(el.tagName==='IMG'){el.src=el.dataset[look];el.alt=el.alt.replace(/ \(versión chico\)$/,'')+(look==='boy'?' (versión chico)':'')}
+    else el.textContent=el.dataset[look];
+  });
+}));
+// preload
+window.addEventListener('load',()=>document.querySelectorAll('#cast img[data-boy]').forEach(i=>{new Image().src=i.dataset.boy}));
+// version from appcast
+fetch('/appcast.xml',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
+  const d=new DOMParser().parseFromString(t,'application/xml');
+  const item=d.querySelector('item'); if(!item) return;
+  const enc=item.querySelector('enclosure');
+  const SP='http://www.andymatuschak.org/xml-namespaces/sparkle';
+  const ver=(item.getElementsByTagNameNS(SP,'shortVersionString')[0]||{}).textContent||(enc&&enc.getAttributeNS(SP,'shortVersionString'));
+  const len=enc&&+enc.getAttribute('length');
+  if(!ver) return;
+  const txt='Versión '+ver+(len?' · '+(len/1048576).toFixed(0)+' MB':'')+' · Gratis';
+  document.querySelectorAll('.ver').forEach(e=>e.textContent=txt);
+}).catch(()=>{});
+</script>
+</body>
+</html>

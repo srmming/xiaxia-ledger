@@ -36,6 +36,10 @@ if [ "$MODE" = all ] || [ "$MODE" = --release ]; then
       ssh "$XIAXIA_SSH" "mkdir -p '$DIR/assets/changelog'"
       rsync -az "$SITE/assets/changelog/" "$XIAXIA_SSH:$DIR/assets/changelog/"
       rsync -az "$SITE/changelog.html" "$XIAXIA_SSH:$DIR/changelog.html"
+      # 英文、西班牙语的首页和更新日志页
+      for L in en es; do
+        [ -d "$SITE/$L" ] && rsync -az "$SITE/$L/" "$XIAXIA_SSH:$DIR/$L/"
+      done
     fi
     rsync -az "$DIST/appcast.xml" "$XIAXIA_SSH:$DIR/appcast.xml.new"
     ssh "$XIAXIA_SSH" "mv '$DIR/appcast.xml.new' '$DIR/appcast.xml'"
@@ -48,6 +52,8 @@ if [ -n "${XIAXIA_DOMAIN:-}" ]; then
   echo "▸ 检查"
   curl -fsSI "https://$XIAXIA_DOMAIN/" | head -1
   curl -fsSI "https://$XIAXIA_DOMAIN/changelog.html" | head -1 || echo "（还没有更新日志页）"
+  curl -fsSI "https://$XIAXIA_DOMAIN/en/" | head -1 || echo "（还没有英文页）"
+  curl -fsSI "https://$XIAXIA_DOMAIN/es/changelog.html" | head -1 || echo "（还没有西班牙语页）"
   curl -fsSI "https://$XIAXIA_DOMAIN/appcast.xml" | head -1 || echo "（还没有 appcast.xml）"
   curl -fsSI "https://$XIAXIA_DOMAIN/download/xiaxia-ledger.dmg" | head -1 || echo "（还没有安装包）"
 fi

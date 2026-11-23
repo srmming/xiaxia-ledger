@@ -9,6 +9,17 @@
 <meta property="og:title" content="夏夏账本">
 <meta property="og:description" content="看一眼就知道钱去哪了。记账，跟 AI 说一句就行。">
 <meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/">
+<link rel="alternate" hreflang="x-default" href="https://xiaxia.ming95.com/en/">
+<!--zh-only-->
+<script>
+// 浏览器是英文或西班牙语、又没自己选过语言的，带去对应的页面；选过就听选的。
+(function(){try{var c=localStorage.getItem('xiaxia.lang'),l=c||(navigator.language||'').slice(0,2).toLowerCase();
+if(l==='en'||l==='es')location.replace('/'+l+'/'+location.hash)}catch(e){}})();
+</script>
+<!--/zh-only-->
 <link rel="icon" type="image/png" href="assets/app-icon-64.png">
 <link rel="apple-touch-icon" href="assets/app-icon-256.png">
 <link rel="alternate" type="application/rss+xml" title="夏夏账本更新" href="/appcast.xml">
@@ -42,6 +53,9 @@ nav .logo img{width:28px;height:28px;border-radius:7px}
 nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
 nav .links a{text-decoration:none}
 nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
 .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:12px 22px;font-weight:600;text-decoration:none;
   background:var(--brand);color:#fff;transition:transform .15s,box-shadow .15s,background .15s;border:0;cursor:pointer;font-size:16px}
 .btn:hover{background:#ff6a26;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,122,61,.35)}
@@ -49,7 +63,7 @@ nav .links a:hover{color:var(--fg)}
 .btn.ghost{background:transparent;color:inherit;border:1px solid var(--line)}
 .btn.ghost:hover{background:var(--bg2);box-shadow:none}
 .btn svg{width:18px;height:18px}
-@media (max-width:720px){nav .links a:not(.btn){display:none}}
+@media (max-width:720px){nav .links a:not(.btn){display:none} nav .links .lang a:not(.btn){display:inline} nav .links{gap:12px}}
 
 /* hero */
 .hero{background:radial-gradient(1200px 600px at 70% -10%,#3a2d6b 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#3b2113 0%,transparent 55%),linear-gradient(180deg,var(--hero1),var(--hero2));
@@ -71,7 +85,7 @@ nav .links a:hover{color:var(--fg)}
   border:1px solid rgba(255,255,255,.12);border-bottom:0;background:#1c1c1e;max-height:min(640px,62vw)}
 .shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a;border-bottom:1px solid rgba(255,255,255,.06)}
 .shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
-@media (max-width:860px){.hero{padding-top:56px}.hero .wrap:not(.shotwrap){grid-template-columns:1fr}.hero .mascot{width:240px}.hero .mwrap{order:-1}.hero .mwrap .bubble{left:0}}
+@media (max-width:860px){.hero{padding-top:56px}.hero .wrap:not(.shotwrap){grid-template-columns:1fr}.hero .mascot{width:240px}.hero .mwrap{order:-1}.hero .mwrap .bubble{left:0;top:-22px;max-width:calc(100vw - 40px)}}
 
 @keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
 @keyframes pop{0%,8%{opacity:0;transform:translateY(6px) scale(.96)}14%,86%{opacity:1;transform:none}94%,100%{opacity:0;transform:translateY(-4px)}}
@@ -173,6 +187,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <a href="#cast">夏夏</a>
       <a href="#install">怎么装</a>
       <a href="changelog.html">更新日志</a>
+      <span class="lang" aria-label="Language"><a href="/" data-lang="zh" aria-current="true">中文</a><a href="/en/" data-lang="en">EN</a><a href="/es/" data-lang="es">ES</a></span>
       <a class="btn small dl" href="/download/xiaxia-ledger.dmg">下载</a>
     </div>
   </div>
@@ -366,6 +381,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </footer>
 
 <script>
+// 记住选的语言（中文页靠它决定要不要跳去英文、西语页）
+document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
 // 截图切换
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
