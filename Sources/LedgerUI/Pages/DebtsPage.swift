@@ -225,12 +225,13 @@ struct DebtsPage: View {
         if joke {
             s += p == .sharp ? "要不……我们想个法子赖掉吧？😏" : "要不然我们想个法子赖掉吧！😜"
         } else {
-            s += switch p {
+            let tail: String = switch p {
             case .gentle: "我帮你看看哪里能省出来。"
             case .sharp: "从外卖里抠一点，够了。"
             case .calm: "可以排一个还款计划。"
             case .cheer: "省一点点就能早点还完，一起加油！"
             }
+            s += tail
         }
         return s
     }
