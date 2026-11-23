@@ -112,6 +112,7 @@ MD
   *)
     # 官网（自己的服务器）：site/deploy.sh 把 dist/ 里的 dmg 和 appcast.xml 一起传上去。
     [ -x "$REPO/site/deploy.sh" ] || { echo "更新网址是 $BASE，但没有 site/deploy.sh"; exit 1; }
-    bash "$REPO/site/deploy.sh" ;;
+    # 只传 dist/appcast.xml、dist/download/、dist/release-notes/；服务器设置在 site/deploy.env（不进仓库）或环境变量 XIAXIA_SSH / XIAXIA_DIR / XIAXIA_DOMAIN。
+    (cd "$REPO" && bash site/deploy.sh --release) ;;
 esac
 echo "发布好了：别人的 app 一天内左下角会提醒更新到 $VERSION"
