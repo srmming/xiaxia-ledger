@@ -148,7 +148,6 @@ enum MCPTools {
         ], required: ["account", "balance"], readOnly: true),
         tool("debts", "谁欠我钱、我欠谁：还欠多少、有没有过期。", ["include_closed": prop("boolean", "连已还清的也列出")], readOnly: true),
         tool("installments", "分期：第几期、每期多少、还剩多少、下次扣款日。", [:], readOnly: true),
-        tool("goals", "目标和储蓄进度。", [:], readOnly: true),
         tool("history", "改动记录：谁、什么时候、改了什么。", ["limit": prop("integer", "最多几条，默认 20")], readOnly: true),
         tool("add_transaction", "记一笔收支。amount 负数是支出、正数是收入。repeat 填了就设成重复记账，以后到日子自动记。", [
             "amount": prop("string", "金额，如 -12,50 或 300；也可以是算式 -12,50-3,20"),
@@ -315,10 +314,6 @@ enum MCPTools {
             "account": prop("string", "哪个账户"), "date": prop("string", "日期，默认今天"), "note": prop("string", "说明"),
             "author": author, "dry_run": dryRun,
         ], required: ["amount", "from_book", "to_book", "account"], readOnly: false),
-        tool("goal_withdraw", "从目标里取钱（锁定的目标到期前不能取）。", [
-            "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "to_account": prop("string", "取到哪个账户"),
-            "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
-        ], required: ["name", "amount", "to_account"], readOnly: false),
         tool("categorize", "改分类。ids 用 list_transactions 返回的 id（前 8 位也行）。", [
             "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
             "category": prop("string", "分类"),
@@ -366,15 +361,6 @@ enum MCPTools {
             "amount": prop("string", "金额，默认每期金额"), "date": prop("string", "日期，默认今天"),
             "author": author, "dry_run": dryRun,
         ], required: ["name"], readOnly: false),
-        tool("add_goal", "建一个存钱目标。有专门储蓄账户就填 savings_account，没有就在现有账户里划出。", [
-            "name": prop("string", "名称"), "target": prop("string", "目标金额"), "book": prop("string", "账本 id，默认 personal"),
-            "deadline": prop("string", "截止日期"), "savings_account": prop("string", "专门的储蓄账户 id"),
-            "locked": prop("boolean", "锁定：到期前不能取"), "author": author, "dry_run": dryRun,
-        ], required: ["name", "target"], readOnly: false),
-        tool("goal_deposit", "往目标里存钱（不算支出）。", [
-            "name": prop("string", "目标名称"), "amount": prop("string", "金额"), "from_account": prop("string", "钱从哪个账户来"),
-            "date": prop("string", "日期，默认今天"), "author": author, "dry_run": dryRun,
-        ], required: ["name", "amount", "from_account"], readOnly: false),
         tool("add_insight", "以「夏夏」的身份把你对用户财务的看法写进账本，显示在 app 对应页面的「夏夏说」和「夏夏建议」页。口吻照 context 里的 voice，围着 aim（用户的目标）说。kind：review = 本月点评（每月每账本一条，新的替换旧的，月初或被问到时写），alert = 留意，tip = 建议，good = 好消息，action = 要处理（超支、信用卡快到期）。title 一句话结论，body 两三句解释，数字用 1.234,56 € 写法。", [
             "kind": prop("string", "review / alert / tip / good / action"),
             "title": prop("string", "一句话结论，如「这个月花钱比上月慢 8%，月底大概能剩 1.150 €」"),
@@ -407,7 +393,7 @@ enum MCPTools {
         tool("undo", "撤销一条改动（history 里的 id，前 8 位也行）。", [
             "change_id": prop("string", "改动 id"), "author": author,
         ], required: ["change_id"], readOnly: false),
-    ] + currencySubsTools + memoryTools + phoneTools
+    ] + goalTools + currencySubsTools + memoryTools + phoneTools
 
     static func json<T: Encodable>(_ v: T) throws -> String {
         let e = JSONEncoder()
@@ -614,8 +600,6 @@ enum MCPTools {
             return try json(Plans.debts(ledger, today: .today, includeClosed: flag("include_closed"))) + debtPlansText(ledger)
         case "installments":
             return try json(Plans.installments(ledger))
-        case "goals":
-            return try json(Plans.goals(ledger))
         case "history":
             return try json(Array(ledger.changes.suffix(int("limit", 20)).reversed()))
         case "add_transaction":
@@ -829,25 +813,10 @@ enum MCPTools {
             }
             let amount: Money? = s("amount").flatMap { Money(parsing: $0) }
             return try commit(try ledger.payInstallment(hits[0].id, amount: amount, date: try date("date") ?? .today, author: who))
-        case "add_goal":
-            let (_, change) = try ledger.addGoal(name: try req("name"), bookID: s("book") ?? ledger.books.first?.id ?? "personal", target: try money("target").magnitude,
-                                                 deadline: try date("deadline"), savingsAccountID: s("savings_account"),
-                                                 locked: flag("locked"), author: who)
-            return try commit(change)
-        case "goal_deposit":
-            let hits = ledger.findGoals(named: try req("name"))
-            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
-            return try commit(try ledger.deposit(goalID: hits[0].id, amount: try money("amount").magnitude,
-                                                 fromAccount: try req("from_account"), date: try date("date") ?? .today, author: who))
         case "book_transfer":
             return try commit(try ledger.addTransfer(amount: try money("amount").magnitude, fromBook: try req("from_book"),
                                                      toBook: try req("to_book"), accountID: try req("account"),
                                                      date: try date("date") ?? .today, note: s("note"), author: who))
-        case "goal_withdraw":
-            let hits = ledger.findGoals(named: try req("name"))
-            guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这个目标" : "对上了 \(hits.count) 个目标，写完整一点") }
-            return try commit(try ledger.withdraw(goalID: hits[0].id, amount: try money("amount").magnitude,
-                                                  toAccount: try req("to_account"), date: try date("date") ?? .today, author: who))
         case "add_insight":
             let kinds: [String: Insight.Kind] = ["review": .monthlyReview, "monthly_review": .monthlyReview, "alert": .alert,
                                                  "tip": .tip, "good": .goodNews, "good_news": .goodNews, "action": .action]
@@ -881,6 +850,7 @@ enum MCPTools {
             guard hits.count == 1 else { throw ToolError(message: hits.isEmpty ? "没有这条改动" : "对上了好几条，多写几位") }
             return try commit(try ledger.undo(changeID: hits[0].id, author: who))
         default:
+            if let text = try MCPTools.callGoals(name, a, who: who) { return text }
             if let text = try MCPTools.callCurrencySubs(name, a, who: who) { return text }
             if let text = try MCPTools.callMemory(name, a, who: who) { return text }
             if let text = try MCPTools.callPhone(name, a, who: who) { return text }
