@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- 这个文件由 scripts/changelog.py site 生成，别直接改；改 Sources/LedgerUI/Resources/Changelog.json -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>更新日志 · 夏夏账本</title>
+<meta name="description" content="夏夏账本每个版本改了什么，用大白话写。">
+<meta name="theme-color" content="#0f0f14">
+<meta property="og:title" content="夏夏账本 · 更新日志">
+<meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
+<link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/changelog.html">
+<link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/changelog.html">
+<link rel="alternate" hreflang="es" href="https://xiaxia.ming95.com/es/changelog.html">
+<!--zh-only-->
+<script>
+// 浏览器是英文或西班牙语、又没自己选过语言的，带去对应的页面；选过就听选的。
+(function(){try{var c=localStorage.getItem('xiaxia.lang'),l=c||(navigator.language||'').slice(0,2).toLowerCase();
+if(l==='en'||l==='es')location.replace('/'+l+'/changelog.html'+location.hash)}catch(e){}})();
+</script>
+<!--/zh-only-->
+<link rel="icon" type="image/png" href="assets/app-icon-64.png">
+<link rel="alternate" type="application/rss+xml" title="夏夏账本更新" href="/appcast.xml">
+<style>
+:root{
+  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#ffffff; --fg:#1d1d1f; --fg2:#55555c; --fg3:#86868b;
+  --line:rgba(0,0,0,.08); --brand:#ff7a3d; --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d0d11;--bg2:#15151b;--card:#1b1b22;--fg:#f5f5f7;--fg2:#b4b4bb;--fg3:#7d7d85;--line:rgba(255,255,255,.09);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4)}
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--fg);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:12px;height:56px;max-width:1120px}
+nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+nav .logo img{width:28px;height:28px;border-radius:7px}
+nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
+nav .links a{text-decoration:none}
+nav .links a:hover{color:var(--fg)}
+nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
+nav .logo{white-space:nowrap}
+nav .lang a[aria-current]{color:var(--fg);font-weight:600}
+.btn{display:inline-flex;align-items:center;border-radius:999px;padding:7px 14px;font-weight:600;text-decoration:none;background:var(--brand);color:#fff;font-size:14px}
+.btn:hover{background:#ff6a26}
+header{padding:64px 0 32px}
+header h1{font-size:clamp(32px,5vw,48px);line-height:1.15;letter-spacing:-.02em}
+header p{color:var(--fg2);margin-top:12px;font-size:18px}
+article{display:grid;grid-template-columns:140px 1fr;gap:24px;padding:0 0 40px;position:relative}
+.when{position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:4px}
+.ver{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-size:26px;font-weight:700;text-decoration:none;letter-spacing:-.01em}
+.new{align-self:flex-start;background:var(--brand);color:#fff;border-radius:999px;font-size:12px;font-weight:600;padding:1px 9px}
+time{font-size:14px;color:var(--fg3)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:24px 26px}
+.card h2{font-size:22px;line-height:1.35;letter-spacing:-.01em}
+.sum{color:var(--fg2);margin-top:6px}
+.card ul{margin-top:14px;padding-left:1.2em}
+.card li{margin:6px 0}
+.card li::marker{color:var(--brand)}
+figure{margin-top:20px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bg2)}
+figure img{width:100%;max-height:440px;object-fit:cover;object-position:top}
+figure.art{border:0;background:none;border-radius:0}
+figure.art img{width:180px;margin:0 auto}
+footer{padding:28px 0 40px;font-size:13px;color:var(--fg3);border-top:1px solid var(--line)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:720px){
+  nav .links a:not(.btn){display:none}
+  nav .links .lang a:not(.btn){display:inline}
+  nav .links{gap:12px}
+  header{padding:40px 0 24px}
+  article{grid-template-columns:1fr;gap:10px}
+  .when{position:static;flex-direction:row;align-items:baseline;gap:10px}
+  .card{padding:18px}
+  .card h2{font-size:19px}
+}
+</style>
+</head>
+<body>
+<nav aria-label="主导航">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="assets/app-icon-64.png" alt="" width="28" height="28">夏夏账本</a>
+    <div class="links">
+      <a href="/#tour">看看界面</a>
+      <a href="/#install">怎么装</a>
+      <a href="changelog.html" aria-current="page">更新日志</a>
+      <span class="lang" aria-label="Language"><a href="/changelog.html" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" data-lang="en">EN</a><a href="/es/changelog.html" data-lang="es">ES</a></span>
+      <a class="btn" href="/download/xiaxia-ledger.dmg">下载</a>
+    </div>
+  </div>
+</nav>
+<main class="wrap">
+<header>
+  <h1>更新日志</h1>
+  <p>每一版改了什么，大白话写在这里。装好的 app 有新版会在左下角提醒，点一下就更新。</p>
+</header>
+<article id="v0.2.4">
+  <div class="when"><a class="ver" href="#v0.2.4">0.2.4</a><span class="new">最新</span><time datetime="2026-11-23">2026 年 11 月 23 日</time></div>
+  <div class="card">
+    <h2>家底页改版：一眼看到现在能随便花多少</h2>
+    <p class="sum">打开家底，最大的那个数字就是你现在能随便花的钱，还告诉你够花几个月。</p>
+    <ul><li>最大的数字是「现在能随便花」：总存款减掉店里要用的、存着不动的、要还的，剩下的才是你的。</li><li>下面写着这些钱够花几个月，按你自己每月的花销算；有生意账本时只算个人花销。</li><li>总存款变成一根彩色粗条，一种颜色一块，下面的小卡写着每块钱是哪些账户、哪些目标。</li></ul>
+    <figure><img src="assets/changelog/0.2.4.webp" alt="0.2.4 版截图（示例数据）" loading="eager"></figure>
+  </div>
+</article>
+<article id="v0.2.3">
+  <div class="when"><a class="ver" href="#v0.2.3">0.2.3</a><time datetime="2026-11-23">2026 年 11 月 23 日</time></div>
+  <div class="card">
+    <h2>设置里多了「数据」：看演示、删数据、从备份找回</h2>
+    <p class="sum">不想先记账也能看看每一页有数据时的样子；删数据之前会自动备份，删错了能找回来。</p>
+    <ul><li>看看演示数据：用编出来的一年账看每一页，随便点随便改，退出就回到自己的账本。</li><li>删除数据：可以只删一部分，也可以全删，删之前自动复制一份账本。</li><li>从备份恢复：从更新前、删除前留下的备份里挑一份恢复。</li></ul>
+    <figure><img src="assets/changelog/0.2.3.webp" alt="0.2.3 版截图（示例数据）" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.2">
+  <div class="when"><a class="ver" href="#v0.2.2">0.2.2</a><time datetime="2026-11-23">2026 年 11 月 23 日</time></div>
+  <div class="card">
+    <h2>花销、趋势、家底三页改版，新增目标、订阅、欠款与分期</h2>
+    <p class="sum">看钱的几页都重新排过，一屏看完；还多了三页专门管存钱目标、订阅和欠款。</p>
+    <ul><li>花销页加了和上个月比，饼图和柱状图随手切。</li><li>新的月份面板：哪个月花多花少一眼看到，点一下就跳过去。</li><li>「目标」页看存钱来不来得及，「订阅」页找出白花钱的订阅，「欠款与分期」页按我欠的、欠我的排好。</li><li>拍小票记账，用小票上的日期，不再记成今天。</li></ul>
+    <figure><img src="assets/tour-spending.webp" alt="0.2.2 版截图（示例数据）" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.1">
+  <div class="when"><a class="ver" href="#v0.2.1">0.2.1</a><time datetime="2026-11-23">2026 年 11 月 23 日</time></div>
+  <div class="card">
+    <h2>夏夏有了男生版，还会记住你的习惯</h2>
+    <p class="sum">第一次打开可以选女生版或男生版，给助手起名字；夏夏也开始记事了。</p>
+    <ul><li>夏夏和三个伙伴有了男生版，第一次打开时选，设置里随时能换。</li><li>可以给助手改名字，也能改它怎么称呼你。</li><li>夏夏的记忆：记得你定的规矩和你的习惯，在「设置 → 夏夏的记忆」里能看能改。</li><li>换了新的 app 图标：夏夏头像。</li></ul>
+    <figure class="art"><img src="assets/xiaxia-boy-cheer.webp" alt="0.2.1 版截图（示例数据）" loading="lazy"></figure>
+  </div>
+</article>
+<article id="v0.2.0">
+  <div class="when"><a class="ver" href="#v0.2.0">0.2.0</a><time datetime="2026-11-23">2026 年 11 月 23 日</time></div>
+  <div class="card">
+    <h2>第一个可以下载的版本</h2>
+    <p class="sum">官网可以直接下载，苹果公证过，双击就能打开；以后有新版 app 会自己提醒。</p>
+    <ul><li>官网下载 dmg，拖进「应用程序」就能用。</li><li>第一次打开带你连上自己的 AI（Claude、Codex 等），记账跟它说一句就行。</li><li>有新版本时左下角会提醒，点一下就更新；更新前自动备份账本。</li></ul>
+    
+  </div>
+</article>
+</main>
+<footer>
+  <div class="wrap">
+    <span>© 2026 夏夏账本</span>
+    <span>截图里的金额和人名都是示例数据。</span>
+  </div>
+</footer>
+<script>
+document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}})});
+</script>
+</body>
+</html>

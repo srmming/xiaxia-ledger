@@ -88,6 +88,10 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 25-add -XiaxiaDemo 1 -XiaxiaSheet add
   snap 26-add-empty -XiaxiaEmpty 1 -XiaxiaSheet add
   snap 22-connect-ai-dark -XiaxiaEmpty 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  # 连接体检（2026-11-23）：橙 = 写好了等重开、红 = 夏夏账本换了位置、灰 = 还没连、ChatGPT 连不了 → 换 Codex
+  snap 27-connect-ai-states -XiaxiaEmpty 1 -XiaxiaAIStates 1 -XiaxiaSheet connectAI
+  snap 28-connect-ai-states-dark -XiaxiaEmpty 1 -XiaxiaAIStates 1 -XiaxiaSheet connectAI -AppleInterfaceStyle Dark
+  snap 29-settings-ai -XiaxiaDemo 1 -XiaxiaAIStates 1 -XiaxiaSection settings -XiaxiaSettingsPage ai
   snap 30-memory -XiaxiaDemo 1 -XiaxiaSheet memory
   snap 31-memory-rules -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab rule
   snap 32-memory-lessons -XiaxiaDemo 1 -XiaxiaSheet memory -XiaxiaMemoryTab lesson
@@ -105,14 +109,19 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 47-plans-dark -XiaxiaDemo 1 -XiaxiaSection plans -xiaxia.appearance dark
   snap 48-debts-empty -XiaxiaEmpty 1 -XiaxiaSection debts
   snap 49-subscriptions-empty -XiaxiaEmpty 1 -XiaxiaSection subscriptions
+  # 更新后第一次打开右下角的「这次更新了什么」（假装从 0.2.2 升上来）+ 左下角「有新版本」提示条
+  snap 50-whats-new -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1
+  snap 51-whats-new-dark -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.2 -XiaxiaUpdatePreview 1 -xiaxia.appearance dark
+  snap 52-whats-new-small -XiaxiaDemo 1 -XiaxiaWhatsNew 0.2.3 -XiaxiaUpdatePreview 1 -XiaxiaWindowSize 1000x612
+  snap 53-settings-update -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaUpdatePreview 1
   # 目标页小金猪（2026-11-23）：设目标一步一页、空账本
-  snap 50-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
-  snap 50b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
-  snap 51-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
-  snap 52-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
-  snap 53-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
-  snap 54-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
-  snap 55-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
+  snap 60-goal-wizard-full -XiaxiaDemo 1 -XiaxiaSheet plan
+  snap 60b-goal-wizard-intro -XiaxiaEmpty 1 -XiaxiaSheet plan
+  snap 61-goal-wizard-when -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep when
+  snap 62-goal-wizard-stash -XiaxiaDemo 1 -XiaxiaSheet plan -XiaxiaGoalStep stash
+  snap 63-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
+  snap 64-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
+  snap 65-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

@@ -1,0 +1,166 @@
+{
+  "_说明": "更新日志唯一来源：官网 /changelog.html、Mac 更新窗口里的「新版改了什么」、app 更新后第一次打开的小卡片都从这里来。新版本放最前面。发版时 scripts/release-share.sh 会调用 scripts/changelog.py add <版本>，没有这一条就按上次发版以来合并的 PR 标题自动起草一条，再改成大白话。image 是相对官网根目录的路径（imageStyle=art 表示是角色小图，不是整页截图），只能用示例数据的截图。commit 是发版时 main 的提交，下次起草从这里往后数。 en、es 是这一版的英文、西班牙语（title、summary、items，条数和中文一样）；官网 /en/、/es/ 的更新日志页用。发版时一起写，没写的那一版在英文、西语页上先显示中文。",
+  "releases": [
+    {
+      "version": "0.2.4",
+      "date": "2026-11-23",
+      "commit": "21d42e8",
+      "title": "家底页改版：一眼看到现在能随便花多少",
+      "summary": "打开家底，最大的那个数字就是你现在能随便花的钱，还告诉你够花几个月。",
+      "items": [
+        "最大的数字是「现在能随便花」：总存款减掉店里要用的、存着不动的、要还的，剩下的才是你的。",
+        "下面写着这些钱够花几个月，按你自己每月的花销算；有生意账本时只算个人花销。",
+        "总存款变成一根彩色粗条，一种颜色一块，下面的小卡写着每块钱是哪些账户、哪些目标。"
+      ],
+      "image": "assets/changelog/0.2.4.webp",
+      "en": {
+        "title": "Net worth page redesigned: see what you can freely spend right now",
+        "summary": "Open Net worth and the biggest number is the money you can freely spend today, plus how many months it would last.",
+        "items": [
+          "The biggest number is “free to spend now”: total savings minus what the shop needs, what you keep saved and what you owe. The rest is yours.",
+          "Below it you see how many months that money lasts, based on your own monthly spending; with a business ledger only personal spending counts.",
+          "Total savings is now one thick coloured bar, one colour per part, with small cards below listing the accounts and goals behind each part."
+        ]
+      },
+      "es": {
+        "title": "Página de patrimonio renovada: mira cuánto puedes gastar ahora mismo",
+        "summary": "Abre Patrimonio y el número más grande es el dinero que puedes gastar hoy con libertad, y para cuántos meses te llega.",
+        "items": [
+          "El número más grande es «puedes gastar ahora»: el ahorro total menos lo que necesita la tienda, lo que guardas y lo que debes. El resto es tuyo.",
+          "Debajo ves para cuántos meses alcanza, según tu propio gasto mensual; si tienes un libro de negocio solo cuenta el gasto personal.",
+          "El ahorro total es ahora una barra gruesa de colores, un color por parte, con tarjetas debajo que indican qué cuentas y objetivos hay en cada una."
+        ]
+      }
+    },
+    {
+      "version": "0.2.3",
+      "date": "2026-11-23",
+      "commit": "928c8ce",
+      "title": "设置里多了「数据」：看演示、删数据、从备份找回",
+      "summary": "不想先记账也能看看每一页有数据时的样子；删数据之前会自动备份，删错了能找回来。",
+      "items": [
+        "看看演示数据：用编出来的一年账看每一页，随便点随便改，退出就回到自己的账本。",
+        "删除数据：可以只删一部分，也可以全删，删之前自动复制一份账本。",
+        "从备份恢复：从更新前、删除前留下的备份里挑一份恢复。"
+      ],
+      "image": "assets/changelog/0.2.3.webp",
+      "en": {
+        "title": "New “Data” section in Settings: try a demo, delete data, restore from a backup",
+        "summary": "See what every page looks like with data before you log anything; deleting always makes a backup first, so a mistake can be undone.",
+        "items": [
+          "Demo data: explore every page with a made-up year of entries. Click and edit freely; leave the demo and your own ledger is back.",
+          "Delete data: remove just part of it or everything. A copy of the ledger is saved first.",
+          "Restore from a backup: pick one of the copies kept before updates and before deletions."
+        ]
+      },
+      "es": {
+        "title": "Nuevo apartado «Datos» en Ajustes: prueba una demo, borra datos, recupera una copia",
+        "summary": "Mira cómo queda cada página con datos antes de apuntar nada; antes de borrar siempre se hace una copia, así que un error tiene arreglo.",
+        "items": [
+          "Datos de demostración: recorre cada página con un año de apuntes inventados. Toca y cambia lo que quieras; al salir vuelve tu propio libro.",
+          "Borrar datos: puedes borrar solo una parte o todo. Antes se guarda una copia del libro.",
+          "Recuperar una copia: elige una de las copias guardadas antes de actualizar o de borrar."
+        ]
+      }
+    },
+    {
+      "version": "0.2.2",
+      "date": "2026-11-23",
+      "commit": "74bd028",
+      "title": "花销、趋势、家底三页改版，新增目标、订阅、欠款与分期",
+      "summary": "看钱的几页都重新排过，一屏看完；还多了三页专门管存钱目标、订阅和欠款。",
+      "items": [
+        "花销页加了和上个月比，饼图和柱状图随手切。",
+        "新的月份面板：哪个月花多花少一眼看到，点一下就跳过去。",
+        "「目标」页看存钱来不来得及，「订阅」页找出白花钱的订阅，「欠款与分期」页按我欠的、欠我的排好。",
+        "拍小票记账，用小票上的日期，不再记成今天。"
+      ],
+      "image": "assets/tour-spending.webp",
+      "en": {
+        "title": "Spending, Trends and Net worth redesigned; new Goals, Subscriptions and Debts & instalments pages",
+        "summary": "The money pages were laid out again to fit on one screen, and three new pages look after savings goals, subscriptions and debts.",
+        "items": [
+          "Spending now compares with last month; switch between pie and bars in one click.",
+          "New month picker: see at a glance which months were heavy or light, and jump there with a click.",
+          "Goals shows whether you're saving fast enough, Subscriptions finds the ones wasting money, and Debts & instalments sorts what you owe and what you're owed.",
+          "Logging from a photo of a receipt uses the date on the receipt instead of today."
+        ]
+      },
+      "es": {
+        "title": "Gastos, Tendencias y Patrimonio renovadas; nuevas páginas de Objetivos, Suscripciones y Deudas y plazos",
+        "summary": "Las páginas de dinero se han reorganizado para caber en una pantalla, y hay tres páginas nuevas para objetivos de ahorro, suscripciones y deudas.",
+        "items": [
+          "Gastos ahora compara con el mes anterior; cambia entre tarta y barras con un clic.",
+          "Nuevo selector de meses: ves de un vistazo qué meses fueron fuertes o flojos y saltas a ellos con un clic.",
+          "Objetivos indica si ahorras al ritmo necesario, Suscripciones encuentra las que te hacen perder dinero y Deudas y plazos ordena lo que debes y lo que te deben.",
+          "Al apuntar desde la foto de un tique se usa la fecha del tique, no la de hoy."
+        ]
+      }
+    },
+    {
+      "version": "0.2.1",
+      "date": "2026-11-23",
+      "commit": "3ea3a9b",
+      "title": "夏夏有了男生版，还会记住你的习惯",
+      "summary": "第一次打开可以选女生版或男生版，给助手起名字；夏夏也开始记事了。",
+      "items": [
+        "夏夏和三个伙伴有了男生版，第一次打开时选，设置里随时能换。",
+        "可以给助手改名字，也能改它怎么称呼你。",
+        "夏夏的记忆：记得你定的规矩和你的习惯，在「设置 → 夏夏的记忆」里能看能改。",
+        "换了新的 app 图标：夏夏头像。"
+      ],
+      "image": "assets/xiaxia-boy-cheer.webp",
+      "imageStyle": "art",
+      "en": {
+        "title": "Xiaxia now has a boy version, and remembers your habits",
+        "summary": "On first launch you can pick the girl or boy set and name your assistant; Xiaxia has also started keeping notes.",
+        "items": [
+          "Xiaxia and the three companions have a boy version. Choose on first launch and change it any time in Settings.",
+          "You can rename the assistant and change what it calls you.",
+          "Xiaxia's memory: it keeps the rules you set and your habits. See and edit them in Settings → Xiaxia's memory.",
+          "A new app icon: Xiaxia's face."
+        ]
+      },
+      "es": {
+        "title": "Xiaxia ya tiene versión chico y recuerda tus costumbres",
+        "summary": "Al abrirla por primera vez puedes elegir el juego de chicas o de chicos y poner nombre a tu asistente; Xiaxia también empieza a tomar notas.",
+        "items": [
+          "Xiaxia y sus tres compañeros tienen versión chico. Elige al abrirla por primera vez y cámbialo cuando quieras en Ajustes.",
+          "Puedes cambiar el nombre del asistente y cómo te llama.",
+          "Memoria de Xiaxia: guarda las reglas que pones y tus costumbres. Puedes verlas y editarlas en Ajustes → Memoria de Xiaxia.",
+          "Nuevo icono de la app: la cara de Xiaxia."
+        ]
+      }
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-11-23",
+      "commit": "236a1ad",
+      "title": "第一个可以下载的版本",
+      "summary": "官网可以直接下载，苹果公证过，双击就能打开；以后有新版 app 会自己提醒。",
+      "items": [
+        "官网下载 dmg，拖进「应用程序」就能用。",
+        "第一次打开带你连上自己的 AI（Claude、Codex 等），记账跟它说一句就行。",
+        "有新版本时左下角会提醒，点一下就更新；更新前自动备份账本。"
+      ],
+      "en": {
+        "title": "The first version you can download",
+        "summary": "Download it straight from the website. It is notarised by Apple, so a double-click opens it, and the app tells you when a new version is out.",
+        "items": [
+          "Download the dmg from the website and drag it to Applications.",
+          "First launch walks you through connecting your own AI (Claude, Codex and others); to log something, just tell it.",
+          "When a new version is out you get a reminder in the bottom-left corner; one click updates, and the ledger is backed up first."
+        ]
+      },
+      "es": {
+        "title": "La primera versión que se puede descargar",
+        "summary": "Descárgala directamente desde la web. Está certificada por Apple, así que se abre con doble clic, y la app te avisa cuando hay versión nueva.",
+        "items": [
+          "Descarga el dmg desde la web y arrástralo a Aplicaciones.",
+          "Al abrirla por primera vez te guía para conectar tu propia IA (Claude, Codex y otras); para apuntar algo, díselo.",
+          "Cuando hay versión nueva aparece un aviso abajo a la izquierda; un clic actualiza, y antes se hace copia del libro."
+        ]
+      }
+    }
+  ]
+}

@@ -189,7 +189,7 @@ final class AIConnectTests: XCTestCase {
 
     func testSetupPromptAndCLINames() {
         let p = AIConnector.setupPrompt(fin: "/Applications/夏夏账本.app/Contents/MacOS/fin")
-        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup --dry-run"#))
+        XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup"#))
         XCTAssertTrue(p.contains(#""/Applications/夏夏账本.app/Contents/MacOS/fin" setup --check"#))
         XCTAssertTrue(p.contains("xiaxia-ledger"))
         XCTAssertTrue(p.contains("summary"), "要让 AI 最后调一次只读的 summary 确认")
@@ -197,6 +197,15 @@ final class AIConnectTests: XCTestCase {
         for app in AIApp.allCases { XCTAssertEqual(AIApp.from(cliName: app.cliName), app); XCTAssertTrue(p.contains(app.name)) }
         // ming 2026-11-23：配置时问要不要定时问（每天 / 每周），用提问工具问；告诉用户能拍小票。
         XCTAssertTrue(p.contains("每天晚上") && p.contains("每周一次") && p.contains("AskUserQuestion") && p.contains("拍小票"))
+    }
+
+    /// ming 2026-11-23：新手的 AI 配不好。提示词要 AI 自己配、自己开权限、用提问框要授权、不截屏、配完自测直到连上、接不了的直说换哪个。
+    func testSetupPromptLetsAIConfigureItself() {
+        let p = AIConnector.setupPrompt(fin: "/x/fin")
+        for word in ["自己能开的权限就自己开", "提问框", "不要让我自己去翻设置", "不要截屏", "直到连上", "ChatGPT", "Codex", "连接你的 AI", "总是允许", "setup --check"] {
+            XCTAssertTrue(p.contains(word), word)
+        }
+        XCTAssertFalse(p.contains("--dry-run"), "新手不用先预演，少一次批准")
     }
 
     func testPromptMakesLedgerTheEntryPoint() {
@@ -349,5 +358,59 @@ final class AIConnectTests: XCTestCase {
         let all = AIConnections.load(url)
         XCTAssertEqual(all.count, 2)
         XCTAssertEqual(all["claude-ai"], t)
+    }
+
+    // MARK: 连接体检（设置里的圆点）
+
+    func testHealthLevels() throws {
+        let c = connector
+        XCTAssertEqual(c.health(.claudeDesktop).level, .idle)
+        XCTAssertEqual(c.health(.claudeDesktop).title, "这台 Mac 上没找到")
+        try FileManager.default.createDirectory(at: home.appendingPathComponent("Applications/Claude.app"), withIntermediateDirectories: true)
+        XCTAssertEqual(c.health(.claudeDesktop).title, "装了，还没连")
+        try c.connect(.claudeDesktop)
+        let waiting = c.health(.claudeDesktop, selfTest: AISelfTestResult(ok: true, message: "ok"))
+        XCTAssertEqual(waiting.level, .waiting)
+        XCTAssertTrue(waiting.fix?.contains("⌘Q") == true, "要告诉新手怎么重开")
+        XCTAssertEqual(c.health(.claudeDesktop, selfTest: AISelfTestResult(ok: false, message: "坏了")).level, .problem)
+        XCTAssertEqual(c.health(.claudeDesktop, lastSeen: Date()).level, .good)
+        // fin 不见了（app 换了位置）
+        try FileManager.default.removeItem(at: fin)
+        XCTAssertEqual(c.health(.claudeDesktop).level, .problem)
+    }
+
+    func testParseSelfTest() {
+        let ok = #"{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"2026-11 收入 0,00 €"}],"isError":false}}"#
+        XCTAssertTrue(AIConnector.parseSelfTest(ok, month: "2026-11").ok)
+        XCTAssertFalse(AIConnector.parseSelfTest(ok, month: "2026-11").message.contains("€"), "不把金额带出来")
+        let bad = #"{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"找不到账本"}],"isError":true}}"#
+        XCTAssertFalse(AIConnector.parseSelfTest(bad, month: "2026-11").ok)
+        XCTAssertFalse(AIConnector.parseSelfTest("", month: "2026-11").ok)
+    }
+
+    #if os(macOS)
+    func testSelfTestRunsConfiguredCommand() throws {
+        let c = connector
+        XCTAssertFalse(c.selfTest(.claudeDesktop).ok, "没配过")
+        try c.connect(.claudeDesktop)
+        XCTAssertFalse(c.selfTest(.claudeDesktop).ok, "假 fin 什么都不回答")
+        // 假 fin：读一行，回答「收入」；看到 XIAXIA_SELFTEST 才回答，确认自测不会被记成 AI 连上过。
+        let script = """
+        #!/bin/sh
+        read line
+        [ "$XIAXIA_SELFTEST" = "1" ] || exit 1
+        echo '{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"收入 0"}],"isError":false}}'
+        """
+        try Data(script.utf8).write(to: fin)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fin.path)
+        XCTAssertTrue(c.selfTest(.claudeDesktop).ok)
+    }
+    #endif
+
+    func testUnsupportedChatGPT() throws {
+        XCTAssertTrue(connector.unsupportedInstalled().isEmpty)
+        try FileManager.default.createDirectory(at: home.appendingPathComponent("Applications/ChatGPT.app"), withIntermediateDirectories: true)
+        XCTAssertEqual(connector.unsupportedInstalled(), [.chatGPT])
+        XCTAssertTrue(UnsupportedAI.chatGPT.advice.contains("Codex"), "接不了的要直说换哪个")
     }
 }

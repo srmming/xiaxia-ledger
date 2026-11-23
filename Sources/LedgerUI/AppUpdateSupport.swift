@@ -69,10 +69,13 @@ struct AppUpdateRows: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("现在的版本 \(AppUpdateSupport.versionText)").font(.callout)
-                Text(state.available.map { "有新版本 \($0)" } ?? "每天自动看一次有没有新版，有的话左下角会提醒")
+                Text(state.available.map { "有新版本 \($0)" } ?? "每次打开都会看一眼有没有新版，有的话左下角会提醒")
                     .font(.caption).foregroundStyle(state.available == nil ? Color.fg2 : Color.brand)
             }
             Spacer(minLength: 12)
+            Link("更新日志", destination: Changelog.webURL)
+                .font(.callout)
+                .help("每一版改了什么（官网）")
             Button(state.available == nil ? "检查更新" : "现在更新") { AppUpdateSupport.requestCheck() }
                 .accessibilityIdentifier("settings.checkUpdate")
         }
@@ -88,10 +91,10 @@ struct SidebarUpdateButton: View {
     var body: some View {
         if AppUpdateSupport.isAvailable || AppUpdateSupport.preview {
             Button { AppUpdateSupport.requestCheck() } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
                     if let v = state.available {
                         Circle().fill(Color.alert).frame(width: 7, height: 7)
-                        Text("有新版本 \(v)").foregroundStyle(.primary)
+                        Text("有新版本 \(v)").foregroundStyle(.primary).lineLimit(1)
                         Spacer(minLength: 4)
                         Text("更新").fontWeight(.semibold).foregroundStyle(Color.brand)
                     } else {
@@ -101,6 +104,14 @@ struct SidebarUpdateButton: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Color.fg3)
+                // 有新版时变成一条带底色的提示条，比一行灰字显眼，但不弹窗。
+                .padding(.horizontal, state.available == nil ? 0 : 10)
+                .padding(.vertical, state.available == nil ? 0 : 7)
+                .background {
+                    if state.available != nil {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.brandSoft)
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }

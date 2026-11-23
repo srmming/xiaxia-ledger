@@ -398,7 +398,7 @@ HOME="$SETHOME" run setup --remove
 [ -e "$SETHOME/.agents/skills/fin" ] && { echo "↳ --remove 没拿掉 skill"; FAILS=$((FAILS + 1)); }
 grep -q xiaxia-ledger "$SETHOME/.claude/CLAUDE.md" && { echo "↳ --remove 没拿掉提示词"; FAILS=$((FAILS + 1)); }
 expect_fail setup nosuchtool
-"$FIN" setup --prompt | grep -q "setup --dry-run" || { echo "↳ setup --prompt 不对"; FAILS=$((FAILS + 1)); }
+"$FIN" setup --prompt | grep -q "setup --check" || { echo "↳ setup --prompt 不对"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 历史里的作者 ====="
 "$FIN" history --limit 4

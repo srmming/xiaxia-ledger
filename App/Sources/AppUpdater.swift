@@ -4,7 +4,7 @@ import LedgerUI
 import Sparkle
 import SwiftUI
 
-/// Mac 版更新（Sparkle）：每天在后台看一次 appcast。查到新版不弹窗，只在侧栏左下角显示「有新版本 x.y.z」；
+/// Mac 版更新（Sparkle）：每次打开 app、之后每天，在后台看一次 appcast。查到新版不弹窗，只在侧栏左下角显示「有新版本 x.y.z」；
 /// 点它（或菜单「检查更新…」、设置里的「检查更新」）才打开更新窗口：看新版改了什么，点「安装更新」，下载、换好、重开。
 /// 开发版（Debug）、截图和示例模式不检查，免得开发时弹窗。
 @MainActor
@@ -21,6 +21,12 @@ final class AppUpdater: NSObject, ObservableObject, SPUUpdaterDelegate, SPUStand
         let c = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         controller = c
         c.updater.publisher(for: \.canCheckForUpdates).receive(on: RunLoop.main).assign(to: &$canCheck)
+        // 每次打开 app 都在后台看一眼有没有新版（不止一天一次）。查到了不弹窗，只在左下角提示。
+        // 等几秒再查：Sparkle 自己启动时可能正在查，那时 canCheckForUpdates 是 false，就不重复查。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak c] in
+            guard let u = c?.updater, u.canCheckForUpdates, !u.sessionInProgress else { return }
+            u.checkForUpdatesInBackground()
+        }
         observer = NotificationCenter.default.addObserver(forName: AppUpdateSupport.checkNow, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         }
