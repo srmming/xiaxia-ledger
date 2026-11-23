@@ -230,6 +230,7 @@ struct MacRoot: View {
             HStack(spacing: 0) {
                 NavigationStack {
                     section.screen
+                        .safeAreaInset(edge: .top, spacing: 0) { DemoBanner() }
                         .navigationTitle(section.rawValue)
                         .toolbar { MacToolbar(model: model, section: section) }
                 }
@@ -399,6 +400,7 @@ struct PhoneRoot: View {
     private func page<Content: View>(_ section: AppSection, title: String, @ViewBuilder content: () -> Content) -> some View {
         NavigationStack {
             content()
+                .safeAreaInset(edge: .top, spacing: 0) { DemoBanner() }
                 .navigationTitle(title)
                 .toolbar {
                     // iPhone 也能选月份（ming 2026-11-23）：左上角点月份弹出同一个小面板。

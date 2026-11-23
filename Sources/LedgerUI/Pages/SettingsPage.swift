@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 设置（ming 2026-11-23 的稿）：上面一张「AI 连接」卡，下面一组一行一项，点进去是二级页。
 /// 「夏夏的记忆」那一行的内容归「让夏夏越用越懂我的财务」线程做（XiaxiaMemorySettings.swift）。
-/// 启动参数 -XiaxiaSettingsPage books|sync|xiaxia|memory|privacy|author|ai 直接停在某个二级页（截图检查用）。
+/// 启动参数 -XiaxiaSettingsPage books|sync|xiaxia|memory|privacy|author|data|ai 直接停在某个二级页（截图检查用）。
 struct SettingsPage: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.openURL) var openURL
@@ -30,6 +30,8 @@ struct SettingsPage: View {
                 row(.privacy, symbol: "eye", title: "隐私与外观") { Text(appearanceLabel) }
                 divider
                 row(.author, symbol: "person", title: "记账人") { Text(model.author.isEmpty ? "更改名称" : model.author) }
+                divider
+                row(.data, symbol: "externaldrive", title: "数据") { Text(model.isTryingDemo ? "正在看演示数据" : "演示数据、删除数据") }
             }
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
@@ -175,7 +177,7 @@ struct SettingsPage: View {
 
 /// 设置的二级页。
 enum SettingsPane: String, Identifiable, Hashable {
-    case ai, books, sync, xiaxia, memory, privacy, author
+    case ai, books, sync, xiaxia, memory, privacy, author, data
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -186,6 +188,7 @@ enum SettingsPane: String, Identifiable, Hashable {
         case .memory: "夏夏的记忆"
         case .privacy: "隐私与外观"
         case .author: "记账人"
+        case .data: "数据"
         }
     }
 }
@@ -252,7 +255,7 @@ struct SettingsPaneView: View {
 
     var body: some View {
         // 记忆页是另一个线程做的整页，自己管排版和滚动。
-        if pane == .memory { XiaxiaMemorySettings() } else { content }
+        if pane == .memory { XiaxiaMemorySettings() } else if pane == .data { DataSettingsPane() } else { content }
     }
 
     private var content: some View {
@@ -338,7 +341,7 @@ struct SettingsPaneView: View {
                 group("夏夏怎么跟你说话", note: "夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。") {
                     PersonaPicker()
                 }
-            case .memory:
+            case .memory, .data:
                 EmptyView()
             case .privacy:
                 group("隐私") {
