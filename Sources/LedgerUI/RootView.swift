@@ -293,7 +293,7 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             if section.usesMonth {
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
-                             latest: LocalDate.today.yearMonth)
+                             latest: LocalDate.today.yearMonth, recorded: model.recordedMonths)
             }
             if section.usesBook {
                 BookSwitch().environment(model)
@@ -401,6 +401,13 @@ struct PhoneRoot: View {
             content()
                 .navigationTitle(title)
                 .toolbar {
+                    // iPhone 也能选月份（ming 2026-11-23）：左上角点月份弹出同一个小面板。
+                    if section.usesMonth {
+                        ToolbarItem(placement: .topBarLeading) {
+                            MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
+                                         latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, compact: true)
+                        }
+                    }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         if section != .insights {
                             BookSwitch()

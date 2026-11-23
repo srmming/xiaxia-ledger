@@ -151,9 +151,37 @@ extension LedgerModel {
             while i < txs.count, txs[i].date <= end { running = running + txs[i].amount; i += 1 }
             // 别人欠我的算进来、我还欠的（借款、分期没还完）减掉（ming 2026-11-23）。
             let owed = Plans.obligations(ledger, asOf: min(end, LocalDate.today)).net
-            result.append(NetWorthPoint(month: m, value: running + owed))
+            // 本月这个点用现在的账户余额（外币按今天的汇率），和家底页的大数字是同一个数。
+            result.append(NetWorthPoint(month: m, value: (end >= LocalDate.today ? totalBalance : running) + owed))
         }
         return result
+    }
+
+    /// 钱在哪：到这个月底为止，能随时用的 / 存着的 / 店里的 / 别人欠我的 / 欠款。口径和 netWorthSeries 一样，net 就是那条曲线的最后一个点。
+    func wealthBreakdown(_ month: YearMonth) -> WealthBreakdown {
+        let end = LocalDate(year: month.year, month: month.month, day: month.dayCount)
+        // 看本月：用和下面账户列表一样的余额（外币按今天的汇率），分项加起来才和列表对得上。看以前的月份：按到那个月底的流水算。
+        var balances = self.balances
+        if end < LocalDate.today {
+            balances = [:]
+            for t in baseTransactions where t.date <= end { balances[t.accountID, default: .zero] = balances[t.accountID, default: .zero] + t.amount }
+        }
+        let saved = Dictionary(Plans.goals(ledger).map { ($0.id, $0.saved) }, uniquingKeysWith: { a, _ in a })
+        return WealthBreakdown.make(accounts: visibleAccounts, balances: balances,
+                                    goals: ledger.goals.map { (goal: $0, saved: saved[$0.id] ?? .zero) },
+                                    businessAccounts: WealthBreakdown.businessAccounts(ledger),
+                                    obligations: Plans.obligations(ledger, asOf: min(end, LocalDate.today)))
+    }
+
+    /// 最近 3 个过完的、有花销的月平均每月花多少（正数）。没有过完的月就用这个月到现在的。
+    func averageMonthlySpend() -> Money {
+        let today = LocalDate.today.yearMonth
+        let months = Reports.months(endingAt: today, count: 7)
+        let list = summaries(months, bookID: nil).filter { $0.expense.cents != 0 }
+        let full = Array(list.filter { $0.month < today }.suffix(3))
+        let basis = full.isEmpty ? list : full
+        guard !basis.isEmpty else { return .zero }
+        return Money(cents: basis.reduce(Int64(0)) { $0 + $1.expense.magnitude.cents } / Int64(basis.count))
     }
 
     // MARK: 谁记的

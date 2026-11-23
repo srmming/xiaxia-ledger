@@ -6,7 +6,7 @@ import Foundation
 // 只读账本算，不写任何东西；AI 写的「夏夏点评」另算一张，由界面放在这些后面。
 
 public struct Nudge: Identifiable, Equatable, Sendable {
-    public enum Kind: String, Sendable { case goal, unusual, upcoming, praise }
+    public enum Kind: String, Sendable { case goal, unusual, upcoming, praise, info }
     public var kind: Kind
     /// 同一件事的标识（比如分类名、订阅名），「知道了」按它当天藏起来。
     public var key: String
@@ -28,6 +28,7 @@ public struct Nudge: Identifiable, Equatable, Sendable {
         case .unusual: "留意"
         case .upcoming: "快要扣钱"
         case .praise: "做得好"
+        case .info: "看一眼"
         }
     }
 }
@@ -80,6 +81,103 @@ public enum Nudges {
                              question: "还有哪里能再省一点？"))
         }
         return out
+    }
+
+    // MARK: 花销页
+
+    /// 花销页最上面的夏夏卡：只讲花销，给意见再加一句说明（哪类花多了、主要花在哪、怎么省）。最多 4 张。
+    /// - current / previous: 分类 → 花掉多少（正数）。previous 是上个月（看本月时是上月同期）。
+    /// - previousName:「上月同期」或「10 月」。transactions: 这个月的支出流水，用来找「主要花在哪家」。
+    public static func spending(month: Int, current: [(name: String, amount: Money)], previous: [String: Money],
+                                previousName: String, transactions: [Transaction], currency: String, total shown: Money? = nil) -> [Nudge] {
+        let now = current.filter { $0.amount.cents > 0 }.sorted { $0.amount > $1.amount }
+        guard let top = now.first else { return [] }
+        // total：页面上写的「这个月花掉」（退款抵掉之后的数）。传了就用它，卡片和图上的数才对得上。
+        let total = shown?.magnitude.cents ?? now.reduce(Int64(0)) { $0 + $1.amount.cents }
+        let before = previous.filter { $0.value.cents > 0 }
+        let prevTotal = before.values.reduce(Int64(0)) { $0 + $1.cents }
+        func m(_ cents: Int64) -> String { short(Money(cents: cents), currency) }
+        func canSave(_ name: String) -> Bool { !Subscriptions.fixedCostCategories.contains(name) && name != "订阅" }
+        // 每类比上个月多（正）还是少（负）。
+        var names = Set(now.map(\.name)); names.formUnion(before.keys)
+        let nowBy = Dictionary(now.map { ($0.name, $0.amount.cents) }, uniquingKeysWith: +)
+        let diffs = names.map { (name: $0, diff: (nowBy[$0] ?? 0) - (before[$0]?.cents ?? 0)) }
+        let ups = diffs.filter { $0.diff >= 1000 }.sorted { $0.diff > $1.diff }
+        let downs = diffs.filter { $0.diff <= -1000 && before[$0.name] != nil }.sorted { $0.diff < $1.diff }
+        /// 这一类这个月主要花在哪：花得最多的那个名字、几笔、一共多少，还有最大的一笔。
+        func detail(_ cat: String) -> (name: String, count: Int, sum: Int64, all: Int, biggest: Int64)? {
+            let txs = transactions.filter { ($0.category ?? "其他") == cat && $0.amount.cents < 0 }
+            guard !txs.isEmpty else { return nil }
+            var by: [String: (count: Int, sum: Int64)] = [:]
+            for t in txs {
+                by[t.description, default: (0, 0)].count += 1
+                by[t.description, default: (0, 0)].sum += t.amount.magnitude.cents
+            }
+            guard let best = by.max(by: { ($0.value.sum, $1.key) < ($1.value.sum, $0.key) }) else { return nil }
+            return (best.key, best.value.count, best.value.sum, txs.count, txs.map { $0.amount.magnitude.cents }.max() ?? 0)
+        }
+
+        var out: [Nudge] = []
+        // 1. 总数比上个月。
+        if prevTotal == 0 {
+            out.append(Nudge(kind: .info, key: "spend-total",
+                             title: "\(month) 月到现在花了 \(m(total))，最大的一块是「\(top.name)」。",
+                             advice: "\(previousName)还没有记录，记满两个月我就能帮你对比哪类花多了。",
+                             question: "\(month) 月钱主要花在哪了？哪些可以省？"))
+        } else if total - prevTotal >= 1000 {
+            let where_ = ups.prefix(2).map { "「\($0.name)」（多 \(m($0.diff))）" }.joined(separator: "和")
+            out.append(Nudge(kind: .unusual, key: "spend-total",
+                             title: "这个月比\(previousName)多花了 \(m(total - prevTotal))。",
+                             advice: where_.isEmpty ? "各类都多了一点，没有哪一类特别突出。" : "多出来的主要在\(where_)。",
+                             question: "为什么比\(previousName)多花了？怎么花回去？"))
+        } else if prevTotal - total >= 1000 {
+            let where_ = downs.first.map { "省得最多的是「\($0.name)」，少花了 \(m(-$0.diff))。" } ?? "各类都少了一点，照这样保持就好。"
+            out.append(Nudge(kind: .praise, key: "spend-total",
+                             title: "这个月比\(previousName)少花了 \(m(prevTotal - total))。",
+                             advice: where_,
+                             question: "省下来的钱放哪儿最好？"))
+        } else {
+            out.append(Nudge(kind: .info, key: "spend-total",
+                             title: "这个月和\(previousName)花得差不多，都是 \(m(total)) 上下。",
+                             advice: "最大的一块是「\(top.name)」，\(m(top.amount.cents))，占 \(Int((Double(top.amount.cents) / Double(max(total, 1)) * 100).rounded()))%。",
+                             question: "\(month) 月哪些开销可以省？"))
+        }
+        // 2. 涨得最多的、能省的那一类：主要花在哪，少花几次能回到上个月。
+        if prevTotal > 0, let up = ups.first(where: { canSave($0.name) }) {
+            var advice = before[up.name] == nil ? "\(previousName)没有这一类，看看是不是偶尔一次。" : "看看这一类的流水，挑能少的先少。"
+            if let d = detail(up.name) {
+                let avg = d.sum / Int64(max(1, d.count))
+                let times = avg > 0 ? Int((up.diff + avg - 1) / avg) : 0
+                advice = "主要花在「\(d.name)」，\(d.count) 笔共 \(m(d.sum))。"
+                    + (d.count >= 2 && times >= 1 && times < d.count ? "少花 \(times) 次就回到\(previousName)的水平。"
+                       : d.all == 1 ? "只有这一笔，偶尔一次不用太在意。" : "")
+            }
+            out.append(Nudge(kind: .unusual, key: "spend-up-\(up.name)",
+                             title: "「\(up.name)」比\(previousName)多花了 \(m(up.diff))，是涨得最多的一类。",
+                             advice: advice,
+                             question: "「\(up.name)」怎么省回来？"))
+        }
+        // 3. 一类占了大半：是一笔大件还是很多笔小的。
+        let share = Double(top.amount.cents) / Double(max(total, 1))
+        if share >= 0.4, canSave(top.name), !out.contains(where: { $0.key == "spend-up-\(top.name)" }), let d = detail(top.name) {
+            let pct = Int((share * 100).rounded())
+            let advice = Double(d.biggest) >= Double(top.amount.cents) * 0.7
+                ? "主要是一笔 \(m(d.biggest)) 的大件。偶尔一次不用担心，只是别让它变成每个月都有。"
+                : "一共 \(d.all) 笔，平均一笔 \(m(top.amount.cents / Int64(max(1, d.all))))，花得最多的是「\(d.name)」。"
+            out.append(Nudge(kind: .info, key: "spend-share-\(top.name)",
+                             title: "「\(top.name)」占了这个月花销的 \(pct)%，\(m(top.amount.cents))。",
+                             advice: advice,
+                             question: "「\(top.name)」这笔花得值不值？"))
+        }
+        // 4. 少花得最多的一类：夸一句。
+        let mentioned = out.first?.kind == .praise ? downs.first?.name : nil   // 第一张已经说过的那类不再说一遍
+        if let d = downs.first(where: { canSave($0.name) && $0.name != mentioned }) {
+            out.append(Nudge(kind: .praise, key: "spend-down-\(d.name)",
+                             title: "「\(d.name)」比\(previousName)少花了 \(m(-d.diff))。",
+                             advice: "照这样保持，一年能多留下大约 \(m(-d.diff * 12))。",
+                             question: "还有哪一类能像「\(d.name)」这样省下来？"))
+        }
+        return Array(out.prefix(4))
     }
 
     /// 离「每个月存下多少」还差多少；差的话说从哪儿省最快。

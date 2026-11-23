@@ -337,6 +337,12 @@ public final class LedgerModel {
     /// 最近 n 个月（含当月），从早到晚。
     public func recentMonths(_ n: Int) -> [YearMonth] { Reports.months(endingAt: currentMonth, count: n) }
 
+    /// 有记录的月份（选月份的面板里加小点）。
+    public var recordedMonths: Set<YearMonth> {
+        let hidden = hiddenAccounts
+        return Set(ledger.transactions.lazy.filter { !hidden.contains($0.accountID) }.map(\.date.yearMonth))
+    }
+
     /// 有流水的年份，从新到旧。
     public var years: [Int] {
         let ys = Set(ledger.transactions.map(\.date.year)).union([LocalDate.today.year])

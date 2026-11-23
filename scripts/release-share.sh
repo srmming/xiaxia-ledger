@@ -109,7 +109,8 @@ if [ -n "$KEY" ]; then
   GEN="$(find "$BUILD/dd/SourcePackages/artifacts" -path '*/bin/generate_appcast' -type f | head -1)"
   [ -x "$GEN" ] || { echo "没找到 Sparkle 的 generate_appcast"; exit 1; }
   ARCH="$(mktemp -d)"; cp "$REPO"/dist/download/xiaxia-ledger-*.dmg "$ARCH/"
-  "$GEN" --download-url-prefix "$BASE/download/" -o "$REPO/dist/appcast.xml" "$ARCH"
+  # 不出增量包：generate_appcast 在临时目录里生成 .delta，跑完就删了不会上传，appcast 却会指向它（线上 404）。
+  "$GEN" --maximum-deltas 0 --download-url-prefix "$BASE/download/" -o "$REPO/dist/appcast.xml" "$ARCH"
   rm -rf "$ARCH"
 fi
 echo "更新清单：$REPO/dist/appcast.xml（网址前缀 $BASE）"
