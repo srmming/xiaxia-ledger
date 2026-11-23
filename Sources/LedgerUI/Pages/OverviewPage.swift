@@ -27,16 +27,16 @@ struct OverviewPage: View {
 
     private var content: some View {
         let status = model.status(model.shownMonth)
+        // ming 2026-11-23：夏夏的点评放最上面、一整行拉过去；「跟 AI 说就行」那张卡不要了；尽量一屏看完不用往下滚。
         return VStack(alignment: .leading, spacing: Kit.gap) {
+            XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
+                       question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
             Columns {
                 heroCard(status)
-                XiaxiaSays(page: "overview", pageName: "总览", sentence: xiaxia(status),
-                           question: "看看我 \(status.month.month) 月的账：花得怎么样、哪里要留意、月底大概剩多少？")
                 if model.selectedBookID == nil, model.ledger.books.count > 1 {
                     CardRow(items: model.ledger.books, minWidth: 230) { BookCard(book: $0) }
                 }
             } side: {
-                AskAICard(page: "总览", prompts: Array(model.prompts(for: .overview).prefix(3)))
                 recentCard
             }
         }
