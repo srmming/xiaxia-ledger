@@ -158,4 +158,15 @@ extension Ledger {
         changes.append(change)
         return change
     }
+
+    /// 不要自己拖的顺序了，改回按急不急排。
+    @discardableResult
+    public mutating func resetGoalOrder(author: String) throws -> ChangeRecord {
+        guard goals.contains(where: { $0.rank != nil }) else { throw ManageError.nothingToChange }
+        let old = goals
+        for i in goals.indices { goals[i].rank = nil }
+        let change = snapshotChange(.goal, "目标顺序改回按急不急排", before: PlanSnapshot(goals: old), author: author)
+        changes.append(change)
+        return change
+    }
 }

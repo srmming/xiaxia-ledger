@@ -208,6 +208,31 @@ public enum DebtPlans {
         return nil
     }
 
+    /// 改其中一期（index 从 0 数）的金额：合计不变，差出来的从后面几期找补——
+    /// 改多了，后面按原来的金额从前往后填、填不满的砍掉；改少了，多出来的加到最后一期（改的是最后一期就新加一期）。
+    /// 这一期改得比合计还多时返回 nil。
+    public static func rebalanced(_ plan: [PlannedPayment], index: Int, amount: Money, date: LocalDate? = nil) -> [PlannedPayment]? {
+        guard plan.indices.contains(index), amount.cents > 0 else { return nil }
+        var p = plan
+        let total = p.reduce(Int64(0)) { $0 + $1.amount.cents }
+        p[index].amount = amount.magnitude
+        if let date { p[index].date = date }
+        let head = p[...index].reduce(Int64(0)) { $0 + $1.amount.cents }
+        guard head <= total else { return nil }
+        var rest = total - head
+        var tail: [PlannedPayment] = []
+        for t in p[(index + 1)...] where rest > 0 {
+            let a = min(t.amount.cents, rest)
+            tail.append(PlannedPayment(date: t.date, amount: Money(cents: a)))
+            rest -= a
+        }
+        if rest > 0 {
+            if tail.isEmpty { tail.append(PlannedPayment(date: p[index].date.adding(months: 1), amount: Money(cents: rest))) }
+            else { tail[tail.count - 1].amount = Money(cents: tail[tail.count - 1].amount.cents + rest) }
+        }
+        return Array(p[...index]) + tail
+    }
+
     /// 两个日子差几个月（b 比 a 晚是正数）。
     static func months(from a: LocalDate, to b: LocalDate) -> Int { (b.year - a.year) * 12 + b.month - a.month }
 
@@ -292,8 +317,19 @@ extension Ledger {
         guard sum == left else {
             throw DebtPlanError.badSchedule("每期加起来是 \(sum.formatted)，还欠 \(left.formatted)，要一样才行")
         }
-        debts[i].plan = clean
-        debts[i].planBase = Plans.amounts(old.repaymentIDs, in: transactions)
+        if let oldPlan = old.plan, !oldPlan.isEmpty {
+            // 重排：已经还完的期留着（「第几期」还数得对），这一期还了一部分的，把还了的那部分记成一期。
+            let paid = paidSincePlan(old)
+            let prog = DebtPlans.progress(oldPlan, paid: paid, today: .today)
+            let k = prog.currentIndex ?? oldPlan.count
+            var prefix = Array(oldPlan[..<k])
+            let partial = paid.cents - prefix.reduce(Int64(0)) { $0 + $1.amount.cents }
+            if partial > 0, k < oldPlan.count { prefix.append(PlannedPayment(date: oldPlan[k].date, amount: Money(cents: partial))) }
+            debts[i].plan = prefix + clean
+        } else {
+            debts[i].plan = clean
+            debts[i].planBase = Plans.amounts(old.repaymentIDs, in: transactions)
+        }
         let who = old.direction == .theyOweMe ? "\(old.counterparty)还我" : "还\(old.counterparty)"
         let per = Set(clean.dropLast().map(\.amount)).count <= 1 ? "，每期 \(clean[0].amount.formatted)" : ""
         let text = (old.plan == nil ? "排还款计划：" : "重排还款计划：") + "\(who) \(left.formatted)，分 \(clean.count) 期\(per)，\(clean.last!.date) 还清"
@@ -307,39 +343,17 @@ extension Ledger {
     public mutating func editPlannedPayment(_ debtID: UUID, index: Int, amount: Money, date: LocalDate? = nil,
                                             author: String) throws -> ChangeRecord {
         guard let d = debts.first(where: { $0.id == debtID }) else { throw EditError.unknownDebt }
-        guard var plan = d.plan, plan.indices.contains(index) else { throw DebtPlanError.noPlan(d.counterparty) }
+        guard let plan = d.plan, plan.indices.contains(index) else { throw DebtPlanError.noPlan(d.counterparty) }
         let prog = DebtPlans.progress(plan, paid: paidSincePlan(d), today: .today)
         guard index >= (prog.currentIndex ?? plan.count) else { throw DebtPlanError.periodPaid(index + 1) }
         guard amount.cents > 0 else { throw EditError.amountMustBePositive }
-        let total = plan.reduce(Int64(0)) { $0 + $1.amount.cents }
-        plan[index].amount = amount.magnitude
-        if let date { plan[index].date = date }
-        // 前面到这一期为止合计不能超过总数。
-        let head = plan[...index].reduce(Int64(0)) { $0 + $1.amount.cents }
-        guard head <= total else { throw DebtPlanError.badSchedule("这一期改成 \(amount.formatted) 就超过还欠的钱了") }
-        var tail = Array(plan[(index + 1)...])
-        var rest = total - head
-        // 后面几期按原来的金额从前往后填，填不满的砍掉，多出来的加到最后一期（没有后面的就新加一期）。
-        var newTail: [PlannedPayment] = []
-        for t in tail where rest > 0 {
-            let a = min(t.amount.cents, rest)
-            newTail.append(PlannedPayment(date: t.date, amount: Money(cents: a)))
-            rest -= a
+        guard let result = DebtPlans.rebalanced(plan, index: index, amount: amount, date: date) else {
+            throw DebtPlanError.badSchedule("这一期改成 \(amount.formatted) 就超过还欠的钱了")
         }
-        if rest > 0 {
-            if newTail.isEmpty {
-                let last = plan[index].date
-                newTail.append(PlannedPayment(date: last.adding(months: 1), amount: Money(cents: rest)))
-            } else {
-                newTail[newTail.count - 1].amount = Money(cents: newTail[newTail.count - 1].amount.cents + rest)
-            }
-        }
-        tail = newTail
-        let result = Array(plan[...index]) + tail
         // 已经还完的期留着、planBase 不变，这样「第几期」还数得对。
         guard let i = debts.firstIndex(where: { $0.id == debtID }) else { throw EditError.unknownDebt }
         let old = debts[i]
-        debts[i].plan = result.filter { $0.amount.cents > 0 }
+        debts[i].plan = result
         let change = snapshotChange(.debt, "改还款计划：和\(d.counterparty)的第 \(index + 1) 期改成 \(amount.formatted)，\(debts[i].plan!.last!.date) 还清",
                                     before: PlanSnapshot(debts: [old]), author: author)
         changes.append(change)

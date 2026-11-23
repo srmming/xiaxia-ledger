@@ -54,6 +54,25 @@ final class PagePlansTests: XCTestCase {
         XCTAssertTrue(p.overdue, "12 月 10 日那期过了还没还")
     }
 
+    func testReplanKeepsPaidPeriods() throws {
+        var l = ledger()
+        let debt = try borrow(&l, 40000)
+        try l.planDebt(debt.id, count: 4, start: d(2026, 11, 10), author: "t")   // 4 × 100
+        try l.repay(debtID: debt.id, amount: Money(cents: 10000), date: d(2026, 11, 10), accountID: "bank", author: "t")
+        try l.repay(debtID: debt.id, amount: Money(cents: 4000), date: d(2026, 12, 10), accountID: "bank", author: "t")
+        // 还剩 260：重排成 2 期。第 1 期留着，第 2 期还了的 40 记成一期，再加新的 2 期。
+        try l.planDebt(debt.id, count: 2, start: d(2027, 1, 10), author: "t")
+        XCTAssertEqual(l.debts[0].plan!.map(\.amount.cents), [10000, 4000, 13000, 13000])
+        let p = try XCTUnwrap(l.planProgress(debt.id, today: d(2026, 12, 20)))
+        XCTAssertEqual(p.paidCount, 2)
+        XCTAssertEqual(p.count, 4)
+        XCTAssertEqual(p.nextAmount.cents, 13000)
+        // 纯函数：草稿里改一期
+        let draft = DebtPlans.schedule(outstanding: Money(cents: 30000), start: d(2027, 1, 1), count: 3)
+        XCTAssertEqual(DebtPlans.rebalanced(draft, index: 0, amount: Money(cents: 5000))?.map(\.amount.cents), [5000, 10000, 15000])
+        XCTAssertNil(DebtPlans.rebalanced(draft, index: 0, amount: Money(cents: 40000)))
+    }
+
     func testOverpayShortenOrLower() throws {
         var l = ledger()
         let debt = try borrow(&l, 50000)
