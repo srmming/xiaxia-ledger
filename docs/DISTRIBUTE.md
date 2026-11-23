@@ -98,11 +98,8 @@ bash scripts/release-share.sh 0.2.1 --adhoc    # 还没有 Developer ID 证书�
 
 版本号每次要比上次大。给别人的包**不带 iCloud 权限**：账本放在对方 iCloud 云盘的「夏夏账本」文件夹（开了 iCloud 云盘时）或「应用程序支持」里，app 和 AI 都读这一份；少的只是「iPhone 和 Mac 同步」。
 
-### 第一次要 ming 本人点的（大约 10 分钟）
+### 签名和公证：不用 ming 动手（2026-11-23 实测）
 
-1. **Developer ID 证书**：Xcode → 设置（⌘,）→ Accounts → 选你的 Apple ID → Manage Certificates… → 左下「+」→ **Developer ID Application**。
-2. **公证用的 App 专用密码**：<https://account.apple.com> → 登录与安全 → App 专用密码 → 生成（名字 xiaxia-notary），复制，然后终端：
-   `xcrun notarytool store-credentials xiaxia-notary --apple-id <你的 Apple ID 邮箱> --team-id U33A8DX2JT`，提示输密码时粘贴。
-3. **第一次签名时钥匙串弹窗**：问 codesign 能不能用密钥，输开机密码，点「始终允许」。
-
-做完告诉 Claude，Claude 跑 `release-share.sh 0.2.0`，出来的 dmg 双击就能开。
+- **Developer ID 签名**：ming 的 Mac 上 Xcode 已登录开发者账号（团队 U33A8DX2JT）。`release-share.sh` 走 `xcodebuild archive` + `-exportArchive`（method developer-id，automatic，-allowProvisioningUpdates），Xcode 用苹果云端管理的 Developer ID 证书签名，本机钥匙串不需要证书、不弹窗。Sparkle 和 fin 一起签好。
+- **公证**：优先用 notarytool 的 `xiaxia-notary` 钥匙串配置；没有就用 Mac 上 `asc` 命令行存在钥匙串里的 App Store Connect API 密钥（`asc notarization submit --file <dmg> --wait`），然后 `xcrun stapler staple`。不需要 app 专用密码。
+- 哪天 Xcode 退出了开发者账号，或 asc 的密钥失效：Xcode → 设置 → Accounts 重新登录；或按旧办法生成 App 专用密码，`xcrun notarytool store-credentials xiaxia-notary --apple-id <邮箱> --team-id U33A8DX2JT`。
