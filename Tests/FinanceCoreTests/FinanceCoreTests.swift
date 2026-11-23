@@ -985,6 +985,37 @@ final class ProfileTests: XCTestCase {
         XCTAssertNil(l.profile.aim, "空字符串 = 清掉")
     }
 
+    /// 给助手改名、设怎么称呼用户（ming 2026-11-23）：界面文字里的「夏夏」跟着换，「夏夏账本」不换；能撤销；AI 拿得到。
+    func testAssistantNameAndCallUser() throws {
+        var l = Ledger.fresh
+        XCTAssertEqual(l.profile.xiaName, "夏夏")
+        XCTAssertEqual(l.profile.renamed("问夏夏"), "问夏夏", "没改名不动")
+        let c = try l.setNames(assistant: "  小橙  ", callUser: "阿明", author: "我")
+        XCTAssertEqual(l.profile.xiaName, "小橙")
+        XCTAssertEqual(l.profile.userCallName, "阿明")
+        XCTAssertEqual(l.profile.renamed("问夏夏"), "问小橙")
+        XCTAssertEqual(l.profile.renamed("打开夏夏账本，让夏夏细说"), "打开夏夏账本，让小橙细说")
+        let ctx = LedgerContext(ledger: l)
+        XCTAssertEqual(ctx.assistantName, "小橙")
+        XCTAssertEqual(ctx.callUser, "阿明")
+        let prompt = ChatRunner.prompt(question: "午饭 12", voice: "", aim: nil, where: "总览", history: [(true, "嗨")],
+                                       name: l.profile.xiaName, callUser: l.profile.userCallName)
+        XCTAssertTrue(prompt.contains("你是「小橙」") && prompt.contains("称呼用户「阿明」"))
+        XCTAssertThrowsError(try l.setNames(assistant: "小橙", callUser: "阿明", author: "我"), "没变要提示")
+        _ = try l.setNames(assistant: "夏夏", callUser: "", author: "我")
+        XCTAssertNil(l.profile.assistantName, "填回「夏夏」= 默认")
+        XCTAssertNil(l.profile.userCallName)
+        _ = try l.setNames(assistant: "一二三四五六七八九十一二三", callUser: nil, author: "我")
+        XCTAssertEqual(l.profile.xiaName.count, 12, "名字最多 12 个字")
+        var u = Ledger.fresh
+        let c2 = try u.setNames(assistant: "小橙", callUser: nil, author: "我")
+        _ = try u.undo(changeID: c2.id, author: "我")
+        XCTAssertNil(u.profile.assistantName, "能撤销")
+        _ = c
+        let data = try JSONEncoder().encode(l.profile)
+        XCTAssertNoThrow(try JSONDecoder().decode(Profile.self, from: data))
+    }
+
     func testAddCategoryAndRename() throws {
         var l = Ledger.fresh
         l.accounts = [Account(id: "bank", name: "银行卡", kind: .bank)]

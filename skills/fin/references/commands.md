@@ -62,6 +62,10 @@
 | 改记忆 | `fin memory edit <id 或话题名> [--line 行号] [--text …] [--title …] [--kind …] [--review-on 日期｜none] [--pin｜--no-pin] [--keep]` | `update_memory` |
 | 删记忆 | `fin memory forget <id 或话题名> [--line 行号]`（能撤销）；`--forever` 彻底忘掉（不能撤销） | `forget_memory`（`forever`） |
 | 每月整理记忆 | `fin memory tidy`（列出）；`fin memory tidy --remove <id…>`；`fin memory tidy --done` | `tidy_memory`（`remove`、`done`） |
+| AI 意见 | `fin insight add review｜alert｜tip｜good｜action "结论" [--body] [--month] [--book] [--metric]`；`fin insight list [--month] [--book] [--all]`；`fin insight dismiss <编号>` | `add_insight`、`list_insights`、`dismiss_insight`；`ai_status` 看谁最近写过 |
+| 账本 | `fin book add 名字 [--kind personal｜business]`；`fin book rename <id> 新名字`；`fin book rm <id> [--move-to <id>]`（先 `--dry-run`） | `add_book`、`rename_book`、`remove_book` |
+| 改 / 删账户 | 暂无 | `edit_account`、`remove_account` |
+| 分类改名或合并 | 暂无 | `rename_category` |
 | 撤销 | `fin undo <改动编号>` | `undo` |
 
 ## 还做不到的（要做就告诉用户，别绕过去直接改文件）

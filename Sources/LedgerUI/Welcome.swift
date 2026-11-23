@@ -124,6 +124,11 @@ struct WelcomeView: View {
 
     @State private var step: Step = .hello
     @State private var pose: MascotPose = .hello
+    /// 夏夏和伙伴用女生版还是男生版（第一页选，设置里也能改）。
+    @AppStorage(MascotLook.storageKey) private var lookRaw = MascotLook.girl.rawValue
+    /// 第一页填的：助手叫什么、怎么称呼你（点「开始」时存进账本，设置里能改）。
+    @State private var assistantNameText = ""
+    @State private var callUserText = ""
     /// 夏夏头上的气泡。
     @State private var speech = ""
     @State private var thinking = false
@@ -256,7 +261,7 @@ struct WelcomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(speech.isEmpty ? "夏夏" : "夏夏说：\(speech)")
+        .accessibilityLabel(speech.isEmpty ? model.xiaName : "\(model.xiaName)说：\(speech)")
     }
 
     private var speechBubble: some View {
@@ -383,13 +388,15 @@ struct WelcomeView: View {
     private var page: some View {
         switch step {
         case .hello:
-            pageBody("让我们开始记账吧", "我是夏夏，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
+            pageBody("让我们开始记账吧", "我是\(typedName)，以后陪你记账。先问你\(["", "一", "两", "三", "四", "五", "六"][min(stepNames.count, 6)])个小问题，一分钟就好。") {
                 currencyPicker
+                namesRow
+                if MascotLook.boyAvailable { lookPicker }
             } buttons: {
                 primary("开始", id: "welcome.start") { Task { await toAim() } }
             }
         case .aim:
-            pageBody("你记账最想做到什么？", "选一个最重要的。以后夏夏给你意见、AI 帮你记账，都会围着它说。") {
+            pageBody("你记账最想做到什么？", "选一个最重要的。以后\(model.xiaName)给你意见、AI 帮你记账，都会围着它说。") {
                 FlowLayout(spacing: 8) {
                     ForEach(Self.aimOptions) { o in
                         chip(o.title, symbol: o.symbol, on: pickedAim == o.id) { pickAim(o.id) }
@@ -701,6 +708,54 @@ struct WelcomeView: View {
     private var currencyChoice: String { pickedCurrency ?? suggestedCurrency }
 
     /// 第一页：你平时用哪种钱？常用的直接摆出来，别的在菜单里。
+    /// 第一页现在填的助手名字（没填就是「夏夏」）。
+    private var typedName: String {
+        let t = assistantNameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? model.xiaName : String(t.prefix(12))
+    }
+
+    /// 第一页：给助手起名字、它怎么称呼你（ming 2026-11-23：「引导的时候可以改夏夏称呼，比如我想叫我什么，怎么称呼用户」）。
+    private var namesRow: some View {
+        HStack(alignment: .top, spacing: 16) {
+            nameField("叫我", placeholder: model.xiaName, text: $assistantNameText, id: "welcome.name.assistant")
+            nameField("我怎么叫你", placeholder: "比如 小明，不填就叫「你」", text: $callUserText, id: "welcome.name.user")
+        }
+        .frame(maxWidth: 560, alignment: .leading)
+    }
+
+    private func nameField(_ title: String, placeholder: String, text: Binding<String>, id: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline).foregroundStyle(Color.fg2)
+            TextField(placeholder, text: text)
+                .textFieldStyle(.plain)
+                .font(.title3)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Color.pageBackground, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.fg3.opacity(0.22), lineWidth: 1))
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(id)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 第一页：夏夏想要女生还是男生的样子（ming 2026-11-23：「界面男女角色也要加上」）。左边的夏夏马上跟着换。
+    private var lookPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("夏夏想要什么样子？").font(.headline).foregroundStyle(Color.fg2)
+            HStack(spacing: 8) {
+                ForEach(MascotLook.allCases) { l in
+                    chip(l.label, symbol: l == .girl ? "face.smiling" : "face.smiling.inverse", on: lookRaw == l.rawValue) {
+                        guard lookRaw != l.rawValue else { return }
+                        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { lookRaw = l.rawValue }
+                        Task { await say(l == .girl ? "好呀，就这样陪你记账～" : "好，换个样子陪你记账！", pose: .cheer) }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("welcome.look")
+    }
+
     private var currencyPicker: some View {
         let choice = currencyChoice
         var codes = Self.commonCurrencies
@@ -947,7 +1002,7 @@ struct WelcomeView: View {
             await say("（检查用：直接到这一页）", pose: .idle)
             return
         }
-        await say("嗨，我是夏夏！", pose: .hello)
+        await say("嗨，我是\(model.xiaName)！", pose: .hello)
     }
 
     private func toAim() async {
@@ -955,6 +1010,16 @@ struct WelcomeView: View {
         let code = currencyChoice
         if code != model.ledger.baseCurrency {
             _ = try? model.edit(quiet: true) { try $0.setBaseCurrency(code, author: model.author) }
+        }
+        // 第一页填的名字和称呼（没填的保持原样）。
+        let newName = assistantNameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newCall = callUserText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !newName.isEmpty || !newCall.isEmpty {
+            let p = model.ledger.profile
+            _ = try? model.edit(quiet: true) {
+                try $0.setNames(assistant: newName.isEmpty ? p.assistantName : newName,
+                                callUser: newCall.isEmpty ? p.userCallName : newCall, author: model.author)
+            }
         }
         // 以前定过（比如在「夏夏建议」页）：直接选上，用户点「就定这个」就行。
         if pickedAim == nil, let old = model.ledger.profile.aim {
@@ -969,7 +1034,8 @@ struct WelcomeView: View {
             }
         }
         go(.aim)
-        await say("先说说，你记账最想做到什么？", pose: .think)
+        let call = model.ledger.profile.userCallName.map { "\($0)，" } ?? ""
+        await say("\(call)先说说，你记账最想做到什么？", pose: .think)
     }
 
     private func pickAim(_ id: String) {

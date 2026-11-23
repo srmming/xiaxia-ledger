@@ -53,7 +53,7 @@ struct XiaxiaSays: View {
                         HStack(spacing: 8) {
                             Button {
                                 ask(asksInsight ? question + " 说完用 add_insight 写一条给「\(pageName)」页的意见（page=\(page)）。" : question, page: pageName)
-                            } label: { Label(action, systemImage: "sparkles") }
+                            } label: { Label(model.xia(action), systemImage: "sparkles") }
                                 .buttonStyle(.softAI)
                                 .accessibilityHint("复制一段话并打开 Claude")
                             Spacer()
@@ -85,7 +85,7 @@ struct XiaxiaHeader: View {
         HStack(spacing: 8) {
             XiaxiaAvatar(persona: model.persona, size: 28)
                 .accessibilityHidden(true)
-            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
+            Text(model.xia(title)).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
             Spacer()
             Text(trailing ?? model.persona.label).font(.caption).foregroundStyle(Color.fg2)
         }
@@ -158,7 +158,7 @@ struct AimCard: View {
                     Text("你的目标").font(.caption).foregroundStyle(Color.fg2)
                     Text(aim).font(.title3.weight(.bold)).fixedSize(horizontal: false, vertical: true)
                 }
-                Text("夏夏每次给意见都会先看这个目标。").font(.caption).foregroundStyle(Color.fg2)
+                Text(model.xia("夏夏每次给意见都会先看这个目标。")).font(.caption).foregroundStyle(Color.fg2)
                 HStack(spacing: 8) {
                     Button("改一下") { text = aim; editing = true; focused = true }.buttonStyle(.soft)
                     Button("清掉") { save(nil) }.buttonStyle(.soft)

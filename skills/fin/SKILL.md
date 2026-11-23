@@ -123,4 +123,17 @@ context 的记忆里出现「该整理了」时，找个不打断用户的时候
 **工资、房租、每月固定开销**（「我工资多少」「每月固定要扣多少」）
 `fin regulars`（MCP：`regulars`）：从最近 12 个月流水现算，给出每月哪天、大约多少、哪几个月多发一份。不要把这些数字记进记忆，涨薪、搬家后它自己会变。
 
+**AI 意见（app 的总览和「夏夏建议」页会显示）**
+写之前先 `fin insight list`（MCP：`list_insights`）看这个月已经有什么，别重复。
+- **本月点评**：每个月月初（或用户问起这个月怎么样时）跑完 `fin report` 后写一条：`fin insight add review "这个月花钱比上月慢 8%，月底大概能剩 1.150 €" --body "两三句原因和要留意的" [--book shop] --author Claude`（MCP：`add_insight`，kind=review）。同月同账本只留一条，新的会替换旧的。
+- **发现异常就写 alert**：某类支出比平时多很多、重复扣款、余额对不上、借款过期等，写 `fin insight add alert "…" --body "…" [--metric category:超市]`。要用户动手处理的用 `action`，建议用 `tip`，好消息用 `good`。title 一句话结论，body 两三句解释。
+- **用户说「知道了」「不用再提醒」**：`fin insight dismiss <编号>`（MCP：`dismiss_insight`）。
+- 想知道最近哪个 AI 动过账本：MCP `ai_status`。
+
+**管理账本、账户、分类**
+- 新账本：`fin book add 家庭 --kind personal`（生意用 `--kind business`）；改名：`fin book rename <账本id> 新名字`。
+- **删账本先预演**：`fin book rm <账本id> --move-to <另一个账本id> --dry-run`（MCP：`remove_book` 带 `dry_run`），把会挪走多少笔流水、借款、分期、目标原样告诉用户，同意后再去掉 `--dry-run`。里面有东西时必须指定 `--move-to`，不要自己猜挪到哪。
+- 改账户名字、类型、机构、是否私房钱：MCP `edit_account`；删账户：MCP `remove_account`（有流水的删不了）。
+- 分类整体改名或并进另一个分类：MCP `rename_category`（`from`、`to`），先 `dry_run`。
+
 **写错了**：`fin history` 找到那条改动，`fin undo <编号>`。

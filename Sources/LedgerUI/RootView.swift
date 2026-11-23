@@ -216,7 +216,7 @@ struct MacRoot: View {
         NavigationSplitView {
             List(selection: $model.section) {
                 Section("看") { ForEach(AppSection.look) { row($0) } }
-                Section("夏夏") { ForEach(AppSection.ai) { row($0) } }
+                Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
                 Section("记录") { ForEach(AppSection.records) { row($0) } }
                 Section { row(.settings) }
             }
@@ -249,7 +249,7 @@ struct MacRoot: View {
     }
 
     private func row(_ s: AppSection) -> some View {
-        Label { Text(s.rawValue) } icon: { s.glyph.image(size: 18) }
+        Label { Text(model.xia(s.rawValue)) } icon: { s.glyph.image(size: 18) }
             .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
             .tag(s)
     }
@@ -306,7 +306,7 @@ struct MacToolbar: ToolbarContent {
                 .tint(Color.brand)
                 .help("记一笔（⌘N）")
             Button { model.toggleChat() } label: {
-                Label("问夏夏", systemImage: "sparkles").labelStyle(.titleAndIcon)
+                Label(model.xia("问夏夏"), systemImage: "sparkles").labelStyle(.titleAndIcon)
             }
             .tint(Color.ai)
             .help("打开右边的夏夏对话栏，说一句就记账、查账（⌘K）")
