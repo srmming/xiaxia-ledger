@@ -87,7 +87,7 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s, height: short ? 84 : 170)
+                SpendingPaceChart(status: s, height: short ? 60 : 170)
             }
         }
         .kitCard(padding: 20)
