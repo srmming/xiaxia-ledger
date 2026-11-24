@@ -32,7 +32,7 @@ struct XiaxiaCards: View {
     /// AI 写的意见：本月点评在前，再是「夏夏建议」里别的没看过的，排在 app 算的后面。
     let insights: [Insight]
     /// 「接着问」时告诉 AI 用户在看哪一页。
-    var page = "总览"
+    var page = tr("总览")
     @State private var current: String?
     /// 手指（或鼠标）正拖着的距离：松手、拖到一半卡片被换掉，都会自己回到 0，卡不会停在半路。
     @GestureState private var live: CGFloat = 0
@@ -108,7 +108,7 @@ struct XiaxiaCards: View {
             }
             if list.count > 1 {
                 HStack(spacing: 14) {
-                    arrow("chevron.left", label: "上一张", enabled: index > 0) { flip(list, index, by: -1) }
+                    arrow("chevron.left", label: tr("上一张"), enabled: index > 0) { flip(list, index, by: -1) }
                     HStack(spacing: 7) {
                         ForEach(Array(list.enumerated()), id: \.element.id) { i, item in
                             Button { flip(list, index, by: i - index) } label: {
@@ -117,10 +117,10 @@ struct XiaxiaCards: View {
                                     .frame(width: 14, height: 14).contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("第 \(i + 1) 张")
+                            .accessibilityLabel(tr("第 \(i + 1) 张"))
                         }
                     }
-                    arrow("chevron.right", label: "下一张", enabled: index < list.count - 1) { flip(list, index, by: 1) }
+                    arrow("chevron.right", label: tr("下一张"), enabled: index < list.count - 1) { flip(list, index, by: 1) }
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("xiaxiaCards.pager")
@@ -210,7 +210,7 @@ struct XiaxiaCards: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label {
-                        Text("夏夏 · \(n.label)")
+                        Text(tr("夏夏 · \(n.label)"))
                     } icon: {
                         MascotView(.xiaxia, size: 20, face: true, animated: false)
                     }
@@ -233,11 +233,11 @@ struct XiaxiaCards: View {
                         Label(n.question, systemImage: "sparkles").lineLimit(1)
                     }
                     .buttonStyle(.softAI)
-                    .accessibilityHint("问夏夏这个问题")
-                    Button { dismiss(n) } label: { Text("知道了").lineLimit(1).fixedSize() }
+                    .accessibilityHint(tr("问夏夏这个问题"))
+                    Button { dismiss(n) } label: { Text(tr("知道了")).lineLimit(1).fixedSize() }
                         .buttonStyle(.soft)
                     Spacer(minLength: 8)
-                    MoreLink(title: "夏夏建议", section: .insights)
+                    MoreLink(title: tr("夏夏建议"), section: .insights)
                 }
             }
             .frame(height: cardHeight, alignment: .top)

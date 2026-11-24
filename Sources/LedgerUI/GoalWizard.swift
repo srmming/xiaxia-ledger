@@ -50,11 +50,11 @@ struct GoalWizard: View {
 
     var body: some View {
         content
-            .navigationTitle(step == .done ? "建好了" : "定一个存钱目标")
+            .navigationTitle(step == .done ? tr("建好了") : tr("定一个存钱目标"))
             .inlineTitle()
             .toolbar {
                 if step != .done {
-                    ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(primaryTitle, action: next)
@@ -64,13 +64,13 @@ struct GoalWizard: View {
             }
             .onAppear(perform: start)
             .errorAlert($error)
-            .confirmationDialog("删掉目标「\(confirmDelete?.name ?? "")」？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+            .confirmationDialog(tr("删掉目标「\(confirmDelete?.name ?? "")」？"), isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                                 titleVisibility: .visible) {
-                Button("删掉", role: .destructive) {
+                Button(tr("删掉"), role: .destructive) {
                     if let p = confirmDelete { model.perform { try $0.removeGoal(p.id, author: model.author) } }
                     confirmDelete = nil
                 }
-            } message: { Text("在现有账户里划出的存钱记录一起删，账户余额不变。删错了可以撤销。") }
+            } message: { Text(tr("在现有账户里划出的存钱记录一起删，账户余额不变。删错了可以撤销。")) }
     }
 
     // MARK: 版面：左边夏夏和小猪，右边这一步
@@ -120,7 +120,7 @@ struct GoalWizard: View {
             .padding(14)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(model.xiaName)说：\(model.xia(speech))")
+        .accessibilityLabel(tr("\(model.xiaName)说：\(model.xia(speech))"))
     }
 
     private var stepDots: some View {
@@ -135,13 +135,13 @@ struct GoalWizard: View {
 
     private var speech: String {
         switch step {
-        case .intro: full ? "目标不在多，在于坚持哦。" : "我们一起养一只小金猪吧！"
-        case .what: "想要什么都可以，大的小的都行。"
-        case .amount: "大概要多少钱？写个整数就好。"
-        case .when: "定个日子，我帮你算每天存多少。"
-        case .stash: "找个真的地方放钱，比如家里的储蓄罐。"
-        case .size: "最想要的那个，当大目标。"
-        case .done: "建好啦！第一枚金币什么时候来？"
+        case .intro: full ? tr("目标不在多，在于坚持哦。") : tr("我们一起养一只小金猪吧！")
+        case .what: tr("想要什么都可以，大的小的都行。")
+        case .amount: tr("大概要多少钱？写个整数就好。")
+        case .when: tr("定个日子，我帮你算每天存多少。")
+        case .stash: tr("找个真的地方放钱，比如家里的储蓄罐。")
+        case .size: tr("最想要的那个，当大目标。")
+        case .done: tr("建好啦！第一枚金币什么时候来？")
         }
     }
 
@@ -159,7 +159,7 @@ struct GoalWizard: View {
             Spacer(minLength: 0)
             if step != .intro && step != .done {
                 Button { withAnimation(.snappy) { step = Step(rawValue: step.rawValue - 1) ?? .intro } } label: {
-                    Label("返回", systemImage: "chevron.left")
+                    Label(tr("返回"), systemImage: "chevron.left")
                 }
                 .buttonStyle(.borderless).foregroundStyle(Color.fg2)
                 .accessibilityIdentifier("goalWizard.back")
@@ -182,34 +182,34 @@ struct GoalWizard: View {
 
     @ViewBuilder private var intro: some View {
         if full {
-            title("已经有 1 个大目标、3 个小目标了", "目标不在多，在于坚持。先把一个存够，或者删掉一个不那么想要的，再来定新的。")
+            title(tr("已经有 1 个大目标、3 个小目标了"), tr("目标不在多，在于坚持。先把一个存够，或者删掉一个不那么想要的，再来定新的。"))
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(board.active) { p in
                     HStack(spacing: 10) {
                         Image(systemName: goalSymbol(p)).frame(width: 22).foregroundStyle(Color.fg2)
                         Text(p.name).font(.callout.weight(.medium))
-                        if p.isMain { KitTag(text: "大目标") }
+                        if p.isMain { KitTag(text: tr("大目标")) }
                         Spacer(minLength: 8)
                         Text("\(p.forecast.percent)%").font(.caption).foregroundStyle(Color.fg3).monospacedDigit()
-                        Button("删掉") { confirmDelete = p }.buttonStyle(.softAlert)
+                        Button(tr("删掉")) { confirmDelete = p }.buttonStyle(.softAlert)
                     }
                 }
             }
             .padding(12)
             .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         } else {
-            title("小小的一步，也能实现大大的目标", "定好想要什么，夏夏帮你算出每天存多少、哪天能到手。")
+            title(tr("小小的一步，也能实现大大的目标"), tr("定好想要什么，夏夏帮你算出每天存多少、哪天能到手。"))
             VStack(alignment: .leading, spacing: 12) {
-                introRow(1, "target", "想好要什么、多少钱、哪天要")
-                introRow(2, "archivebox", "准备一个真的存钱的地方：一个储蓄罐、一张银行卡，或者家里一个固定的位置")
-                introRow(3, "hand.tap", "每次真的存了钱，就来点一下小猪，记一笔。钱也可以取出来")
+                introRow(1, "target", tr("想好要什么、多少钱、哪天要"))
+                introRow(2, "archivebox", tr("准备一个真的存钱的地方：一个储蓄罐、一张银行卡，或者家里一个固定的位置"))
+                introRow(3, "hand.tap", tr("每次真的存了钱，就来点一下小猪，记一笔。钱也可以取出来"))
             }
-            Label("最多 1 个大目标 + 3 个小目标。目标不在多，在于坚持。", systemImage: "heart")
+            Label(tr("最多 1 个大目标 + 3 个小目标。目标不在多，在于坚持。"), systemImage: "heart")
                 .font(.callout).foregroundStyle(Color.kit(0xB4445C, 0xFF9AB0))
                 .padding(10)
                 .background(Color.kit(0xF26A86, 0xF26A86, alpha: 0.1, darkAlpha: 0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             if board.slotsLeft < Plans.maxActiveGoals {
-                Text("现在有 \(board.active.count) 个在存，还能加 \(board.slotsLeft) 个。").font(.caption).foregroundStyle(Color.fg3)
+                Text(tr("现在有 \(board.active.count) 个在存，还能加 \(board.slotsLeft) 个。")).font(.caption).foregroundStyle(Color.fg3)
             }
         }
     }
@@ -226,7 +226,7 @@ struct GoalWizard: View {
     // MARK: ② 想要什么
 
     @ViewBuilder private var whatPage: some View {
-        title("你想要什么？", "挑一个，或者自己写。")
+        title(tr("你想要什么？"), tr("挑一个，或者自己写。"))
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 8)], spacing: 8) {
             ForEach(GoalIcons.presets, id: \.symbol) { item in
                 Button {
@@ -248,7 +248,7 @@ struct GoalWizard: View {
                 .accessibilityAddTraits(icon == item.symbol ? .isSelected : [])
             }
         }
-        TextField("想要什么", text: $name, prompt: Text("比如「换新电脑」"))
+        TextField(tr("想要什么"), text: $name, prompt: Text(tr("比如「换新电脑」")))
             .textFieldStyle(.roundedBorder)
             .font(.title3)
             .accessibilityIdentifier("goalWizard.name")
@@ -258,9 +258,9 @@ struct GoalWizard: View {
     // MARK: ③ 多少钱
 
     @ViewBuilder private var amountPage: some View {
-        title("「\(trimmedName)」要多少钱？")
+        title(tr("「\(trimmedName)」要多少钱？"))
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            TextField("要存多少", text: $amountText, prompt: Text("1.000"))
+            TextField(tr("要存多少"), text: $amountText, prompt: Text("1.000"))
                 .font(.system(size: 38, weight: .bold, design: .rounded)).monospacedDigit()
                 .textFieldStyle(.plain)
                 .decimalKeyboard()
@@ -276,31 +276,31 @@ struct GoalWizard: View {
             }
         }
         if let room = board.monthlyRoom, room.cents > 0 {
-            Text("参考：你最近每月大约剩 \(room.rounded)。").font(.caption).foregroundStyle(Color.fg3)
+            Text(tr("参考：你最近每月大约剩 \(room.rounded)。")).font(.caption).foregroundStyle(Color.fg3)
         }
     }
 
     // MARK: ④ 哪天要
 
     @ViewBuilder private var whenPage: some View {
-        title("哪天想要？", "定个日子更容易坚持。不定也行，先按一年算。")
-        Picker("哪天要", selection: $when) {
+        title(tr("哪天想要？"), tr("定个日子更容易坚持。不定也行，先按一年算。"))
+        Picker(tr("哪天要"), selection: $when) {
             ForEach(When.allCases) { Text($0.rawValue).tag($0) }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
         .accessibilityIdentifier("goalWizard.when")
         if when == .custom {
-            DatePicker("哪天前存够", selection: $customDate, in: Date()..., displayedComponents: .date)
+            DatePicker(tr("哪天前存够"), selection: $customDate, in: Date()..., displayedComponents: .date)
         }
         if let a = advice {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("每天存").font(.callout).foregroundStyle(Color.fg2)
+                    Text(tr("每天存")).font(.callout).foregroundStyle(Color.fg2)
                     Text(a.perDay.ui).font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
                 }
                 Text("≈ \(a.phrase)").font(.headline).foregroundStyle(Color.kit(0xB4445C, 0xFF9AB0))
-                Text("也就是每月 \(a.perMonth.rounded)\(deadline.map { "，\($0.year) 年 \($0.month) 月 \($0.day) 日到手" } ?? "，一年左右到手")。")
+                Text(tr("也就是每月 \(a.perMonth.rounded)\(deadline.map { tr("，\($0.year) 年 \($0.month) 月 \($0.day) 日到手") } ?? tr("，一年左右到手"))。"))
                     .font(.callout).foregroundStyle(Color.fg2)
             }
             .padding(14)
@@ -308,14 +308,14 @@ struct GoalWizard: View {
             .background(Color.kit(0xFFF1D6, 0x332A16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             if a.tooTight {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label(a.monthlyRoom.map { "每月要存的比你平时剩的（约 \($0.rounded)，再减去别的目标）还多，会很吃力。" } ?? "每月要存的有点多，会很吃力。",
+                    Label(a.monthlyRoom.map { tr("每月要存的比你平时剩的（约 \($0.rounded)，再减去别的目标）还多，会很吃力。") } ?? tr("每月要存的有点多，会很吃力。"),
                           systemImage: "exclamationmark.triangle")
                         .font(.callout).foregroundStyle(Color.warn).fixedSize(horizontal: false, vertical: true)
                     if let later = a.easierDeadline {
                         Button {
                             customDate = later.asDate
                             withAnimation(.snappy) { when = .custom }
-                        } label: { Label("晚一点更轻松：改到 \(later.year) 年 \(later.month) 月", systemImage: "tortoise") }
+                        } label: { Label(tr("晚一点更轻松：改到 \(later.year) 年 \(later.month) 月"), systemImage: "tortoise") }
                             .buttonStyle(.soft)
                             .accessibilityIdentifier("goalWizard.later")
                     }
@@ -329,18 +329,18 @@ struct GoalWizard: View {
     // MARK: ⑤ 存在哪
 
     @ViewBuilder private var stashPage: some View {
-        title("钱真的存在哪？", "准备一个真的存钱的地方，存进去就不会被顺手花掉。")
+        title(tr("钱真的存在哪？"), tr("准备一个真的存钱的地方，存进去就不会被顺手花掉。"))
         VStack(spacing: 8) {
             ForEach(GoalStash.allCases) { s in
-                optionCard(selected: stash == s, symbol: stashSymbol(s), title: s.label, detail: "比如" + s.example) {
+                optionCard(selected: stash == s, symbol: stashSymbol(s), title: s.label, detail: tr("比如") + s.example) {
                     stash = s
                 }
                 .accessibilityIdentifier("goalWizard.stash.\(s.rawValue)")
             }
         }
-        TextField("具体在哪", text: $stashNote, prompt: Text(stash.map { "具体在哪（可不填），" + $0.example.components(separatedBy: "、").first! } ?? "具体在哪（可不填）"))
+        TextField(tr("具体在哪"), text: $stashNote, prompt: Text(stash.map { tr("具体在哪（可不填），") + $0.example.components(separatedBy: "、").first! } ?? tr("具体在哪（可不填）")))
             .textFieldStyle(.roundedBorder)
-        Label("约好了：每次真的存了钱，一定回来点小猪记一笔。不记下来，小猪就不知道你在努力。", systemImage: "hand.wave")
+        Label(tr("约好了：每次真的存了钱，一定回来点小猪记一笔。不记下来，小猪就不知道你在努力。"), systemImage: "hand.wave")
             .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
     }
 
@@ -349,20 +349,20 @@ struct GoalWizard: View {
     @ViewBuilder private var sizePage: some View {
         let b = board
         let smallFull = b.small.count + b.extra.count >= Plans.maxSmallGoals
-        title("这是大目标还是小目标？", "目标不在多，在于坚持。")
-        optionCard(selected: main, symbol: "star.fill", title: "大目标",
-                   detail: "最想要的那一个，目标页上最大的那只猪。只有 1 个。" + (b.main.map { "选它的话，「\($0.name)」会变成小目标。" } ?? "")) {
+        title(tr("这是大目标还是小目标？"), tr("目标不在多，在于坚持。"))
+        optionCard(selected: main, symbol: "star.fill", title: tr("大目标"),
+                   detail: tr("最想要的那一个，目标页上最大的那只猪。只有 1 个。") + (b.main.map { tr("选它的话，「\($0.name)」会变成小目标。") } ?? "")) {
             main = true
         }
         .accessibilityIdentifier("goalWizard.main")
-        optionCard(selected: !main, symbol: "circle.grid.2x1.fill", title: "小目标",
-                   detail: smallFull ? "小目标已经有 3 个了。" : "最多 3 个，排在大目标下面。还能加 \(Plans.maxSmallGoals - b.small.count - b.extra.count) 个。") {
+        optionCard(selected: !main, symbol: "circle.grid.2x1.fill", title: tr("小目标"),
+                   detail: smallFull ? tr("小目标已经有 3 个了。") : tr("最多 3 个，排在大目标下面。还能加 \(Plans.maxSmallGoals - b.small.count - b.extra.count) 个。")) {
             main = false
         }
         .disabled(smallFull || b.main == nil)
         .accessibilityIdentifier("goalWizard.small")
         if let a = advice {
-            Text("「\(trimmedName)」\(amount?.rounded ?? "")，每天 \(a.perDay.ui)，存在\(stash.map { stashNote.isEmpty ? $0.label : stashNote } ?? "你准备的地方")。")
+            Text(tr("「\(trimmedName)」\(amount?.rounded ?? "")，每天 \(a.perDay.ui)，存在\(stash.map { stashNote.isEmpty ? $0.label : stashNote } ?? tr("你准备的地方"))。"))
                 .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -370,19 +370,19 @@ struct GoalWizard: View {
     // MARK: 建好了
 
     @ViewBuilder private var donePage: some View {
-        title("「\(createdName)」建好了！", nil)
+        title(tr("「\(createdName)」建好了！"), nil)
         if let p = (board.active + board.done).first(where: { $0.name == createdName }) {
             VStack(alignment: .leading, spacing: 6) {
-                if let d = p.perDay { Label("每天存 \(d.ui)，\(board.habit.phrase(perDay: d))", systemImage: "cup.and.saucer") }
+                if let d = p.perDay { Label(tr("每天存 \(d.ui)，\(board.habit.phrase(perDay: d))"), systemImage: "cup.and.saucer") }
                 Label(arrivalText(p), systemImage: "calendar")
                 Label(stashText(p), systemImage: stashSymbol(p.stash))
             }
             .font(.callout)
             .labelStyle(PiggyLabelStyle())
         }
-        Text("以后每次存了钱，点目标页的小猪「存一笔」；想买咖啡忍住了，就点「忍住了」。钱要用也可以取出来。")
+        Text(tr("以后每次存了钱，点目标页的小猪「存一笔」；想买咖啡忍住了，就点「忍住了」。钱要用也可以取出来。"))
             .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
-        Text("小小的一步，也能实现大大的目标。").font(.headline).foregroundStyle(Color.kit(0xB4445C, 0xFF9AB0))
+        Text(tr("小小的一步，也能实现大大的目标。")).font(.headline).foregroundStyle(Color.kit(0xB4445C, 0xFF9AB0))
     }
 
     private func optionCard(selected: Bool, symbol: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
@@ -417,10 +417,10 @@ struct GoalWizard: View {
 
     private var primaryTitle: String {
         switch step {
-        case .intro: full ? "知道了" : "开始"
-        case .size: "放进小猪"
-        case .done: "好了"
-        default: "下一步"
+        case .intro: full ? tr("知道了") : tr("开始")
+        case .size: tr("放进小猪")
+        case .done: tr("好了")
+        default: tr("下一步")
         }
     }
 
@@ -478,9 +478,9 @@ struct GoalWizard: View {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-XiaxiaGoalStep"), i + 1 < args.count,
            let s = ["intro": Step.intro, "what": .what, "amount": .amount, "when": .when, "stash": .stash, "size": .size][args[i + 1]] {
-            if s.rawValue > Step.what.rawValue { name = "换新相机"; icon = "camera" }
+            if s.rawValue > Step.what.rawValue { name = tr("换新相机"); icon = "camera" }
             if s.rawValue > Step.amount.rawValue { amountText = "900"; when = .half }
-            if s.rawValue > Step.stash.rawValue { stash = .jar; stashNote = "书架上的小铁盒" }
+            if s.rawValue > Step.stash.rawValue { stash = .jar; stashNote = tr("书架上的小铁盒") }
             step = s
         }
     }
@@ -520,7 +520,7 @@ struct PiggyMoneySheet: View {
     var body: some View {
         Form {
             Section {
-                FormField(deposit ? "存多少" : "取多少", "比如 20", text: $amountText)
+                FormField(deposit ? tr("存多少") : tr("取多少"), tr("比如 20"), text: $amountText)
                     .decimalKeyboard()
                     .accessibilityIdentifier("piggy.amount")
                 HStack(spacing: 6) {
@@ -529,11 +529,11 @@ struct PiggyMoneySheet: View {
                             .buttonStyle(.soft)
                     }
                 }
-                Picker(deposit ? "钱从哪个账户来" : "取到哪个账户", selection: $accountID) {
-                    if accountID.isEmpty { Text("选一个").tag("") }
+                Picker(deposit ? tr("钱从哪个账户来") : tr("取到哪个账户"), selection: $accountID) {
+                    if accountID.isEmpty { Text(tr("选一个")).tag("") }
                     ForEach(accounts) { Text($0.name).tag($0.id) }
                 }
-                DatePicker("哪天", selection: $date, in: ...Date(), displayedComponents: .date)
+                DatePicker(tr("哪天"), selection: $date, in: ...Date(), displayedComponents: .date)
             } header: {
                 Text(goal?.name ?? "")
             } footer: {
@@ -541,12 +541,12 @@ struct PiggyMoneySheet: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(deposit ? "往小猪里存一笔" : "从小猪里取出")
+        .navigationTitle(deposit ? tr("往小猪里存一笔") : tr("从小猪里取出"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(deposit ? "存进去" : "取出来", action: save)
+                Button(deposit ? tr("存进去") : tr("取出来"), action: save)
                     .disabled(amount == nil || accountID.isEmpty)
                     .accessibilityIdentifier("piggy.save")
             }
@@ -570,12 +570,12 @@ struct PiggyMoneySheet: View {
     private var footer: String {
         let days = amount.flatMap { Plans.daysEarlier(model.ledger, goalID: goalID, amount: $0) }
         if deposit {
-            var s = goal?.savingsAccountID != nil ? "从这个账户转进专门存钱的账户，不算花销。" : "钱留在这个账户里，只是划给这个目标，账户余额不变、不算花销。"
-            if let days { s += "存进去，提前 \(days) 天到手。" }
-            return s + "记得真的把钱放进你准备的地方。"
+            var s = goal?.savingsAccountID != nil ? tr("从这个账户转进专门存钱的账户，不算花销。") : tr("钱留在这个账户里，只是划给这个目标，账户余额不变、不算花销。")
+            if let days { s += tr("存进去，提前 \(days) 天到手。") }
+            return s + tr("记得真的把钱放进你准备的地方。")
         }
-        var s = "要用钱就取出来，很正常，慢慢再补回来。"
-        if let days { s += "到手的日子会往后推约 \(days) 天。" }
+        var s = tr("要用钱就取出来，很正常，慢慢再补回来。")
+        if let days { s += tr("到手的日子会往后推约 \(days) 天。") }
         return s
     }
 

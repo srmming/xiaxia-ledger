@@ -23,7 +23,7 @@ struct SettingsPage: View {
                 row(.sync, symbol: "icloud", title: tr("同步与币种")) {
                     HStack(spacing: 6) {
                         Circle().fill(model.loadError == nil ? Color.income : Color.alert).frame(width: 7, height: 7)
-                        Text("\(model.loadError == nil ? "账本已读到" : "账本读不出来") · \(Currencies.info(model.ledger.baseCurrency).name) \(Currencies.info(model.ledger.baseCurrency).symbol)")
+                        Text("\(model.loadError == nil ? tr("账本已读到") : tr("账本读不出来")) · \(Currencies.info(model.ledger.baseCurrency).name) \(Currencies.info(model.ledger.baseCurrency).symbol)")
                     }
                 }
                 divider
@@ -33,9 +33,9 @@ struct SettingsPage: View {
                 divider
                 row(.privacy, symbol: "eye", title: tr("隐私与外观")) { Text(appearanceLabel) }
                 divider
-                row(.author, symbol: "person", title: tr("记账人")) { Text(model.author.isEmpty ? "更改名称" : model.author) }
+                row(.author, symbol: "person", title: tr("记账人")) { Text(model.author.isEmpty ? tr("更改名称") : model.author) }
                 divider
-                row(.data, symbol: "externaldrive", title: tr("数据")) { Text(model.isTryingDemo ? "正在看演示数据" : "演示数据、删除数据") }
+                row(.data, symbol: "externaldrive", title: tr("数据")) { Text(model.isTryingDemo ? tr("正在看演示数据") : tr("演示数据、删除数据")) }
             }
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
@@ -43,12 +43,12 @@ struct SettingsPage: View {
             // 帮助与反馈、版本：稿里没画，放在最下面一行小字。
             HStack(spacing: 14) {
                 Button { open("https://xiaxia.ming95.com") } label: {  // 代码仓库是私有的，反馈走官网
-                    Label("反馈问题 / 提个想法", systemImage: "exclamationmark.bubble")
+                    Label(tr("反馈问题 / 提个想法"), systemImage: "exclamationmark.bubble")
                 }
                 .buttonStyle(.borderless)
                 .accessibilityIdentifier("settings.feedback")
                 Spacer()
-                Text("版本 \(version)").textSelection(.enabled)
+                Text(tr("版本 \(version)")).textSelection(.enabled)
             }
             .font(.caption).foregroundStyle(Color.fg2)
             .padding(.horizontal, 6)
@@ -79,13 +79,13 @@ struct SettingsPage: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("AI 连接").font(.title2.weight(.bold)).accessibilityAddTraits(.isHeader)
-                    Text("在你常用的 AI 里记账、查账。").font(.subheadline).foregroundStyle(Color.fg2)
+                    Text(tr("AI 连接")).font(.title2.weight(.bold)).accessibilityAddTraits(.isHeader)
+                    Text(tr("在你常用的 AI 里记账、查账。")).font(.subheadline).foregroundStyle(Color.fg2)
                 }
                 Spacer(minLength: 12)
                 #if os(macOS)
                 Button { model.sheet = .connectAI } label: {
-                    Text("连接你的 AI").font(.body.weight(.semibold)).foregroundStyle(.white)
+                    Text(tr("连接你的 AI")).font(.body.weight(.semibold)).foregroundStyle(.white)
                         .padding(.horizontal, 18).padding(.vertical, 9)
                         .background(Color.brand, in: Capsule())
                         .contentShape(Capsule())
@@ -102,11 +102,11 @@ struct SettingsPage: View {
                 Divider()
                 Button {
                     Clipboard.copy(model.aiSetupPrompt)
-                    model.toast = .init(text: "已复制配置指令，粘贴给你的 AI，它会自己配好", changeID: nil)
+                    model.toast = .init(text: tr("已复制配置指令，粘贴给你的 AI，它会自己配好"), changeID: nil)
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "link").frame(width: 22)
-                        Text("复制配置指令")
+                        Text(tr("复制配置指令"))
                         Spacer()
                         Image(systemName: "doc.on.doc").foregroundStyle(Color.fg2)
                     }
@@ -115,7 +115,7 @@ struct SettingsPage: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("复制一段话，粘给任何 AI，它会自己把夏夏账本配好")
+                .help(tr("复制一段话，粘给任何 AI，它会自己把夏夏账本配好"))
                 .accessibilityIdentifier("settings.copySetup")
             }
             .padding(.horizontal, 16)
@@ -127,7 +127,7 @@ struct SettingsPage: View {
                         Monogram.author(t.name, isMe: false, size: 26)
                         Text(t.name).font(.callout)
                         Spacer()
-                        StatusDot(color: .income, text: "\(t.last.friendly) 写过").font(.caption).foregroundStyle(Color.fg2)
+                        StatusDot(color: .income, text: tr("\(t.last.friendly) 写过")).font(.caption).foregroundStyle(Color.fg2)
                     }
                 }
                 ConnectAIPhoneNote()
@@ -159,14 +159,14 @@ struct SettingsPage: View {
 
     private var booksSummary: String {
         let books = model.ledger.books
-        let accounts = "\(model.ledger.accounts.count) 个账户"
-        return books.count == 1 ? "\(books[0].name) · \(accounts)" : "\(books.count) 个账本 · \(accounts)"
+        let accounts = tr("\(model.ledger.accounts.count) 个账户")
+        return books.count == 1 ? "\(books[0].name) · \(accounts)" : tr("\(books.count) 个账本 · \(accounts)")
     }
 
     private var xiaxiaSummary: String {
         #if os(macOS)
         if model.chat.available.isEmpty { return model.ledger.profile.persona.label }
-        return model.chat.enabled ? "内置夏夏已打开" : "内置夏夏已关闭"
+        return model.chat.enabled ? tr("内置夏夏已打开") : tr("内置夏夏已关闭")
         #else
         return model.ledger.profile.persona.label
         #endif
@@ -177,7 +177,7 @@ struct SettingsPage: View {
     }
 
     private var version: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "开发版"
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? tr("开发版")
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
         return b.map { "\(v)（\($0)）" } ?? v
     }
@@ -224,12 +224,12 @@ struct ConnectedAISummary: View {
             }
             Rectangle().fill(Color.fg3.opacity(0.3)).frame(width: 1, height: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(connected.isEmpty ? "还没连上 AI" : "\(connected.count) 个 AI 已连接").font(.body.weight(.semibold))
-                Text(connected.isEmpty ? "点右上角「连接你的 AI」，一步连好" : connected.map(\.name).joined(separator: "、"))
+                Text(connected.isEmpty ? tr("还没连上 AI") : tr("\(connected.count) 个 AI 已连接")).font(.body.weight(.semibold))
+                Text(connected.isEmpty ? tr("点右上角「连接你的 AI」，一步连好") : connected.map(\.name).joined(separator: "、"))
                     .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
             }
             Spacer(minLength: 8)
-            Text("管理连接").font(.callout).foregroundStyle(Color.fg2)
+            Text(tr("管理连接")).font(.callout).foregroundStyle(Color.fg2)
             Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
         }
         .padding(.vertical, 12)
@@ -274,10 +274,10 @@ struct SettingsPaneView: View {
             switch pane {
             case .ai:
                 #if os(macOS)
-                group("AI 连接", note: "Claude、Codex 这些 AI 通过 MCP 读写同一本账。「用过账本」是 AI 最近一次打开账本的时间。") {
+                group(tr("AI 连接"), note: tr("Claude、Codex 这些 AI 通过 MCP 读写同一本账。「用过账本」是 AI 最近一次打开账本的时间。")) {
                     AIStatusRows()
                     Button { model.sheet = .connectAI } label: {
-                        item(symbol: "link", color: .ai, title: "连接你的 AI（Claude、Codex、Hermes…）") { chevron }
+                        item(symbol: "link", color: .ai, title: tr("连接你的 AI（Claude、Codex、Hermes…）")) { chevron }
                     }
                     .buttonStyle(.plain)
                 }
@@ -285,26 +285,26 @@ struct SettingsPaneView: View {
                 ConnectAIPhoneNote()
                 #endif
             case .books:
-                group("账本") {
+                group(tr("账本")) {
                     ForEach(model.ledger.books) { b in
                         let n = model.ledger.bookUsage(b.id).transactions
                         item(monogram: Monogram(text: b.name, color: model.bookColor(b.id), size: 26), title: b.name) {
-                            Text("\(n) 笔流水").foregroundStyle(Color.fg2)
+                            Text(tr("\(n) 笔流水")).foregroundStyle(Color.fg2)
                         }
                     }
                 }
-                group("管理") {
-                    manageRow("books.vertical", "管理账本（新建、改名、删除）", .books)
-                    manageRow("building.columns", "管理账户（\(model.ledger.accounts.count) 个）", .accounts)
-                    manageRow("square.grid.2x2", "管理分类", .categories)
+                group(tr("管理")) {
+                    manageRow("books.vertical", tr("管理账本（新建、改名、删除）"), .books)
+                    manageRow("building.columns", tr("管理账户（\(model.ledger.accounts.count) 个）"), .accounts)
+                    manageRow("square.grid.2x2", tr("管理分类"), .categories)
                 }
             case .sync:
-                group("同步") {
-                    item(symbol: "icloud.fill", color: Color.kit(0x0A84FF, 0x409CFF), title: "状态") {
-                        StatusDot(color: model.loadError == nil ? .income : .alert, text: model.loadError == nil ? "账本已读到" : "读不出来")
+                group(tr("同步")) {
+                    item(symbol: "icloud.fill", color: Color.kit(0x0A84FF, 0x409CFF), title: tr("状态")) {
+                        StatusDot(color: model.loadError == nil ? .income : .alert, text: model.loadError == nil ? tr("账本已读到") : tr("读不出来"))
                             .foregroundStyle(Color.fg2)
                     }
-                    item(symbol: "doc.fill", color: .fg3, title: "账本文件") {
+                    item(symbol: "doc.fill", color: .fg3, title: tr("账本文件")) {
                         // 路径很长：从中间省略，留住开头和「夏夏账本/ledger.sqlite」结尾；鼠标停上去看完整路径。
                         Text(ledgerLocation(model.store)).font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
                             .truncationMode(.middle)
@@ -324,20 +324,20 @@ struct SettingsPaneView: View {
                 }
                 #if os(macOS)
                 if AppUpdateSupport.isAvailable || AppUpdateSupport.preview {
-                    group("更新", note: "更新只换 app 本身，账本不动；换之前还会把账本复制一份到账本旁边的「更新前备份」文件夹。") {
+                    group(tr("更新"), note: tr("更新只换 app 本身，账本不动；换之前还会把账本复制一份到账本旁边的「更新前备份」文件夹。")) {
                         AppUpdateRows()
                     }
                 }
                 #endif
-                group("币种", note: "每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种；银行实际扣了多少，就以银行为准。取汇率只下载欧洲央行的公开汇率表，不会发出任何账目。") {
+                group(tr("币种"), note: tr("每个账户可以有自己的币种。外币的每一笔记原来的金额和当天汇率，看板上的总数换成主币种；银行实际扣了多少，就以银行为准。取汇率只下载欧洲央行的公开汇率表，不会发出任何账目。")) {
                     CurrencySettingsRows()
                 }
             case .xiaxia:
                 #if os(macOS)
-                group("内置夏夏", note: "打开后窗口右边有个聊天栏，借你电脑上的 AI 回答；关掉后「问夏夏」会把提示词复制好，交给你自己的 AI。") {
+                group(tr("内置夏夏"), note: tr("打开后窗口右边有个聊天栏，借你电脑上的 AI 回答；关掉后「问夏夏」会把提示词复制好，交给你自己的 AI。")) {
                     item(symbol: "bubble.left.and.text.bubble.right.fill", color: .ai,
-                         title: model.chat.available.isEmpty ? "内置夏夏（要先装 Claude Code、Codex 或 Hermes）" : "内置夏夏") {
-                        Toggle("内置夏夏", isOn: Binding(get: { model.chat.enabled }, set: { on in
+                         title: model.chat.available.isEmpty ? tr("内置夏夏（要先装 Claude Code、Codex 或 Hermes）") : tr("内置夏夏")) {
+                        Toggle(tr("内置夏夏"), isOn: Binding(get: { model.chat.enabled }, set: { on in
                             withAnimation(.snappy) { model.chat.enabled = on }
                             if on { model.chat.show() }
                         }))
@@ -346,8 +346,8 @@ struct SettingsPaneView: View {
                         .accessibilityIdentifier("settings.chatEnabled")
                     }
                     if model.chat.available.count > 1 {
-                        item(symbol: "cpu", color: .ai, title: "用哪个 AI 回答") {
-                            Picker("用哪个 AI 回答", selection: Binding(get: { model.chat.engine?.rawValue ?? "" },
+                        item(symbol: "cpu", color: .ai, title: tr("用哪个 AI 回答")) {
+                            Picker(tr("用哪个 AI 回答"), selection: Binding(get: { model.chat.engine?.rawValue ?? "" },
                                                                     set: { model.chat.engine = ChatEngine(rawValue: $0) })) {
                                 ForEach(model.chat.available) { e in Text(e.name).tag(e.rawValue) }
                             }
@@ -356,10 +356,10 @@ struct SettingsPaneView: View {
                     }
                 }
                 #endif
-                group("名字和称呼", note: "助手在 app 里和 AI 回答里都用这个名字自称、这样叫你。跟着账本同步。") {
+                group(tr("名字和称呼"), note: tr("助手在 app 里和 AI 回答里都用这个名字自称、这样叫你。跟着账本同步。")) {
                     NameSettingsRows()
                 }
-                group("夏夏怎么跟你说话", note: "夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。") {
+                group(tr("夏夏怎么跟你说话"), note: tr("夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。")) {
                     PersonaPicker()
                 }
             case .memory, .data:
@@ -389,9 +389,9 @@ struct SettingsPaneView: View {
                     }
                 }
             case .author:
-                group("记账的人", note: "你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。") {
-                    item(symbol: "person.fill", color: .brand, title: "名字") {
-                        TextField("你的名字", text: $name)
+                group(tr("记账的人"), note: tr("你在 app 里记的、改的，改动记录里都记在这个名字下，流水上标「你」。")) {
+                    item(symbol: "person.fill", color: .brand, title: tr("名字")) {
+                        TextField(tr("你的名字"), text: $name)
                             .multilineTextAlignment(.trailing)
                             .textFieldStyle(.plain)
                             .frame(maxWidth: 200)
@@ -475,9 +475,9 @@ struct NameSettingsRows: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            row("名字", placeholder: Profile.defaultAssistantName, text: $name, id: "settings.assistantName")
+            row(tr("名字"), placeholder: Profile.defaultAssistantName, text: $name, id: "settings.assistantName")
             Divider()
-            row("怎么叫你", placeholder: "不填就叫「你」", text: $call, id: "settings.callUser")
+            row(tr("怎么叫你"), placeholder: tr("不填就叫「你」"), text: $call, id: "settings.callUser")
         }
         .onAppear { load() }
         .onChange(of: focused) { _, f in if !f { save() } }

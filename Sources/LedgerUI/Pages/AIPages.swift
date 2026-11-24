@@ -23,7 +23,7 @@ struct InsightsPage: View {
                 remindersCard
                 recentAIWork
             } side: {
-                AskAICard(title: "常用的话，点一下就复制", note: nil, page: "夏夏建议", prompts: model.prompts(for: .overview))
+                AskAICard(title: tr("常用的话，点一下就复制"), note: nil, page: "夏夏建议", prompts: model.prompts(for: .overview))
             }
         }
         .kitPage()
@@ -32,11 +32,11 @@ struct InsightsPage: View {
     private func statusLine(_ tools: [AITool]) -> some View {
         FlowLayout(spacing: 12) {
             if tools.isEmpty {
-                StatusDot(color: .fg3, text: "还没有 AI 写过账本")
+                StatusDot(color: .fg3, text: tr("还没有 AI 写过账本"))
             } else {
-                ForEach(tools.prefix(3)) { t in StatusDot(color: .income, text: "\(t.name) 用过 · \(t.last.friendly)") }
+                ForEach(tools.prefix(3)) { t in StatusDot(color: .income, text: tr("\(t.name) 用过 · \(t.last.friendly)")) }
             }
-            StatusDot(color: model.loadError == nil ? .income : .alert, text: model.loadError == nil ? "账本已读到" : "账本读不出来")
+            StatusDot(color: model.loadError == nil ? .income : .alert, text: model.loadError == nil ? tr("账本已读到") : tr("账本读不出来"))
         }
         .font(.caption).foregroundStyle(Color.fg2)
     }
@@ -46,14 +46,14 @@ struct InsightsPage: View {
         let m = model.shownMonth.month
         return AskAIReader { ask in
             VStack(alignment: .leading, spacing: 10) {
-                Label { Text("\(m) 月点评").font(.subheadline.weight(.semibold)) } icon: { Image(systemName: "sparkles") }
+                Label { Text(tr("\(m) 月点评")).font(.subheadline.weight(.semibold)) } icon: { Image(systemName: "sparkles") }
                     .foregroundStyle(Color.ai)
-                Text("让 AI 看看这个月的账").font(.title3.weight(.bold))
-                Text("AI 会读这个月的流水，告诉你花得怎么样、哪里要留意、月底大概剩多少。以后它写的点评会直接显示在这里。")
+                Text(tr("让 AI 看看这个月的账")).font(.title3.weight(.bold))
+                Text(tr("AI 会读这个月的流水，告诉你花得怎么样、哪里要留意、月底大概剩多少。以后它写的点评会直接显示在这里。"))
                     .font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Button { ask("看看我 \(m) 月的账：花得怎么样、哪里要留意、月底大概剩多少？", page: "夏夏建议") } label: {
-                        Label("让 AI 点评 \(m) 月", systemImage: "sparkles")
+                    Button { ask(tr("看看我 \(m) 月的账：花得怎么样、哪里要留意、月底大概剩多少？"), page: "夏夏建议") } label: {
+                        Label(tr("让 AI 点评 \(m) 月"), systemImage: "sparkles")
                     }
                     .buttonStyle(.softAI)
                 }
@@ -68,15 +68,15 @@ struct InsightsPage: View {
                     : model.ledger.insights(month: model.shownMonth, bookID: model.selectedBookID, includeDismissed: true))
             .filter { $0.kind != .monthlyReview || allMonths }
         return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader(title: "其它提醒") {
-                Picker("范围", selection: $allMonths) {
-                    Text("本月").tag(false)
-                    Text("全部").tag(true)
+            SectionHeader(title: tr("其它提醒")) {
+                Picker(tr("范围"), selection: $allMonths) {
+                    Text(tr("本月")).tag(false)
+                    Text(tr("全部")).tag(true)
                 }
                 .pickerStyle(.segmented).labelsHidden().fixedSize()
             }
             if list.isEmpty {
-                Text("AI 发现要留意的事（比如某类花得比平时多、信用卡快到期），会写在这里。")
+                Text(tr("AI 发现要留意的事（比如某类花得比平时多、信用卡快到期），会写在这里。"))
                     .font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 6)
             }
             ForEach(list.prefix(30)) { i in
@@ -90,11 +90,11 @@ struct InsightsPage: View {
     private var recentAIWork: some View {
         let changes = model.ledger.changes.filter { !model.isMe($0.author) }.sorted { $0.createdAt > $1.createdAt }.prefix(6)
         return VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "AI 最近做了什么") {
-                MoreLink(title: "改动记录", section: .changes)
+            SectionHeader(title: tr("AI 最近做了什么")) {
+                MoreLink(title: tr("改动记录"), section: .changes)
             }
             if changes.isEmpty {
-                Text("AI 还没动过账本。跟它说「帮我导入对账单」或「帮我记一笔」，做完会出现在这里。")
+                Text(tr("AI 还没动过账本。跟它说「帮我导入对账单」或「帮我记一笔」，做完会出现在这里。"))
                     .font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 6)
             }
             ForEach(Array(changes)) { c in
@@ -122,14 +122,14 @@ struct NotConnectedCard: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 28)).foregroundStyle(Color.ai)
-            Text("还没连上 AI").font(.headline)
+            Text(tr("还没连上 AI")).font(.headline)
             #if os(macOS)
-            Text("夏夏账本靠 AI 记账。点一下，帮你把 Claude、Codex 这些 AI 连上这本账。")
+            Text(tr("夏夏账本靠 AI 记账。点一下，帮你把 Claude、Codex 这些 AI 连上这本账。"))
                 .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
-            Button { model.sheet = .connectAI } label: { Label("连接你的 AI", systemImage: "link") }
+            Button { model.sheet = .connectAI } label: { Label(tr("连接你的 AI"), systemImage: "link") }
                 .buttonStyle(AISolidButtonStyle())
             #else
-            Text("夏夏账本靠 AI 记账。AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，按「连接你的 AI」走一遍，AI 记的账会同步到这里。")
+            Text(tr("夏夏账本靠 AI 记账。AI 工具在 Mac 上连：打开 Mac 上的夏夏账本，按「连接你的 AI」走一遍，AI 记的账会同步到这里。"))
                 .font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center).frame(maxWidth: 420)
             #endif
         }
@@ -152,16 +152,16 @@ struct ChangesPage: View {
         let groups = Dictionary(grouping: list.prefix(200), by: { LocalDate($0.createdAt) }).sorted { $0.key > $1.key }
         Columns(sideWidth: 340, breakpoint: 760) {
             VStack(alignment: .leading, spacing: 8) {
-                SectionHeader(title: "所有改动") {
-                    Picker("看谁的", selection: $who) {
-                        Text("全部").tag(0)
-                        Text("只看 AI").tag(1)
-                        Text("只看我").tag(2)
+                SectionHeader(title: tr("所有改动")) {
+                    Picker(tr("看谁的"), selection: $who) {
+                        Text(tr("全部")).tag(0)
+                        Text(tr("只看 AI")).tag(1)
+                        Text(tr("只看我")).tag(2)
                     }
                     .pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
                 if list.isEmpty {
-                    Text(who == 1 ? "AI 还没动过账本。" : "还没有改动。").font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 12)
+                    Text(who == 1 ? tr("AI 还没动过账本。") : tr("还没有改动。")).font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 12)
                 }
                 ForEach(groups, id: \.key) { day, changes in
                     Text(day.friendly).font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
@@ -174,7 +174,7 @@ struct ChangesPage: View {
             .kitCard()
         } side: {
             monthSummary(all)
-            Text("每次写入都会记下是谁、什么时候、改了什么。撤销后账本回到改之前的样子，撤销本身也会记一条。")
+            Text(tr("每次写入都会记下是谁、什么时候、改了什么。撤销后账本回到改之前的样子，撤销本身也会记一条。"))
                 .font(.caption).foregroundStyle(Color.fg2)
                 .padding(Kit.cardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,12 +191,12 @@ struct ChangesPage: View {
         let txCount = ai.reduce(0) { $0 + $1.transactionIDs.count }
         let imported = ai.filter { $0.kind == .importBatch }.reduce(0) { $0 + $1.transactionIDs.count }
         return VStack(alignment: .leading, spacing: 6) {
-            Text("这个月 AI 帮你做了").font(.caption).foregroundStyle(Color.fg2)
+            Text(tr("这个月 AI 帮你做了")).font(.caption).foregroundStyle(Color.fg2)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(String(ai.count)).font(.system(size: 44, weight: .bold, design: .rounded)).monospacedDigit()
-                Text("次改动").font(.headline)
+                Text(tr("次改动")).font(.headline)
             }
-            Text(verbatim: "涉及 \(txCount) 笔流水，其中导入 \(imported) 笔。你自己改了 \(mine.count) 次。")
+            Text(verbatim: tr("涉及 \(txCount) 笔流水，其中导入 \(imported) 笔。你自己改了 \(mine.count) 次。"))
                 .font(.subheadline).foregroundStyle(Color.fg2)
         }
         .kitCard()
@@ -216,24 +216,24 @@ struct ChangeRow: View {
         HStack(alignment: .top, spacing: 12) {
             Monogram.author(change.author, isMe: me)
             VStack(alignment: .leading, spacing: 3) {
-                (Text(me ? "你" : change.author).fontWeight(.semibold) + Text(" " + change.summary))
+                (Text(me ? tr("你") : change.author).fontWeight(.semibold) + Text(" " + change.summary))
                     .font(.callout).fixedSize(horizontal: false, vertical: true)
                     .strikethrough(change.undone)
-                Text(change.undone ? "\(change.createdAt.clock) · 已撤销" : change.createdAt.clock)
+                Text(change.undone ? tr("\(change.createdAt.clock) · 已撤销") : change.createdAt.clock)
                     .font(.caption).foregroundStyle(Color.fg2)
                 if !txs.isEmpty, change.transactionIDs.count > 1 || change.kind == .importBatch {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(txs) { t in Text("• \(Merchant.display(t.description)) \(t.amount.display)") }
-                        if change.transactionIDs.count > 3 { Text("• …还有 \(change.transactionIDs.count - 3) 笔") }
+                        if change.transactionIDs.count > 3 { Text(tr("• …还有 \(change.transactionIDs.count - 3) 笔")) }
                     }
                     .font(.caption).foregroundStyle(Color.fg2).padding(.top, 2)
                 }
             }
             Spacer(minLength: 8)
             if showUndo, change.canUndo, !change.undone {
-                Button { model.undo(change.id) } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
+                Button { model.undo(change.id) } label: { Label(tr("撤销"), systemImage: "arrow.uturn.backward") }
                     .buttonStyle(.soft)
-                    .help("把账本改回这次改动之前的样子")
+                    .help(tr("把账本改回这次改动之前的样子"))
             }
         }
         .padding(.vertical, 6)

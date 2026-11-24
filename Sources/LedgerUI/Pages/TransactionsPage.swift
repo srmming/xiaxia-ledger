@@ -39,7 +39,7 @@ struct TransactionsPage: View {
         let wide = width >= 760
         Group {
             if model.ledger.transactions.isEmpty {
-                KitEmptyState(title: "还没有流水", message: "把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」，导好就会出现在这里。",
+                KitEmptyState(title: tr("还没有流水"), message: tr("把银行对账单拖进 Claude，说一句「帮我导入夏夏账本」，导好就会出现在这里。"),
                               prompt: "这是我的银行对账单，帮我整理好导进夏夏账本", page: "流水")
                     .kitCard()
                     .kitPage()
@@ -82,7 +82,7 @@ struct TransactionsPage: View {
                                         .buttonStyle(.plain)
                                         .accessibilityAddTraits(selected.contains(t.id) ? .isSelected : [])
                                     } else {
-                                        NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle("这一笔") } label: { TxRow(tx: t) }
+                                        NavigationLink { TransactionDetail(tx: t).kitPage().navigationTitle(tr("这一笔")) } label: { TxRow(tx: t) }
                                     }
                                 }
                                     .tag(t.id)
@@ -90,9 +90,9 @@ struct TransactionsPage: View {
                                         Button(role: .destructive) {
                                             let ids = model.ledger.pairedIDs(of: t.id)
                                             model.perform { try $0.removeTransactions(ids, author: model.author) }
-                                        } label: { Label("删除", systemImage: "trash") }
+                                        } label: { Label(tr("删除"), systemImage: "trash") }
                                         if t.isPlainEntry {
-                                            Button { model.startEditing(t.id) } label: { Label("改", systemImage: "pencil") }.tint(.brand)
+                                            Button { model.startEditing(t.id) } label: { Label(tr("改"), systemImage: "pencil") }.tint(.brand)
                                         }
                                     }
                                     .contextMenu { rowMenu(t) }
@@ -103,16 +103,16 @@ struct TransactionsPage: View {
                 .searchable(text: $query, prompt: "搜商户、备注、#标签、金额…")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(selecting ? "完成" : "选择") { selecting.toggle(); selected = [] }
+                        Button(selecting ? tr("完成") : tr("选择")) { selecting.toggle(); selected = [] }
                             .accessibilityIdentifier("select-toggle")
                     }
                 }
                 .safeAreaInset(edge: .bottom) {
                     if selecting {
                         HStack {
-                            Text(selected.isEmpty ? "点几笔选中，一起改" : "选了 \(selected.count) 笔").font(.subheadline).foregroundStyle(Color.fg2)
+                            Text(selected.isEmpty ? tr("点几笔选中，一起改") : tr("选了 \(selected.count) 笔")).font(.subheadline).foregroundStyle(Color.fg2)
                             Spacer()
-                            Button("一起改…") { showBulk = true }
+                            Button(tr("一起改…")) { showBulk = true }
                                 .buttonStyle(.borderedProminent).tint(.brand)
                                 .disabled(selected.isEmpty)
                         }
@@ -126,8 +126,8 @@ struct TransactionsPage: View {
                             BulkActions(ids: selected) { selected = []; selecting = false; showBulk = false }
                                 .padding(20)
                         }
-                        .navigationTitle("一起改").inlineTitle()
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("好") { showBulk = false } } }
+                        .navigationTitle(tr("一起改")).inlineTitle()
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button(tr("好")) { showBulk = false } } }
                     }
                     .environment(model)
                     .presentationDetents([.medium, .large])
@@ -172,7 +172,7 @@ struct TransactionsPage: View {
         return model.visibleTransactions.filter { t in
             // 搜的时候不限月份；不搜就看工具栏选的那个月。
             if q.isEmpty, t.date.yearMonth != month { return false }
-            if let c = filter.category, (t.category ?? "未分类") != c { return false }
+            if let c = filter.category, (t.category ?? tr("未分类")) != c { return false }
             if let a = filter.accountID, t.accountID != a { return false }
             if filter.onlyAI { guard let who = authors[t.id], !model.isMe(who) else { return false } }
             if let income = filter.income, t.amount.isIncome != income || t.flow != nil { return false }
@@ -194,7 +194,7 @@ struct TransactionsPage: View {
 
     private func dayHeader(_ g: DayGroup) -> some View {
         HStack {
-            Text(g.date == .today ? "今天 · \(g.date.short)" : g.date.friendly)
+            Text(g.date == .today ? tr("今天 · \(g.date.short)") : g.date.friendly)
             Spacer()
             Text(g.total.display).monospacedDigit()
         }
@@ -204,15 +204,15 @@ struct TransactionsPage: View {
     /// 右键（Mac）/ 长按（iPhone）一笔：改、复制、删除。删了底部能撤销。
     @ViewBuilder private func rowMenu(_ t: Transaction) -> some View {
         if t.isPlainEntry {
-            Button { model.startEditing(t.id) } label: { Label("改…", systemImage: "pencil") }
+            Button { model.startEditing(t.id) } label: { Label(tr("改…"), systemImage: "pencil") }
             Button { model.perform { try $0.duplicateTransaction(t.id, author: model.author) } } label: {
-                Label("复制一笔", systemImage: "plus.square.on.square")
+                Label(tr("复制一笔"), systemImage: "plus.square.on.square")
             }
         }
         Button(role: .destructive) {
             let ids = model.ledger.pairedIDs(of: t.id)
             model.perform { try $0.removeTransactions(ids, author: model.author) }
-        } label: { Label("删除", systemImage: "trash") }
+        } label: { Label(tr("删除"), systemImage: "trash") }
     }
 
     // MARK: 筛选
@@ -221,39 +221,39 @@ struct TransactionsPage: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 if let ids = filter.ids {
-                    chip("刚改的 \(ids.count) 笔  ✕", symbol: "sparkles", on: true) { filter.ids = nil; model.highlighted = [] }
-                        .accessibilityLabel("只看刚改的 \(ids.count) 笔，点一下看全部")
+                    chip(tr("刚改的 \(ids.count) 笔  ✕"), symbol: "sparkles", on: true) { filter.ids = nil; model.highlighted = [] }
+                        .accessibilityLabel(tr("只看刚改的 \(ids.count) 笔，点一下看全部"))
                 }
-                chip("全部", on: filter == TransactionFilter()) { filter = TransactionFilter(); model.highlighted = [] }
+                chip(tr("全部"), on: filter == TransactionFilter()) { filter = TransactionFilter(); model.highlighted = [] }
                 Menu {
-                    Button("全部分类") { filter.category = nil }
+                    Button(tr("全部分类")) { filter.category = nil }
                     Divider()
                     ForEach(model.usedCategories, id: \.self) { c in Button(c) { filter.category = c } }
-                } label: { chipLabel((filter.category ?? "分类") + " ▾", on: filter.category != nil) }
+                } label: { chipLabel((filter.category ?? tr("分类")) + " ▾", on: filter.category != nil) }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 Menu {
-                    Button("全部账户") { filter.accountID = nil }
+                    Button(tr("全部账户")) { filter.accountID = nil }
                     Divider()
                     ForEach(model.visibleAccounts) { a in Button(a.name) { filter.accountID = a.id } }
-                } label: { chipLabel((filter.accountID.map { model.accountName($0) } ?? "账户") + " ▾", on: filter.accountID != nil) }
+                } label: { chipLabel((filter.accountID.map { model.accountName($0) } ?? tr("账户")) + " ▾", on: filter.accountID != nil) }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 Menu {
-                    Button("支出和收入") { filter.income = nil }
+                    Button(tr("支出和收入")) { filter.income = nil }
                     Divider()
-                    Button("只看支出") { filter.income = false }
-                    Button("只看收入") { filter.income = true }
-                } label: { chipLabel((filter.income.map { $0 ? "只看收入" : "只看支出" } ?? "收支") + " ▾", on: filter.income != nil) }
+                    Button(tr("只看支出")) { filter.income = false }
+                    Button(tr("只看收入")) { filter.income = true }
+                } label: { chipLabel((filter.income.map { $0 ? tr("只看收入") : tr("只看支出") } ?? tr("收支")) + " ▾", on: filter.income != nil) }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 if !model.ledger.allTags.isEmpty {
                     Menu {
-                        Button("全部标签") { filter.tag = nil }
+                        Button(tr("全部标签")) { filter.tag = nil }
                         Divider()
                         ForEach(model.ledger.allTags, id: \.self) { t in Button("#\(t)") { filter.tag = t } }
-                    } label: { chipLabel((filter.tag.map { "#\($0)" } ?? "标签") + " ▾", on: filter.tag != nil) }
+                    } label: { chipLabel((filter.tag.map { "#\($0)" } ?? tr("标签")) + " ▾", on: filter.tag != nil) }
                         .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 }
-                chip("只看 AI 记的", symbol: "sparkles", on: filter.onlyAI) { filter.onlyAI.toggle() }
-                chip(model.ledger.recurring.isEmpty ? "重复记账" : "重复记账 \(model.ledger.recurring.count)", symbol: "repeat", on: false) { showRecurring = true }
+                chip(tr("只看 AI 记的"), symbol: "sparkles", on: filter.onlyAI) { filter.onlyAI.toggle() }
+                chip(model.ledger.recurring.isEmpty ? tr("重复记账") : tr("重复记账 \(model.ledger.recurring.count)"), symbol: "repeat", on: false) { showRecurring = true }
             }
         }
     }
@@ -284,7 +284,7 @@ struct TransactionsPage: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Color.fg3)
-                TextField("搜商户、备注、#标签、金额…", text: $query).textFieldStyle(.plain)
+                TextField(tr("搜商户、备注、#标签、金额…"), text: $query).textFieldStyle(.plain)
                     .focused($searchFocused)
                 if !query.isEmpty {
                     Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.fg3) }.buttonStyle(.plain)
@@ -294,7 +294,7 @@ struct TransactionsPage: View {
             .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             filters
             if list.isEmpty {
-                Text(query.isEmpty ? "\(model.shownMonth.month) 月没有符合的流水。" : "没找到「\(query)」。")
+                Text(query.isEmpty ? tr("\(model.shownMonth.month) 月没有符合的流水。") : tr("没找到「\(query)」。"))
                     .font(.subheadline).foregroundStyle(Color.fg2).padding(.vertical, 20).frame(maxWidth: .infinity)
                 Spacer()
             } else {
@@ -326,13 +326,13 @@ struct TransactionsPage: View {
         if selected.count > 1 {
             VStack(alignment: .leading, spacing: 10) {
                 BulkActions(ids: selected) { selected = [] }
-                Text("按住 ⌘ 点可以多选或取消，按住 ⇧ 点选一段。").font(.caption).foregroundStyle(Color.fg3)
+                Text(tr("按住 ⌘ 点可以多选或取消，按住 ⇧ 点选一段。")).font(.caption).foregroundStyle(Color.fg3)
             }
             .kitCard()
         } else if let id = selected.first, let t = model.transaction(id) {
             TransactionDetail(tx: t)
         } else {
-            Text("点左边一笔看详情；按住 ⌘ 点能选好几笔一起改。").font(.subheadline).foregroundStyle(Color.fg2)
+            Text(tr("点左边一笔看详情；按住 ⌘ 点能选好几笔一起改。")).font(.subheadline).foregroundStyle(Color.fg2)
                 .frame(maxWidth: .infinity, minHeight: 120).kitCard()
         }
     }
@@ -376,10 +376,10 @@ struct TransactionDetail: View {
         let l = model.ledger
         let base = l.baseAmount(tx).magnitude.ui(in: l.baseCurrency)
         if let fx = tx.fx, fx.base == l.baseCurrency {
-            return "≈ \(base) · \(fx.source == "ecb" ? "\(fx.date.month) 月 \(fx.date.day) 日\(fx.sourceLabel)汇率" : fx.sourceLabel)"
+            return "≈ \(base) · \(fx.source == "ecb" ? tr("\(fx.date.month) 月 \(fx.date.day) 日\(fx.sourceLabel)汇率") : fx.sourceLabel)"
         }
-        if let r = l.rateToBase(code, on: tx.date) { return "≈ \(base) · \(r.date.month) 月 \(r.date.day) 日欧洲央行汇率" }
-        return "还没有汇率，先按 1:1 算"
+        if let r = l.rateToBase(code, on: tx.date) { return tr("≈ \(base) · \(r.date.month) 月 \(r.date.day) 日欧洲央行汇率") }
+        return tr("还没有汇率，先按 1:1 算")
     }
 
 
@@ -390,14 +390,14 @@ struct TransactionDetail: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Merchant.display(tx.description)).font(.headline)
-                Text(tx.date.friendly == "今天" ? "今天 · \(tx.date.short)" : tx.date.friendly).font(.caption).foregroundStyle(Color.fg2)
+                Text(tx.date.friendly == "今天" ? tr("今天 · \(tx.date.short)") : tx.date.friendly).font(.caption).foregroundStyle(Color.fg2)
             }
             let code = model.ledger.currency(ofAccount: tx.accountID)
             Text(tx.flow == nil ? tx.amount.display(in: code) : tx.amount.magnitude.ui(in: code))
                 .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tx.flow != nil ? Color.fg3 : tx.amount.isIncome ? Color.income : .primary)
             VStack(spacing: 0) {
-                row("分类") {
+                row(tr("分类")) {
                     if editable && tx.flow == nil {
                         Menu {
                             ForEach(model.categories(bookID: tx.bookID, income: tx.amount.isIncome, limit: 20), id: \.self) { c in
@@ -406,48 +406,48 @@ struct TransactionDetail: View {
                         } label: {
                             HStack(spacing: 4) {
                                 CategoryIcon(category: tx.category, size: 18)
-                                Text(tx.category ?? "未分类")
+                                Text(tx.category ?? tr("未分类"))
                             }
                         }
                         .menuStyle(.button).fixedSize()
                     } else {
-                        Text(tx.flow == nil ? (tx.category ?? "未分类") : "不算收支")
+                        Text(tx.flow == nil ? (tx.category ?? tr("未分类")) : tr("不算收支"))
                     }
                 }
                 Divider()
-                row("账本") {
+                row(tr("账本")) {
                     if editable && tx.flow == nil && model.ledger.books.count > 1 {
                         Menu {
                             ForEach(model.ledger.books) { b in Button(b.name) { set(book: b.id) } }
-                        } label: { Text(tx.bookID.map { model.bookName($0) } ?? "没分账本") }
+                        } label: { Text(tx.bookID.map { model.bookName($0) } ?? tr("没分账本")) }
                             .menuStyle(.button).fixedSize()
                     } else {
                         Text(tx.bookID.map { model.bookName($0) } ?? "—")
                     }
                 }
                 Divider()
-                row("账户") { Text(model.accountName(tx.accountID)) }
+                row(tr("账户")) { Text(model.accountName(tx.accountID)) }
                 if let o = tx.original {
                     Divider()
-                    row("原价") { Text(o.amount.ui(in: o.currency)).monospacedDigit() }
+                    row(tr("原价")) { Text(o.amount.ui(in: o.currency)).monospacedDigit() }
                 }
                 if code != model.ledger.baseCurrency {
                     Divider()
-                    row("约合") {
+                    row(tr("约合")) {
                         Text(fxLine(code)).monospacedDigit().multilineTextAlignment(.trailing)
                     }
                 }
                 if Merchant.display(tx.description) != tx.description {
                     Divider()
-                    row("银行原文") { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
+                    row(tr("银行原文")) { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
                 }
                 if let note = tx.note {
                     Divider()
-                    row("备注") { Text(note).multilineTextAlignment(.trailing).textSelection(.enabled) }
+                    row(tr("备注")) { Text(note).multilineTextAlignment(.trailing).textSelection(.enabled) }
                 }
                 if !tx.tagList.isEmpty {
                     Divider()
-                    row("标签") {
+                    row(tr("标签")) {
                         HStack(spacing: 4) {
                             ForEach(tx.tagList, id: \.self) { t in
                                 Button { model.showTransactions(TransactionFilter(tag: t)) } label: {
@@ -461,11 +461,11 @@ struct TransactionDetail: View {
                 }
                 if let r = model.ledger.recurring.first(where: { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }) {
                     Divider()
-                    row("重复") { Text(r.paused ? "\(r.frequency.label)（暂停中）" : "\(r.frequency.label)，下次 \(r.nextDate.friendly)") }
+                    row(tr("重复")) { Text(r.paused ? tr("\(r.frequency.label)（暂停中）") : tr("\(r.frequency.label)，下次 \(r.nextDate.friendly)")) }
                 }
                 if let source = tx.source {
                     Divider()
-                    row("来源") { Text(source).lineLimit(1) }
+                    row(tr("来源")) { Text(source).lineLimit(1) }
                 }
             }
             .font(.callout)
@@ -473,7 +473,7 @@ struct TransactionDetail: View {
                 HStack(spacing: 6) {
                     Image(systemName: model.isMe(change.author) ? "person.fill" : "sparkles")
                         .foregroundStyle(model.isMe(change.author) ? Color.fg2 : Color.ai)
-                    Text("\(model.isMe(change.author) ? "你" : change.author) \(change.createdAt.friendly)：\(change.summary)")
+                    Text("\(model.isMe(change.author) ? tr("你") : change.author) \(change.createdAt.friendly)：\(change.summary)")
                         .lineLimit(2)
                 }
                 .font(.caption)
@@ -483,13 +483,13 @@ struct TransactionDetail: View {
             }
             HStack {
                 if let change, change.canUndo {
-                    Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? "撤销这次改动（\(change.transactionIDs.count) 笔）" : "撤销这次改动", systemImage: "arrow.uturn.backward") }
+                    Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? tr("撤销这次改动（\(change.transactionIDs.count) 笔）") : tr("撤销这次改动"), systemImage: "arrow.uturn.backward") }
                         .buttonStyle(.soft)
                 }
                 Spacer()
                 #if os(macOS)
-                Button { model.askAbout(tx) } label: { Label("问夏夏", systemImage: "sparkles") }
-                    .buttonStyle(.soft).help("在右边的对话栏里问夏夏这一笔")
+                Button { model.askAbout(tx) } label: { Label(tr("问夏夏"), systemImage: "sparkles") }
+                    .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
                 #endif
             }
             PaperworkSection(tx: tx)

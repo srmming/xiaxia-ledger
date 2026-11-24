@@ -5,6 +5,7 @@ import Foundation
 /// 做法：代码里照旧写中文，外面包一层 `tr("…")`；英文、西班牙语在 `L10n+en.swift`、`L10n+es.swift` 两张表里，按中文原文查。
 /// 表里没有的就显示中文原文，所以可以一页一页地翻，没翻完也不会坏。
 /// 带数字、名字的句子直接写 `tr("够花 \(n) 个月")`，表里的键是「够花 %@ 个月」；译文里要换顺序就写 `%1$@`、`%2$@`。
+/// 译文里 `%1$M` 把第 1 个值（月份数字）换成月份名，`%1$N` 是首字母大写的月份名。用了带编号的，这一句就全用带编号的。
 ///
 /// 为什么不用苹果的 String Catalog：界面在 Swift 包里，`swift build` 不会编译 .xcstrings，测试和 fin 也读不到；
 /// 自己的表在 app、fin、测试里是同一份，还能在设置里立刻切换，不用重开 app。
@@ -109,14 +110,25 @@ public enum L10n {
     public static func string(_ text: L10nText, in language: AppLanguage? = nil) -> String {
         let lang = language ?? self.language
         let template = lang == .zhHans ? text.key : (table(lang)[text.key] ?? text.key)
-        return fill(template, text.args)
+        let out = fill(template, text.args)
+        // 中文两句直接接上就行，英文、西语的句号后面要有空格，不然拼出来是「…€.Spending…」。
+        if lang != .zhHans, let last = text.key.last, "。！？".contains(last), let end = out.last, ".!?".contains(end) { return out + " " }
+        return out
     }
 
     /// 把 `%@`（按顺序）和 `%1$@`（指定第几个）换成值。
     static func fill(_ template: String, _ args: [String]) -> String {
         guard !args.isEmpty else { return template }
         var out = template
-        for (i, a) in args.enumerated() { out = out.replacingOccurrences(of: "%\(i + 1)$@", with: a) }
+        for (i, a) in args.enumerated() {
+            // %1$M：第 1 个值是月份数字，换成月份名（句子中间用，西语小写）；%1$N：单独显示用，首字母大写。
+            if out.contains("%\(i + 1)$M") || out.contains("%\(i + 1)$N") {
+                let name = monthName(a)
+                out = out.replacingOccurrences(of: "%\(i + 1)$M", with: name)
+                    .replacingOccurrences(of: "%\(i + 1)$N", with: name.prefix(1).uppercased() + name.dropFirst())
+            }
+            out = out.replacingOccurrences(of: "%\(i + 1)$@", with: a)
+        }
         var next = 0
         var result = ""
         var rest = Substring(out)
@@ -129,9 +141,21 @@ public enum L10n {
         return result + rest
     }
 
-    /// 键里有几个 `%@`（检查译文和原文对不对得上用）。
+    /// 键里有几个要填的位置（检查译文和原文对不对得上用）：`%@`，加上用到的 `%1$@`、`%1$M`、`%1$N`（同一个编号只算一次）。
     static func placeholders(_ s: String) -> Int {
-        s.components(separatedBy: "%@").count - 1 + (1...9).filter { s.contains("%\($0)$@") }.count
+        s.components(separatedBy: "%@").count - 1
+            + (1...9).filter { n in ["@", "M", "N"].contains { s.contains("%\(n)$\($0)") } }.count
+    }
+
+    static let monthNames: [AppLanguage: [String]] = [
+        .en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+        .es: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+    ]
+
+    /// 月份数字（「11」）在现在这种语言里的名字；不是 1–12 的数字就原样返回。
+    static func monthName(_ number: String, in language: AppLanguage? = nil) -> String {
+        guard let n = Int(number), (1...12).contains(n), let names = monthNames[language ?? self.language] else { return number }
+        return names[n - 1]
     }
 }
 

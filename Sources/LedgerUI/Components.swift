@@ -55,8 +55,8 @@ extension Money {
     /// VoiceOver 念法：「1433 欧元 65 分」。
     var spoken: String {
         let c = magnitude.cents
-        let sign = cents < 0 ? "负 " : ""
-        return c % 100 == 0 ? "\(sign)\(c / 100) 欧元" : "\(sign)\(c / 100) 欧元 \(c % 100) 分"
+        let sign = cents < 0 ? tr("负 ") : ""
+        return c % 100 == 0 ? tr("\(sign)\(c / 100) 欧元") : tr("\(sign)\(c / 100) 欧元 \(c % 100) 分")
     }
 }
 
@@ -119,17 +119,17 @@ struct MonthStepper: View {
         HStack(spacing: 0) {
             if !compact {
                 Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                    .accessibilityLabel("上个月")
+                    .accessibilityLabel(tr("上个月"))
             }
             Button { picking = true } label: {
                 HStack(spacing: 3) {
-                    Text(compact ? "\(month.month) 月" : month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    Text(compact ? tr("\(month.month) 月") : month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
                     Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Color.fg3)
                 }
                 .frame(minWidth: compact ? nil : 110, minHeight: 28).contentShape(Rectangle())
             }
             .foregroundStyle(.primary)
-            .accessibilityLabel("\(month.label)，选月份")
+            .accessibilityLabel(tr("\(month.label)，选月份"))
             .accessibilityIdentifier("month.pick")
             .popover(isPresented: $picking, arrowEdge: .bottom) {
                 MonthPanel(month: $month, latest: latest, recorded: recorded) { picking = false }
@@ -137,10 +137,10 @@ struct MonthStepper: View {
             }
             if !compact {
                 Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                    .accessibilityLabel("下个月")
+                    .accessibilityLabel(tr("下个月"))
                     .disabled(month >= latest)
                 if month != latest {
-                    Button { month = latest } label: { Text("回到本月").font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 28).contentShape(Rectangle()) }
+                    Button { month = latest } label: { Text(tr("回到本月")).font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 28).contentShape(Rectangle()) }
                         .foregroundStyle(Color.brand)
                         .accessibilityIdentifier("month.today")
                 }
@@ -166,12 +166,12 @@ struct MonthPanel: View {
         VStack(spacing: 12) {
             HStack {
                 Button { year = y - 1 } label: { Image(systemName: "chevron.left").frame(width: 32, height: 32).contentShape(Rectangle()) }
-                    .disabled(y <= firstYear).accessibilityLabel("上一年")
+                    .disabled(y <= firstYear).accessibilityLabel(tr("上一年"))
                 Spacer()
-                Text(verbatim: "\(y) 年").font(.headline).monospacedDigit()
+                Text(verbatim: tr("\(y) 年")).font(.headline).monospacedDigit()
                 Spacer()
                 Button { year = y + 1 } label: { Image(systemName: "chevron.right").frame(width: 32, height: 32).contentShape(Rectangle()) }
-                    .disabled(y >= latest.year).accessibilityLabel("下一年")
+                    .disabled(y >= latest.year).accessibilityLabel(tr("下一年"))
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(1...12, id: \.self) { m in
@@ -179,7 +179,7 @@ struct MonthPanel: View {
                     let picked = ym == month
                     Button { month = ym; done() } label: {
                         VStack(spacing: 3) {
-                            Text("\(m) 月").font(.callout.weight(picked ? .bold : .regular)).monospacedDigit()
+                            Text(tr("\(m) 月")).font(.callout.weight(picked ? .bold : .regular)).monospacedDigit()
                             Circle().fill(recorded.contains(ym) ? (picked ? Color.white : Color.brand) : Color.clear).frame(width: 4, height: 4)
                         }
                         .frame(maxWidth: .infinity, minHeight: 40)
@@ -189,14 +189,14 @@ struct MonthPanel: View {
                         .contentShape(Rectangle())
                     }
                     .disabled(ym > latest)
-                    .accessibilityLabel("\(y) 年 \(m) 月" + (recorded.contains(ym) ? "，有记录" : "") + (picked ? "，正在看" : ""))
+                    .accessibilityLabel(tr("\(y) 年 \(m) 月") + (recorded.contains(ym) ? tr("，有记录") : "") + (picked ? tr("，正在看") : ""))
                 }
             }
             HStack {
-                HStack(spacing: 4) { Circle().fill(Color.brand).frame(width: 4, height: 4); Text("有记录") }
+                HStack(spacing: 4) { Circle().fill(Color.brand).frame(width: 4, height: 4); Text(tr("有记录")) }
                     .font(.caption).foregroundStyle(Color.fg2).accessibilityHidden(true)
                 Spacer()
-                Button { month = latest; done() } label: { Text("回到本月").font(.callout.weight(.semibold)) }
+                Button { month = latest; done() } label: { Text(tr("回到本月")).font(.callout.weight(.semibold)) }
                     .foregroundStyle(Color.brand)
                     .disabled(month == latest)
             }
@@ -353,24 +353,24 @@ extension AccountKind {
     }
     var label: String {
         switch self {
-        case .bank: "银行卡"
-        case .credit: "信用卡"
-        case .cash: "现金"
-        case .wallet: "电子钱包"
-        case .savings: "储蓄"
+        case .bank: tr("银行卡")
+        case .credit: tr("信用卡")
+        case .cash: tr("现金")
+        case .wallet: tr("电子钱包")
+        case .savings: tr("储蓄")
         }
     }
 }
 
 extension LocalDate {
     /// 「11 月 20 日」
-    var short: String { "\(month) 月 \(day) 日" }
+    var short: String { tr("\(month) 月 \(day) 日") }
     /// 今年的不写年份，往年的写上。
     var friendly: String {
         let today = LocalDate.today
-        if self == today { return "今天" }
-        if self == LocalDate(Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()) { return "昨天" }
-        return year == today.year ? short : "\(year) 年 \(short)"
+        if self == today { return tr("今天") }
+        if self == LocalDate(Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()) { return tr("昨天") }
+        return year == today.year ? short : tr("\(year) 年 \(short)")
     }
     var asDate: Date { Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date() }
     init(_ date: Date) {
@@ -384,8 +384,8 @@ extension LocalDate {
 }
 
 extension YearMonth {
-    var label: String { "\(year) 年 \(month) 月" }
-    var shortLabel: String { "\(month)月" }
+    var label: String { tr("\(year) 年 \(month) 月") }
+    var shortLabel: String { tr("\(month)月") }
 }
 
 extension Money {
@@ -397,8 +397,8 @@ extension Money {
 struct ErrorBanner: ViewModifier {
     @Binding var error: String?
     func body(content: Content) -> some View {
-        content.alert("没保存成功", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("好") { error = nil }
+        content.alert(tr("没保存成功"), isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button(tr("好")) { error = nil }
         } message: { Text(error ?? "") }
     }
 }
@@ -447,7 +447,7 @@ struct ToastView: View {
                 .foregroundStyle(toast.isError ? Color.alert : Color.income)
             Text(toast.text).font(.subheadline).lineLimit(2)
             if toast.changeID != nil {
-                Button("撤销", action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+                Button(tr("撤销"), action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
             }
             if let label = toast.actionLabel, let url = toast.actionURL {
                 Button(label) {
@@ -527,18 +527,18 @@ struct ActivityBanner: View {
                 }
             }
             if !activity.transactionIDs.isEmpty {
-                Button("看看") { withAnimation(.snappy) { model.showActivity() } }
+                Button(tr("看看")) { withAnimation(.snappy) { model.showActivity() } }
                     .font(.subheadline.weight(.semibold)).buttonStyle(.borderless).tint(Color.ai)
             }
             if !activity.undoableIDs.isEmpty {
-                Button("全部撤销") { withAnimation(.snappy) { model.undoActivity() } }
+                Button(tr("全部撤销")) { withAnimation(.snappy) { model.undoActivity() } }
                     .font(.subheadline).buttonStyle(.borderless)
             }
             Button { withAnimation(.snappy) { model.activity = nil } } label: {
                 Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("知道了")
+            .accessibilityLabel(tr("知道了"))
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .background(.regularMaterial, in: Capsule())

@@ -1,3 +1,4 @@
+import FinanceCore
 import Foundation
 import Observation
 import SwiftUI
@@ -115,7 +116,7 @@ struct WhatsNewCard: View {
                     MascotView(.xiaxia, pose: .celebrate, size: 44, face: true, animated: false)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("已更新到 \(state.current)").font(.caption.weight(.semibold)).foregroundStyle(Color.brand)
+                        Text(tr("已更新到 \(state.current)")).font(.caption.weight(.semibold)).foregroundStyle(Color.brand)
                         Text(top.title).font(.headline).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
@@ -124,8 +125,8 @@ struct WhatsNewCard: View {
                             .frame(width: 22, height: 22).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help("收起")
-                    .accessibilityLabel("收起更新内容")
+                    .help(tr("收起"))
+                    .accessibilityLabel(tr("收起更新内容"))
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(top.items.prefix(4).enumerated()), id: \.offset) { _, item in
@@ -136,16 +137,16 @@ struct WhatsNewCard: View {
                     }
                 }
                 if state.entries.count > 1 {
-                    Text("之前几版：" + state.entries.dropFirst().map { "\($0.version) \($0.title)" }.joined(separator: "；"))
+                    Text(tr("之前几版：") + state.entries.dropFirst().map { "\($0.version) \($0.title)" }.joined(separator: "；"))
                         .font(.caption).foregroundStyle(Color.fg3).lineLimit(2)
                 }
                 HStack(spacing: 8) {
                     Spacer(minLength: 0)
-                    Button("完整更新日志") {
+                    Button(tr("完整更新日志")) {
                         openURL(URL(string: Changelog.webURL.absoluteString + "#v\(top.version)") ?? Changelog.webURL)
                     }
                     .buttonStyle(.soft)
-                    Button("知道了") { withAnimation(.snappy) { state.dismiss() } }
+                    Button(tr("知道了")) { withAnimation(.snappy) { state.dismiss() } }
                         .buttonStyle(.borderedProminent)
                 }
             }
@@ -155,7 +156,7 @@ struct WhatsNewCard: View {
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.primary.opacity(0.08)))
             .shadow(color: .black.opacity(0.14), radius: 24, y: 10)
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("已更新到 \(state.current)：\(top.title)")
+            .accessibilityLabel(tr("已更新到 \(state.current)：\(top.title)"))
             .accessibilityIdentifier("whatsNew.card")
         }
     }

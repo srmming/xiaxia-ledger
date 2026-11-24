@@ -15,10 +15,10 @@ struct WealthPage: View {
         Group {
             if model.ledger.accounts.isEmpty {
                 VStack(spacing: Kit.gap) {
-                    KitEmptyState(symbol: "building.columns", title: "还没有账户",
-                                  message: "第一次导入对账单时，AI 会顺手把账户建好。也可以自己加一个。",
+                    KitEmptyState(symbol: "building.columns", title: tr("还没有账户"),
+                                  message: tr("第一次导入对账单时，AI 会顺手把账户建好。也可以自己加一个。"),
                                   prompt: "帮我在夏夏账本里建一个银行账户，现在余额是 1.000 €", page: "家底")
-                    Button { model.sheet = .accounts } label: { Label("自己加一个账户", systemImage: "plus") }
+                    Button { model.sheet = .accounts } label: { Label(tr("自己加一个账户"), systemImage: "plus") }
                         .buttonStyle(.soft)
                 }
                 .kitCard()
@@ -73,15 +73,15 @@ struct WealthPage: View {
                              sources: w.sources.shop, bar: w.shop.cents))
         }
         if w.saved.cents > 0 {
-            list.append(Part(id: "saved", label: "存着不动", amount: w.saved, color: .ai, soft: .aiSoft, sources: w.sources.saved, bar: w.saved.cents))
+            list.append(Part(id: "saved", label: tr("存着不动"), amount: w.saved, color: .ai, soft: .aiSoft, sources: w.sources.saved, bar: w.saved.cents))
         }
         if w.owed.cents > 0 {
             // 要还的是从手头的钱里出的；手头不够时条上最多画到手头那么多。
-            list.append(Part(id: "owed", label: "要还的", amount: w.owed, color: .alert, soft: .alertSoft, sources: w.sources.owed,
+            list.append(Part(id: "owed", label: tr("要还的"), amount: w.owed, color: .alert, soft: .alertSoft, sources: w.sources.owed,
                              bar: max(0, min(w.owed.cents, w.liquid.cents))))
         }
         let free = w.spendable
-        list.append(Part(id: "free", label: "能随便花", amount: free, color: free.cents < 0 ? .alert : .income,
+        list.append(Part(id: "free", label: tr("能随便花"), amount: free, color: free.cents < 0 ? .alert : .income,
                          soft: free.cents < 0 ? .alertSoft : .incomeSoft, isResult: true, bar: max(0, free.cents)))
         return list
     }
@@ -97,34 +97,34 @@ struct WealthPage: View {
         let hasShop = model.ledger.books.contains(where: \.isBusiness)
         let sentence: Text = {
             if free.cents < 0 {
-                return Text("手头的钱还不够还欠的，差 ") + em(free.magnitude.rounded, .bad) + Text("。")
+                return Text(tr("手头的钱还不够还欠的，差 ")) + em(free.magnitude.rounded, .bad) + Text(tr("。"))
             }
             if let months = w.months(monthlySpend: spend) {
-                return Text("够花 ") + em("\(WealthBreakdown.monthsText(months)) 个月", .good)
-                    + Text("，按\(hasShop ? "你自己" : "最近")每月花 \(spend.rounded) 算。")
+                return Text(tr("够花 ")) + em(tr("\(WealthBreakdown.monthsText(months)) 个月"), .good)
+                    + Text(tr("，按\(hasShop ? tr("你自己") : tr("最近"))每月花 \(spend.rounded) 算。"))
             }
-            return Text("记满一个月的开销，就能算出够花几个月。")
+            return Text(tr("记满一个月的开销，就能算出够花几个月。"))
         }()
         return VStack(alignment: .leading, spacing: short ? 10 : 16) {
-            KeyFigure(label: "现在能随便花" + (model.showPrivate ? "（含私房钱）" : ""), money: free,
+            KeyFigure(label: tr("现在能随便花") + (model.showPrivate ? tr("（含私房钱）") : ""), money: free,
                       color: free.cents < 0 ? .alert : .primary, sentence: sentence,
-                      spoken: "现在能随便花 \(free.spoken)，总存款 \(w.total.spoken)")
+                      spoken: tr("现在能随便花 \(free.spoken)，总存款 \(w.total.spoken)"))
             if w.total.cents <= 0 && w.owed.cents == 0 {
-                Text("账户里还没有钱，记了第一笔这里会画出钱分在哪几块。").font(.callout).foregroundStyle(Color.fg2)
+                Text(tr("账户里还没有钱，记了第一笔这里会画出钱分在哪几块。")).font(.callout).foregroundStyle(Color.fg2)
             } else {
                 VStack(alignment: .leading, spacing: short ? 6 : 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("总存款").font(.callout.weight(.semibold))
+                        Text(tr("总存款")).font(.callout.weight(.semibold))
                         Text(w.total.ui).font(.kitAmount)
                         Spacer(minLength: 8)
-                        Text("所有账户里的钱加起来").font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        Text(tr("所有账户里的钱加起来")).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("总存款 \(w.total.spoken)，所有账户里的钱加起来")
+                    .accessibilityLabel(tr("总存款 \(w.total.spoken)，所有账户里的钱加起来"))
                     if w.total.cents > 0 { splitBar(list, short: short) }
                 }
                 if list.count == 1 {
-                    Text("没有要留给店里、存着不动或者要还的钱，总存款都能随便花。").font(.callout).foregroundStyle(Color.fg2)
+                    Text(tr("没有要留给店里、存着不动或者要还的钱，总存款都能随便花。")).font(.callout).foregroundStyle(Color.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if short {
                     // 窗口矮：每块只留一行（颜色、名字、多少），一屏放下。
@@ -133,7 +133,7 @@ struct WealthPage: View {
                     tiles(list)
                 }
                 if w.owedToMe.cents > 0 {
-                    Text("另外别人还欠你 \(w.owedToMe.rounded)，收回来再算进能花的。")
+                    Text(tr("另外别人还欠你 \(w.owedToMe.rounded)，收回来再算进能花的。"))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
             }
@@ -198,7 +198,7 @@ struct WealthPage: View {
                 .foregroundStyle(p.isResult ? p.color : .primary)
                 .lineLimit(1).minimumScaleFactor(0.7)
             if p.isResult {
-                Text(p.amount.cents < 0 ? "手头的钱不够还，先还最快到期的。" : "总存款减掉前面几块，剩下的。")
+                Text(p.amount.cents < 0 ? tr("手头的钱不够还，先还最快到期的。") : tr("总存款减掉前面几块，剩下的。"))
                     .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             } else {
                 // 4 项以内全列出来；再多就列前 3 项，剩下的合成一行。
@@ -206,7 +206,7 @@ struct WealthPage: View {
                 VStack(spacing: 2) {
                     ForEach(p.sources.prefix(all ? 4 : 3)) { sourceLine($0.name, $0.amount) }
                     if !all {
-                        sourceLine("还有 \(p.sources.count - 3) 项", p.sources.dropFirst(3).reduce(Money.zero) { $0 + $1.amount })
+                        sourceLine(tr("还有 \(p.sources.count - 3) 项"), p.sources.dropFirst(3).reduce(Money.zero) { $0 + $1.amount })
                     }
                 }
             }
@@ -255,9 +255,9 @@ struct WealthPage: View {
     }
 
     private func spoken(_ p: Part) -> String {
-        if p.isResult { return "等于能随便花 \(p.amount.spoken)" }
+        if p.isResult { return tr("等于能随便花 \(p.amount.spoken)") }
         let from = p.sources.prefix(4).map { "\($0.name) \($0.amount.spoken)" }.joined(separator: "，")
-        return "减掉\(p.label) \(p.amount.spoken)" + (from.isEmpty ? "" : "：\(from)")
+        return tr("减掉\(p.label) \(p.amount.spoken)") + (from.isEmpty ? "" : "：\(from)")
     }
 
     /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
@@ -268,8 +268,8 @@ struct WealthPage: View {
                 HStack(spacing: 12) {
                     XiaIcon(.debt, size: 32)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("欠款与分期").font(.callout.weight(.medium))
-                        Text("借的钱和分期还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded)")
+                        Text(tr("欠款与分期")).font(.callout.weight(.medium))
+                        Text(tr("借的钱和分期还欠 \(o.iOwe.rounded) · 别人欠我 \(o.owedToMe.rounded)"))
                             .font(.caption).foregroundStyle(Color.fg2).lineLimit(2)
                     }
                     Spacer()
@@ -279,7 +279,7 @@ struct WealthPage: View {
                 .kitCard()
             }
             .buttonStyle(.pressable)
-            .accessibilityHint("打开欠款与分期")
+            .accessibilityHint(tr("打开欠款与分期"))
         }
     }
 
@@ -290,10 +290,10 @@ struct WealthPage: View {
         // 账户多（7 个以上）也按矮窗口的排法：不分组写标题、每行收紧，一屏放下。
         let short = Viewport.isShort(viewport) || model.visibleAccounts.count > 6
         return VStack(alignment: .leading, spacing: 4) {
-            SectionHeader(title: "账户") {
-                Button { model.sheet = .accounts } label: { Label("管理", systemImage: "slider.horizontal.3") }
+            SectionHeader(title: tr("账户")) {
+                Button { model.sheet = .accounts } label: { Label(tr("管理"), systemImage: "slider.horizontal.3") }
                     .buttonStyle(.soft)
-                    .help("加账户、改名、删除")
+                    .help(tr("加账户、改名、删除"))
             }
             .padding(.bottom, 6)
             ForEach(kinds, id: \.self) { kind in
@@ -314,8 +314,8 @@ struct WealthPage: View {
                                     // 超过 35 天没对账：一个小黄点提醒，数可能不准了。
                                     if stale(a) {
                                         Circle().fill(Color.warn).frame(width: 6, height: 6)
-                                            .help("超过一个月没对账，余额可能不准了")
-                                            .accessibilityLabel("超过一个月没对账")
+                                            .help(tr("超过一个月没对账，余额可能不准了"))
+                                            .accessibilityLabel(tr("超过一个月没对账"))
                                     }
                                 }
                                 let sub = subtitle(a)
@@ -337,7 +337,7 @@ struct WealthPage: View {
                 }
             }
             if model.visibleAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
-                Text("外币账户按今天的汇率换成\(Currencies.info(model.ledger.baseCurrency).name)，算进总存款。")
+                Text(tr("外币账户按今天的汇率换成\(Currencies.info(model.ledger.baseCurrency).name)，算进总存款。"))
                     .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
             }
             if hiddenCount > 0 {
@@ -346,12 +346,12 @@ struct WealthPage: View {
                     Image(systemName: "lock.fill").font(.system(size: 13)).foregroundStyle(Color.fg2)
                         .frame(width: 30, height: 30).background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("私房钱 · \(hiddenCount) 个账户").font(.callout.weight(.medium))
-                        Text(model.showPrivate ? "现在算进上面的数了" : "默认藏起来，不算进上面的数").font(.caption).foregroundStyle(Color.fg2)
+                        Text(tr("私房钱 · \(hiddenCount) 个账户")).font(.callout.weight(.medium))
+                        Text(model.showPrivate ? tr("现在算进上面的数了") : tr("默认藏起来，不算进上面的数")).font(.caption).foregroundStyle(Color.fg2)
                     }
                     Spacer()
                     Button { withAnimation(.snappy) { model.showPrivate.toggle() } } label: {
-                        Label(model.showPrivate ? "藏起来" : "显示", systemImage: model.showPrivate ? "eye.slash" : "eye")
+                        Label(model.showPrivate ? tr("藏起来") : tr("显示"), systemImage: model.showPrivate ? "eye.slash" : "eye")
                     }
                     .buttonStyle(.soft)
                 }
@@ -372,7 +372,7 @@ struct WealthPage: View {
         // 只在一个账本里用就写账本名，几个账本混用就都写上，每个账户都是同一种写法。
         if !books.isEmpty { parts.append(books.sorted().map { model.bookName($0) }.joined(separator: " + ")) }
         if let i = a.institution, i != a.name { parts.append(i) }
-        if let d = model.ledger.lastStatementDate[a.id], !Viewport.isShort(viewport) { parts.append("对账到 \(d.short)") }
+        if let d = model.ledger.lastStatementDate[a.id], !Viewport.isShort(viewport) { parts.append(tr("对账到 \(d.short)")) }
         // 什么都没有时写账户类型；窗口够高时上面已经有类型的小标题，或者名字本身就是类型（「银行卡」），就不再写一遍。
         if parts.isEmpty { return (Viewport.isShort(viewport) || model.visibleAccounts.count > 6) && a.kind.label != a.name ? a.kind.label : "" }
         return parts.joined(separator: " · ")
@@ -390,7 +390,7 @@ struct DebtRow: View {
                 .frame(width: 30, height: 30)
                 .background((debt.direction == .theyOweMe ? Color.incomeSoft : Color.warnSoft), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(debt.direction == .theyOweMe ? "\(debt.counterparty)欠我" : "我欠\(debt.counterparty)").font(.callout.weight(.medium))
+                Text(debt.direction == .theyOweMe ? tr("\(debt.counterparty)欠我") : tr("我欠\(debt.counterparty)")).font(.callout.weight(.medium))
                 Text(detail).font(.caption).foregroundStyle(debt.overdue ? Color.alert : Color.fg2)
             }
             Spacer()
@@ -403,9 +403,9 @@ struct DebtRow: View {
 
     private var detail: String {
         var parts: [String] = []
-        if debt.repaid.cents > 0 { parts.append("已还 \(debt.repaid.rounded)") }
+        if debt.repaid.cents > 0 { parts.append(tr("已还 \(debt.repaid.rounded)")) }
         // 过期的只说过了几天，短一点，窄窗口也一行放得下（哪天到期在夏夏说里有）。
-        if let due = debt.dueDate { parts.append(debt.overdue ? "过期 \(max(1, due.days(until: .today))) 天" : "\(due.short) 前还") }
-        return parts.isEmpty ? "还没还" : parts.joined(separator: " · ")
+        if let due = debt.dueDate { parts.append(debt.overdue ? tr("过期 \(max(1, due.days(until: .today))) 天") : tr("\(due.short) 前还")) }
+        return parts.isEmpty ? tr("还没还") : parts.joined(separator: " · ")
     }
 }

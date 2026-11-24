@@ -53,11 +53,11 @@ struct MonthStatus {
     /// 花钱速度：和上月同一天比，差 10% 以内算正常。
     var paceWord: String {
         let now = Double(spentSoFar.cents), before = Double(lastMonthSameDaySpent.cents)
-        guard before > 0 else { return "正常" }
+        guard before > 0 else { return tr("正常") }
         let r = now / before
-        if r > 1.1 { return "偏快" }
-        if r < 0.9 { return "偏慢" }
-        return "正常"
+        if r > 1.1 { return tr("偏快") }
+        if r < 0.9 { return tr("偏慢") }
+        return tr("正常")
     }
 }
 
@@ -104,8 +104,8 @@ extension LedgerModel {
         let summary = Summaries.monthly(baseTransactions, month: month, bookID: book, hiddenAccounts: hiddenAccounts)
         let prev = month.previous
         let prevDay = min(day, prev.dayCount)
-        let pace = cumulative(month, bookID: book, upTo: day, series: "本月")
-        let lastPace = cumulative(prev, bookID: book, upTo: prev.dayCount, series: "上月")
+        let pace = cumulative(month, bookID: book, upTo: day, series: tr("本月"))
+        let lastPace = cumulative(prev, bookID: book, upTo: prev.dayCount, series: tr("上月"))
         let spent = Money(cents: Int64(((pace.last?.amount ?? 0) * 100).rounded()))
         let lastSpent = Money(cents: Int64(((lastPace.first { $0.day == prevDay }?.amount ?? 0) * 100).rounded()))
         var projected: Money? = nil
@@ -255,8 +255,8 @@ extension Date {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "HH:mm"
-        if cal.isDateInToday(self) { return "今天 " + f.string(from: self) }
-        if cal.isDateInYesterday(self) { return "昨天 " + f.string(from: self) }
+        if cal.isDateInToday(self) { return tr("今天 ") + f.string(from: self) }
+        if cal.isDateInYesterday(self) { return tr("昨天 ") + f.string(from: self) }
         let d = LocalDate(self)
         return d.friendly
     }

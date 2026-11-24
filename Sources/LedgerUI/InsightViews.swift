@@ -62,7 +62,7 @@ struct InsightCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label {
-                        Text(insight.kind == .monthlyReview ? "夏夏 · \(insight.month.month) 月点评" : "夏夏说 · \(insight.kind.label)")
+                        Text(insight.kind == .monthlyReview ? tr("夏夏 · \(insight.month.month) 月点评") : tr("夏夏说 · \(insight.kind.label)"))
                     } icon: {
                         // 和右边站着的一样是夏夏（ming 2026-11-23：左上角是小橘、右边是夏夏，对不上）。谁写的看右上角的名字。
                         MascotView(.xiaxia, size: 20, face: true, animated: false)
@@ -87,10 +87,10 @@ struct InsightCard: View {
                 if fixedHeight != nil { Spacer(minLength: 0) }
                 // 按钮单独一行、占满整张卡的宽度：和夏夏挤在一行时，iPhone 上「接着问」会被压成竖排。
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { followUp(ask); dismissButton; Spacer(minLength: 8); if showAllLink { MoreLink(title: "夏夏建议", section: .insights) } }
+                    HStack(spacing: 8) { followUp(ask); dismissButton; Spacer(minLength: 8); if showAllLink { MoreLink(title: tr("夏夏建议"), section: .insights) } }
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) { followUp(ask); dismissButton }
-                        if showAllLink { MoreLink(title: "夏夏建议", section: .insights) }
+                        if showAllLink { MoreLink(title: tr("夏夏建议"), section: .insights) }
                     }
                 }
                 .padding(.top, fixedHeight == nil ? 2 : 0)
@@ -104,13 +104,13 @@ struct InsightCard: View {
 
     private func followUp(_ ask: AskAIAction) -> some View {
         Button {
-            ask("关于你写的「\(insight.title)」，我想接着问：", page: "夏夏建议")
-        } label: { Label("接着问", systemImage: "sparkles").lineLimit(1).fixedSize() }
+            ask(tr("关于你写的「\(insight.title)」，我想接着问："), page: "夏夏建议")
+        } label: { Label(tr("接着问"), systemImage: "sparkles").lineLimit(1).fixedSize() }
             .buttonStyle(.softAI)
     }
 
     private var dismissButton: some View {
-        Button { withAnimation(.snappy) { model.dismiss(insight) } } label: { Text("知道了").lineLimit(1).fixedSize() }
+        Button { withAnimation(.snappy) { model.dismiss(insight) } } label: { Text(tr("知道了")).lineLimit(1).fixedSize() }
             .buttonStyle(.soft)
     }
 }
@@ -127,10 +127,10 @@ struct InsightRow: View {
                 Text("\(insight.author) · \(insight.createdAt.friendly)").font(.caption).foregroundStyle(Color.fg2)
                 Spacer()
                 if insight.dismissedAt == nil {
-                    Button("知道了") { withAnimation(.snappy) { model.dismiss(insight) } }
+                    Button(tr("知道了")) { withAnimation(.snappy) { model.dismiss(insight) } }
                         .font(.caption).buttonStyle(.plain).foregroundStyle(Color.fg2)
                 } else {
-                    Text("知道了").font(.caption).foregroundStyle(Color.fg3)
+                    Text(tr("知道了")).font(.caption).foregroundStyle(Color.fg3)
                 }
             }
             Text(insight.title).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)

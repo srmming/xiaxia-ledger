@@ -26,6 +26,12 @@ final class L10nTests: XCTestCase {
         XCTAssertEqual(L10n.fill("%2$@ items in %1$@", ["Shop", "3"]), "3 items in Shop", "译文可以换顺序")
         XCTAssertEqual(L10n.fill("%@ of %@", ["1", "2"]), "1 of 2")
         XCTAssertEqual(L10n.fill("50% 的 %@", ["钱"]), "50% 的 钱", "普通百分号不受影响")
+        L10n.choice = .es
+        XCTAssertEqual(L10n.fill("En %1$M gastaste %2$@", ["11", "80 €"]), "En noviembre gastaste 80 €", "月份数字换成月份名")
+        XCTAssertEqual(L10n.fill("%1$N de %2$@", ["3", "2026"]), "Marzo de 2026")
+        L10n.choice = .en
+        XCTAssertEqual(L10n.fill("%1$N %2$@", ["11", "2026"]), "November 2026")
+        XCTAssertEqual(L10n.placeholders("%1$N de %2$@"), 2)
     }
 
     func testSystemLanguagePick() {

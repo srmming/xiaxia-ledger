@@ -2,6 +2,44 @@
   "_说明": "更新日志唯一来源：官网 /changelog.html、Mac 更新窗口里的「新版改了什么」、app 更新后第一次打开的小卡片都从这里来。新版本放最前面。发版时 scripts/release-share.sh 会调用 scripts/changelog.py add <版本>，没有这一条就按上次发版以来合并的 PR 标题自动起草一条，再改成大白话。image 是相对官网根目录的路径（imageStyle=art 表示是角色小图，不是整页截图），只能用示例数据的截图。commit 是发版时 main 的提交，下次起草从这里往后数。 en、es 是这一版的英文、西班牙语（title、summary、items，条数和中文一样）；官网 /en/、/es/ 的更新日志页用。发版时一起写，没写的那一版在英文、西语页上先显示中文。",
   "releases": [
     {
+      "version": "0.2.5",
+      "date": "2026-11-24",
+      "title": "小金猪存钱罐、手机随手记、一键连上 AI",
+      "summary": "目标页变成一只小金猪；手机上能随手记一笔、拍小票、管报销；连 AI 只要点一下。",
+      "items": [
+        "目标页重做成小金猪存钱罐：1 个大目标加最多 3 个小目标，夏夏帮你算每天存多少、哪天能到手。存一笔、忍住没买、要用钱取出来，都点小猪。",
+        "手机上随手记：打开就能记一笔，可以拍小票，还多了一页「报销」，哪些没交、哪些在等钱一眼看清。iPhone 和 Mac 通过 iCloud 自动同步。",
+        "趋势页改成「照这样花下去」：直接告诉你月底和年底大概还剩多少，哪几样少花一半能多剩多少。",
+        "连 AI 更省事：每个 AI 一个「连接」按钮，连完自己测一遍能不能读到账本；别的 AI 复制一段话，它会自己配好。",
+        "更新后会告诉你这一版改了什么，每次打开都会看一眼有没有新版；官网多了更新日志页。",
+        "界面开始支持英文和西班牙语，在「设置 → 隐私与外观 → 语言」里切换。默认还是中文，夏夏说的话等少数地方还没翻完。"
+      ],
+      "en": {
+        "title": "Golden piggy bank, quick entry on your phone, one-click AI connection",
+        "summary": "The Goals page is now a golden piggy bank; on your phone you can jot down an entry, snap a receipt and track expense claims; connecting an AI takes one click.",
+        "items": [
+          "The Goals page is rebuilt as a golden piggy bank: 1 main goal plus up to 3 small ones. Xiaxia works out how much to save each day and when it’ll be yours. Saving, resisting a purchase or taking money out all happen by tapping the piggy.",
+          "Quick entry on your phone: open and add an entry, snap a receipt, and use the new Expense claims page to see what’s not submitted and what’s waiting to be paid. iPhone and Mac sync automatically through iCloud.",
+          "The Trends page now answers “if I keep spending like this”: roughly how much is left at month end and year end, and how much more you’d have by halving a few categories.",
+          "Connecting an AI is easier: each AI has a Connect button that then tests whether it can read the ledger. For other AIs, copy one prompt and it sets itself up.",
+          "After an update the app tells you what changed and checks for new versions every time it opens. The website has a release notes page.",
+          "The interface now starts to support English and Spanish, under Settings → Privacy & appearance → Language. Chinese remains the default, and a few places such as Xiaxia’s comments aren’t translated yet."
+        ]
+      },
+      "es": {
+        "title": "Hucha dorada, apuntes rápidos en el móvil y conexión con la IA en un clic",
+        "summary": "La página Objetivos es ahora una hucha dorada; en el móvil puedes apuntar algo al momento, fotografiar un tique y llevar tus gastos a reembolsar; conectar una IA es un solo clic.",
+        "items": [
+          "La página Objetivos se ha rehecho como una hucha dorada: 1 objetivo principal y hasta 3 pequeños. Xiaxia calcula cuánto ahorrar al día y cuándo lo tendrás. Meter dinero, aguantarte una compra o sacar dinero se hace tocando la hucha.",
+          "Apuntes rápidos en el móvil: abre y apunta, fotografía un tique y usa la nueva página de reembolsos para ver qué falta por presentar y qué está pendiente de cobro. iPhone y Mac se sincronizan solos con iCloud.",
+          "La página Tendencias responde ahora a «si sigo gastando así»: cuánto te quedará más o menos a fin de mes y a fin de año, y cuánto más tendrías reduciendo a la mitad algunas categorías.",
+          "Conectar una IA es más fácil: cada IA tiene un botón Conectar que después comprueba si puede leer el libro. Para otras IA, copia un texto y se configura sola.",
+          "Tras actualizar, la app te cuenta qué ha cambiado y comprueba si hay versión nueva cada vez que se abre. La web tiene una página de novedades.",
+          "La interfaz empieza a estar disponible en inglés y español, en Ajustes → Privacidad y apariencia → Idioma. El chino sigue siendo el idioma por defecto y algunas partes, como los comentarios de Xiaxia, aún no están traducidas."
+        ]
+      }
+    },
+    {
       "version": "0.2.4",
       "date": "2026-11-23",
       "commit": "21d42e8",

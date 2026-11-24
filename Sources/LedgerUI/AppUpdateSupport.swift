@@ -68,15 +68,15 @@ struct AppUpdateRows: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("现在的版本 \(AppUpdateSupport.versionText)").font(.callout)
-                Text(state.available.map { "有新版本 \($0)" } ?? "每次打开都会看一眼有没有新版，有的话左下角会提醒")
+                Text(tr("现在的版本 \(AppUpdateSupport.versionText)")).font(.callout)
+                Text(state.available.map { tr("有新版本 \($0)") } ?? tr("每次打开都会看一眼有没有新版，有的话左下角会提醒"))
                     .font(.caption).foregroundStyle(state.available == nil ? Color.fg2 : Color.brand)
             }
             Spacer(minLength: 12)
-            Link("更新日志", destination: Changelog.webURL)
+            Link(tr("更新日志"), destination: Changelog.webURL)
                 .font(.callout)
-                .help("每一版改了什么（官网）")
-            Button(state.available == nil ? "检查更新" : "现在更新") { AppUpdateSupport.requestCheck() }
+                .help(tr("每一版改了什么（官网）"))
+            Button(state.available == nil ? tr("检查更新") : tr("现在更新")) { AppUpdateSupport.requestCheck() }
                 .accessibilityIdentifier("settings.checkUpdate")
         }
         .padding(.vertical, 9)
@@ -94,12 +94,12 @@ struct SidebarUpdateButton: View {
                 HStack(spacing: 6) {
                     if let v = state.available {
                         Circle().fill(Color.alert).frame(width: 7, height: 7)
-                        Text("有新版本 \(v)").foregroundStyle(.primary).lineLimit(1)
+                        Text(tr("有新版本 \(v)")).foregroundStyle(.primary).lineLimit(1)
                         Spacer(minLength: 4)
-                        Text("更新").fontWeight(.semibold).foregroundStyle(Color.brand)
+                        Text(tr("更新")).fontWeight(.semibold).foregroundStyle(Color.brand)
                     } else {
                         Image(systemName: "arrow.down.circle")
-                        Text("检查更新")
+                        Text(tr("检查更新"))
                     }
                 }
                 .font(.caption)
@@ -116,8 +116,8 @@ struct SidebarUpdateButton: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(state.available == nil ? "看看有没有新版本" : "看新版改了什么，点「安装更新」")
-            .accessibilityLabel(state.available.map { "有新版本 \($0)，点一下更新" } ?? "检查更新")
+            .help(state.available == nil ? tr("看看有没有新版本") : tr("看新版改了什么，点「安装更新」"))
+            .accessibilityLabel(state.available.map { tr("有新版本 \($0)，点一下更新") } ?? tr("检查更新"))
             .accessibilityIdentifier("sidebar.update")
         }
     }

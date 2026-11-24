@@ -141,6 +141,15 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 73-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
   snap 74-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
   snap 75-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
+  # 英文、西班牙语（2026-11-23）：每页一张 + 两张最小窗口，看有没有露中文、字挤掉、一屏放不下
+  n=80
+  for lang in en es; do
+    for page in overview spending wealth plans subscriptions settings; do
+      snap $n-$lang-$page -XiaxiaDemo 1 -XiaxiaSection $page -xiaxia.language $lang; n=$((n + 1))
+    done
+    snap $n-$lang-wealth-small -XiaxiaDemo 1 -XiaxiaSection wealth -XiaxiaWindowSize 1000x612 -xiaxia.language $lang; n=$((n + 1))
+    n=100
+  done
 fi
 
 # 在自己的 Mac 上跑会用 screencapture 截整屏。

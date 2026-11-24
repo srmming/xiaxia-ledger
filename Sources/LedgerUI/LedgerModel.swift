@@ -52,7 +52,11 @@ public final class LedgerModel {
     public var isLoading = true
     /// app 里的写入记在谁名下：设置里填的名字，没填就用这台设备的用户名。
     /// 助手现在叫什么（默认「夏夏」），和把界面文字里的「夏夏」换成这个名字。
-    var xiaName: String { ledger.profile.xiaName }
+    /// 夏夏的名字。没改过名、界面又不是中文时叫 Xiaxia。
+    var xiaName: String {
+        let name = ledger.profile.xiaName
+        return name == "夏夏" && L10n.language != .zhHans ? "Xiaxia" : name
+    }
     func xia(_ text: String) -> String { ledger.profile.renamed(text) }
 
     public var author: String = LedgerModel.defaultAuthor {
@@ -64,7 +68,7 @@ public final class LedgerModel {
         #if os(macOS)
         return NSUserName()
         #else
-        return "我"
+        return tr("我")
         #endif
     }
 
@@ -161,7 +165,7 @@ public final class LedgerModel {
                 category: t.category, account: accountName(t.accountID), book: ledger.books.first { $0.id == t.bookID }?.name) : nil
         }
         return AppBridge.View(page: page.rawValue, month: page.usesMonth ? shownMonth.description : nil,
-                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + "账本" } ?? (ledger.books.count == 1 ? ledger.books[0].name + "账本（只有这一个）" : "全部账本"),
+                              bookID: selectedBookID, bookName: selectedBookID.map { bookName($0) + tr("账本") } ?? (ledger.books.count == 1 ? ledger.books[0].name + tr("账本（只有这一个）") : tr("全部账本")),
                               selected: sel)
     }
 
@@ -178,7 +182,7 @@ public final class LedgerModel {
         } else if let s = AppSection(rawValue: r.page) {
             section = s
         }
-        let note = r.note.map { "\(r.author)：\($0)" } ?? "\(r.author) 让你看这里"
+        let note = r.note.map { "\(r.author)：\($0)" } ?? tr("\(r.author) 让你看这里")
         toast = Toast(text: note, changeID: nil, seconds: 8)
     }
 
@@ -202,7 +206,7 @@ public final class LedgerModel {
         }
         activity = nil
         guard done > 0 else {
-            toast = Toast(text: "这些改动撤不了，可以去「改动记录」一条条看", changeID: nil, isError: true)
+            toast = Toast(text: tr("这些改动撤不了，可以去「改动记录」一条条看"), changeID: nil, isError: true)
             return
         }
         do {
@@ -211,7 +215,7 @@ public final class LedgerModel {
             lastStamp = store.changeStamp()
             cache = nil; authorCache = nil
             dropMissingSelection()
-            toast = Toast(text: failed == 0 ? "撤销了 \(done) 处改动" : "撤销了 \(done) 处，另有 \(failed) 处撤不了", changeID: nil, isError: failed > 0)
+            toast = Toast(text: failed == 0 ? tr("撤销了 \(done) 处改动") : tr("撤销了 \(done) 处，另有 \(failed) 处撤不了"), changeID: nil, isError: failed > 0)
         } catch {
             toast = Toast(text: error.localizedDescription, changeID: nil, isError: true)
         }
@@ -355,7 +359,7 @@ public final class LedgerModel {
     }
 
     public func bookName(_ id: String?) -> String {
-        guard let id else { return "全部" }
+        guard let id else { return tr("全部") }
         return ledger.books.first { $0.id == id }?.name ?? id
     }
 
@@ -365,7 +369,7 @@ public final class LedgerModel {
 
     /// 流水里出现过的分类（含「未分类」），筛选用。
     public var usedCategories: [String] {
-        Array(Set(ledger.transactions.filter { $0.flow == nil }.map { $0.category ?? "未分类" })).sorted()
+        Array(Set(ledger.transactions.filter { $0.flow == nil }.map { $0.category ?? tr("未分类") })).sorted()
     }
 
     /// 记一笔、整理时给的分类建议：这个账本、这个方向（收入 / 支出）用得最多的排前面，再补上常用的。
@@ -480,7 +484,7 @@ extension LedgerModel {
         realStore = nil
         isTryingDemo = false
         switchStore(to: real)
-        toast = Toast(text: "回到你自己的账本了", changeID: nil)
+        toast = Toast(text: tr("回到你自己的账本了"), changeID: nil)
     }
 
     /// 账本文件在哪；示例数据、演示数据没有文件。

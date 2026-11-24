@@ -42,46 +42,46 @@ struct SpendingPaceChart: View {
         let projection: [PacePoint] = {
             guard status.isCurrent, let t = today, t.day >= 3 else { return [] }
             let perDay = t.amount / Double(t.day)
-            return [PacePoint(day: t.day, amount: t.amount, series: "预估"), PacePoint(day: days, amount: perDay * Double(days), series: "预估")]
+            return [PacePoint(day: t.day, amount: t.amount, series: tr("预估")), PacePoint(day: days, amount: perDay * Double(days), series: tr("预估"))]
         }()
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 14) {
-                legend(Color.brand, "本月累计花掉", dashed: false)
-                legend(Color.fg3, "上月同期", dashed: true)
-                if !projection.isEmpty { legend(Color.brand.opacity(0.5), "照现在速度到月底", dashed: true) }
+                legend(Color.brand, tr("本月累计花掉"), dashed: false)
+                legend(Color.fg3, tr("上月同期"), dashed: true)
+                if !projection.isEmpty { legend(Color.brand.opacity(0.5), tr("照现在速度到月底"), dashed: true) }
             }
             .font(.caption).foregroundStyle(Color.fg2)
 
             Chart {
                 ForEach(status.lastPace) { p in
-                    LineMark(x: .value("日", p.day), y: .value("花掉", p.amount), series: .value("线", "上月"))
+                    LineMark(x: .value(tr("日"), p.day), y: .value(tr("花掉"), p.amount), series: .value(tr("线"), tr("上月")))
                         .foregroundStyle(Color.fg3)
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
                 }
                 ForEach(status.pace) { p in
-                    AreaMark(x: .value("日", p.day), y: .value("花掉", p.amount))
+                    AreaMark(x: .value(tr("日"), p.day), y: .value(tr("花掉"), p.amount))
                         .foregroundStyle(LinearGradient(colors: [Color.brand.opacity(0.22), Color.brand.opacity(0.02)], startPoint: .top, endPoint: .bottom))
-                    LineMark(x: .value("日", p.day), y: .value("花掉", p.amount), series: .value("线", "本月"))
+                    LineMark(x: .value(tr("日"), p.day), y: .value(tr("花掉"), p.amount), series: .value(tr("线"), tr("本月")))
                         .foregroundStyle(Color.brand)
                         .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
                 }
                 ForEach(projection) { p in
-                    LineMark(x: .value("日", p.day), y: .value("花掉", p.amount), series: .value("线", "预估"))
+                    LineMark(x: .value(tr("日"), p.day), y: .value(tr("花掉"), p.amount), series: .value(tr("线"), tr("预估")))
                         .foregroundStyle(Color.brand.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [2, 3]))
                 }
                 if let t = today, t.day > 0 {
-                    RuleMark(x: .value("今天", t.day)).foregroundStyle(Color.fg3.opacity(0.35)).lineStyle(StrokeStyle(lineWidth: 1))
+                    RuleMark(x: .value(tr("今天"), t.day)).foregroundStyle(Color.fg3.opacity(0.35)).lineStyle(StrokeStyle(lineWidth: 1))
                     // 「今天」和「上月这天」写在同一个标注里，上下两行，不会互相压住，虚线也不会穿过字。
-                    PointMark(x: .value("日", t.day), y: .value("花掉", t.amount))
+                    PointMark(x: .value(tr("日"), t.day), y: .value(tr("花掉"), t.amount))
                         .foregroundStyle(Color.brand).symbolSize(50)
                         .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                             if !compact {
                             VStack(alignment: .trailing, spacing: 1) {
-                                Text("\(status.isCurrent ? "今天" : "月底") \(Money(cents: Int64(t.amount * 100)).rounded)")
+                                Text("\(status.isCurrent ? tr("今天") : tr("月底")) \(Money(cents: Int64(t.amount * 100)).rounded)")
                                     .font(.caption2.weight(.semibold)).foregroundStyle(.primary)
                                 if let l = lastSameDay, status.isCurrent {
-                                    Text("上月这天 \(Money(cents: Int64(l.amount * 100)).rounded)").font(.caption2).foregroundStyle(Color.fg2)
+                                    Text(tr("上月这天 \(Money(cents: Int64(l.amount * 100)).rounded)")).font(.caption2).foregroundStyle(Color.fg2)
                                 }
                             }
                             .fixedSize()
@@ -95,7 +95,7 @@ struct SpendingPaceChart: View {
             .chartYScale(domain: 0...yTop)
             .chartXAxis {
                 AxisMarks(values: [1, 10, 20, days]) { v in
-                    AxisValueLabel { if let d = v.as(Int.self) { Text("\(d)日") } }
+                    AxisValueLabel { if let d = v.as(Int.self) { Text(tr("\(d)日")) } }
                 }
             }
             .chartYAxis {
@@ -121,7 +121,7 @@ struct SpendingPaceChart: View {
     private var summary: String {
         let spent = status.spentSoFar.rounded
         let before = status.lastMonthSameDaySpent.rounded
-        return "花钱速度：到今天花了 \(spent)，上月同一天花了 \(before)，速度\(status.paceWord)。"
+        return tr("花钱速度：到今天花了 \(spent)，上月同一天花了 \(before)，速度\(status.paceWord)。")
     }
 
     private func legend(_ color: Color, _ title: String, dashed: Bool) -> some View {
@@ -152,7 +152,7 @@ struct CategoryDonut: View {
     static func slices(_ totals: [(name: String, amount: Money)]) -> [CategorySlice] {
         let top = totals.prefix(6).map { CategorySlice(name: $0.name, amount: $0.amount) }
         let rest = totals.dropFirst(6).reduce(Money.zero) { $0 + $1.amount }
-        return rest.cents > 0 ? top + [CategorySlice(name: "其它", amount: rest)] : top
+        return rest.cents > 0 ? top + [CategorySlice(name: tr("其它"), amount: rest)] : top
     }
 
     var body: some View {
@@ -162,9 +162,9 @@ struct CategoryDonut: View {
         let smallest = drawn.map { Double($0.amount.cents) / max(sum, 1) * 360 }.min() ?? 0
         let roomy = smallest >= 6
         Chart(drawn) { s in
-            SectorMark(angle: .value("金额", Double(s.amount.cents)),
+            SectorMark(angle: .value(tr("金额"), Double(s.amount.cents)),
                        innerRadius: .ratio(0.7), angularInset: roomy ? 1.2 : 0)
-                .foregroundStyle(s.name == "其它" ? Color.fg3 : CategoryStyle.color(s.name))
+                .foregroundStyle(s.name == tr("其它") ? Color.fg3 : CategoryStyle.color(s.name))
                 .cornerRadius(roomy ? 3 : 0)
         }
         .chartLegend(.hidden)
@@ -209,21 +209,21 @@ struct MonthBars: View {
         let top = bars.map(\.value).max() ?? 1
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 14) {
-                HStack(spacing: 5) { Capsule().fill(Color.income).frame(width: 10, height: 3); Text("进账") }
-                HStack(spacing: 5) { Capsule().fill(Color.barExpense).frame(width: 10, height: 3); Text("花掉") }
-                HStack(spacing: 5) { Circle().fill(Color.alert).frame(width: 5, height: 5); Text("花得比挣得多") }
+                HStack(spacing: 5) { Capsule().fill(Color.income).frame(width: 10, height: 3); Text(tr("进账")) }
+                HStack(spacing: 5) { Capsule().fill(Color.barExpense).frame(width: 10, height: 3); Text(tr("花掉")) }
+                HStack(spacing: 5) { Circle().fill(Color.alert).frame(width: 5, height: 5); Text(tr("花得比挣得多")) }
             }
             .font(.caption).foregroundStyle(Color.fg2)
             Chart {
                 ForEach(bars) { b in
-                    BarMark(x: .value("月", b.month.description), y: .value("金额", b.value), width: .ratio(0.8))
-                        .position(by: .value("类", b.kind))
+                    BarMark(x: .value(tr("月"), b.month.description), y: .value(tr("金额"), b.value), width: .ratio(0.8))
+                        .position(by: .value(tr("类"), b.kind))
                         .foregroundStyle(b.kind == "进账" ? Color.income : Color.barExpense)
                         .opacity(b.month == current ? 0.55 : 1)
                         .cornerRadius(3)
                 }
                 ForEach(summaries.filter { $0.net.isExpense }, id: \.month) { s in
-                    PointMark(x: .value("月", s.month.description), y: .value("金额", top * 1.07))
+                    PointMark(x: .value(tr("月"), s.month.description), y: .value(tr("金额"), top * 1.07))
                         .foregroundStyle(Color.alert).symbolSize(22)
                 }
             }
@@ -239,7 +239,7 @@ struct MonthBars: View {
             .frame(height: height)
             .revealFromLeading()
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("近 \(summaries.count) 个月进账和花掉的柱状图，其中 \(summaries.filter { $0.net.isExpense }.count) 个月花得比挣得多。")
+            .accessibilityLabel(tr("近 \(summaries.count) 个月进账和花掉的柱状图，其中 \(summaries.filter { $0.net.isExpense }.count) 个月花得比挣得多。"))
         }
     }
 }
@@ -259,18 +259,18 @@ struct SavedBars: View {
         let pad = max((hi - lo) * 0.12, 10)
         Chart {
             ForEach(summaries, id: \.month) { s in
-                BarMark(x: .value("月", s.month.description), y: .value("存下", Double(s.net.cents) / 100), width: .ratio(0.62))
+                BarMark(x: .value(tr("月"), s.month.description), y: .value(tr("存下"), Double(s.net.cents) / 100), width: .ratio(0.62))
                     .foregroundStyle(s.net.isExpense ? Color.alert : Color.income)
                     .opacity(s.month == current ? 0.5 : 1)
                     .cornerRadius(4)
             }
-            RuleMark(y: .value("零", 0)).foregroundStyle(Color.fg3.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1))
+            RuleMark(y: .value(tr("零"), 0)).foregroundStyle(Color.fg3.opacity(0.5)).lineStyle(StrokeStyle(lineWidth: 1))
             if let average {
-                RuleMark(y: .value("平均", Double(average.cents) / 100))
+                RuleMark(y: .value(tr("平均"), Double(average.cents) / 100))
                     .foregroundStyle(Color.primary.opacity(0.55))
                     .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [4, 4]))
                     .annotation(position: .top, alignment: .trailing, spacing: 2) {
-                        Text("平均 \(average.cents < 0 ? "\u{2212}" : "")\(average.magnitude.rounded)").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg2)
+                        Text(tr("平均 \(average.cents < 0 ? "\u{2212}" : "")\(average.magnitude.rounded)")).font(.caption2.weight(.semibold)).foregroundStyle(Color.fg2)
                     }
             }
         }
@@ -286,7 +286,7 @@ struct SavedBars: View {
         .frame(height: height)
         .revealFromLeading()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("近 \(summaries.count) 个月每月存下多少的柱状图：\(summaries.filter { !$0.net.isExpense }.count) 个月存下了钱，\(summaries.filter { $0.net.isExpense }.count) 个月花得比挣得多。")
+        .accessibilityLabel(tr("近 \(summaries.count) 个月每月存下多少的柱状图：\(summaries.filter { !$0.net.isExpense }.count) 个月存下了钱，\(summaries.filter { $0.net.isExpense }.count) 个月花得比挣得多。"))
     }
 }
 
@@ -304,16 +304,16 @@ struct NetWorthChart: View {
         let pad = max((hi - lo) * 0.15, 100)
         Chart {
             ForEach(Array(points.enumerated()), id: \.offset) { i, p in
-                AreaMark(x: .value("月", i), yStart: .value("底", lo - pad), yEnd: .value("家底", Double(p.value.cents) / 100))
+                AreaMark(x: .value(tr("月"), i), yStart: .value(tr("底"), lo - pad), yEnd: .value(tr("家底"), Double(p.value.cents) / 100))
                     .foregroundStyle(LinearGradient(colors: [Color.income.opacity(0.22), Color.income.opacity(0.02)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.monotone)
-                LineMark(x: .value("月", i), y: .value("家底", Double(p.value.cents) / 100))
+                LineMark(x: .value(tr("月"), i), y: .value(tr("家底"), Double(p.value.cents) / 100))
                     .foregroundStyle(Color.income)
                     .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
                     .interpolationMethod(.monotone)
             }
             if let last = points.last {
-                PointMark(x: .value("月", points.count - 1), y: .value("家底", Double(last.value.cents) / 100))
+                PointMark(x: .value(tr("月"), points.count - 1), y: .value(tr("家底"), Double(last.value.cents) / 100))
                     .foregroundStyle(Color.income).symbolSize(50)
                     .annotation(position: .topLeading, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                         Text(last.value.rounded).font(.caption2.weight(.semibold))
@@ -339,7 +339,7 @@ struct NetWorthChart: View {
         .frame(height: height)
         .revealFromLeading()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("近 \(points.count) 个月家底曲线，从 \(points.first?.value.rounded ?? "") 到 \(points.last?.value.rounded ?? "")。")
+        .accessibilityLabel(tr("近 \(points.count) 个月家底曲线，从 \(points.first?.value.rounded ?? "") 到 \(points.last?.value.rounded ?? "")。"))
     }
 }
 

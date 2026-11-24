@@ -88,9 +88,9 @@ struct QuickAdd: View {
             .overlay(alignment: .top) { Divider() }
         }
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .keyboard) {
-                HStack { Spacer(); Button("完成") { focus = nil }.fontWeight(.semibold) }
+                HStack { Spacer(); Button(tr("完成")) { focus = nil }.fontWeight(.semibold) }
             }
         }
         #else
@@ -110,17 +110,17 @@ struct QuickAdd: View {
             // 说一句 / 拍小票：不填表，先存成「待记录」，夏夏或自己之后补进账本（ming 2026-11-23）。
             if editing == nil { CaptureBar() }
             if editing == nil || editing?.isPlainEntry == false {
-                Picker("支出、收入还是转账", selection: $kind) {
-                    Text("支出").tag(Kind.expense)
-                    Text("收入").tag(Kind.income)
-                    Text("转账").tag(Kind.transfer)
+                Picker(tr("支出、收入还是转账"), selection: $kind) {
+                    Text(tr("支出")).tag(Kind.expense)
+                    Text(tr("收入")).tag(Kind.income)
+                    Text(tr("转账")).tag(Kind.transfer)
                 }
                 .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 260)
                 .accessibilityIdentifier("direction")
             } else {
-                Picker("支出还是收入", selection: $kind) {
-                    Text("支出").tag(Kind.expense)
-                    Text("收入").tag(Kind.income)
+                Picker(tr("支出还是收入"), selection: $kind) {
+                    Text(tr("支出")).tag(Kind.expense)
+                    Text(tr("收入")).tag(Kind.income)
                 }
                 .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 180)
             }
@@ -144,14 +144,14 @@ struct QuickAdd: View {
 
             if editing == nil {
                 AskAIReader { ask in
-                    (Text("要记分期、借款、导对账单？") + Text("跟夏夏说更快").foregroundColor(.ai))
+                    (Text(tr("要记分期、借款、导对账单？")) + Text(tr("跟夏夏说更快")).foregroundColor(.ai))
                         .font(.caption).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                         .onTapGesture { ask("", page: "记一笔") }
                 }
             }
         }
         .padding(20)
-        .navigationTitle(editing == nil ? "记一笔" : "改这一笔")
+        .navigationTitle(editing == nil ? tr("记一笔") : tr("改这一笔"))
         .inlineTitle()
         .onAppear(perform: setup)
         .onDisappear { model.editingID = nil }
@@ -176,11 +176,11 @@ struct QuickAdd: View {
             }
         }
         .onChange(of: bookID) { _, _ in if didSetup { refreshLists() }; if let c = category, !allCategories.contains(c), c != customCategory { category = nil } }
-        .alert("新账户", isPresented: $askAccount) {
-            TextField("名字，比如「现金」「银行卡」", text: $newName)
-            Button("取消", role: .cancel) {}
-            Button("加上") { addAccount() }
-        } message: { Text("类型、余额以后可以在「设置 → 管理账户」里改。") }
+        .alert(tr("新账户"), isPresented: $askAccount) {
+            TextField(tr("名字，比如「现金」「银行卡」"), text: $newName)
+            Button(tr("取消"), role: .cancel) {}
+            Button(tr("加上")) { addAccount() }
+        } message: { Text(tr("类型、余额以后可以在「设置 → 管理账户」里改。")) }
         .errorAlert($error)
         .sheet(isPresented: $addingCategory) {
             // 先挑图标再填名字；建好就直接选中。
@@ -199,7 +199,7 @@ struct QuickAdd: View {
     @ViewBuilder private var actionButtons: some View {
         if editing != nil {
             Button(action: { save(keepOpen: false) }) {
-                Text("保存").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+                Text(tr("保存")).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
             .keyboardShortcut(.defaultAction)
@@ -207,7 +207,7 @@ struct QuickAdd: View {
         } else {
             HStack(spacing: 10) {
                 #if os(macOS)
-                Button("取消") { dismiss() }
+                Button(tr("取消")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .controlSize(.large)
                 // Mac 上放在按钮这一排，不往上加一行：面板不会变高、把按钮挤出窗口。
@@ -215,15 +215,15 @@ struct QuickAdd: View {
                 Spacer()
                 #endif
                 Button(action: { save(keepOpen: true) }) {
-                    Text("再记一笔").padding(.vertical, 6).padding(.horizontal, 4).lineLimit(1)
+                    Text(tr("再记一笔")).padding(.vertical, 6).padding(.horizontal, 4).lineLimit(1)
                 }
                 .buttonStyle(.bordered).controlSize(.large)
                 .fixedSize()
                 .keyboardShortcut(.return, modifiers: [.command, .shift])
                 .disabled(!canSave)
-                .help("记下这笔，表单留着接着记（⌘⇧↩）")
+                .help(tr("记下这笔，表单留着接着记（⌘⇧↩）"))
                 Button(action: { save(keepOpen: false) }) {
-                    Text("记下").font(.headline).padding(.vertical, 6)
+                    Text(tr("记下")).font(.headline).padding(.vertical, 6)
                     #if os(iOS)
                         .frame(maxWidth: .infinity)
                     #else
@@ -239,10 +239,10 @@ struct QuickAdd: View {
 
     @ViewBuilder private var savedNotice: some View {
         #if os(iOS)
-        Label("已记下 \(savedInARow) 笔，接着记下一笔", systemImage: "checkmark.circle.fill")
+        Label(tr("已记下 \(savedInARow) 笔，接着记下一笔"), systemImage: "checkmark.circle.fill")
             .font(.caption).foregroundStyle(Color.income)
         #else
-        Label("已记下 \(savedInARow) 笔", systemImage: "checkmark.circle.fill")
+        Label(tr("已记下 \(savedInARow) 笔"), systemImage: "checkmark.circle.fill")
             .font(.caption).foregroundStyle(Color.income).lineLimit(1).fixedSize()
         #endif
     }
@@ -268,7 +268,7 @@ struct QuickAdd: View {
                     .onSubmit { if let a = amount, Money.isExpression(amountText) { amountText = a.inputText } else { focus = .name } }
                     .fixedSize()
                     .frame(minWidth: 44)
-                    .accessibilityLabel("金额，可以写算式，比如 12,50+3,20")
+                    .accessibilityLabel(tr("金额，可以写算式，比如 12,50+3,20"))
                 #endif
                 Text(Currencies.info(accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)).symbol).font(.system(size: 24, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
             }
@@ -276,17 +276,17 @@ struct QuickAdd: View {
             // iPhone 上金额是一行字（键盘是自己的），合成一个元素读「金额 xx」。
             // Mac 上里面是能打字的输入框，不合并，不然 VoiceOver 和辅助功能拿不到输入框。
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("金额 \(amount?.spoken ?? "还没填")")
+            .accessibilityLabel(tr("金额 \(amount?.spoken ?? tr("还没填"))"))
             .accessibilityAction { focus = nil; keypadUp = true }
-            .accessibilityHint(keypadUp ? "" : "点一下弹出计算器键盘")
+            .accessibilityHint(keypadUp ? "" : tr("点一下弹出计算器键盘"))
             #endif
             #if os(iOS)
             if !keypadUp && focus == nil && !Money.isExpression(amountText) {
-                Text("点金额可以改").font(.caption2).foregroundStyle(Color.fg3)
+                Text(tr("点金额可以改")).font(.caption2).foregroundStyle(Color.fg3)
             }
             #endif
             if Money.isExpression(amountText) {
-                Text(amount.map { "= \($0.formatted(in: accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)))" } ?? "算式还没写完")
+                Text(amount.map { "= \($0.formatted(in: accountID.isEmpty ? model.ledger.baseCurrency : model.ledger.currency(ofAccount: accountID)))" } ?? tr("算式还没写完"))
                     .font(.callout.weight(.medium)).monospacedDigit()
                     .foregroundStyle(amount == nil ? Color.fg3 : Color.fg2)
                     .accessibilityIdentifier("amountResult")
@@ -305,7 +305,7 @@ struct QuickAdd: View {
         if !list.isEmpty {
             // 同一个名字只留一个（不同金额的公交卡别排两个一模一样的）。
             VStack(alignment: .leading, spacing: 6) {
-                Text("常记的，点一下就填好").font(.caption).foregroundStyle(Color.fg3)
+                Text(tr("常记的，点一下就填好")).font(.caption).foregroundStyle(Color.fg3)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(list.reduce(into: [FinanceCore.Transaction]()) { out, t in
@@ -323,7 +323,7 @@ struct QuickAdd: View {
                                 .contentShape(Capsule())
                             }
                             .buttonStyle(.pressable)
-                            .accessibilityLabel("再记一笔 \(t.description) \(t.amount.magnitude.formatted)")
+                            .accessibilityLabel(tr("再记一笔 \(t.description) \(t.amount.magnitude.formatted)"))
                         }
                     }
                     .padding(.horizontal, 1)
@@ -355,7 +355,7 @@ struct QuickAdd: View {
         let suggestions = q.isEmpty && editing == nil && !lists.frequent.isEmpty ? []
             : Array(lists.names.lazy.filter { q.isEmpty || ($0.name.lowercased().contains(q) && $0.name.lowercased() != q) }.prefix(5))
         return VStack(alignment: .leading, spacing: 6) {
-            TextField(income ? "名称，比如「工资」" : "名称，比如「超市」", text: $name)
+            TextField(income ? tr("名称，比如「工资」") : tr("名称，比如「超市」"), text: $name)
                 .textFieldStyle(.plain)
                 .focused($focus, equals: .name)
                 .submitLabel(.done)
@@ -369,7 +369,7 @@ struct QuickAdd: View {
                 }
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(Color.sunken, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .accessibilityLabel("名称")
+                .accessibilityLabel(tr("名称"))
             if !suggestions.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -381,7 +381,7 @@ struct QuickAdd: View {
                                     .contentShape(Capsule())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("用「\(s.name)」" + (s.category.map { "，分类\($0)" } ?? ""))
+                            .accessibilityLabel(tr("用「\(s.name)」") + (s.category.map { tr("，分类\($0)") } ?? ""))
                         }
                     }
                     .padding(.horizontal, 1)
@@ -462,10 +462,10 @@ struct QuickAdd: View {
 
     private var newCategoryButton: some View {
         Button { addingCategory = true } label: {
-            Label("新分类", systemImage: "plus").font(.caption.weight(.medium)).foregroundStyle(Color.brand)
+            Label(tr("新分类"), systemImage: "plus").font(.caption.weight(.medium)).foregroundStyle(Color.brand)
         }
         .buttonStyle(.borderless)
-        .accessibilityLabel("加一个新分类")
+        .accessibilityLabel(tr("加一个新分类"))
     }
 
     /// 翻页的小圆点；Mac 上两边再加箭头（鼠标没法左右滑）。
@@ -474,7 +474,7 @@ struct QuickAdd: View {
         return HStack(spacing: 6) {
             #if os(macOS)
             Button { withAnimation(.snappy) { categoryPage = max(0, current - 1) } } label: { Image(systemName: "chevron.left") }
-                .buttonStyle(.borderless).disabled(current == 0).accessibilityLabel("上一页分类")
+                .buttonStyle(.borderless).disabled(current == 0).accessibilityLabel(tr("上一页分类"))
             #endif
             ForEach(0..<count, id: \.self) { i in
                 Button { withAnimation(.snappy) { categoryPage = i } } label: {
@@ -482,11 +482,11 @@ struct QuickAdd: View {
                         .padding(4).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("分类第 \(i + 1) 页，共 \(count) 页")
+                .accessibilityLabel(tr("分类第 \(i + 1) 页，共 \(count) 页"))
             }
             #if os(macOS)
             Button { withAnimation(.snappy) { categoryPage = min(count - 1, current + 1) } } label: { Image(systemName: "chevron.right") }
-                .buttonStyle(.borderless).disabled(current >= count - 1).accessibilityLabel("下一页分类")
+                .buttonStyle(.borderless).disabled(current >= count - 1).accessibilityLabel(tr("下一页分类"))
             #endif
         }
         .font(.caption.weight(.semibold)).foregroundStyle(Color.fg2)
@@ -502,10 +502,10 @@ struct QuickAdd: View {
                     Menu {
                         ForEach(model.ledger.books) { b in Button(b.name) { bookID = b.id } }
                     } label: {
-                        Label(model.ledger.books.first { $0.id == bookID }?.name ?? "选账本", systemImage: "books.vertical")
+                        Label(model.ledger.books.first { $0.id == bookID }?.name ?? tr("选账本"), systemImage: "books.vertical")
                     }
                     .menuStyle(.button).buttonStyle(.borderless).fixedSize()
-                    .accessibilityLabel("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? "还没选")")
+                    .accessibilityLabel(tr("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? tr("还没选"))"))
                 }
             }
             #if os(iOS)
@@ -528,29 +528,29 @@ struct QuickAdd: View {
 
     private var detailRows: some View {
         VStack(spacing: 0) {
-            detailRow("备注") {
-                TextField("可不填", text: $note)
+            detailRow(tr("备注")) {
+                TextField(tr("可不填"), text: $note)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
                     .focused($focus, equals: .note)
-                    .accessibilityLabel("备注")
+                    .accessibilityLabel(tr("备注"))
             }
             Divider()
             tagRow
             if editing == nil {
                 Divider()
-                detailRow("重复") {
+                detailRow(tr("重复")) {
                     Menu {
-                        Button("不重复") { frequency = nil }
+                        Button(tr("不重复")) { frequency = nil }
                         Divider()
                         ForEach(Recurring.Frequency.allCases, id: \.self) { f in Button(f.label) { frequency = f } }
                     } label: {
-                        Text(frequency?.label ?? "不重复").foregroundStyle(frequency == nil ? Color.fg2 : Color.brand)
+                        Text(frequency?.label ?? tr("不重复")).foregroundStyle(frequency == nil ? Color.fg2 : Color.brand)
                     }
                     .menuStyle(.button).buttonStyle(.borderless).fixedSize()
-                    .accessibilityLabel("重复：\(frequency?.label ?? "不重复")")
+                    .accessibilityLabel(tr("重复：\(frequency?.label ?? tr("不重复"))"))
                 }
                 if let frequency {
-                    Text("以后每\(frequency == .weekly ? "周" : frequency == .monthly ? "月这一天" : "年这一天")打开 app 时自动记上，能撤销；在流水页「重复记账」里能停掉。")
+                    Text(tr("以后每\(frequency == .weekly ? tr("周") : frequency == .monthly ? tr("月这一天") : tr("年这一天"))打开 app 时自动记上，能撤销；在流水页「重复记账」里能停掉。"))
                         .font(.caption).foregroundStyle(Color.fg2)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
                 }
@@ -561,26 +561,26 @@ struct QuickAdd: View {
     }
 
     private var datePicker: some View {
-        DatePicker("日期", selection: $date, displayedComponents: .date)
+        DatePicker(tr("日期"), selection: $date, displayedComponents: .date)
             .datePickerStyle(.compact)
             .labelsHidden().fixedSize()
     }
 
     private func accountMenu(_ slot: AccountSlot) -> some View {
         let id = slot == .from ? accountID : toAccountID
-        let label = slot == .from ? "账户" : "转到"
+        let label = slot == .from ? tr("账户") : tr("转到")
         return Menu {
             ForEach(model.visibleAccounts) { a in
                 Button(a.name) { if slot == .from { accountID = a.id } else { toAccountID = a.id } }
             }
             if !model.visibleAccounts.isEmpty { Divider() }
-            Button { newName = ""; askingFor = slot; askAccount = true } label: { Label("新账户…", systemImage: "plus") }
+            Button { newName = ""; askingFor = slot; askAccount = true } label: { Label(tr("新账户…"), systemImage: "plus") }
         } label: {
-            Label(id.isEmpty ? "选账户" : model.accountName(id), systemImage: "creditcard")
+            Label(id.isEmpty ? tr("选账户") : model.accountName(id), systemImage: "creditcard")
                 .foregroundStyle(id.isEmpty ? Color.alert : .primary)
         }
         .menuStyle(.button).buttonStyle(.borderless).fixedSize()
-        .accessibilityLabel("\(label)：\(id.isEmpty ? "还没选" : model.accountName(id))")
+        .accessibilityLabel("\(label)：\(id.isEmpty ? tr("还没选") : model.accountName(id))")
     }
 
     /// 标签：已经加上的显示成小胶囊（点 × 去掉），后面能打新的；下面提示以前用过的。
@@ -590,7 +590,7 @@ struct QuickAdd: View {
         let hints = Array(used.filter { q.isEmpty || $0.lowercased().contains(q) }.prefix(6))
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text("标签").foregroundStyle(Color.fg2)
+                Text(tr("标签")).foregroundStyle(Color.fg2)
                 Spacer(minLength: 8)
                 ForEach(tags, id: \.self) { t in
                     Button { tags.removeAll { $0 == t } } label: {
@@ -599,14 +599,14 @@ struct QuickAdd: View {
                             .background(Color.brandSoft, in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("去掉标签 \(t)")
+                    .accessibilityLabel(tr("去掉标签 \(t)"))
                 }
-                TextField(tags.isEmpty ? "可不填，如「旅行」" : "再加", text: $tagDraft)
+                TextField(tags.isEmpty ? tr("可不填，如「旅行」") : tr("再加"), text: $tagDraft)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
                     .focused($focus, equals: .tag)
                     .onSubmit(addDraftTag)
                     .frame(minWidth: 60)
-                    .accessibilityLabel("加标签")
+                    .accessibilityLabel(tr("加标签"))
             }
             .font(.callout)
             .frame(minHeight: 36)
@@ -619,7 +619,7 @@ struct QuickAdd: View {
                                     .background(Color.cardBackground, in: Capsule())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("加标签 \(t)")
+                            .accessibilityLabel(tr("加标签 \(t)"))
                         }
                     }
                 }
@@ -637,22 +637,22 @@ struct QuickAdd: View {
 
     private var transferRows: some View {
         VStack(spacing: 0) {
-            detailRow("从") { accountMenu(.from) }
+            detailRow(tr("从")) { accountMenu(.from) }
             Divider()
-            detailRow("转到") { accountMenu(.to) }
+            detailRow(tr("转到")) { accountMenu(.to) }
             Divider()
-            detailRow("日期") { datePicker }
+            detailRow(tr("日期")) { datePicker }
             Divider()
-            detailRow("备注") {
-                TextField("可不填，比如「取现」", text: $note)
+            detailRow(tr("备注")) {
+                TextField(tr("可不填，比如「取现」"), text: $note)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing)
                     .focused($focus, equals: .note)
             }
             if !accountID.isEmpty && accountID == toAccountID {
-                Text("转出和转入要是两个不同的账户。").font(.caption).foregroundStyle(Color.alert)
+                Text(tr("转出和转入要是两个不同的账户。")).font(.caption).foregroundStyle(Color.alert)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
             } else {
-                Text("自己账户之间挪钱（取现、存进储蓄、还信用卡），不算收入也不算支出。")
+                Text(tr("自己账户之间挪钱（取现、存进储蓄、还信用卡），不算收入也不算支出。"))
                     .font(.caption).foregroundStyle(Color.fg2)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
             }
@@ -793,12 +793,12 @@ struct Keypad: View {
 
     static func spoken(_ k: String) -> String {
         switch k {
-        case "⌫": "删除"
-        case ",": "小数点"
-        case "+": "加"
-        case "−": "减"
-        case "=": "等于"
-        case "C": "清空"
+        case "⌫": tr("删除")
+        case ",": tr("小数点")
+        case "+": tr("加")
+        case "−": tr("减")
+        case "=": tr("等于")
+        case "C": tr("清空")
         default: k
         }
     }

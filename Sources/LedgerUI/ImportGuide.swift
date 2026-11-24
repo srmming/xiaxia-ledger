@@ -17,28 +17,28 @@ struct ImportGuideCard: View {
         var prompt: String
     }
 
-    static let sources: [Source] = [
-        Source(name: "银行卡、信用卡", symbol: "building.columns", formats: "Excel · CSV · PDF",
-               how: "网银或银行 App 里找「交易明细」或「对账单」，选一段时间导出。",
+    static var sources: [Source] { [
+        Source(name: tr("银行卡、信用卡"), symbol: "building.columns", formats: "Excel · CSV · PDF",
+               how: tr("网银或银行 App 里找「交易明细」或「对账单」，选一段时间导出。"),
                prompt: "附件是我从银行导出的对账单。请帮我导进夏夏账本：先告诉我该记到哪个账户、读到多少笔、哪些像是转给自己或还信用卡，给我看一下预览，我说可以再导。"),
-        Source(name: "支付宝", symbol: "qrcode", formats: "Excel · CSV",
-               how: "支付宝 App：我的 → 账单 → 右上角「…」→ 开具交易流水证明 → 用于个人对账，文件会发到你的邮箱。",
+        Source(name: tr("支付宝"), symbol: "qrcode", formats: "Excel · CSV",
+               how: tr("支付宝 App：我的 → 账单 → 右上角「…」→ 开具交易流水证明 → 用于个人对账，文件会发到你的邮箱。"),
                prompt: "附件是我的支付宝账单。请帮我导进夏夏账本：「不计收支」、退款、转给自己的钱别算成花销，导之前先给我看预览，我说可以再导。"),
-        Source(name: "微信支付", symbol: "bubble.left.and.bubble.right", formats: "Excel · CSV",
-               how: "微信：我 → 服务 → 钱包 → 账单 → 常见问题 → 下载账单 → 用于个人对账，文件会发到你的邮箱。",
+        Source(name: tr("微信支付"), symbol: "bubble.left.and.bubble.right", formats: "Excel · CSV",
+               how: tr("微信：我 → 服务 → 钱包 → 账单 → 常见问题 → 下载账单 → 用于个人对账，文件会发到你的邮箱。"),
                prompt: "附件是我的微信支付账单。请帮我导进夏夏账本：零钱提现、充值、转给自己的钱别算成花销，导之前先给我看预览，我说可以再导。"),
-        Source(name: "别的记账 App、自己的表格", symbol: "tablecells", formats: "Excel · CSV",
-               how: "钱迹、随手记、iCost 这些在「设置」里找「导出数据」；自己记的 Excel 表格也行。",
+        Source(name: tr("别的记账 App、自己的表格"), symbol: "tablecells", formats: "Excel · CSV",
+               how: tr("钱迹、随手记、iCost 这些在「设置」里找「导出数据」；自己记的 Excel 表格也行。"),
                prompt: "附件是我以前在别的记账软件（或自己的表格）里记的账。请帮我导进夏夏账本，原来的分类能照搬就照搬，导之前先给我看预览，我说可以再导。"),
-    ]
+    ] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 14) {
                 MascotView(.xiaxia, pose: .write, size: 92)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("把以前的账搬进来").font(.title2.weight(.bold))
-                    Text("从银行、支付宝、微信或别的记账 App 导出一份账单，交给你电脑上已经连上夏夏账本的 AI，它会整理好、先给你看预览，你确认了才导进来。")
+                    Text(tr("把以前的账搬进来")).font(.title2.weight(.bold))
+                    Text(tr("从银行、支付宝、微信或别的记账 App 导出一份账单，交给你电脑上已经连上夏夏账本的 AI，它会整理好、先给你看预览，你确认了才导进来。"))
                         .font(.subheadline).foregroundStyle(Color.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -56,7 +56,7 @@ struct ImportGuideCard: View {
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "lock.shield").foregroundStyle(Color.fg3)
-                Text("文件只交给你自己的 AI，夏夏账本没有服务器，不会传到别处。不想导也行：直接跟 AI 说「今天午饭 12」，或点右上角「记一笔」。")
+                Text(tr("文件只交给你自己的 AI，夏夏账本没有服务器，不会传到别处。不想导也行：直接跟 AI 说「今天午饭 12」，或点右上角「记一笔」。"))
                     .font(.caption).foregroundStyle(Color.fg2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -67,9 +67,9 @@ struct ImportGuideCard: View {
 
     @ViewBuilder
     private var steps: some View {
-        stepChip(1, "导出账单", "Excel、CSV、PDF 都行")
-        stepChip(2, "拖进 Claude", "再粘贴复制好的那句话")
-        stepChip(3, "看一眼预览", "说「可以」就导进来")
+        stepChip(1, tr("导出账单"), tr("Excel、CSV、PDF 都行"))
+        stepChip(2, tr("拖进 Claude"), tr("再粘贴复制好的那句话"))
+        stepChip(3, tr("看一眼预览"), tr("说「可以」就导进来"))
     }
 
     private func stepChip(_ n: Int, _ title: String, _ detail: String) -> some View {
@@ -102,10 +102,10 @@ struct ImportGuideCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
             Button { copy(s) } label: {
-                Label("复制给 AI 的话", systemImage: "doc.on.doc").font(.subheadline.weight(.medium))
+                Label(tr("复制给 AI 的话"), systemImage: "doc.on.doc").font(.subheadline.weight(.medium))
             }
             .buttonStyle(.softAI)
-            .accessibilityHint("复制一句话，在你的 AI 里把账单文件拖进去再粘贴")
+            .accessibilityHint(tr("复制一句话，在你的 AI 里把账单文件拖进去再粘贴"))
             .accessibilityIdentifier("importGuide.copy.\(s.name)")
         }
         .padding(14)
@@ -117,7 +117,7 @@ struct ImportGuideCard: View {
     private func copy(_ s: Source) {
         // 和「问夏夏」一样：复制好、提示停一会儿，要不要打开 Claude 由用户自己点，不自动跳走。
         model.handOffToAI(s.prompt)
-        model.toast?.text = "提示词已经复制。打开你的 AI，把账单文件拖进去，再粘贴这句话"
+        model.toast?.text = tr("提示词已经复制。打开你的 AI，把账单文件拖进去，再粘贴这句话")
         model.toast?.seconds = 10
     }
 }
@@ -129,16 +129,16 @@ struct StartLedgerView: View {
     @Environment(LedgerModel.self) var model
     @State private var showImportHelp = false
     /// 例句的金额跟着主币种写（引导里选了人民币就是「23,40 ¥」）。
-    static var example: String { "今天超市花了 \(Money(cents: 2340).formatted(in: Money.defaultCurrency))" }
+    static var example: String { tr("今天超市花了 \(Money(cents: 2340).formatted(in: Money.defaultCurrency))") }
 
     var body: some View {
         AskAIReader { ask in
             VStack(alignment: .leading, spacing: 28) {
                 HStack(alignment: .center, spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("开始记账").font(.system(size: 48, weight: .heavy))
+                        Text(tr("开始记账")).font(.system(size: 48, weight: .heavy))
                             .accessibilityAddTraits(.isHeader)
-                        Text("先记今天的一笔，或把以前的账带过来。").font(.title3).foregroundStyle(Color.fg2)
+                        Text(tr("先记今天的一笔，或把以前的账带过来。")).font(.title3).foregroundStyle(Color.fg2)
                     }
                     Spacer(minLength: 16)
                     MascotView(.xiaxia, pose: .write, size: 170)
@@ -146,9 +146,9 @@ struct StartLedgerView: View {
                 }
 
                 VStack(spacing: 0) {
-                    row(symbol: "pencil", title: "记下第一笔", detail: "记一笔收入或支出") {
+                    row(symbol: "pencil", title: tr("记下第一笔"), detail: tr("记一笔收入或支出")) {
                         Button { model.sheet = .add } label: {
-                            Text("记一笔").font(.title3.weight(.semibold)).foregroundStyle(.white)
+                            Text(tr("记一笔")).font(.title3.weight(.semibold)).foregroundStyle(.white)
                                 .padding(.horizontal, 28).padding(.vertical, 11)
                                 .background(Color.brand, in: Capsule())
                                 .contentShape(Capsule())
@@ -158,9 +158,9 @@ struct StartLedgerView: View {
                     }
                     Divider().padding(.leading, 76)
                     Button { showImportHelp = true } label: {
-                        row(symbol: "square.and.arrow.down", title: "用 AI 导入旧账", detail: "把账单发给你已连接夏夏账本的 AI，确认后导入。") {
+                        row(symbol: "square.and.arrow.down", title: tr("用 AI 导入旧账"), detail: tr("把账单发给你已连接夏夏账本的 AI，确认后导入。")) {
                             HStack(spacing: 6) {
-                                Text("查看方法")
+                                Text(tr("查看方法"))
                                 Image(systemName: "chevron.right")
                             }
                             .font(.body).foregroundStyle(Color.fg2)
@@ -174,7 +174,7 @@ struct StartLedgerView: View {
 
                 Button { ask(Self.example, page: "总览") } label: {
                     HStack(spacing: 16) {
-                        Label("问夏夏", systemImage: "sparkles").font(.title3.weight(.semibold)).foregroundStyle(Color.ai)
+                        Label(tr("问夏夏"), systemImage: "sparkles").font(.title3.weight(.semibold)).foregroundStyle(Color.ai)
                         Rectangle().fill(Color.fg3.opacity(0.3)).frame(width: 1, height: 26)
                         Text(Self.example).font(.title3).foregroundStyle(Color.fg2)
                         Spacer(minLength: 8)
@@ -185,7 +185,7 @@ struct StartLedgerView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.pressable)
-                .accessibilityLabel("问夏夏：\(Self.example)")
+                .accessibilityLabel(tr("问夏夏：\(Self.example)"))
                 .accessibilityIdentifier("overview.start.ask")
             }
             .frame(maxWidth: 980, alignment: .leading)
@@ -220,7 +220,7 @@ struct ImportHelpSheet: View {
             Divider()
             HStack {
                 Spacer()
-                Button("好了") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(tr("好了")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
             .padding(14)
         }
