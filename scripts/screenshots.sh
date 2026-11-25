@@ -94,6 +94,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 1d-business-dark -XiaxiaDemo 1 -XiaxiaBook shop -xiaxia.appearance dark
   snap 1e-business-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage business
   snap 1f-business-off -XiaxiaDemo 1 -XiaxiaBusiness off
+  snap 1g-business-daily -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily
+  snap 1h-business-daily-dark -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily -xiaxia.appearance dark
   snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
   snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights
