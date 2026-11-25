@@ -284,7 +284,6 @@ struct PendingCapturesCard: View {
         let list = model.ledger.pendingCaptures
         if !list.isEmpty && !hidden {
             HStack(alignment: .center, spacing: 10) {
-                XiaxiaAvatar(size: 34)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(tr("待记录 · \(list.count) 句")).font(.headline)
                     Text(preview(list)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
