@@ -169,8 +169,10 @@ public enum CashForecast {
     public static func flows(_ txs: [Transaction], books: [Book], months: [YearMonth],
                              hiddenAccounts: Set<String> = [], only: [String]? = nil) -> [YearMonth: Flow] {
         let personal = books.filter { !$0.isBusiness }.map(\.id)
-        let scopes: [String?] = only.map { $0.map(Optional.some) }
-            ?? ((!personal.isEmpty && personal.count < books.count) ? personal : [nil])
+        let scopes: [String?]
+        if let only { scopes = only.map { Optional($0) } }
+        else if !personal.isEmpty && personal.count < books.count { scopes = personal.map { Optional($0) } }
+        else { scopes = [nil] }
         var out: [YearMonth: Flow] = [:]
         for scope in scopes {
             for s in Reports.summaries(txs, months: months, bookID: scope, hiddenAccounts: hiddenAccounts) {
