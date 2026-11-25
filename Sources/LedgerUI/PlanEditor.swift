@@ -107,7 +107,7 @@ struct NewPlanSheet: View {
     private var footer: String {
         switch kind {
         case .goal: tr("比如「旅行」2.000 €，明年 6 月前存够。存钱时跟夏夏说「往旅行里存 100」。")
-        case .installment: tr("比如「手机」每月 45 €，分 24 期。买的那天按全额记一笔支出，之后每期扣款不再算支出。")
+        case .installment: tr("比如「手机」每月 45 €，分 12 期。买的那天按全额记一笔支出，之后每期扣款不再算支出。")
         case .debt: tr("比如「小王借我 300 €」。还钱时跟夏夏说「小王还了我 100」。")
         }
     }

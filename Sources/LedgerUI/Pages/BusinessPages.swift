@@ -115,10 +115,11 @@ struct FixedCostEditor: View {
     @State private var amountText = ""
     @State private var day = 1
     @State private var account = ""
-    @State private var category = "房租"
+    @State private var category = "店租"
     @State private var error: String?
 
-    private static let kinds = ["房租", "工资", "水电", "网费", "保险", "会计", "其他"]
+    // 和店里的分类叫法一样（店租、员工工资），首页、花销页才对得上。
+    private static let kinds = ["店租", "员工工资", "水电", "网费", "保险", "会计", "其他"]
 
     @FocusState private var amountFocused: Bool
 

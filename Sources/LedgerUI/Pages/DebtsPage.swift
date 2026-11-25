@@ -217,7 +217,7 @@ struct DebtsPage: View {
         let total = lines.reduce(Money.zero) { $0 + $1.outstanding }
         let maxRows = short ? 3 : 6
         return VStack(alignment: .leading, spacing: 2) {
-            header(tr("我欠的"), total, hint: lines.isEmpty ? nil : tr("本月要还的在前"))
+            header(tr("我欠的"), total, hint: nil)
             if lines.isEmpty {
                 Text(tr("什么都不欠。分期买东西点「记分期」，跟别人借钱点「记借款」。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
@@ -316,7 +316,7 @@ struct DebtsPage: View {
             if let hint { Text(hint).font(.caption).foregroundStyle(Color.fg3) }
             Spacer()
             if total.cents > 0 {
-                Text(total.rounded).font(.callout.weight(.semibold)).foregroundStyle(Color.fg2).monospacedDigit()
+                Text(tr("一共 \(total.rounded)")).font(.callout.weight(.semibold)).foregroundStyle(Color.fg2).monospacedDigit()
             }
         }
         .padding(.bottom, 4)
