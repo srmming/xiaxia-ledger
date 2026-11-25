@@ -117,16 +117,21 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["名字，比如「家庭」「第二家店」"].waitForExistence(timeout: 5), "管理账本页没打开")
     }
 
-    /// 生意模式（示例账本开着）：顶上切到「生意」，首页有「记今天进账」，点了弹出记一笔。
+    /// 生意模式（示例账本开着）：顶上切到「生意」，首页「记今天的账」，填现金记下，面板关掉、今天那张卡显示记好了。
     func testBusinessSideSwitch() {
         let app = launch("-XiaxiaDemo")
         let business = app.buttons["生意"].firstMatch
         XCTAssertTrue(business.waitForExistence(timeout: 15), "顶上没有「生活 | 生意」切换")
         business.tap()
-        let add = app.buttons["business.addIncome"]
-        XCTAssertTrue(add.waitForExistence(timeout: 5), "切到生意后首页没有「记今天进账」")
-        add.tap()
-        XCTAssertTrue(app.buttons["取消"].waitForExistence(timeout: 5), "记一笔面板没弹出来")
+        let daily = app.buttons["business.daily"]
+        XCTAssertTrue(daily.waitForExistence(timeout: 5), "切到生意后首页没有「记今天的账」")
+        daily.tap()
+        let cash = app.textFields["daily.cash"]
+        XCTAssertTrue(cash.waitForExistence(timeout: 5), "每天记账面板没弹出来")
+        cash.tap()
+        cash.typeText("120")
+        app.buttons["daily.save"].tap()
+        XCTAssertTrue(cash.waitForNonExistence(timeout: 5), "记下后面板没关")
     }
 
     /// 账户：加一个，再改名。

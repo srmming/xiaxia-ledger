@@ -17,6 +17,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case plan
     /// 欠款与分期页：直接打开登记分期 / 借款。
     case newInstallment, newDebt
+    /// 生意首页「记今天的账」：现金、刷卡两个框。
+    case daily
     public var id: String { rawValue }
 }
 

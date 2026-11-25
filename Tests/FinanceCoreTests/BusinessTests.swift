@@ -69,6 +69,39 @@ final class BusinessTests: XCTestCase {
         XCTAssertEqual(line.last?.cents, 700)
     }
 
+    func testDailyTakingsGoToShopAccountsAndUndo() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.accounts += [Account(id: "till", name: "店里现金", kind: .cash), Account(id: "shop", name: "公司卡", kind: .bank),
+                       Account(id: "life", name: "日常卡", kind: .bank)]
+        l.transactions = [tx("房租", -1200, category: "房租", account: "shop"), tx("零钱", -5, account: "till"),
+                          tx("超市", -30, book: "personal", account: "life")]
+        let (cash, card) = l.dailyAccounts()
+        XCTAssertEqual(cash, "till")
+        XCTAssertEqual(card, "shop")
+        let change = try l.recordDailyTakings(DailyTakings(cash: Money(cents: 12000), card: .zero), date: today,
+                                              cashAccount: cash, cardAccount: card, author: author)
+        XCTAssertEqual(change.transactionIDs.count, 1)
+        _ = try l.recordDailyTakings(DailyTakings(cash: .zero, card: Money(cents: 30000)), date: today,
+                                     cashAccount: cash, cardAccount: card, author: author)
+        XCTAssertEqual(l.dailyTakings(on: today), DailyTakings(cash: Money(cents: 12000), card: Money(cents: 30000)))
+        XCTAssertEqual(try l.businessReport(month: today.yearMonth, today: today).todayIncome.cents, 42000)
+        XCTAssertThrowsError(try l.recordDailyTakings(DailyTakings(cash: .zero, card: .zero), date: today,
+                                                      cashAccount: cash, cardAccount: card, author: author))
+        _ = try l.undo(changeID: change.id, author: author)
+        XCTAssertEqual(l.dailyTakings(on: today).cash, .zero)
+    }
+
+    func testBusinessNudgesNeverMentionTax() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.transactions = [tx("销售", 100000, category: "营业收入"), tx("房租", -120000, category: "房租")]
+        let r = try l.businessReport(month: today.yearMonth, today: today)
+        let list = Nudges.business(r, progress: nil, month: today.yearMonth, today: today, currency: "EUR")
+        XCTAssertEqual(list.first?.kind, .unusual)
+        XCTAssertFalse(list.contains { ($0.title + $0.advice).contains("税") })
+    }
+
     func testGuessAndMove() throws {
         var l = Ledger.starter
         _ = try l.enableBusinessMode(author: author)
