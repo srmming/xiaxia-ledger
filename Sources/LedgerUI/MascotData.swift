@@ -35,7 +35,7 @@ enum MascotData {
         "xiaxia-biz-boy-sharp": (0.485, 0.193, 0.21),
         "xiaxia-biz-boy-sleep": (0.451, 0.273, 0.21),
         "xiaxia-biz-boy-think": (0.436, 0.192, 0.21),
-        "xiaxia-biz-boy-worried": (0.448, 0.196, 0.21),
+        "xiaxia-biz-boy-worried": (0.456, 0.181, 0.21),
         "xiaxia-biz-boy-write": (0.468, 0.186, 0.21),
         "xiaxia-biz-calm": (0.489, 0.214, 0.21),
         "xiaxia-biz-celebrate": (0.489, 0.217, 0.21),
