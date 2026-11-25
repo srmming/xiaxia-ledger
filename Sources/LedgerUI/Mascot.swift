@@ -112,6 +112,14 @@ enum MascotLook: String, CaseIterable, Identifiable {
         defaults.set(true, forKey: chosenKey)
     }
 
+    /// 挑样子的地方点了一个：一定记下「挑过」；返回样子有没有变（变了界面才播动画）。
+    @discardableResult
+    static func pick(_ look: MascotLook, _ defaults: UserDefaults = .standard) -> Bool {
+        let before = stored(defaults.string(forKey: storageKey) ?? MascotLook.girl.rawValue)
+        choose(look, defaults)
+        return before != look
+    }
+
     /// 开生意模式时推荐的样子：没自己挑过的女孩 / 男孩换成同性别的成年版；挑过的、宠物、已经是成年版的不动。
     static func businessSuggestion(current: MascotLook, chosen: Bool) -> MascotLook? {
         guard !chosen else { return nil }

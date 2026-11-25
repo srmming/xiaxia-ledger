@@ -729,8 +729,9 @@ struct WelcomeView: View {
             HStack(spacing: 8) {
                 ForEach(MascotLook.kidChoices) { l in
                     chip(l.label, symbol: l == .girl ? "face.smiling" : "face.smiling.inverse", on: lookRaw == l.rawValue) {
-                        guard lookRaw != l.rawValue else { return }
-                        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { MascotLook.choose(l) }
+                        // 每次点都记「自己挑过」（点已经亮着的那个也算）；样子真的变了才播动画、说话。
+                        guard MascotLook.pick(l) else { return }
+                        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { lookRaw = l.rawValue }
                         Task { await say(l == .girl ? tr("好呀，就这样陪你记账～") : tr("好，换个样子陪你记账！"), pose: .cheer) }
                     }
                 }

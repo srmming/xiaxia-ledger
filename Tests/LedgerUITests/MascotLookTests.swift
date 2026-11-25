@@ -85,6 +85,16 @@ final class MascotLookTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "girl")
     }
 
+    /// 审查复现：新用户在引导里点已经亮着的「女孩」，也要记下「挑过」，开生意模式时不换。
+    func testPickingHighlightedGirlCountsAsChoice() throws {
+        let defaults = try freshDefaults()
+        XCTAssertFalse(MascotLook.pick(.girl, defaults), "样子没变")
+        XCTAssertTrue(MascotLook.userChose(defaults))
+        XCTAssertNil(MascotLook.applyBusinessDefault(defaults))
+        XCTAssertTrue(MascotLook.pick(.boy, defaults), "换成男孩，样子变了")
+        XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "boy")
+    }
+
     /// 女孩版的 4 段逐帧动画都在，帧数和时长对得上；别的样子没有就不播。
     func testGirlClips() throws {
         let expected: [(MascotPose, Int)] = [(.hello, 8), (.cheer, 8), (.celebrate, 8), (.write, 12)]
