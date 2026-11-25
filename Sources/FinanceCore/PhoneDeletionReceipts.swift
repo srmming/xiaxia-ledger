@@ -29,7 +29,31 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
     var received: [String: State] = [:]
     // 流水 → 等待持久提交的纸条。iCloud 一时看不到文件也不能解除保护。
     var queued: [String: [String]] = [:]
-    private enum CodingKeys: String, CodingKey { case received, queued }
+    var deletionIDs: [String: [String]] = [:]
+    private enum CodingKeys: String, CodingKey { case received, queued, deletionIDs }
+
+    mutating func bind(_ events: [String], to row: UUID) {
+        let key = row.uuidString
+        deletionIDs[key] = Set(deletionIDs[key] ?? []).union(events).sorted()
+    }
+
+    mutating func undo(_ event: UUID, for row: UUID, existing: [ChangeRecord]) {
+        let key = row.uuidString
+        guard received[key] != nil else { return }
+        // 升级前只留下流水编号；用原删除历史辨认当时的操作。
+        let owners = deletionIDs[key] ?? existing.filter {
+            $0.kind == .remove && !$0.undone && $0.transactionIDs.contains(row)
+        }.map { $0.id.uuidString }
+        guard owners.contains(event.uuidString) else { return }
+        let others = owners.filter { $0 != event.uuidString }
+        if others.isEmpty {
+            received[key] = nil
+            queued[key] = nil
+            deletionIDs[key] = nil
+        } else {
+            deletionIDs[key] = others
+        }
+    }
 
     mutating func track(_ index: [String: Set<String>]) {
         for id in received.keys {
@@ -44,6 +68,7 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
             queued[id] = remaining.isEmpty || received[id] == nil ? nil : remaining
         }
         for (id, state) in received where state == .bookingHandled && queued[id] == nil { received[id] = nil }
+        deletionIDs = deletionIDs.filter { received[$0.key] != nil }
     }
 
     var earliestWaitingTime: TimeInterval? {
@@ -59,6 +84,7 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         if let fields = try? decoder.container(keyedBy: CodingKeys.self), fields.contains(.received) {
             received = try fields.decode([String: State].self, forKey: .received)
+            deletionIDs = try fields.decodeIfPresent([String: [String]].self, forKey: .deletionIDs) ?? [:]
             queued = try fields.decode([String: [String]].self, forKey: .queued)
             return
         }
@@ -71,13 +97,14 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
     }
 
     func encode(to encoder: Encoder) throws {
-        if queued.isEmpty {
+        if queued.isEmpty && deletionIDs.isEmpty {
             var value = encoder.singleValueContainer()
             try value.encode(received)
         } else {
             var fields = encoder.container(keyedBy: CodingKeys.self)
             try fields.encode(received, forKey: .received)
             try fields.encode(queued, forKey: .queued)
+            if !deletionIDs.isEmpty { try fields.encode(deletionIDs, forKey: .deletionIDs) }
         }
     }
 
@@ -88,7 +115,7 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
         for (id, state) in received {
             guard case .waitingSince(let start) = state else { continue }
             if start == -1 { received[id] = .waitingSince(time) }
-            else if queued[id] == nil && time - start >= Self.lifetime { received[id] = nil }
+            else if queued[id] == nil && time - start >= Self.lifetime { received[id] = nil; deletionIDs[id] = nil }
         }
     }
 }
@@ -101,11 +128,10 @@ extension Ledger {
         if updated != pendingPhoneDeletes { pendingPhoneDeletes = updated }
     }
 
-    mutating func clearPhoneDeletes(_ ids: [UUID]) {
+    mutating func undoPhoneDeletion(_ event: UUID, ids: [UUID]) {
         guard var receipts = pendingPhoneDeletes else { return }
         for id in ids {
-            receipts.received[id.uuidString] = nil
-            receipts.queued[id.uuidString] = nil
+            receipts.undo(event, for: id, existing: changes)
         }
         pendingPhoneDeletes = receipts.received.isEmpty ? nil : receipts
     }

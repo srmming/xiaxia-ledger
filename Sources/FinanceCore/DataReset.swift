@@ -200,6 +200,9 @@ public enum LedgerBackup {
         }
         if let current = target.pendingPhoneDeletes {
             deletes.track(current.queued.mapValues(Set.init))
+            for (key, events) in current.deletionIDs {
+                if let id = UUID(uuidString: key) { deletes.bind(events, to: id) }
+            }
         }
         deletes.finish(Set(restored.appliedNotes))
         restored.pendingPhoneDeletes = deletes.received.isEmpty ? nil : deletes

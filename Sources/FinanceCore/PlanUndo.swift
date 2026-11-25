@@ -6,6 +6,7 @@ private struct PlanUndo {
     typealias Hashes = [String: [String: Data]]
     let expected: Hashes?
     var observed: Hashes = [:]
+    var touched = Set<String>()
     private var conflict: BusinessError { BusinessError(message: "这次改过的字段后来又被修改，无法撤销") }
 
     static func hashes(_ fields: [String: NSObject]) throws -> [String: Data] {
@@ -16,6 +17,7 @@ private struct PlanUndo {
     }
 
     mutating func row<T: Codable>(_ original: T?, _ current: T?, key: String) throws -> T? {
+        touched.insert(key)
         let fields = try current.map { try FieldMerge.fields(FieldMerge.encode($0)) }
         let now = try fields.map(Self.hashes)
         observed[key] = now
@@ -69,7 +71,7 @@ extension PlanSnapshot {
         return fields
     }
 
-    func checked(in ledger: Ledger, hashes: [String: [String: Data]]?) throws -> (snapshot: PlanSnapshot, hashes: [String: [String: Data]]) {
+    func checked(in ledger: Ledger, hashes: [String: [String: Data]]?) throws -> (snapshot: PlanSnapshot, hashes: [String: [String: Data]], touched: Set<String>) {
         var check = PlanUndo(expected: hashes)
         var result = self
         result.accounts = try check.rows(accounts, added: addedAccountIDs, current: ledger.accounts, table: "accounts")
@@ -85,7 +87,8 @@ extension PlanSnapshot {
         result.paperwork = try check.rows(paperwork, added: addedPaperworkIDs, current: ledger.paperwork, table: "paperwork")
         if profile != nil { result.profile = try check.row(profile, ledger.profile, key: "profile") }
         if currency != nil { result.currency = try check.row(currency, ledger.currency, key: "currency") }
-        return (result, check.observed)
+        if changedBusiness == true { check.touched.insert("business") }
+        return (result, check.observed, check.touched)
     }
 }
 

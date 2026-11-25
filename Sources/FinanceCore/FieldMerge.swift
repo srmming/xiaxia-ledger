@@ -63,7 +63,7 @@ extension Ledger {
             let current = currentRows[id]
             let subsequent = laterByID[id] ?? []
             if change.kind == .remove {
-                guard current == nil && subsequent.isEmpty else { throw conflict }
+                guard current == nil && subsequent.allSatisfy({ $0.kind == .remove }) else { throw conflict }
                 continue
             }
             guard let old = before[id] else {
@@ -72,7 +72,12 @@ extension Ledger {
                 continue
             }
             // 旧版未记录修改结果时，下一次改这行之前的快照也能证明当时的值。
-            guard let current, let written = after[id] ?? subsequent.first?.previous?.first(where: { $0.id == id }) else {
+            guard let current else { throw conflict }
+            if after[id] == nil && subsequent.isEmpty {
+                result[id] = old // 旧记录是该行最后一次改动，沿用原来的撤销语义。
+                continue
+            }
+            guard let written = after[id] ?? subsequent.first?.previous?.first(where: { $0.id == id }) else {
                 throw conflict
             }
             let base = try FieldMerge.encode(written)

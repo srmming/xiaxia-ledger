@@ -823,6 +823,102 @@ extension StaleOverwriteTests {
         XCTAssertNil(mac.pendingPhoneDeletes, label)
     }
 
+    func testTwoDeletionsOnlyUndoTheNamedDeletionInAll24Orders() throws {
+        let booked = ledger(), id = booked.transactions[0].id
+        var first = booked
+        let d1 = try first.removeTransactions([id], author: "手机")
+        var undone = first
+        try undone.undo(changeID: d1.id, author: "手机")
+        var second = undone
+        let d2 = try second.removeTransactions([id], author: "手机")
+        let steps = [(Ledger.fresh, booked), (booked, first), (first, undone), (undone, second)]
+        let notes = try steps.map { try XCTUnwrap($0.1.syncNote(since: $0.0, device: "手机")) }
+        for legacy in [false, true] {
+            for a in notes.indices {
+                for b in notes.indices where b != a {
+                    for c in notes.indices where c != a && c != b {
+                        let d = try XCTUnwrap(notes.indices.first { ![a,b,c].contains($0) })
+                        let dir = try folder()
+                        let raw = SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite"))
+                        for index in [a,b,c,d] {
+                            if legacy { try writeLegacyNote(notes[index], folder: dir) }
+                            else { try SyncNotes.write(notes[index], ledgerFolder: dir) }
+                            _ = try InboxApplyingStore(primary: raw, folder: dir).load()
+                        }
+                        let result = try raw.load()
+                        let label = "顺序 \([a,b,c,d])，旧格式 \(legacy)"
+                        XCTAssertTrue(result.transactions.isEmpty, label)
+                        XCTAssertEqual(result.changes.first { $0.id == d1.id }?.undone, true, label)
+                        XCTAssertEqual(result.changes.first { $0.id == d2.id }?.undone, false, label)
+                        XCTAssertEqual(Set(result.appliedNotes), Set(notes.map(\.id)), label)
+                    }
+                }
+            }
+        }
+    }
+
+    func testMacUndoClearsOnlyOneOfTwoDeletionReceipts() throws {
+        let booked = ledger(), id = booked.transactions[0].id
+        var mac = Ledger.fresh
+        var deleteIDs: [UUID] = []
+        for _ in 0..<2 {
+            var phone = booked
+            let deletion = try phone.removeTransactions([id], author: "手机")
+            deleteIDs.append(deletion.id)
+            mac.apply(try XCTUnwrap(phone.syncNote(since: booked, device: "手机")))
+        }
+        XCTAssertEqual(Set(mac.pendingPhoneDeletes?.deletionIDs[id.uuidString] ?? []), Set(deleteIDs.map(\.uuidString)))
+        try mac.undo(changeID: deleteIDs[0], author: "Mac")
+        XCTAssertTrue(mac.transactions.isEmpty)
+        XCTAssertEqual(mac.pendingPhoneDeletes?.deletionIDs[id.uuidString], [deleteIDs[1].uuidString])
+        try mac.undo(changeID: deleteIDs[1], author: "Mac")
+        XCTAssertEqual(mac.transactions, booked.transactions)
+        XCTAssertNil(mac.pendingPhoneDeletes)
+    }
+
+    // cbf9bc6 的 JSONFileLedgerStore 实际保存的模拟账本，包含旧编辑器生成的原始改名记录。
+    private func mainRenameFixture() throws -> (Ledger, ChangeRecord) {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/cbf9bc6-rename.json")
+        let value = try JSONFileLedgerStore(url: url).load()
+        let change = try XCTUnwrap(value.changes.last)
+        XCTAssertNil(change.resultingTransactions)
+        return (value, change)
+    }
+
+    func testUndoLastRenameLoadedFromMainLedger() throws {
+        var (value, change) = try mainRenameFixture()
+        try value.undo(changeID: change.id, author: "Mac")
+        XCTAssertEqual(value.transactions.first?.description, "模拟原名")
+        XCTAssertEqual(value.transactions.first?.amount.cents, 250)
+    }
+
+    func testUndoMainRenameAfterLaterAmountEditPreservesAmount() throws {
+        var (value, change) = try mainRenameFixture()
+        var edit = try XCTUnwrap(value.transactions.first)
+        edit.amount = Money(cents: 789)
+        try value.editTransaction(edit, author: "Mac")
+        try value.undo(changeID: change.id, author: "Mac")
+        XCTAssertEqual(value.transactions.first?.description, "模拟原名")
+        XCTAssertEqual(value.transactions.first?.amount.cents, 789)
+    }
+
+    func testLegacyAccountUndoChecksOnlyAffectedRows() throws {
+        var value = ledger(), account = value.accounts[0]
+        account.name = "升级前改名"
+        let change = try value.updateAccount(account, author: "Mac")
+        value.changes[value.changes.count - 1].planFieldHashes = nil
+        try value.addTransaction(row("独立流水"), author: "Mac")
+        var conflict = value
+        account.institution = "后来改的机构"
+        try conflict.updateAccount(account, author: "Mac")
+        XCTAssertThrowsError(try conflict.undo(changeID: change.id, author: "Mac"))
+        XCTAssertEqual(conflict.accounts.first, account)
+        try value.undo(changeID: change.id, author: "Mac")
+        XCTAssertEqual(value.accounts.first?.name, "模拟现金")
+        XCTAssertEqual(value.transactions.count, 2)
+    }
+
     func testLegacyJSONBookingWithoutSequenceIsApplied() throws {
         let dir = try folder()
         let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite")), folder: dir)

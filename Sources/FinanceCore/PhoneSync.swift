@@ -261,6 +261,7 @@ extension Ledger {
         let originalChanges = note.originalValues(in: "changes")
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        var undoOwners: [UUID: Set<UUID>] = [:]
         for change in note.changes ?? [] where change.undone && change.kind == .remove {
             if !changes.contains(where: { $0.id == change.id }),
                let data = originalChanges[change.id.uuidString],
@@ -269,10 +270,21 @@ extension Ledger {
                 changes.append(original)
             }
             if let original = changes.first(where: { $0.id == change.id && !$0.undone && $0.kind == .remove }) {
-                for id in original.transactionIDs where proposedIDs.contains(id) { awaiting.received[id.uuidString] = nil }
+                for id in original.transactionIDs where proposedIDs.contains(id) {
+                    undoOwners[id, default: []].insert(change.id)
+                    awaiting.undo(change.id, for: id, existing: changes)
+                }
             }
         }
         var suppressed = proposedIDs.filter { awaiting.received[$0.uuidString] != nil }
+        // 即使新增已收、临时凭据已清，撤销也只解除同一个删除事件。
+        if !undoOwners.isEmpty {
+            for removal in changes where removal.kind == .remove && !removal.undone {
+                for id in removal.transactionIDs {
+                    if let owners = undoOwners[id], !owners.contains(removal.id) { suppressed.insert(id) }
+                }
+            }
+        }
         // 等待期已结束、入账才首次出现时，账本也可能仍有明确的删除原件。
         // 只检查当前缺失的初次新增。撤销、正常编辑和现在仍存在的流水不走这里。
         let firstAdds = note.addedTransactionIDs
@@ -294,15 +306,17 @@ extension Ledger {
         let groups = linkedConflicts(in: note, ignoring: skipped)
         var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked.union(skipped))
         for id in suppressed { merger.skipped.insert(.init("paperwork", id.uuidString)) }
-        for change in note.changes ?? [] where !suppressed.isDisjoint(with: change.transactionIDs) {
+        for change in note.changes ?? [] where !(change.kind == .remove && change.undone) && !suppressed.isDisjoint(with: change.transactionIDs) {
             merger.skipped.insert(.init("changes", change.id.uuidString))
         }
         // 已有行的删除仍须比较旧值；关联计划被拒时也不能偷偷保留删除意图。
         let absentDeletes = (note.deletes?["transactions"] ?? []).compactMap(UUID.init(uuidString:)).filter { id in
             !transactions.contains { $0.id == id } && !merger.skipped.contains(.init("transactions", id.uuidString))
         }
-        for id in absentDeletes where awaiting.received[id.uuidString] == nil {
-            awaiting.received[id.uuidString] = .waitingSince(floor(timestamp.timeIntervalSince1970))
+        for id in absentDeletes {
+            if awaiting.received[id.uuidString] == nil { awaiting.received[id.uuidString] = .waitingSince(floor(timestamp.timeIntervalSince1970)) }
+            let events = (note.changes ?? []).filter { $0.kind == .remove && !$0.undone && $0.transactionIDs.contains(id) }
+            awaiting.bind(events.isEmpty ? [note.id] : events.map { $0.id.uuidString }, to: id)
         }
         if !absentDeletes.isEmpty { awaiting.track(queued) }
         let lateAdds = suppressed.intersection(firstAdds).filter { awaiting.received[$0.uuidString] != .bookingHandled }

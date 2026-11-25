@@ -482,8 +482,19 @@ extension Ledger {
                         }
                     }
                 }
-            } else if !changes.suffix(from: i + 1).filter({ !$0.undone }).isEmpty {
-                throw BusinessError(message: "旧改动缺少字段记录，无法确认撤销是否会覆盖后续改动")
+            } else {
+                let ours = try before.checked(in: self, hashes: nil).touched
+                let refs = Set((before.debts ?? []).flatMap(\.repaymentIDs) + (before.goals ?? []).flatMap(\.contributionIDs))
+                    .union((before.installments ?? []).flatMap { $0.paidIDs + [$0.purchaseID].compactMap { $0 } })
+                for next in changes.suffix(from: i + 1) where !next.undone {
+                    var rows = try next.before?.checked(in: self, hashes: nil).touched ?? []
+                    if let id = next.debtID { rows.insert("debts/\(id)") }
+                    if let id = next.installmentID { rows.insert("installments/\(id)") }
+                    if let id = next.goalID { rows.insert("goals/\(id)") }
+                    if !ours.isDisjoint(with: rows) || (next.kind == .remove && !refs.isDisjoint(with: next.transactionIDs)) {
+                        throw BusinessError(message: "旧记录涉及的内容后来又被修改，无法安全撤销")
+                    }
+                }
             }
         }
         if let debtID = change.debtID {
@@ -518,8 +529,11 @@ extension Ledger {
         if change.kind == .remove, let previous = change.previous {
             // 删掉的流水：放回来（借款、分期、目标里的引用不自动恢复，改动记录里写明了）。
             let existing = Set(transactions.map(\.id))
-            transactions += previous.filter { !existing.contains($0.id) }
-            clearPhoneDeletes(previous.map(\.id))
+            undoPhoneDeletion(change.id, ids: previous.map(\.id))
+            let otherRemovals = Set(changes.filter { $0.kind == .remove && !$0.undone && $0.id != change.id }.flatMap(\.transactionIDs))
+            transactions += previous.filter {
+                !existing.contains($0.id) && !otherRemovals.contains($0.id) && pendingPhoneDeletes?.received[$0.id.uuidString] == nil
+            }
         } else if let previous = change.previous {
             // 改过的流水：换回原样。
             for k in transactions.indices { if let row = reversals[transactions[k].id] { transactions[k] = row } }
