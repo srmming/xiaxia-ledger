@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>组件和规矩</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#EBEBEF;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--inc:#0E6B40;--incS:rgba(19,122,74,.10);--al:#B8322A;--alS:rgba(211,63,53,.10);--seg:rgba(118,118,128,.12);--on:#FFFFFF;--onfg:#0B6577}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1100px}
+.col h2{font-size:13px;letter-spacing:.06em;color:#6e6e73;margin:0 0 14px;font-weight:600}
+.panel{background:var(--bg);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px;color:var(--fg)}
+.sw{display:flex;align-items:center;gap:12px;font-size:14px}
+.sw b{display:block;font-size:15px}
+.sw .c{display:flex;flex-shrink:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.sw .c i{width:28px;height:36px;display:block}
+.sw small{color:var(--fg2);font-size:13px}
+.card{background:var(--card);border-radius:16px;padding:16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:14px;font-size:17px;font-weight:600;border:0;font-family:inherit;width:100%}
+.bp{background:var(--shop);color:#fff}.bs{background:var(--shopS);color:var(--shop)}.bd{background:var(--sunk);color:var(--fg3)}
+.seg{display:inline-flex;background:var(--seg);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:5px 16px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--on);color:var(--onfg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:14px;font-weight:600}
+.ok{background:var(--incS);color:var(--inc)}.bad{background:var(--alS);color:var(--al)}
+.tiny{font-size:13px;color:var(--fg3)}
+.typ{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--sep);padding-bottom:10px}
+.typ small{font-size:12px;color:var(--fg3);white-space:nowrap}
+.bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}.bar i{display:block;height:100%;background:var(--shop);border-radius:4px}
+.field{display:flex;align-items:center;justify-content:space-between;background:var(--card);border-radius:14px;padding:0 16px;height:56px;font-size:17px}
+</style>
+</helmet>
+<div class="kit lt" style="width: 1440px; height: 1060px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>生意模式 UI 套件</h1>
+<p>跟生活那边是同一套：苹果系统组件、圆体大数字、大量留白。生意这边的主色是青蓝。每屏只有一个重点，一屏看完不用往下拉。</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px">
+
+<div class="col">
+<h2>颜色（左浅色 · 右深色）</h2>
+<div class="panel">
+<div class="sw"><span class="c"><i style="background:#0B6577"></i><i style="background:#2FA4BA"></i></span><span><b>青蓝 · 生意主色</b><small>大按钮、选中、进度条、生意那边的强调</small></span></div>
+<div class="sw"><span class="c"><i style="background:#DCEDF0"></i><i style="background:#1B3439"></i></span><span><b>青蓝浅</b><small>浅色按钮、选中的底</small></span></div>
+<div class="sw"><span class="c"><i style="background:#0E6B40"></i><i style="background:#36C77F"></i></span><span><b>绿</b><small>赚了、比上月多、钱够付</small></span></div>
+<div class="sw"><span class="c"><i style="background:#B8322A"></i><i style="background:#FF6A5F"></i></span><span><b>红 · 只给要处理的事</b><small>亏了、钱不够付、比上月少。花钱本身不用红</small></span></div>
+<div class="sw"><span class="c"><i style="background:#1D1D1F"></i><i style="background:#F5F5F7"></i></span><span><b>字</b><small>大数字、标题、正文</small></span></div>
+<div class="sw"><span class="c"><i style="background:#5A5A62"></i><i style="background:#B0B0B7"></i></span><span><b>次一级的字</b><small>标签、说明</small></span></div>
+<div class="sw"><span class="c"><i style="background:#F2F2F5"></i><i style="background:#0C0C0E"></i></span><span><b>页面底</b><small>和生活那边一样</small></span></div>
+<div class="sw"><span class="c"><i style="background:#FFFFFF"></i><i style="background:#1C1C1F"></i></span><span><b>卡片</b><small>圆角 16（iPhone）/ 14（Mac），不加边框</small></span></div>
+<div class="tiny" style="margin-top:4px">晨光橙留给生活那边，生意这边不用；靛蓝还是只给 AI。</div>
+</div>
+</div>
+
+<div class="col">
+<h2>字号和数字</h2>
+<div class="panel">
+<div class="typ"><span class="num" style="font-size:56px;line-height:1">2.340 €</span><small>大数字 · 圆体粗<br>iPhone 56 / Mac 72</small></div>
+<div class="typ"><span class="num" style="font-size:30px">3.400 €</span><small>次一级数字 · 30</small></div>
+<div class="typ"><span style="font-size:17px;font-weight:600">标题 · 卡片名</span><small>17 粗</small></div>
+<div class="typ"><span style="font-size:16px">正文 · 提醒那一句</span><small>16</small></div>
+<div class="typ"><span style="font-size:15px;color:var(--fg2)">标签 · 11 月真正赚了</span><small>15 灰</small></div>
+<div class="typ" style="border-bottom:0;padding-bottom:0"><span class="tiny">小字 · 已扣掉房租、工资</span><small>13 浅灰</small></div>
+<div class="card" style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:10px;align-items:baseline"><span class="num" style="font-size:28px">2.340 €</span><span class="num" style="font-size:28px;color:var(--al)">−420 €</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><span class="tag ok">比上月多 310 €</span><span class="tag bad">比上月少 120 €</span></div>
+<div class="tiny">千位用点、小数用逗号：1.234,56 €。首页大数字只显示到元；亏了用负号加红色，不用括号。</div>
+</div>
+</div>
+</div>
+
+<div class="col">
+<h2>组件</h2>
+<div class="panel">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<button class="btn bp">记今天的账</button>
+<button class="btn bs">记开销</button>
+<button class="btn bd">记好了</button>
+<div style="display:flex;align-items:center;justify-content:center;gap:14px"><span class="seg"><span>生活</span><span class="on">生意</span></span><a href="#" style="font-size:15px;text-decoration:none;font-weight:600">改</a></div>
+</div>
+<div class="tiny" style="margin-top:-6px">实心 · 浅色 · 不能点（灰） · 生活|生意切换 · 文字按钮</div>
+<div class="card" style="background:var(--incS);display:flex;gap:10px;font-size:15px;line-height:1.45"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="10" cy="10" r="8.5" fill="none" stroke="#0E6B40" stroke-width="1.6"></circle><path d="M6.2 10.3l2.5 2.4 5-5.2" fill="none" stroke="#0E6B40" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>手上 3.400 €，约 900 留着交税，下周交房租 1.200，<b style="color:var(--inc)">够</b>。</span></div>
+<div class="card" style="background:var(--alS);display:flex;gap:10px;font-size:15px;line-height:1.45"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="10" cy="10" r="8.5" fill="none" stroke="#B8322A" stroke-width="1.6"></circle><path d="M10 5.6v5.2M10 13.6v.4" fill="none" stroke="#B8322A" stroke-width="1.9" stroke-linecap="round"></path></svg><span>手上 1.800 €，约 600 留着交税，下周房租和工资 2.600，<b style="color:var(--al)">还差 1.400 €</b>。</span></div>
+<div class="card" style="display:flex;justify-content:space-between;font-size:15px;color:var(--fg2)"><span>这个月给自己发了</span><span class="num" style="color:var(--fg)">1.500 €</span></div>
+<div class="card"><div style="display:flex;justify-content:space-between;font-size:15px;margin-bottom:10px"><b>回本 46%</b><span style="color:var(--fg2)">大约还要 14 个月</span></div><div class="bar"><i style="width:46%"></i></div></div>
+<div class="field"><span>现金</span><span class="num" style="font-size:22px">120 €</span></div>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

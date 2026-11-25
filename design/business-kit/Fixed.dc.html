@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>固定开销</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#E5E5EA;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--inc:#0E6B40;--incS:rgba(19,122,74,.10);--al:#B8322A;--alS:rgba(211,63,53,.10);--chrome:#F7F7F9}
+.dk{--bg:#0C0C0E;--card:#1C1C1F;--sunk:#2C2C30;--fg:#F5F5F7;--fg2:#B0B0B7;--fg3:#8C8C93;--sep:rgba(120,120,128,.26);--shop:#2FA4BA;--shopS:rgba(47,164,186,.15);--inc:#36C77F;--incS:rgba(54,199,127,.15);--al:#FF6A5F;--alS:rgba(255,106,95,.15);--chrome:#161618}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1400px}
+.cap{font-size:15px;color:#55555c;margin-top:28px;text-align:center}
+.ph{width:390px;height:844px;border-radius:54px;background:var(--bg);color:var(--fg);box-shadow:0 0 0 10px #1D1D1F,0 24px 60px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box}
+.in{flex:1;display:flex;flex-direction:column;padding:62px 20px 16px}
+.nav{display:flex;justify-content:space-between;align-items:center;font-size:17px}
+.nav a{text-decoration:none;color:var(--shop)}
+.card{background:var(--card);border-radius:16px;padding:0 16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:14px;font-size:17px;font-weight:600;border:0;font-family:inherit;width:100%}
+.bp{background:var(--shop);color:#fff}.bs{background:var(--shopS);color:var(--shop)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--sep)}
+.row:last-child{border-bottom:0}
+.row b{font-size:16px;font-weight:600}
+.row small{display:block;font-size:13px;color:var(--fg3);margin-top:2px}
+.soon{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;font-size:11px;font-weight:600;background:var(--shopS);color:var(--shop);vertical-align:2px}
+.tiny{font-size:13px;color:var(--fg3)}
+.tabs{display:flex;justify-content:space-around;padding:12px 0 30px;border-top:1px solid var(--sep);background:var(--chrome);font-size:11px;color:var(--fg3)}
+.tabs .on{color:var(--shop);font-weight:600}
+.frow{display:flex;justify-content:space-between;align-items:center;height:52px;border-bottom:1px solid var(--sep);font-size:17px}
+.frow:last-child{border-bottom:0}
+.frow span:last-child{color:var(--fg2)}
+.sw{width:51px;height:31px;border-radius:16px;background:#34C759;position:relative;display:inline-block}
+.sw::after{content:"";position:absolute;right:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.chip{padding:10px 16px;border-radius:12px;background:var(--shopS);color:var(--shop);font-weight:600;font-size:15px;border:0;font-family:inherit}
+</style>
+</helmet>
+<div class="kit" style="width: 1928px; height: 1150px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>3 · 固定开销</h1>
+<p>房租、工资这类每月都要付的钱。到日子夏夏自动记上，首页「真正赚了」会扣掉它们，「下周够不够」也是按这里算。从首页那句提醒点进来；Mac 左边栏也有「固定开销」。</p>
+</div>
+<div style="display: flex; gap: 80px">
+
+<div>
+<div class="ph lt"><div class="in">
+<div class="nav"><a href="#">‹ 生意</a><span></span><span></span></div>
+<div style="font-size:28px;font-weight:700;margin-top:14px">固定开销</div>
+<div style="font-size:15px;color:var(--fg2);margin-top:22px">每个月固定要付</div>
+<div class="num" style="font-size:48px;line-height:1.15">2.720 €</div>
+<div class="tiny" style="margin-top:4px">到日子自动记上，不用手记</div>
+<div class="card" style="margin-top:24px">
+<div class="row"><span><b>房租</b><span class="soon">下周</span><small>每月 1 号 · 公司卡</small></span><span class="num" style="font-size:17px">1.200 €</span></div>
+<div class="row"><span><b>员工工资</b><span class="soon">下周</span><small>每月 30 号 · 公司卡</small></span><span class="num" style="font-size:17px">1.400 €</span></div>
+<div class="row"><span><b>会计</b><small>每月 5 号 · 公司卡</small></span><span class="num" style="font-size:17px">80 €</span></div>
+<div class="row"><span><b>网费</b><small>每月 12 号 · 公司卡</small></span><span class="num" style="font-size:17px">40 €</span></div>
+</div>
+<div style="flex:1"></div>
+<button class="btn bs">＋ 加一项</button>
+</div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div>
+<div class="cap">浅色 · 有 4 项，「下周」要付的标出来</div>
+</div>
+
+<div>
+<div class="ph lt"><div class="in">
+<div class="nav"><a href="#">取消</a><b>加固定开销</b><a href="#" style="font-weight:600">保存</a></div>
+<div class="card" style="margin-top:32px">
+<div class="frow"><span>名字</span><span style="color:var(--fg)">员工工资</span></div>
+<div class="frow"><span>每月多少</span><span class="num" style="color:var(--fg)">1.400 €</span></div>
+<div class="frow"><span>每月几号</span><span>30 号 ›</span></div>
+<div class="frow"><span>从哪个账户付</span><span>公司卡 ›</span></div>
+</div>
+<div class="card" style="margin-top:20px">
+<div class="frow"><span>到日子自动记上</span><span class="sw"></span></div>
+</div>
+<div class="tiny" style="margin-top:8px;padding:0 4px">关掉的话，到日子夏夏只提醒你，不自动记。</div>
+<div style="flex:1"></div>
+</div><div style="height:30px"></div></div>
+<div class="cap">浅色 · 加一项：只问四件事</div>
+</div>
+
+<div>
+<div class="ph lt"><div class="in">
+<div class="nav"><a href="#">‹ 生意</a><span></span><span></span></div>
+<div style="font-size:28px;font-weight:700;margin-top:14px">固定开销</div>
+<div style="font-size:15px;color:var(--fg2);margin-top:22px">每个月固定要付</div>
+<div class="num" style="font-size:48px;line-height:1.15;color:var(--fg3)">0 €</div>
+<div style="font-size:15px;line-height:1.55;margin-top:24px;color:var(--fg2)">房租、工资、会计这些每月都要付的钱加在这里。夏夏到日子自动记上，首页也能提前算下周够不够。</div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:24px"><button class="chip">＋ 房租</button><button class="chip">＋ 工资</button><button class="chip">＋ 会计</button><button class="chip">＋ 别的</button></div>
+<div style="flex:1"></div>
+</div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div>
+<div class="cap">浅色 · 空：常见的几项一点就加</div>
+</div>
+
+<div>
+<div class="ph dk"><div class="in">
+<div class="nav"><a href="#">‹ 生意</a><span></span><span></span></div>
+<div style="font-size:28px;font-weight:700;margin-top:14px">固定开销</div>
+<div style="font-size:15px;color:var(--fg2);margin-top:22px">每个月固定要付</div>
+<div class="num" style="font-size:48px;line-height:1.15">2.720 €</div>
+<div class="tiny" style="margin-top:4px">到日子自动记上，不用手记</div>
+<div class="card" style="margin-top:24px">
+<div class="row"><span><b>房租</b><span class="soon">下周</span><small>每月 1 号 · 公司卡</small></span><span class="num" style="font-size:17px">1.200 €</span></div>
+<div class="row"><span><b>员工工资</b><span class="soon">下周</span><small>每月 30 号 · 公司卡</small></span><span class="num" style="font-size:17px">1.400 €</span></div>
+<div class="row"><span><b>会计</b><small>每月 5 号 · 公司卡</small></span><span class="num" style="font-size:17px">80 €</span></div>
+<div class="row"><span><b>网费</b><small>每月 12 号 · 公司卡</small></span><span class="num" style="font-size:17px">40 €</span></div>
+</div>
+<div style="flex:1"></div>
+<button class="btn bs">＋ 加一项</button>
+</div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div>
+<div class="cap">深色</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1928,"height":1150}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
