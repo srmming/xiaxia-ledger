@@ -150,6 +150,7 @@ public struct RootView: View {
                 case .daily: DailyTakingsSheet()
                 case .fixedCost: FixedCostEditor()
                 case .sideTransfer: SideTransferSheet()
+                case .feedback: FeedbackSheet()
                 }
             }
                 .environment(model)
@@ -626,9 +627,7 @@ public struct XiaxiaScene: Scene {
                 }
             }
             CommandGroup(replacing: .help) {
-                Button(tr("反馈问题")) {
-                    if let url = URL(string: "https://github.com/srmming/xiaxia-ledger/issues/new") { NSWorkspace.shared.open(url) }
-                }
+                Button(tr("反馈问题 / 提个想法…")) { model.sheet = .feedback }
                 .keyboardShortcut("b", modifiers: [.command, .option])
             }
         }

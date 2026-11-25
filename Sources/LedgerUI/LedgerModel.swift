@@ -21,6 +21,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case daily
     /// 生意那边：加固定开销、两边转钱。
     case fixedCost, sideTransfer
+    /// 提反馈（设置、帮助菜单）。
+    case feedback
     public var id: String { rawValue }
 }
 
@@ -444,7 +446,12 @@ public final class LedgerModel {
         }
         var used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
         // 自己加的分类（还没用过也算），排在常用的后面、默认的前面。
-        used += ledger.profile.categories.filter { $0.income == income && !used.contains($0.name) }.map(\.name)
+        // 生意那边不拿生活那边已经在用的自建分类（「宠物」不该出现在店里记一笔里）。
+        let shopBook = ledger.books.first { $0.id == bookID }?.isBusiness == true
+        let usedElsewhere: Set<String> = shopBook
+            ? Set(ledger.transactions.filter { $0.bookID != bookID }.compactMap(\.category)) : []
+        used += ledger.profile.categories
+            .filter { $0.income == income && !used.contains($0.name) && !usedElsewhere.contains($0.name) }.map(\.name)
         let defaults = CategoryStyle.defaults(book: ledger.books.first { $0.id == bookID }, income: income)
         // 账本里已经有「交通出行」，就不再另给一个「交通」，免得同一件事记成两个分类。
         let extra = defaults.filter { d in !used.contains { $0 == d || $0.hasPrefix(d) } }
