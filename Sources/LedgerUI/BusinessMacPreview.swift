@@ -40,7 +40,6 @@ private struct HomeSample {
     var profit: Int
     var change: Int
     var onHand: Int
-    var tax: Int
     var dues: [Due]
     var paidSelf: Int
     var payback: Double?
@@ -49,26 +48,26 @@ private struct HomeSample {
     var empty = false
 
     var dueTotal: Int { dues.reduce(0) { $0 + $1.amount } }
-    var gap: Int { onHand - tax - dueTotal }
+    var gap: Int { onHand - dueTotal }
 
     static func of(_ page: String) -> HomeSample {
         switch page {
         case "short":
-            return HomeSample(profit: 860, change: -420, onHand: 1800, tax: 600,
+            return HomeSample(profit: 860, change: -420, onHand: 1800,
                               dues: [Due(name: "房租", when: "12 月 1 日", amount: 1200), Due(name: "员工工资", when: "11 月 30 日", amount: 1400)],
                               paidSelf: 1000)
         case "newshop", "capital":
-            return HomeSample(profit: 1180, change: 260, onHand: 2150, tax: 350,
+            return HomeSample(profit: 1180, change: 260, onHand: 2150,
                               dues: [Due(name: "员工工资", when: "11 月 30 日", amount: 900)],
                               paidSelf: 800, payback: 0.18, paybackNote: "大约还要 26 个月")
         case "payday":
-            return HomeSample(profit: 3950, change: 480, onHand: 5200, tax: 1100,
+            return HomeSample(profit: 3950, change: 480, onHand: 5200,
                               dues: [Due(name: "房租", when: "12 月 1 日", amount: 1200)],
                               paidSelf: 1800, celebrate: true)
         case "empty":
-            return HomeSample(profit: 0, change: 0, onHand: 0, tax: 0, dues: [], paidSelf: 0, empty: true)
+            return HomeSample(profit: 0, change: 0, onHand: 0, dues: [], paidSelf: 0, empty: true)
         default:
-            return HomeSample(profit: 2340, change: 310, onHand: 3400, tax: 900,
+            return HomeSample(profit: 2340, change: 310, onHand: 3400,
                               dues: [Due(name: "房租", when: "12 月 1 日", amount: 1200)],
                               paidSelf: 1500)
         }
@@ -260,7 +259,7 @@ private struct BizHomePage: View {
         return HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .foregroundStyle(ok ? Color.income : Color.alert)
-            (Text("手上 \(eur(sample.onHand))，约 \(eur(sample.tax)) 留着交税，\(dueText)，")
+            (Text("手上 \(eur(sample.onHand))，\(dueText)，")
                 + Text(ok ? String("够") : String("还差 \(eur(-sample.gap))")).fontWeight(.semibold).foregroundStyle(ok ? Color.income : Color.alert)
                 + Text("。"))
                 .fixedSize(horizontal: false, vertical: true)
