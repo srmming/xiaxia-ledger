@@ -1,6 +1,7 @@
 #if canImport(SQLite3)
 import Foundation
 import SQLite3
+import CryptoKit
 
 /// 正式存储：一个 SQLite 文件，app 和 fin 共用（2026-11-21 ming 定）。
 ///
@@ -22,22 +23,19 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else {
-            var fresh = Ledger.fresh
-            fresh.upgradeBaseline.readVersion = fresh.minReaderVersion
+            let fresh = Ledger.fresh
+            fresh.revision.record(url, digest: nil)
             return fresh
         }
         let db = try SQLiteDB.reader(url: url)
         try db.exec("BEGIN")
-        var ledger = try read(from: db)
+        let ledger = try read(from: db)
+        ledger.revision.record(url, digest: try db.storageDigest())
         try db.exec("COMMIT")
-        ledger.upgradeBaseline.readVersion = ledger.minReaderVersion
-        if ledger.minReaderVersion < 2 {
-            ledger.upgradeBaseline.read = try ledger.upgradeFingerprint()
-        }
         return ledger
     }
 
-    private func read(from db: SQLiteDB) throws -> Ledger {
+    func read(from db: SQLiteDB) throws -> Ledger {
         let existing = Set(try db.query("SELECT name FROM sqlite_master WHERE type = 'table'"))
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
@@ -99,25 +97,12 @@ public struct SQLiteLedgerStore: LedgerStore {
         return ledger
     }
 
-    private var changedElsewhere: BusinessError { BusinessError(message: "账本刚被别处改过，请再试一次") }
-
-    /// 锁住写入后读取，不能使用 load()（它会另开连接）。
-    private func verifyUpgradeBase(_ ledger: Ledger, db: SQLiteDB) throws {
-        let current = try read(from: db).upgradeFingerprint()
-        guard current == ledger.upgradeBaseline.read || current == ledger.upgradeBaseline.beforeBusiness else {
-            throw changedElsewhere
+    private func checkRevision(_ ledger: Ledger, db: SQLiteDB) throws {
+        let marker = url.deletingLastPathComponent().appendingPathComponent(LedgerStores.movedMarker)
+        if url.lastPathComponent == "ledger.sqlite", FileManager.default.fileExists(atPath: marker.path) {
+            throw LedgerRevision.conflict
         }
-    }
-
-    /// 普通编辑也可能来自升级前的窗口。自己的升级已落盘时，改动编号可证明
-    /// 这个内存副本参与了升级，无需强制它重新打开。
-    private func rejectCompetingUpgrade(_ ledger: Ledger, stored: Int, db: SQLiteDB) throws {
-        guard stored >= 2 else { return }
-        if let id = ledger.upgradeBaseline.changeID {
-            guard try !db.query("SELECT id FROM changes WHERE id = ?", [id.uuidString]).isEmpty else { throw changedElsewhere }
-        } else if let readVersion = ledger.upgradeBaseline.readVersion, readVersion < stored {
-            throw changedElsewhere
-        }
+        try ledger.revision.check(url, current: db.storageDigest())
     }
 
     public func save(_ ledger: Ledger) throws {
@@ -130,7 +115,8 @@ public struct SQLiteLedgerStore: LedgerStore {
         // WAL 写连接失败退出时，由只读连接最后关闭，避免自动 checkpoint 改动原文件。
         var keepWAL: SQLiteDB?
         defer { withExtendedLifetime(keepWAL) {} }
-        let db = try SQLiteDB(url: url)
+        let mayCreate = ledger.revision.expected(at: url) == nil
+        let db = try SQLiteDB(url: url, allowCreate: mayCreate)
         let isWAL = try db.query("PRAGMA journal_mode").first == "wal"
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
@@ -147,8 +133,7 @@ public struct SQLiteLedgerStore: LedgerStore {
                 let stored = try db.minimumVersion()
                 let version = try ledger.versionForSave(stored: stored)
                 let upgrade = try version > stored && db.hasLedger()
-                if upgrade { try verifyUpgradeBase(ledger, db: db) }
-                try rejectCompetingUpgrade(ledger, stored: stored, db: db)
+                try checkRevision(ledger, db: db)
                 try db.exec("COMMIT")
                 if upgrade {
                     _ = try LedgerBackup.make(of: url, label: "开生意模式前") { destination in
@@ -160,10 +145,9 @@ public struct SQLiteLedgerStore: LedgerStore {
             try db.exec("BEGIN IMMEDIATE")
             let stored = try db.minimumVersion()
             let version = try ledger.versionForSave(stored: stored)
-            try rejectCompetingUpgrade(ledger, stored: stored, db: db)
-            guard try db.query("PRAGMA journal_mode").first != "wal" else { throw changedElsewhere }
+            if !isWAL { try checkRevision(ledger, db: db) }
+            guard try db.query("PRAGMA journal_mode").first != "wal" else { throw LedgerRevision.conflict }
             if try !isWAL && version > stored && db.hasLedger() {
-                try verifyUpgradeBase(ledger, db: db)
                 _ = try LedgerBackup.make(of: url, label: "开生意模式前")
             }
             try db.migrate()
@@ -220,7 +204,9 @@ public struct SQLiteLedgerStore: LedgerStore {
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('profile', ?)", [js(ledger.profile)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('recurring', ?)", [js(ledger.recurring)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('currency', ?)", [js(ledger.currency)])
+            let committed = try db.storageDigest()
             try db.exec("COMMIT")
+            ledger.revision.record(url, digest: committed)
         } catch {
             try? db.exec("ROLLBACK")
             if isWAL {
@@ -229,7 +215,7 @@ public struct SQLiteLedgerStore: LedgerStore {
                 keepWAL = try? SQLiteDB(url: url, readOnly: true)
                 _ = try? keepWAL?.minimumVersion()
             }
-            if let sqlite = error as? SQLiteError, sqlite.isBusy { throw changedElsewhere }
+            if let sqlite = error as? SQLiteError, sqlite.isBusy { throw LedgerRevision.conflict }
             throw error
         }
     }
@@ -277,11 +263,12 @@ final class SQLiteDB {
     private var handle: OpaquePointer?
     private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-    init(url: URL, readOnly: Bool = false) throws {
-        let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+    init(url: URL, readOnly: Bool = false, allowCreate: Bool = true) throws {
+        let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | (allowCreate ? SQLITE_OPEN_CREATE : 0)
         guard sqlite3_open_v2(url.path, &handle, flags | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
             let msg = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "打不开 \(url.path)"
             sqlite3_close(handle)
+            if !allowCreate && !FileManager.default.fileExists(atPath: url.path) { throw LedgerRevision.conflict }
             throw SQLiteError(message: msg)
         }
         sqlite3_busy_timeout(handle, 5000)
@@ -298,8 +285,58 @@ final class SQLiteDB {
         return try SQLiteDB(url: url, readOnly: pendingWAL && !rollback)
     }
 
+    /// 对即将整体写回的表取一致快照。包含每列的类型、长度、值，能识别
+    /// 行数没变的编辑以及没有写 ChangeRecord 的旧版本。
+    func storageDigest() throws -> Data? {
+        let existing = Set(try query("SELECT name FROM sqlite_master WHERE type='table'"))
+        let tables = (["meta"] + SQLiteLedgerStore.tables).filter(existing.contains)
+        guard !tables.isEmpty else { return nil }
+        var hash = SHA256()
+        for table in tables {
+            hash.update(data: Data([0xff]))
+            hash.update(data: Data(table.utf8))
+            let order = table == "meta" ? "key" : "seq, id"
+            let stmt = try prepare("SELECT * FROM \(table) ORDER BY \(order)", [])
+            defer { sqlite3_finalize(stmt) }
+            var rc = sqlite3_step(stmt)
+            while rc == SQLITE_ROW {
+                hash.update(data: Data([0xfe]))
+                for col in 0..<sqlite3_column_count(stmt) {
+                    let type = UInt8(sqlite3_column_type(stmt, col))
+                    let bytes = sqlite3_column_blob(stmt, col)
+                    let count = Int(sqlite3_column_bytes(stmt, col))
+                    var length = UInt64(count).bigEndian
+                    hash.update(data: Data([type]))
+                    withUnsafeBytes(of: &length) { hash.update(bufferPointer: $0) }
+                    if let bytes { hash.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: count)) }
+                }
+                rc = sqlite3_step(stmt)
+            }
+            guard rc == SQLITE_DONE else { throw SQLiteError(message: String(cString: sqlite3_errmsg(handle))) }
+        }
+        return Data(hash.finalize())
+    }
+
     func hasLedger() throws -> Bool {
         try !query("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").isEmpty
+    }
+
+    /// 空事务结束后 SQLite 的独占模式仍持锁，直到连接关闭。
+    func holdExclusiveLock() throws {
+        try exec("PRAGMA locking_mode = EXCLUSIVE")
+        try exec("BEGIN EXCLUSIVE")
+        try exec("COMMIT")
+    }
+
+    func copyDatabase(to destination: SQLiteDB) throws {
+        guard let backup = sqlite3_backup_init(destination.handle, "main", handle, "main") else {
+            throw SQLiteError(message: String(cString: sqlite3_errmsg(destination.handle)))
+        }
+        let step = sqlite3_backup_step(backup, -1)
+        let finish = sqlite3_backup_finish(backup)
+        guard step == SQLITE_DONE, finish == SQLITE_OK else {
+            throw SQLiteError(message: String(cString: sqlite3_errmsg(destination.handle)))
+        }
     }
 
     func writeSnapshot(to destination: URL) throws {

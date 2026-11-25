@@ -515,7 +515,8 @@ extension LedgerModel {
 
     /// 从备份恢复：先把现在的账本也备份一份，再把备份里的内容存回来。
     public func restore(_ item: LedgerBackup.Item) throws {
-        let old = try LedgerBackup.load(item.url)
+        // 带上这个窗口读到的账本：恢复期间别处改过账本，保存会被拒，不会盖掉别人刚记的。
+        let old = try LedgerBackup.load(item.url, replacing: ledger)
         if let file = ledgerFileURL { try LedgerBackup.make(of: file, label: "恢复前") }
         try store.save(old)
         lastStamp = store.changeStamp()

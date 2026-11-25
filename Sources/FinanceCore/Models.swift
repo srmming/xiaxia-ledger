@@ -270,40 +270,40 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
 
 /// 整份账本数据。
 public struct Ledger: Codable, Sendable, Equatable {
-    // 不编码：仅用于首次写生意设置时核对磁盘快照。
-    var upgradeBaseline = UpgradeBaseline()
+    // 值副本第一次编辑时分离保存凭据。新增持久字段也沿用 willSet。
+    var revision = LedgerRevision()
 
-    public var business: BusinessSettings?
-    public var receivables: [Receivable] = []
-    public var minReaderVersion = 1
-    public var schemaVersion: Int = 1
-    public var books: [Book] = []
-    public var accounts: [Account] = []
-    public var transactions: [Transaction] = []
-    public var changes: [ChangeRecord] = []
-    public var debts: [Debt] = []
-    public var installments: [Installment] = []
-    public var goals: [Goal] = []
+    public var business: BusinessSettings? { willSet { detachRevision() } }
+    public var receivables: [Receivable] = [] { willSet { detachRevision() } }
+    public var minReaderVersion = 1 { willSet { detachRevision() } }
+    public var schemaVersion: Int = 1 { willSet { detachRevision() } }
+    public var books: [Book] = [] { willSet { detachRevision() } }
+    public var accounts: [Account] = [] { willSet { detachRevision() } }
+    public var transactions: [Transaction] = [] { willSet { detachRevision() } }
+    public var changes: [ChangeRecord] = [] { willSet { detachRevision() } }
+    public var debts: [Debt] = [] { willSet { detachRevision() } }
+    public var installments: [Installment] = [] { willSet { detachRevision() } }
+    public var goals: [Goal] = [] { willSet { detachRevision() } }
     /// AI 写进来的意见（本月点评、提醒）。
-    public var insights: [Insight] = []
+    public var insights: [Insight] = [] { willSet { detachRevision() } }
     /// 夏夏的性格、你的目标、自己加的分类。
-    public var profile = Profile()
+    public var profile = Profile() { willSet { detachRevision() } }
     /// 主币种和汇率表。
-    public var currency = CurrencySettings()
+    public var currency = CurrencySettings() { willSet { detachRevision() } }
     /// 订阅：每月 / 每年固定在扣的钱。
-    public var subscriptions: [Subscription] = []
+    public var subscriptions: [Subscription] = [] { willSet { detachRevision() } }
     /// 重复记账：房租、话费这种固定的，到日子自动记上。
-    public var recurring: [Recurring] = []
+    public var recurring: [Recurring] = [] { willSet { detachRevision() } }
     /// 夏夏的记忆：规矩、记得的事、做事经验（见 Memory.swift）。
-    public var memories: [Memory] = []
+    public var memories: [Memory] = [] { willSet { detachRevision() } }
     /// 待记录：手机上说的一句话、拍的小票，还没入账（见 PhoneCapture.swift）。
-    public var captures: [Capture] = []
+    public var captures: [Capture] = [] { willSet { detachRevision() } }
     /// 每笔账挂的小票 / 发票和报销状态，按流水 id。
-    public var paperwork: [Paperwork] = []
+    public var paperwork: [Paperwork] = [] { willSet { detachRevision() } }
     /// 已经收进账本的手机小纸条（见 PhoneSync.swift），免得收两次。
-    public var appliedNotes: [String] = []
+    public var appliedNotes: [String] = [] { willSet { detachRevision() } }
     /// 上次导入/对账截止到哪天，按账户记。
-    public var lastStatementDate: [String: LocalDate] = [:]
+    public var lastStatementDate: [String: LocalDate] = [:] { willSet { detachRevision() } }
 
     public init(books: [Book] = [], accounts: [Account] = [], transactions: [Transaction] = [],
                 changes: [ChangeRecord] = []) {

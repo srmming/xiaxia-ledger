@@ -28,14 +28,14 @@ struct DemoCommand: ParsableCommand {
             throw ValidationError("这里是真实账本的位置，不能写示例数据：\(url.path)")
         }
         let store = Self.store(url)
+        var ledger = DemoData.make(endingOn: try parseDate(end), seed: seed)
         if FileManager.default.fileExists(atPath: url.path) {
             guard force else { throw ValidationError("文件已经在了：\(url.path)。要覆盖以前生成的示例账本，加 --force") }
             guard let old = try? store.load(), DemoData.isDemo(old) else {
                 throw ValidationError("这个文件不是示例账本，不覆盖：\(url.path)")
             }
-            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
+            ledger = ledger.replacingContents(of: old)
         }
-        let ledger = DemoData.make(endingOn: try parseDate(end), seed: seed)
         try store.save(ledger)
 
         let info = DemoInfo(ledger, path: url.path)

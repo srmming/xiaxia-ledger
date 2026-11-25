@@ -100,6 +100,7 @@ final class BusinessTests: XCTestCase {
         try store.save(l)
         try SQLiteDB(url: url).exec("DROP TABLE receivables; DELETE FROM meta WHERE key='minReaderVersion'")
         XCTAssertEqual(try store.load(), l)
+        l = try store.load()
         _ = try l.enableBusinessMode(author: author)
         l.receivables = [.init(name: "模拟欠款", amount: .init(cents: 200))]
         let original = try Data(contentsOf: url)
@@ -423,7 +424,7 @@ extension BusinessTests {
         XCTAssertEqual(try store.load().transactions, [first, second, other])
     }
 
-    func testTwoOrdinaryWindowsKeepLegacySaveBehaviorBeforeUpgrade() throws {
+    func testTwoOrdinarySQLiteWindowsRejectStaleSave() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let store = SQLiteLedgerStore(url: dir.appendingPathComponent("legacy.sqlite"))
@@ -434,9 +435,9 @@ extension BusinessTests {
         try first.addTransaction(tx("甲", 100), author: "甲")
         try store.save(first)
         try second.addTransaction(tx("乙", 200), author: "乙")
-        try store.save(second)
+        XCTAssertThrowsError(try store.save(second)) { XCTAssertEqual($0.localizedDescription, "账本刚被别处改过，请再试一次") }
         let last = try store.load()
         XCTAssertEqual(last.minReaderVersion, 1)
-        XCTAssertEqual(last.transactions, second.transactions)
+        XCTAssertEqual(last.transactions, first.transactions)
     }
 }

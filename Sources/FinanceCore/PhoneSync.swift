@@ -295,7 +295,6 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
     /// 账本在手机本地的副本（最后一次成功下载的），没网时照样能看。
     public let cache: URL
     private let lock = NSLock()
-    private var base: Ledger?
     /// 账本文件还没从 iCloud 下载下来（先显示上次的副本）。
     public private(set) var waitingForDownload = false
     /// 文件夹里还没有账本（Mac 还没开过）。
@@ -309,6 +308,10 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
 
     public func load() throws -> Ledger {
         lock.lock(); defer { lock.unlock() }
+        return try readCurrent()
+    }
+
+    private func readCurrent() throws -> Ledger {
         refreshCache()
         var ledger: Ledger
         #if canImport(SQLite3)
@@ -317,25 +320,28 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
         ledger = .fresh
         #endif
         for item in SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger) { ledger.apply(item.note) }
-        base = ledger
+        ledger.revision.record(ledgerURL, digest: try ledger.contentDigest())
         return ledger
     }
 
     public func save(_ ledger: Ledger) throws {
         lock.lock(); defer { lock.unlock() }
         try ledger.checkBusinessVersion()
-        let old = base ?? .fresh
-        try old.checkBusinessVersion()
-        guard ledger.business == old.business, ledger.receivables == old.receivables else {
-            throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
+        try FileManager.default.createDirectory(at: cache.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try withLedgerFileLock(at: cache) {
+            let current = try readCurrent()
+            try current.checkBusinessVersion()
+            try ledger.revision.check(ledgerURL, current: current.contentDigest())
+            guard ledger.business == current.business, ledger.receivables == current.receivables else {
+                throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
+            }
+            guard let note = ledger.syncNote(since: current, device: device) else { return }
+            var next = current
+            next.apply(note)
+            let digest = try next.contentDigest()
+            try SyncNotes.write(note, ledgerFolder: folder)
+            ledger.revision.record(ledgerURL, digest: digest)
         }
-        guard var note = ledger.syncNote(since: old, device: device) else { base = ledger; return }
-        note.device = device
-        try SyncNotes.write(note, ledgerFolder: folder)
-        // 自己的纸条已经「收」进手机看到的账本里了，记下编号，下次读时不会再收一遍。
-        var mine = ledger
-        mine.appliedNotes.append(note.id)
-        base = mine
     }
 
     public func changeStamp() -> String? {

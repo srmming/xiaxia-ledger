@@ -109,7 +109,7 @@ final class DataResetTests: XCTestCase {
         var wiped = demo
         try wiped.wipe(.everything, author: "测试")
         try store.save(wiped)
-        let restored = try LedgerBackup.load(made[3])
+        let restored = try LedgerBackup.load(made[3], replacing: wiped)
         XCTAssertEqual(restored.transactions.count, demo.transactions.count)
         XCTAssertEqual(restored.accounts, demo.accounts)
         try store.save(restored)

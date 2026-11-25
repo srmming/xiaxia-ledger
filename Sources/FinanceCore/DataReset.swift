@@ -68,7 +68,6 @@ extension Ledger {
             var fresh = Ledger.fresh
             fresh.schemaVersion = schemaVersion
             fresh.minReaderVersion = minReaderVersion
-            fresh.upgradeBaseline.readVersion = minReaderVersion
             fresh.profile = profile
             // 自己加的分类是跟着账本内容走的，一起清；名字、性格、称呼留着。
             fresh.profile.categories = []
@@ -78,7 +77,7 @@ extension Ledger {
             let change = ChangeRecord(kind: .delete, summary: "清空了全部数据（\(count.text)）\(tail)", transactionIDs: [],
                                       author: author, createdAt: now)
             fresh.changes = [change]
-            self = fresh
+            self = fresh.replacingContents(of: self)
             return change
         case .book(let id):
             guard let book = books.first(where: { $0.id == id }) else { throw EditError.unknownBook(id) }
@@ -127,6 +126,21 @@ public enum LedgerBackup {
     @discardableResult
     public static func make(of file: URL, label: String, keep: Int = 10, now: Date = Date()) throws -> URL? {
         try make(of: file, label: label, keep: keep, now: now) { destination in
+            #if canImport(SQLite3)
+            if file.pathExtension.lowercased() == "sqlite" {
+                let source = try SQLiteDB.reader(url: file)
+                try source.exec("BEGIN")
+                _ = try source.minimumVersion() // 固定读快照，复制 DELETE 主文件期间不允许提交。
+                if try source.query("PRAGMA journal_mode").first == "wal" {
+                    try source.exec("COMMIT")
+                    try source.writeSnapshot(to: destination)
+                } else {
+                    try FileManager.default.copyItem(at: file, to: destination)
+                    try source.exec("COMMIT")
+                }
+                return
+            }
+            #endif
             try FileManager.default.copyItem(at: file, to: destination)
         }
     }
@@ -169,13 +183,13 @@ public enum LedgerBackup {
     /// 读出备份里的账本（恢复前先看看里面有多少东西，恢复时把它存回去）。
     public static func load(_ backup: URL) throws -> Ledger {
         #if canImport(SQLite3)
-        if backup.pathExtension != "json" {
-            var ledger = try SQLiteLedgerStore(url: backup).load()
-            // 明确从备份恢复：读取版本属于备份文件，并非即将替换的目标文件。
-            ledger.upgradeBaseline = UpgradeBaseline()
-            return ledger
-        }
+        if backup.pathExtension != "json" { return try SQLiteLedgerStore(url: backup).load() }
         #endif
         return try JSONFileLedgerStore(url: backup).load()
     }
+
+    public static func load(_ backup: URL, replacing target: Ledger) throws -> Ledger {
+        try load(backup).replacingContents(of: target)
+    }
+
 }

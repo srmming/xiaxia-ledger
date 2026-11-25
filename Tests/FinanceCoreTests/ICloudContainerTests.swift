@@ -13,9 +13,13 @@ final class ICloudContainerTests: XCTestCase {
 
         XCTAssertFalse(LedgerStores.migrateToContainer(container, from: old), "旧位置没有账本就不搬")
 
-        try Data("旧账本".utf8).write(to: old.appendingPathComponent("ledger.sqlite"))
+        let source = SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite"))
+        try source.save(.starter)
+        var stale = try source.load()
         XCTAssertTrue(LedgerStores.migrateToContainer(container, from: old))
-        XCTAssertEqual(try String(contentsOf: container.appendingPathComponent("ledger.sqlite"), encoding: .utf8), "旧账本")
+        XCTAssertEqual(try SQLiteLedgerStore(url: container.appendingPathComponent("ledger.sqlite")).load(), .starter)
+        stale.books.removeLast()
+        XCTAssertThrowsError(try source.save(stale))
         XCTAssertTrue(fm.fileExists(atPath: old.appendingPathComponent("ledger.sqlite").path), "旧文件留着当备份")
         XCTAssertTrue(fm.fileExists(atPath: old.appendingPathComponent("已搬家-请看这里.txt").path))
 
@@ -48,12 +52,14 @@ final class ICloudContainerTests: XCTestCase {
 
         // 换一个场景：容器里已经有流水，不覆盖
         try fm.removeItem(at: old.appendingPathComponent(LedgerStores.movedMarker))
-        var phone = Ledger.fresh
+        let phoneStore = LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite"))
+        let current = try phoneStore.load()
+        var phone = Ledger.fresh.replacingContents(of: current)
         phone.transactions.append(Transaction(date: LocalDate(year: 2026, month: 2, day: 3), amount: Money(cents: -500),
                                               description: "编造的面包", accountID: phone.accounts.first?.id ?? "cash"))
         phone.transactions.append(Transaction(date: LocalDate(year: 2026, month: 2, day: 4), amount: Money(cents: -700),
                                               description: "编造的牛奶", accountID: phone.accounts.first?.id ?? "cash"))
-        try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).save(phone)
+        try phoneStore.save(phone)
         XCTAssertFalse(LedgerStores.migrateToContainer(container, from: old))
         XCTAssertEqual(try LedgerStores.sqlite(container.appendingPathComponent("ledger.sqlite")).load().transactions.count, 2)
     }
