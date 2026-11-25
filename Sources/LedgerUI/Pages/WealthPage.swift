@@ -138,7 +138,7 @@ struct WealthPage: View {
                 }
                 if model.businessOn {
                     // 两边加起来的总数，生意那边家底页写的是同一个数。
-                    (Text(tr("生活和生意加起来一共 ")) + em(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded) + Text(tr("。")))
+                    (Text(tr("生活和生意加起来，扣掉要还的，真家底 ")) + em(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded) + Text(tr("。")))
                         .font(.caption).foregroundStyle(Color.fg2)
                 }
                 if w.owedToMe.cents > 0 {

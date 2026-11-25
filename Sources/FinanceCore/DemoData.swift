@@ -834,7 +834,10 @@ struct DemoBuilder {
         for (category, name, value, day) in [("店租", "店租", 1100.0, 1), ("员工工资", "兼职店员工资", 1050.0, 30)] {
             let date = LocalDate(year: end.year, month: end.month, day: min(day, demoDaysIn(end.yearMonth)))
             let tx = Transaction(date: date, amount: eur(-value), description: name, accountID: "shop", bookID: Self.S, category: category)
-            l.recurring.append(Recurring(template: tx, frequency: .monthly, start: date))
+            var rule = Recurring(template: tx, frequency: .monthly, start: date)
+            // 这个月还没到日子的（店员工资 30 号）：这个月那笔还没记，等到日子再自动记。
+            if date > end { rule.count = 0; rule.nextDate = date }
+            l.recurring.append(rule)
         }
     }
 

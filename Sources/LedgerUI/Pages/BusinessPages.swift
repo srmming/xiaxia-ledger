@@ -197,7 +197,7 @@ struct BusinessWealth: View {
         Columns(sideWidth: 360) {
             VStack(alignment: .leading, spacing: 16) {
                 KeyFigure(label: tr("店里一共"), money: shopTotal, color: shopTotal.isExpense ? .alert : .primary,
-                          sentence: Text(tr("生活和生意加起来一共 ")) + em(all.rounded) + Text(tr("。")))
+                          sentence: Text(tr("生活和生意加起来，扣掉要还的，真家底 ")) + em(all.rounded) + Text(tr("。")))
                 Divider()
                 if accounts.isEmpty {
                     Text(tr("生意这边还没有账户。在这边加的账户就算店里的。"))
