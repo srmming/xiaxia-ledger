@@ -183,6 +183,7 @@ extension Ledger {
             if let n = first.note { $0.note = n }
         }
         transactions += extra
+        change.resultingTransactions?.append(contentsOf: extra)
         change.transactionIDs += extra.map(\.id)
         changes[changes.count - 1] = change
         return change

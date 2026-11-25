@@ -204,28 +204,19 @@ enum SettingsPane: String, Identifiable, Hashable {
 }
 
 #if os(macOS)
-/// AI 连接卡里那一行：连上的 AI 头像叠成一排，「N 个 AI 已连接」，下面一行小字写是哪几个。
+/// AI 连接卡里那一行：「N 个 AI 已连接」，下面一行小字写是哪几个。
 struct ConnectedAISummary: View {
     @Environment(LedgerModel.self) var model
-    @State private var connected: [(name: String, mascot: MascotCharacter)] = []
+    @State private var connected: [String] = []
 
     var body: some View {
         HStack(spacing: 14) {
-            if connected.isEmpty {
-                Image(systemName: "sparkles").font(.title3).foregroundStyle(Color.fg3).frame(width: 40)
-            } else {
-                HStack(spacing: -10) {
-                    ForEach(Array(connected.prefix(5).enumerated()), id: \.offset) { _, c in
-                        MascotView(c.mascot, size: 34, face: true, animated: false)
-                            .overlay(Circle().strokeBorder(Color.cardBackground, lineWidth: 2))
-                    }
-                }
+            Image(systemName: "sparkles").font(.title3).foregroundStyle(connected.isEmpty ? Color.fg3 : Color.ai).frame(width: 40)
                 .accessibilityHidden(true)
-            }
             Rectangle().fill(Color.fg3.opacity(0.3)).frame(width: 1, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connected.isEmpty ? tr("还没连上 AI") : tr("\(connected.count) 个 AI 已连接")).font(.body.weight(.semibold))
-                Text(connected.isEmpty ? tr("点右上角「连接你的 AI」，一步连好") : connected.map(\.name).joined(separator: "、"))
+                Text(connected.isEmpty ? tr("点右上角「连接你的 AI」，一步连好") : connected.joined(separator: "、"))
                     .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -242,14 +233,14 @@ struct ConnectedAISummary: View {
 
     private func refresh() {
         guard let c = model.aiConnector else { return }
-        var list: [(String, MascotCharacter)] = AIApp.allCases.filter { c.isConnected($0) }.map { ($0.name, MascotCharacter.of($0)) }
+        var list = AIApp.allCases.filter { c.isConnected($0) }.map(\.name)
         // 握手过、但不是能自动连的那几个（比如 Cherry Studio）也算上。
         if !model.usesSampleData {
             for name in AIConnections.load().keys.sorted() where AIApp.from(clientName: name) == nil && name != "AI" {
-                list.append((name, MascotCharacter.of(author: name)))
+                list.append(name)
             }
         }
-        connected = list.map { (name: $0.0, mascot: $0.1) }
+        connected = list
     }
 }
 #endif

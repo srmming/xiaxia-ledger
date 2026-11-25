@@ -1600,5 +1600,16 @@ extension L10n {
         "金额，可以写算式，比如 12,50+3,20": "Importe. Puedes escribir una operación, p. ej. 12,50+3,20",
         "，分类%@": ", categoría %@",
         "没有删：账本刚刚有变化，请重新看一眼再删": "No se borró: el libro acaba de cambiar. Revísalo y vuelve a borrar",
+        "夏夏的样子": "El aspecto de Xiaxia",
+        "女孩": "Niña",
+        "男孩": "Niño",
+        "成年女": "Mujer",
+        "成年男": "Hombre",
+        "金渐层猫": "Gato dorado",
+        "西高地白㹴": "Westie",
+        "水豚": "Capibara",
+        "正在用 %@ 查账": "Revisando las cuentas con %@",
+        "摸摸夏夏": "Acariciar a Xiaxia",
+        "夏夏会回应你一下": "Xiaxia te responderá",
     ]
 }

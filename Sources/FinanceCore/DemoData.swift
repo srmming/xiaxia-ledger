@@ -845,6 +845,8 @@ struct DemoBuilder {
         l.changes = l.changes.enumerated()
             .sorted { ($0.element.createdAt, $0.offset) < ($1.element.createdAt, $1.offset) }.map(\.element)
 
+        // 生成器最后统一替换 UUID。先去掉依赖旧 UUID 的散列，替换后按历史快照重建。
+        for i in l.changes.indices { l.changes[i].planFieldHashes = nil }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -865,6 +867,14 @@ struct DemoBuilder {
         out += text.substring(from: cursor)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode(Ledger.self, from: Data(out.utf8))) ?? l
+        guard var result = try? decoder.decode(Ledger.self, from: Data(out.utf8)) else { return l }
+        var timeline = result
+        for i in result.changes.indices.reversed() {
+            if let before = result.changes[i].before {
+                result.changes[i].planFieldHashes = try? before.checked(in: timeline, hashes: nil).hashes
+                timeline.restore(before)
+            }
+        }
+        return result
     }
 }

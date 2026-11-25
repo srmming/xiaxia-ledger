@@ -35,7 +35,7 @@ struct ImportGuideCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 14) {
-                MascotView(.xiaxia, pose: .write, size: 92)
+                MascotView(pose: .write, size: 92)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(tr("把以前的账搬进来")).font(.title2.weight(.bold))
                     Text(tr("从银行、支付宝、微信或别的记账 App 导出一份账单，交给你电脑上已经连上夏夏账本的 AI，它会整理好、先给你看预览，你确认了才导进来。"))
@@ -141,7 +141,7 @@ struct StartLedgerView: View {
                         Text(tr("先记今天的一笔，或把以前的账带过来。")).font(.title3).foregroundStyle(Color.fg2)
                     }
                     Spacer(minLength: 16)
-                    MascotView(.xiaxia, pose: .write, size: 170)
+                    MascotView(pose: .write, size: 170)
                         .accessibilityHidden(true)
                 }
 
