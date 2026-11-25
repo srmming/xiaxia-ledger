@@ -689,9 +689,17 @@ struct QuickAdd: View {
             refreshLists()
             if let c = t.category, !allCategories.contains(c) { customCategory = c }
         } else {
+            // 生意首页的「记今天进账」、零碎开销按钮：先按预设填好方向、分类和账本。
+            if let preset = model.addPreset {
+                model.addPreset = nil
+                kind = preset.income ? .income : .expense
+                if let b = preset.bookID { bookID = b }
+                category = preset.category
+            }
             if bookID.isEmpty { bookID = model.defaultBookID }
             if accountID.isEmpty { accountID = model.defaultAccountID }
             refreshLists()
+            if let c = category, !allCategories.contains(c) { customCategory = c }
         }
         DispatchQueue.main.async { didSetup = true }
         #if os(macOS)
@@ -736,6 +744,8 @@ struct QuickAdd: View {
                     try model.edit { try $0.addRecurring(tx, frequency: frequency, author: model.author) }
                 } else {
                     try model.edit { try $0.addTransaction(tx, author: model.author) }
+                    // 开着生意模式：看着明显记错了边（生意这边记了「书包」），夏夏马上挪过去，提示里能撤销。
+                    model.checkSide(tx.id)
                 }
             }
             model.lastAccountID = accountID

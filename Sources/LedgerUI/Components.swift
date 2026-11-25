@@ -250,7 +250,7 @@ enum CategoryStyle {
         "美容": .beauty, "护肤": .beauty, "美甲": .nails, "订阅": .subscription, "会员": .subscription,
         "保险": .insurance, "税费": .tax, "税": .tax, "社保": .social, "手续费": .fee, "利息": .fee,
         "退款": .refund, "工资": .salary, "奖金": .salary, "收入": .income, "营业收入": .revenue, "营业": .revenue,
-        "店租": .shoprent, "耗材": .supplies, "进货": .supplies, "设备": .equipment, "员工工资": .staff,
+        "店租": .shoprent, "耗材": .supplies, "进货": .supplies, "设备": .equipment, "本钱": .equipment, "员工工资": .staff,
         "营销": .marketing, "广告": .marketing, "充值": .topup, "转入": .transfer, "转出": .transfer, "转账": .transfer,
         "老板提款": .withdraw, "店收入": .revenue, "门店收入": .revenue, "储蓄": .savings, "存钱": .savings, "投资": .invest, "理财": .invest,
         "借款": .loan, "借出": .loan, "还款": .repay, "运动": .sport, "健身": .sport, "家居": .home, "家具": .home,
@@ -336,7 +336,8 @@ enum CategoryStyle {
     static func defaults(book: Book?, income: Bool) -> [String] {
         let shop = book?.isBusiness == true
         if income { return shop ? ["营业收入", "退款", "其他"] : ["工资", "收入", "退款", "礼物", "其他"] }  // 「退款」选了会冲减支出
-        return shop ? ["耗材", "店租", "员工工资", "水电", "设备", "税费", "社保", "营销", "手续费", "其他"]
+        // 生意模式（2026-11-25）：进货排第一；还款的利息单独记，算成本（本金不算）；本钱是开店投的钱。
+        return shop ? ["进货", "耗材", "店租", "员工工资", "水电", "设备", "税费", "社保", "营销", "手续费", "利息", "本钱", "其他"]
             : ["餐饮", "超市", "交通", "房租", "水电", "购物", "娱乐", "医疗", "通讯", "旅行", "宝宝", "其他"]
     }
 }

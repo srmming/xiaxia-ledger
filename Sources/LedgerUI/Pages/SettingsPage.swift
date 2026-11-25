@@ -20,6 +20,10 @@ struct SettingsPage: View {
             VStack(spacing: 0) {
                 row(.books, symbol: "building.columns", title: tr("账本与账户")) { Text(booksSummary) }
                 divider
+                row(.business, symbol: "storefront", title: tr("生意模式")) {
+                    Text(model.businessOn ? tr("开着 · \(model.ledger.businessBook?.name ?? "")") : tr("关着"))
+                }
+                divider
                 row(.sync, symbol: "icloud", title: tr("同步与币种")) {
                     HStack(spacing: 6) {
                         Circle().fill(model.loadError == nil ? Color.income : Color.alert).frame(width: 7, height: 7)
@@ -187,12 +191,13 @@ struct SettingsPage: View {
 
 /// 设置的二级页。
 enum SettingsPane: String, Identifiable, Hashable {
-    case ai, books, sync, xiaxia, memory, privacy, author, data
+    case ai, books, business, sync, xiaxia, memory, privacy, author, data
     var id: String { rawValue }
     var title: String {
         switch self {
         case .ai: tr("管理 AI 连接")
         case .books: tr("账本与账户")
+        case .business: tr("生意模式")
         case .sync: tr("同步与币种")
         case .xiaxia: tr("夏夏偏好")
         case .memory: tr("夏夏的记忆")
@@ -266,7 +271,8 @@ struct SettingsPaneView: View {
 
     var body: some View {
         // 记忆页是另一个线程做的整页，自己管排版和滚动。
-        if pane == .memory { XiaxiaMemorySettings() } else if pane == .data { DataSettingsPane() } else { content }
+        if pane == .memory { XiaxiaMemorySettings() } else if pane == .data { DataSettingsPane() }
+        else if pane == .business { BusinessSettingsPane() } else { content }
     }
 
     private var content: some View {
@@ -362,7 +368,7 @@ struct SettingsPaneView: View {
                 group(tr("夏夏怎么跟你说话"), note: tr("夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。")) {
                     PersonaPicker()
                 }
-            case .memory, .data:
+            case .memory, .data, .business:
                 EmptyView()
             case .privacy:
                 group(tr("隐私")) {

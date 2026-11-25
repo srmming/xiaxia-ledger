@@ -26,6 +26,9 @@ if [ -n "$IOS_APP" ]; then
   }
   ios 1-overview -XiaxiaDemo
   ios 2-spending -XiaxiaDemo -XiaxiaSection spending
+  # 生意模式（2026-11-25）：生意首页、设置里的开关
+  ios 1b-business -XiaxiaDemo -XiaxiaBook shop
+  ios 1c-business-settings -XiaxiaDemo -XiaxiaSection settings -XiaxiaSettingsPage business
   ios 3-trends -XiaxiaDemo -XiaxiaSection trends
   ios 4-wealth -XiaxiaDemo -XiaxiaSection wealth
   ios 5-plans -XiaxiaDemo -XiaxiaSection plans
@@ -85,6 +88,12 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
     else echo "mac-$name 没截到"; tail -5 "$OUT/mac-$name.log" 2>/dev/null; fi
   }
   snap 1-overview -XiaxiaDemo 1
+  # 生意模式（2026-11-25）：生意首页（大窗口、最小窗口、深色）、设置里的开关、关掉时和以前一样
+  snap 1b-business -XiaxiaDemo 1 -XiaxiaBook shop
+  snap 1c-business-small -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaWindowSize 1000x612
+  snap 1d-business-dark -XiaxiaDemo 1 -XiaxiaBook shop -xiaxia.appearance dark
+  snap 1e-business-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage business
+  snap 1f-business-off -XiaxiaDemo 1 -XiaxiaBusiness off
   snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
   snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights

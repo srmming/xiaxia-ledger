@@ -79,6 +79,8 @@ public final class LedgerModel {
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?
+    /// 「记一笔」按这个预先填好（生意首页的「记今天进账」等），面板打开时用掉就清空。
+    public var addPreset: AddPreset?
     /// 第一次打开的开始引导（夏夏带着建账本、账户、连 AI）正在显示。
     public var showWelcome = false
     /// 从「问夏夏」的「去连接」进引导：跳过账本、账户，直接到连 AI 那一步。
@@ -263,7 +265,8 @@ public final class LedgerModel {
     /// 刚记的流水不在正在看的月份 / 账本里：跳过去，免得记了却「没出来」。
     func revealAdded(_ added: [FinanceCore.Transaction]) {
         guard let latest = added.map(\.date).max() else { return }
-        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = nil }
+        // 开着生意模式时不回到「全部」，跳到刚记的那一边。
+        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = businessOn ? added.last?.bookID ?? b : nil }
         if !added.contains(where: { $0.date.yearMonth == shownMonth }) { selectedMonth = latest.yearMonth }
     }
 

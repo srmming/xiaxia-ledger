@@ -8,7 +8,10 @@ struct OverviewPage: View {
     @State private var short = false
 
     var body: some View {
-        if model.ledger.transactions.isEmpty {
+        if model.businessOn && model.side == .business {
+            // 生意这边的首页：这个月赚了多少、今天进出、回本、固定开销、欠款（设计稿 ④）。
+            BusinessHome().kitPage()
+        } else if model.ledger.transactions.isEmpty {
             #if os(macOS)
             // 还没有一笔：照 ming 的稿（design/mockups/empty-overview-ming-2026-11-23.png）——「开始记账」+ 记第一笔 / 用 AI 导入旧账 + 一条问夏夏。
             StartLedgerView().kitPage()

@@ -350,6 +350,11 @@ struct MacToolbar: ToolbarContent {
 struct BookSwitch: View {
     @Environment(LedgerModel.self) var model
     var body: some View {
+        // 开着生意模式：换成「生活 | 生意」两格（设计稿 ③）。账本管理还在 设置 → 账本与账户。
+        if model.businessOn { SideSwitch() } else { bookMenu }
+    }
+
+    private var bookMenu: some View {
         let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
         Menu {
             Picker(tr("看哪个账本"), selection: selection) {
@@ -440,9 +445,13 @@ struct PhoneRoot: View {
                                          latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, compact: true)
                         }
                     }
+                    // 开着生意模式：「生活 | 生意」放标题栏正中间，每页都在同一个位置（设计稿 ③）。
+                    if model.businessOn && section != .insights {
+                        ToolbarItem(placement: .principal) { SideSwitch() }
+                    }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         if section != .insights {
-                            BookSwitch()
+                            if !model.businessOn { BookSwitch() }
                             // 「问 AI」放进顶栏，不再浮在右下角挡住卡片上的按钮；「夏夏」页自己有问的入口，这里不重复。
                             AskAIReader { ask in
                                 Button { ask("", page: (model.section ?? section).rawValue) } label: {
@@ -543,6 +552,10 @@ public struct XiaxiaScene: Scene {
         // 示例数据不连 AI：别一打开就摆个用不了的对话栏，挤窄页面。
         if XiaxiaChatState.chosenOn, model.chatReady { model.chat.open = true }
         #endif
+        // -XiaxiaBusiness off：示例账本里关掉生意模式（只在内存里，测以前那套账本菜单用）。
+        if value("-XiaxiaBusiness") == "off", model.usesSampleData, model.businessOn {
+            _ = try? model.edit(quiet: true) { $0.disableBusinessMode(author: model.author) }
+        }
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
         }
