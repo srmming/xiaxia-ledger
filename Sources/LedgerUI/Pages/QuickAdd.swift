@@ -95,9 +95,9 @@ struct QuickAdd: View {
             }
         }
         #else
-        // 表单能滚，按钮那排固定在底下：窗口矮了按钮也不会跑到窗口外面。
+        // Mac 版（ming 2026-11-25 重做）：系统表单的排法，一行一项，键盘 Tab 走到底；按钮那排固定在底下。
         VStack(spacing: 0) {
-            ScrollView { content }
+            content
             Divider()
             actionButtons.padding(.horizontal, 20).padding(.vertical, 12)
         }
@@ -106,7 +106,15 @@ struct QuickAdd: View {
 
     // MARK: - 表单
 
-    private var content: some View {
+    @ViewBuilder private var form: some View {
+        #if os(macOS)
+        macForm
+        #else
+        phoneForm
+        #endif
+    }
+
+    private var phoneForm: some View {
         VStack(spacing: 14) {
             // 说一句 / 拍小票：不填表，先存成「待记录」，夏夏或自己之后补进账本（ming 2026-11-23）。
             if editing == nil { CaptureBar() }
@@ -152,7 +160,11 @@ struct QuickAdd: View {
             }
         }
         .padding(20)
-        .navigationTitle(editing == nil ? tr("记一笔") : tr("改这一笔"))
+    }
+
+    private var content: some View {
+        form
+        .navigationTitle(editing != nil ? tr("改这一笔") : shopMode ? tr("店里记一笔") : tr("记一笔"))
         .inlineTitle()
         .onAppear(perform: setup)
         .onDisappear { model.editingID = nil }
@@ -571,10 +583,10 @@ struct QuickAdd: View {
         let id = slot == .from ? accountID : toAccountID
         let label = slot == .from ? tr("账户") : tr("转到")
         return Menu {
-            ForEach(model.visibleAccounts) { a in
+            ForEach(pickableAccounts) { a in
                 Button(a.name) { if slot == .from { accountID = a.id } else { toAccountID = a.id } }
             }
-            if !model.visibleAccounts.isEmpty { Divider() }
+            if !pickableAccounts.isEmpty { Divider() }
             Button { newName = ""; askingFor = slot; askAccount = true } label: { Label(tr("新账户…"), systemImage: "plus") }
         } label: {
             Label(id.isEmpty ? tr("选账户") : model.accountName(id), systemImage: "creditcard")
@@ -672,6 +684,191 @@ struct QuickAdd: View {
         .frame(minHeight: 36)
     }
 
+    // MARK: - Mac 版
+
+    /// 记在生意账本上：店里自己的一版（店里的颜色、店里的账户、不问账本）。
+    private var shopMode: Bool {
+        model.businessOn && !bookID.isEmpty && bookID == model.ledger.businessBook?.id
+    }
+
+    /// 能选的账户：开着生意模式时只列这一边的（店里记就是店里的账户）。改一笔时原来那个账户一直在。
+    private var pickableAccounts: [Account] {
+        guard model.businessOn else { return model.visibleAccounts }
+        let side: Side = shopMode ? .business : .life
+        return model.visibleAccounts.filter { model.ledger.side(ofAccount: $0.id) == side || $0.id == accountID || $0.id == editing?.accountID }
+    }
+
+    private var tint: Color { shopMode ? .shop : .brand }
+
+    #if os(macOS)
+    private var macForm: some View {
+        Form {
+            Section {
+                Picker(tr("支出、收入还是转账"), selection: $kind) {
+                    Text(tr("支出")).tag(Kind.expense)
+                    Text(shopMode ? tr("进账") : tr("收入")).tag(Kind.income)
+                    if editing == nil || editing?.isPlainEntry == false { Text(tr("转账")).tag(Kind.transfer) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .accessibilityIdentifier("direction")
+                amountDisplay.padding(.vertical, 4)
+            }
+            if isTransfer {
+                Section {
+                    accountPicker(tr("从"), .from)
+                    accountPicker(tr("转到"), .to)
+                    macDateRow
+                    TextField(tr("备注"), text: $note, prompt: Text(tr("可不填，比如「取现」")))
+                        .focused($focus, equals: .note)
+                } footer: {
+                    Text(!accountID.isEmpty && accountID == toAccountID ? tr("转出和转入要是两个不同的账户。")
+                         : tr("自己账户之间挪钱（取现、存进储蓄、还信用卡），不算收入也不算支出。"))
+                        .font(.caption).foregroundStyle(!accountID.isEmpty && accountID == toAccountID ? Color.alert : Color.fg2)
+                }
+            } else {
+                Section {
+                    TextField(tr("名称"), text: $name, prompt: Text(income ? tr("比如「工资」") : shopMode ? tr("比如「花材进货」") : tr("比如「超市」")))
+                        .focused($focus, equals: .name)
+                        .onSubmit {
+                            let n = name.trimmingCharacters(in: .whitespaces).lowercased()
+                            guard category == nil, !n.isEmpty else { return }
+                            if let hit = lists.names.first(where: { $0.name.lowercased() == n }) { pick(hit) }
+                            else if let c = allCategories.first(where: { $0.lowercased() == n }) { category = c }
+                        }
+                    macSuggestions
+                } header: { Text(tr("记的是什么")) }
+                Section {
+                    macCategoryGrid
+                } header: {
+                    HStack {
+                        Text(tr("分类"))
+                        Spacer()
+                        if let category { Text(category).foregroundStyle(tint) }
+                    }
+                }
+                Section {
+                    accountPicker(tr("账户"), .from)
+                    // 开着生意模式时不问账本：在哪边记就是哪边的（顶上「生活 | 生意」）。
+                    if !model.businessOn && model.ledger.books.count > 1 {
+                        Picker(tr("账本"), selection: $bookID) {
+                            ForEach(model.ledger.books) { b in Text(b.name).tag(b.id) }
+                        }
+                    }
+                    macDateRow
+                    TextField(tr("备注"), text: $note, prompt: Text(tr("可不填")))
+                        .focused($focus, equals: .note)
+                    if editing == nil {
+                        Picker(tr("重复"), selection: $frequency) {
+                            Text(tr("不重复")).tag(Recurring.Frequency?.none)
+                            ForEach(Recurring.Frequency.allCases, id: \.self) { f in Text(f.label).tag(Optional(f)) }
+                        }
+                    }
+                    tagRow
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .tint(tint)
+    }
+
+    /// 以前记过的名字：打字时给几个，点一下名字和分类都带上；没打字时是「常记的」，金额也带上。
+    @ViewBuilder private var macSuggestions: some View {
+        let q = name.trimmingCharacters(in: .whitespaces).lowercased()
+        if q.isEmpty && editing == nil && !lists.frequent.isEmpty {
+            frequentRow
+        } else {
+            let hits = Array(lists.names.lazy.filter { !q.isEmpty && $0.name.lowercased().contains(q) && $0.name.lowercased() != q }.prefix(6))
+            if !hits.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(hits, id: \.name) { s in
+                            Button { pick(s) } label: {
+                                HStack(spacing: 4) {
+                                    if let c = s.category { CategoryIcon(category: c, size: 16) }
+                                    Text(s.name).lineLimit(1)
+                                }
+                                .font(.caption).padding(.horizontal, 9).padding(.vertical, 5)
+                                .background(Color.sunken, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 分类：全部铺开，一行放得下几个就放几个，多了上下滚（鼠标、触控板都能滚）。最后一格是自己加分类。
+    private var macCategoryGrid: some View {
+        var all = allCategories
+        if let c = customCategory, !all.contains(c) { all.insert(c, at: 0) }
+        return ScrollView(.vertical) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 68, maximum: 90), spacing: 4)], spacing: 4) {
+                ForEach(all, id: \.self) { c in
+                    Button { category = c } label: {
+                        VStack(spacing: 3) {
+                            CategoryIcon(category: c, size: 26)
+                            Text(c).font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
+                                .foregroundStyle(category == c ? .primary : Color.fg2)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 5)
+                        .background(category == c ? tint.opacity(0.14) : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(category == c ? tint.opacity(0.5) : .clear))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(c)
+                    .accessibilityAddTraits(category == c ? .isSelected : [])
+                }
+                // 自己加一个：放最后、灰色，不抢眼（ming 2026-11-25）。
+                Button { addingCategory = true } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
+                            .frame(width: 26, height: 26)
+                            .overlay(Circle().strokeBorder(Color.fg3, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                        Text(tr("自定义")).font(.caption2)
+                    }
+                    .foregroundStyle(Color.fg3)
+                    .frame(maxWidth: .infinity).padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tr("自己加一个分类"))
+            }
+            .padding(2)
+        }
+        .frame(height: 150)
+    }
+
+    private func accountPicker(_ title: String, _ slot: AccountSlot) -> some View {
+        let current = slot == .from ? accountID : toAccountID
+        return Picker(title, selection: Binding(get: { current }, set: { v in
+            if v == "__new__" { newName = ""; askingFor = slot; askAccount = true }
+            else if slot == .from { accountID = v } else { toAccountID = v }
+        })) {
+            if current.isEmpty { Text(tr("选一个")).tag("") }
+            ForEach(pickableAccounts) { a in Text(a.name).tag(a.id) }
+            Divider()
+            Text(tr("新账户…")).tag("__new__")
+        }
+        .accessibilityLabel("\(title)：\(current.isEmpty ? tr("还没选") : model.accountName(current))")
+    }
+
+    /// 日期：系统日期选择 + 「今天」「昨天」两个快捷。
+    private var macDateRow: some View {
+        LabeledContent(tr("日期")) {
+            HStack(spacing: 6) {
+                Button(tr("今天")) { date = Date() }
+                    .buttonStyle(.borderless).foregroundStyle(Calendar.current.isDateInToday(date) ? tint : Color.fg2)
+                Button(tr("昨天")) { date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date() }
+                    .buttonStyle(.borderless).foregroundStyle(Calendar.current.isDateInYesterday(date) ? tint : Color.fg2)
+                DatePicker(tr("日期"), selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.field).labelsHidden().fixedSize()
+            }
+        }
+    }
+    #endif
+
     // MARK: 打开、保存
 
     private func setup() {
@@ -699,6 +896,8 @@ struct QuickAdd: View {
             }
             if bookID.isEmpty { bookID = model.defaultBookID }
             if accountID.isEmpty { accountID = model.defaultAccountID }
+            // 开着生意模式：上次用的账户在另一边，就换成这一边的第一个。
+            if !pickableAccounts.contains(where: { $0.id == accountID }) { accountID = pickableAccounts.first?.id ?? accountID }
             refreshLists()
             if let c = category, !allCategories.contains(c) { customCategory = c }
         }
