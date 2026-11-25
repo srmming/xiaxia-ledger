@@ -1,0 +1,74 @@
+# iPhone 版逐条检查（docs/CHECKLIST.md）：模拟器上每页截图（示例 / 空账本、浅色 / 深色、大字号、小屏 iPhone SE），
+# 每页每个按钮点一遍，记一笔 / 删一笔 / 撤销走一遍。只用编造的示例数据。
+# 很慢（几十分钟）又按 10 倍扣 Mac 额度，所以平时不跑：提交说明里带 [iphone-check] 才跑，或在 Actions 页手动点。
+# 截图和报告推到 ci-iphone-check 分支（每次覆盖）。
+name: iphone-check
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iphone-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[iphone-check]') }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: 生成 Xcode 工程
+        run: |
+          which xcodegen || brew install xcodegen
+          cd App && xcodegen generate
+      - name: 编译 iPhone app 和界面检查
+        run: |
+          set -o pipefail
+          mkdir -p out
+          xcrun simctl list devices available | grep -E "iPhone" | tee out/devices.txt
+          xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Debug \
+            -derivedDataPath App/build-test -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 \
+            | tee out/build.log | grep -E "error|BUILD|TEST" || true
+          grep -qE "TEST BUILD SUCCEEDED|BUILD SUCCEEDED" out/build.log
+      - name: 大屏 iPhone：截图、每个按钮、记一笔和撤销
+        run: |
+          DEVICE="$(xcrun simctl list devices available | grep -E 'iPhone 1[5-9] Pro Max \(' | head -1 | grep -oE '[0-9A-F-]{36}')"
+          [ -n "$DEVICE" ] || DEVICE="$(xcrun simctl list devices available | grep -E 'iPhone 1[5-9]( Pro)? \(' | head -1 | grep -oE '[0-9A-F-]{36}')"
+          echo "大屏：$DEVICE" | tee -a out/devices-used.txt
+          TEST_RUNNER_XIAXIA_SHOTS="$PWD/out/big" xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Debug \
+            -derivedDataPath App/build-test -destination "platform=iOS Simulator,id=$DEVICE" CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath out-big.xcresult \
+            -only-testing:XiaxiaLedger-iOSUITests/PhoneChecklistTests test-without-building 2>&1 \
+            | tee out/big.log | grep -E "error|CHECK|Test Case .*(passed|failed)|TEST (SUCCEEDED|FAILED)|Executed" || true
+      - name: 小屏 iPhone SE：每页截图
+        if: ${{ !cancelled() }}
+        run: |
+          DEVICE="$(xcrun simctl list devices available | grep -E 'iPhone SE' | head -1 | grep -oE '[0-9A-F-]{36}')"
+          echo "小屏：$DEVICE" | tee -a out/devices-used.txt
+          [ -n "$DEVICE" ] || exit 0
+          TEST_RUNNER_XIAXIA_SHOTS="$PWD/out/small" xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Debug \
+            -derivedDataPath App/build-test -destination "platform=iOS Simulator,id=$DEVICE" CODE_SIGNING_ALLOWED=NO \
+            -only-testing:XiaxiaLedger-iOSUITests/PhoneChecklistTests/test01PagesDemoLight \
+            -only-testing:XiaxiaLedger-iOSUITests/PhoneChecklistTests/test03PagesEmpty test-without-building 2>&1 \
+            | tee out/small.log | grep -E "error|Test Case .*(passed|failed)|TEST (SUCCEEDED|FAILED)" || true
+      - name: 截图没直接写进文件夹的话，从测试结果里导出
+        if: always()
+        run: |
+          if [ -z "$(ls out/big 2>/dev/null)" ] && [ -d out-big.xcresult ]; then
+            mkdir -p out/big-attachments
+            xcrun xcresulttool export attachments --path out-big.xcresult --output-path out/big-attachments 2>&1 | tail -3 || true
+          fi
+          grep -h "CHECK " out/big.log | sed 's/.*CHECK //' > out/report-from-log.txt || true
+      - name: 推到 ci-iphone-check 分支
+        if: always()
+        run: |
+          cd out
+          echo "${{ github.sha }}" > commit.txt
+          git init -q -b ci-iphone-check
+          git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
+          git add -A && git commit -q -m "iphone check for ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-iphone-check
