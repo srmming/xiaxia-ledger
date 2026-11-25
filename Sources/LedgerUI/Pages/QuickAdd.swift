@@ -714,6 +714,7 @@ struct QuickAdd: View {
         let a = Account(id: model.ledger.newAccountID(for: name), name: name, kind: name.contains("现金") ? .cash : .bank)
         do {
             try model.edit(quiet: true) { try $0.createAccount(a, author: model.author) }
+            model.claimNewAccount(a.id)
             if askingFor == .from { accountID = a.id } else { toAccountID = a.id }
         } catch { self.error = error.localizedDescription }
     }

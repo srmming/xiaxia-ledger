@@ -271,6 +271,7 @@ struct AccountEditor: View {
                 let a = Account(id: model.ledger.newAccountID(for: name), name: name, kind: draft.kind,
                                 institution: inst.isEmpty ? nil : inst, isPrivate: draft.isPrivate, currency: code)
                 try model.edit { try $0.createAccount(a, openingBalance: opening, author: model.author) }
+                model.claimNewAccount(a.id)
             }
             dismiss()
         } catch { self.error = error.localizedDescription }

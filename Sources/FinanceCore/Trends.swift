@@ -181,7 +181,12 @@ public struct WealthBreakdown: Equatable, Sendable {
             guard let b = t.bookID else { continue }
             seen[t.accountID] = (seen[t.accountID] ?? true) && business.contains(b)
         }
-        return Set(seen.filter(\.value).keys)
+        var set = Set(seen.filter(\.value).keys)
+        // 自己说过算哪边的，以说的为准（加账户时在哪边、后来挪过边）。
+        for (id, side) in ledger.business?.accountSides ?? [:] {
+            if side == .business { set.insert(id) } else { set.remove(id) }
+        }
+        return set
     }
 }
 

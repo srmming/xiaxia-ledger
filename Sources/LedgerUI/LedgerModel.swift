@@ -19,6 +19,8 @@ public enum AppSheet: String, Identifiable, Hashable {
     case newInstallment, newDebt
     /// 生意首页「记今天的账」：现金、刷卡两个框。
     case daily
+    /// 生意那边：加固定开销、两边转钱。
+    case fixedCost, sideTransfer
     public var id: String { rawValue }
 }
 

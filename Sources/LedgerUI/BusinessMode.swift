@@ -30,6 +30,9 @@ extension LedgerModel {
     func switchSide(_ side: Side) {
         guard let id = ledger.bookID(for: side) else { return }
         selectedBookID = id
+        // 两边侧栏不一样：切过去时停在对面没有的页，就回到总览。
+        let list = side == .business ? AppSection.businessLook : AppSection.look
+        if let s = section, !list.contains(s), ![AppSection.insights, .changes, .transactions, .settings].contains(s) { section = .overview }
     }
 
     /// 开着生意模式时不看「全部」：落到某一边（第一次按开模式时选的那边，没选过就生活）。
@@ -52,6 +55,12 @@ extension LedgerModel {
         } catch {
             // 挪不了就留在原处，不打扰。
         }
+    }
+
+    /// 在生意那边新加的账户就算店里的（ming 2026-11-25：在哪边加就属哪边）。生活那边加的本来就算生活，不用记。
+    func claimNewAccount(_ id: String) {
+        guard businessOn, side == .business else { return }
+        _ = try? edit(quiet: true) { try $0.setAccountSide(id, side: .business, author: author) }
     }
 
     /// 生意首页上的按钮：打开记一笔，按预设填好。

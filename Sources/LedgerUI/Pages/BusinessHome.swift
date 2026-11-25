@@ -159,9 +159,10 @@ struct BusinessHome: View {
                 Text((r?.takenHome ?? .zero).rounded).font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
             }
             Spacer(minLength: 8)
-            Text(tr("从店里拿回家的钱")).font(.caption2).foregroundStyle(Color.fg3).multilineTextAlignment(.trailing)
+            Button { model.sheet = .sideTransfer } label: { Label(tr("拿钱回家"), systemImage: "arrow.right") }
+                .buttonStyle(.soft)
+                .help(tr("从店里的账户转到生活那边的账户，算给自己发了"))
         }
-        .accessibilityElement(children: .combine)
         .kitCard()
     }
 

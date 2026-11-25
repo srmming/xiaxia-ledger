@@ -102,6 +102,49 @@ final class BusinessTests: XCTestCase {
         XCTAssertFalse(list.contains { ($0.title + $0.advice).contains("税") })
     }
 
+    func testAccountSidesAndTransferHome() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.accounts += [Account(id: "shop", name: "公司卡", kind: .bank), Account(id: "life", name: "日常卡", kind: .bank),
+                       Account(id: "new", name: "新开的卡", kind: .bank)]
+        l.transactions = [tx("销售", 100000, category: "营业收入"), tx("超市", -3000, book: "personal", account: "life")]
+        XCTAssertEqual(l.side(ofAccount: "shop"), .business)
+        XCTAssertEqual(l.side(ofAccount: "life"), .life)
+        XCTAssertEqual(l.side(ofAccount: "new"), .life)
+        let moved = try l.setAccountSide("new", side: .business, author: author)
+        XCTAssertEqual(l.side(ofAccount: "new"), .business)
+        _ = try l.undo(changeID: moved.id, author: author)
+        XCTAssertEqual(l.side(ofAccount: "new"), .life)
+        XCTAssertThrowsError(try l.transferBetweenSides(amount: Money(cents: 100), from: "shop", to: "shop", date: today, author: author))
+        _ = try l.transferBetweenSides(amount: Money(cents: 50000), from: "shop", to: "life", date: today, author: author)
+        let r = try l.businessReport(month: today.yearMonth, today: today)
+        XCTAssertEqual(r.takenHome.cents, 50000)
+        XCTAssertEqual(r.profit.cents, 100000, "拿回家的钱不算店里的开销")
+        XCTAssertEqual(l.sideTransfers(month: today.yearMonth).map(\.amount.cents), [-50000])
+    }
+
+    func testFixedCostStartsNextTimeAndPostsAutomatically() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.accounts += [Account(id: "shop", name: "公司卡", kind: .bank)]
+        let add = try l.addFixedCost(name: "房租", amount: Money(cents: 120000), day: 1, accountID: "shop", category: "房租",
+                                     today: today, author: author)
+        XCTAssertTrue(l.transactions.isEmpty, "加的时候不马上记一笔")
+        XCTAssertEqual(l.businessFixedCosts.first?.nextDate, LocalDate("2026-05-01"))
+        XCTAssertNil(l.postDueRecurring(today: today, author: author))
+        XCTAssertNotNil(l.postDueRecurring(today: LocalDate("2026-05-01")!, author: author))
+        XCTAssertEqual(l.transactions.map(\.amount.cents), [-120000])
+        XCTAssertEqual(l.transactions.first?.bookID, "miora")
+        var m = Ledger.starter
+        _ = try m.enableBusinessMode(author: author)
+        m.accounts += [Account(id: "shop", name: "公司卡", kind: .bank)]
+        let c = try m.addFixedCost(name: "工资", amount: Money(cents: 90000), day: 30, accountID: "shop", category: "工资", today: today, author: author)
+        XCTAssertEqual(m.businessFixedCosts.first?.nextDate, LocalDate("2026-04-30"))
+        _ = try m.undo(changeID: c.id, author: author)
+        XCTAssertTrue(m.businessFixedCosts.isEmpty)
+        _ = add
+    }
+
     func testGuessAndMove() throws {
         var l = Ledger.starter
         _ = try l.enableBusinessMode(author: author)

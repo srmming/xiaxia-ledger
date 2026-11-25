@@ -251,6 +251,7 @@ extension AppSection {
         case .changes: .navChanges
         case .transactions: .navTransactions
         case .settings: .navSettings
+        case .fixed: .subscription
         }
     }
 }

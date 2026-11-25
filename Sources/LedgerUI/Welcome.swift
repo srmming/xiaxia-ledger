@@ -131,6 +131,11 @@ struct WelcomeView: View {
         Choice(name: tr("旅行"), symbol: "airplane"),
     ]
     @State private var pickedBooks: Set<String> = []
+    /// 第一次打开二选一：nil = 还没选，false = 只记生活，true = 生活和生意都记。
+    @State private var withShop: Bool?
+    /// 选了生意：店是不是新开的（新开的才算回本）、开店投了多少。
+    @State private var newShop: Bool?
+    @State private var capitalText = ""
     /// 第一步选的目标（现成的 id，或 "custom"）。
     @State private var pickedAim: String?
     /// 每个月想存多少：用户自己填。
@@ -434,20 +439,43 @@ struct WelcomeView: View {
                 primary(aimText == nil ? tr("先不定，下一步") : tr("就定这个"), id: "welcome.aim.next") { Task { await toBooks() } }
             }
         case .books:
-            pageBody(tr("你需要几个账本？"), tr("一个账本就是一摊分开算的钱。生活和开店的钱不想混在一起，就开两个。")) {
-                FlowLayout(spacing: 8) {
-                    chip(tr("个人"), symbol: "person", on: true, locked: true) {}
-                    ForEach(bookChoices) { c in
-                        let made = model.ledger.books.contains { $0.name == c.name }
-                        chip(c.name, symbol: c.symbol, on: made || pickedBooks.contains(c.name), locked: made) { toggle(&pickedBooks, c.name) }
+            // ming 2026-11-25：第一次打开二选一——只记生活 / 生活和生意都记；选生意再问店是不是新开的。
+            pageBody(tr("你想记哪些钱？"), tr("生活和店里的钱分开算，账户也分两边。以后在 设置 → 生意模式 随时能改。")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        sideCard(tr("只记生活"), detail: tr("家里的吃穿住行、存钱、还款"), symbol: "house.fill", on: withShop == false) {
+                            withShop = false
+                        }
+                        .accessibilityIdentifier("welcome.side.life")
+                        sideCard(tr("生活和生意都记"), detail: tr("再加一边，算店里真正赚了多少"), symbol: "storefront.fill", on: withShop == true) {
+                            withShop = true
+                        }
+                        .accessibilityIdentifier("welcome.side.both")
                     }
-                }
-                customField(tr("自己加一个账本，比如「副业」")) { name in
-                    if !bookChoices.contains(where: { $0.name == name }) { bookChoices.append(Choice(name: name, symbol: "book.closed")) }
-                    pickedBooks.insert(name)
+                    if withShop == true {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(tr("店是新开的吗？")).font(.headline)
+                            HStack(spacing: 8) {
+                                chip(tr("新开的，想知道什么时候回本"), symbol: "sparkles", on: newShop == true) { newShop = true }
+                                chip(tr("开了一阵了"), symbol: "clock", on: newShop == false) { newShop = false }
+                            }
+                            if newShop == true {
+                                HStack(spacing: 8) {
+                                    Text(tr("开店一共投了多少")).foregroundStyle(Color.fg2)
+                                    TextField(tr("可以先不填"), text: $capitalText)
+                                        .textFieldStyle(.roundedBorder).frame(width: 140)
+                                        .accessibilityIdentifier("welcome.capital")
+                                    Text(model.ledger.baseCurrency).foregroundStyle(Color.fg3)
+                                }
+                                .font(.callout)
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
             } buttons: {
                 primary(tr("下一步"), id: "welcome.books.next") { Task { await toAccounts() } }
+                    .disabled(withShop == nil)
             }
         case .accounts:
             pageBody(tr("钱平时放在哪？"), tr("有的就点一下，没有的可以自己加。余额以后随时能填。")) {
@@ -1043,22 +1071,65 @@ struct WelcomeView: View {
 
     private func toAccounts() async {
         go(.accounts)
-        await say(pickedBooks.isEmpty ? tr("好，一个账本最清爽。") : tr("好，\(pickedBooks.count + 1) 个账本。"), pose: .write)
+        if withShop == true {
+            for c in [Choice(name: tr("店里的卡"), bookKind: .business, accountKind: .bank), Choice(name: tr("店里现金"), bookKind: .business, accountKind: .cash)]
+            where !accountChoices.contains(where: { $0.name == c.name }) {
+                accountChoices.insert(Choice(name: c.name, glyph: c.accountKind.glyph, bookKind: .business, accountKind: c.accountKind), at: 0)
+            }
+        }
+        await say(withShop == true ? tr("好，生活和生意分两边算。店里的账户我放在前面了。") : tr("好，只记生活，最清爽。"), pose: .write)
     }
 
     /// 把选好的账本、账户写进账本（已经有的不重复建）。
     private func commitSetup() {
-        let haveBooks = Set(model.ledger.books.map(\.name))
-        for c in bookChoices where pickedBooks.contains(c.name) && !haveBooks.contains(c.name) {
-            _ = try? model.edit(quiet: true) { try $0.addBook(name: c.name, kind: c.bookKind, author: model.author) }
+        // 选了「生活和生意都记」：打开生意模式（没有生意账本就建一个「我的小店」）；新店填了本钱就记上，用来算回本。
+        if withShop == true, model.ledger.business?.enabled != true {
+            if !model.ledger.books.contains(where: \.isBusiness) {
+                _ = try? model.edit(quiet: true) { try $0.addBook(name: tr("我的小店"), kind: .business, author: model.author) }
+            }
+            _ = try? model.edit(quiet: true) { ledger in
+                guard case .enabled(let change) = try ledger.enableBusinessMode(author: model.author) else { throw CancellationError() }
+                return change
+            }
+            if newShop == true, let total = Self.parseAmount(capitalText) {
+                _ = try? model.edit(quiet: true) { try $0.setCapital(Capital(total: total, openedOn: .today), author: model.author) }
+            }
         }
         let haveAccounts = Set(model.ledger.accounts.map(\.name))
         for c in accountChoices where pickedAccounts.contains(c.name) && !haveAccounts.contains(c.name) {
+            var made: String?
             _ = try? model.edit(quiet: true) { ledger in
                 let id = ledger.newAccountID(for: c.name)
+                made = id
                 return try ledger.createAccount(Account(id: id, name: c.name, kind: c.accountKind), author: model.author)
             }
+            if c.bookKind == .business, let id = made, model.businessOn {
+                _ = try? model.edit(quiet: true) { try $0.setAccountSide(id, side: .business, author: model.author) }
+            }
         }
+    }
+
+    /// 第一次打开二选一的大卡片。
+    private func sideCard(_ title: String, detail: String, symbol: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.2)) { action() }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: symbol).font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(on ? Color.white : Color.brand)
+                    .frame(width: 44, height: 44)
+                    .background(on ? Color.brand : Color.brand.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(detail).font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Color.brand : Color.fg3.opacity(0.3), lineWidth: on ? 2 : 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func toAI() async {

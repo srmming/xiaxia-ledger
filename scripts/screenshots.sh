@@ -96,6 +96,13 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 1f-business-off -XiaxiaDemo 1 -XiaxiaBusiness off
   snap 1g-business-daily -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily
   snap 1h-business-daily-dark -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily -xiaxia.appearance dark
+  snap 1i-business-fixed -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection fixed
+  snap 1j-business-wealth -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection wealth
+  snap 1k-business-transfer -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection wealth -XiaxiaSheet sideTransfer
+  snap 1l-business-fixed-add -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection fixed -XiaxiaSheet fixedCost
+  snap 1m-life-wealth -XiaxiaDemo 1 -XiaxiaBook personal -XiaxiaSection wealth
+  snap 1n-life-overview -XiaxiaDemo 1 -XiaxiaBook personal
+  snap 1o-welcome-side -XiaxiaEmpty 1 -XiaxiaWelcome 1 -XiaxiaWelcomeStep books
   snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
   snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights

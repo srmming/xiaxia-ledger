@@ -13,7 +13,10 @@ struct WealthPage: View {
 
     var body: some View {
         Group {
-            if model.ledger.accounts.isEmpty {
+            if model.businessOn && model.side == .business {
+                // 生意那边：店里一共多少、店里的账户、两边之间的钱（ming 2026-11-25：账户两边完全分开）。
+                BusinessWealth()
+            } else if model.ledger.accounts.isEmpty {
                 VStack(spacing: Kit.gap) {
                     KitEmptyState(symbol: "building.columns", title: tr("还没有账户"),
                                   message: tr("第一次导入对账单时，AI 会顺手把账户建好。也可以自己加一个。"),
@@ -283,12 +286,19 @@ struct WealthPage: View {
         }
     }
 
+    /// 账户列表：开着生意模式时只列生活这边的（店里的在生意那边的家底页）。
+    private var listedAccounts: [Account] {
+        guard model.businessOn else { return model.visibleAccounts }
+        let shop = WealthBreakdown.businessAccounts(model.ledger)
+        return model.visibleAccounts.filter { !shop.contains($0.id) }
+    }
+
     private var accountsCard: some View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
         // 账户多（7 个以上）也按矮窗口的排法：不分组写标题、每行收紧，一屏放下。
-        let short = Viewport.isShort(viewport) || model.visibleAccounts.count > 6
+        let short = Viewport.isShort(viewport) || listedAccounts.count > 6
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("账户")) {
                 Button { model.sheet = .accounts } label: { Label(tr("管理"), systemImage: "slider.horizontal.3") }
@@ -297,11 +307,11 @@ struct WealthPage: View {
             }
             .padding(.bottom, 6)
             ForEach(kinds, id: \.self) { kind in
-                let list = model.visibleAccounts.filter { $0.kind == kind }
+                let list = listedAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
                     // 窗口矮：不分组写标题（图标已经看得出是哪种），每行收紧，一屏放下。
                     if !short {
-                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
+                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in listedAccounts.contains { $0.kind == k } } ? 2 : 10)
                             .padding(.bottom, 4)
                     }
                     ForEach(list) { a in
@@ -332,11 +342,13 @@ struct WealthPage: View {
                             }
                         }
                         .padding(.vertical, short ? 2 : 6)
+                        .contentShape(Rectangle())
+                        .contextMenu { MoveSideButton(account: a) }
                         .accessibilityElement(children: .combine)
                     }
                 }
             }
-            if model.visibleAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
+            if listedAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
                 Text(tr("外币账户按今天的汇率换成\(Currencies.info(model.ledger.baseCurrency).name)，算进总存款。"))
                     .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
             }

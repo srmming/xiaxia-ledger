@@ -8,6 +8,8 @@ import AppKit
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "目标", subscriptions = "订阅", debts = "欠款与分期", reimburse = "报销"
     case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
+    /// 生意那边才有：房租、工资这些每月固定要付的（2026-11-25）。
+    case fixed = "固定开销"
     public var id: String { rawValue }
     /// 显示给人看的名字（跟着界面语言）。rawValue 是中文，留给 AI 和存储用，不变。
     public var title: String { trKey(rawValue) }
@@ -26,11 +28,12 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .changes: "clock.arrow.circlepath"
         case .transactions: "list.bullet.rectangle.portrait.fill"
         case .settings: "gearshape.fill"
+        case .fixed: "calendar.badge.clock"
         }
     }
 
     /// 工具栏要不要月份和账本切换（AI、改动记录、设置不按月看）。
-    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions, .debts, .reimburse].contains(self) }
+    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions, .debts, .reimburse, .fixed].contains(self) }
     var usesBook: Bool { ![.insights, .changes, .settings, .wealth].contains(self) }
 
     @ViewBuilder var screen: some View {
@@ -47,12 +50,15 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .changes: ChangesPage()
         case .transactions: TransactionsPage()
         case .settings: SettingsPage()
+        case .fixed: FixedCostsPage()
         }
     }
 
     /// Mac 侧栏「看」：订阅、欠款与分期各自单独一页，「计划」只放存钱目标、改叫「目标」（ming 2026-11-23）。
     /// iPhone 底栏放不下，订阅、欠款还在「计划」那个标签里分格看。
     static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans, .subscriptions, .debts, .reimburse]
+    /// 生意那边的侧栏：没有目标、订阅、报销，多一个固定开销（ming 2026-11-25：生活和生意完全分开）。
+    static let businessLook: [AppSection] = [.overview, .spending, .trends, .wealth, .fixed, .debts]
     static let ai: [AppSection] = [.insights, .changes]
     static let records: [AppSection] = [.transactions]
 }
@@ -141,6 +147,8 @@ public struct RootView: View {
                 case .newInstallment: NewPlanSheet(kind: .installment)
                 case .newDebt: NewPlanSheet(kind: .debt)
                 case .daily: DailyTakingsSheet()
+                case .fixedCost: FixedCostEditor()
+                case .sideTransfer: SideTransferSheet()
                 }
             }
                 .environment(model)
@@ -148,7 +156,7 @@ public struct RootView: View {
                 #if os(macOS)
                 // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 // 记一笔多减一些：面板挂在工具栏下面（约 52），按钮那排要整个露在窗口里。
-                .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : sheet == .memory ? 760 : sheet == .plan ? 700 : sheet == .daily ? 480 : 520,
+                .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : sheet == .memory ? 760 : sheet == .plan ? 700 : sheet == .daily ? 480 : (sheet == .fixedCost || sheet == .sideTransfer) ? 480 : 520,
                        height: sheet == .add ? min(760, max(420, windowHeight - 110))
                                               : min(sheet == .connectAI ? 720 : sheet == .plan ? 540 : 580, max(360, windowHeight - 60)))
                 #else
@@ -242,7 +250,7 @@ struct MacRoot: View {
         @Bindable var model = model
         NavigationSplitView {
             List(selection: $model.section) {
-                Section(tr("看")) { ForEach(AppSection.look) { row($0) } }
+                Section(tr("看")) { ForEach(model.side == .business ? AppSection.businessLook : AppSection.look) { row($0) } }
                 Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
                 Section(tr("记录")) { ForEach(AppSection.records) { row($0) } }
                 Section { row(.settings) }
@@ -540,7 +548,7 @@ public struct XiaxiaScene: Scene {
         let sections: [String: AppSection] = [
             "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
             "plans": .plans, "goals": .plans, "subscriptions": .subscriptions, "debts": .debts, "reimburse": .reimburse, "reimbursements": .reimburse, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
-            "transactions": .transactions, "settings": .settings,
+            "transactions": .transactions, "settings": .settings, "fixed": .fixed,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
         if let v = value("-XiaxiaSheet"), let sheet = AppSheet(rawValue: v) { model.sheet = sheet }

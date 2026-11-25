@@ -116,3 +116,98 @@ extension Nudges {
         return out
     }
 }
+
+// MARK: - 账户分两边、两边转钱
+
+extension Ledger {
+    /// 这个账户算哪一边。没开生意模式时都算生活。
+    public func side(ofAccount id: String) -> Side {
+        guard businessBook != nil else { return .life }
+        return WealthBreakdown.businessAccounts(self).contains(id) ? .business : .life
+    }
+
+    /// 把账户挪到另一边（或者新加账户时说好算哪边）。只改账户归哪边，流水不动。能撤销。
+    @discardableResult
+    public mutating func setAccountSide(_ accountID: String, side: Side, author: String) throws -> ChangeRecord {
+        guard var settings = business, businessBook != nil else { throw BusinessError(message: "请先打开生意模式") }
+        try requireAccount(accountID)
+        var sides = settings.accountSides ?? [:]
+        sides[accountID] = side
+        settings.accountSides = sides
+        let name = accounts.first { $0.id == accountID }?.name ?? accountID
+        return changeBusinessSettings(settings, summary: "账户「\(name)」算到\(side == .business ? "生意" : "生活")那边", author: author)
+    }
+
+    /// 两边之间转钱：从一边的账户转到另一边的账户。记两笔（同一个 transferID），不算收入也不算开销；
+    /// 从生意转到生活就是「给自己发了」，首页那一行会加上。
+    @discardableResult
+    public mutating func transferBetweenSides(amount: Money, from: String, to: String, date: LocalDate, note: String? = nil,
+                                              author: String) throws -> ChangeRecord {
+        guard amount > .zero else { throw EditError.amountMustBePositive }
+        guard let shop = businessBook?.id else { throw BusinessError(message: "请先打开生意模式") }
+        try requireAccount(from); try requireAccount(to)
+        let fromSide = side(ofAccount: from), toSide = side(ofAccount: to)
+        guard fromSide != toSide else { throw BusinessError(message: "两个账户在同一边，这是普通的账户间转账") }
+        guard let life = bookID(for: .life) else { throw BusinessError(message: "还没有生活账本") }
+        let fromName = accounts.first { $0.id == from }?.name ?? from
+        let toName = accounts.first { $0.id == to }?.name ?? to
+        let home = fromSide == .business
+        let text = (note?.isEmpty == false ? note! : (home ? "从店里拿钱回家" : "自己的钱垫给店里"))
+        let tid = UUID()
+        let outTx = Transaction(date: date, amount: -amount, description: text, accountID: from, bookID: home ? shop : life,
+                                category: home ? "老板提款" : "转出", transferID: tid, source: "手记")
+        let inTx = Transaction(date: date, amount: amount, description: text, accountID: to, bookID: home ? life : shop,
+                               category: "转入", transferID: tid, source: "手记")
+        transactions += [outTx, inTx]
+        return record(.transfer, "两边转钱：\(fromName) → \(toName) \(amount.formatted)", ids: [outTx.id, inTx.id], author: author)
+    }
+
+    /// 这个月两边之间来回的钱（家底页生意那边列出来）。每次转账只取生意那边的那一笔：负数 = 拿回家，正数 = 垫给店里。
+    public func sideTransfers(month: YearMonth) -> [Transaction] {
+        guard let shop = businessBook?.id else { return [] }
+        let life = Set(lifeBookIDs)
+        let lifeIDs = Set(transactions.filter { life.contains($0.bookID ?? "") }.compactMap(\.transferID))
+        return transactions.filter { $0.bookID == shop && $0.date.yearMonth == month && $0.transferID.map(lifeIDs.contains) == true }
+            .sorted { $0.date > $1.date }
+    }
+}
+
+// MARK: - 固定开销
+
+extension Ledger {
+    /// 店里的固定开销：生意账本上、每月自动记的开销（房租、工资……）。
+    public var businessFixedCosts: [Recurring] {
+        guard let shop = businessBook?.id else { return [] }
+        return recurring.filter { $0.template.bookID == shop && $0.template.amount < .zero }
+            .sorted { ($0.start.day, $0.template.description) < ($1.start.day, $1.template.description) }
+    }
+
+    /// 加一项固定开销：每月 day 号从 accountID 付 amount。不马上记一笔：从下一个 day 号起，到日子自动记上。能撤销。
+    @discardableResult
+    public mutating func addFixedCost(name: String, amount: Money, day: Int, accountID: String, category: String,
+                                      today: LocalDate = .today, author: String) throws -> ChangeRecord {
+        guard let shop = businessBook?.id else { throw BusinessError(message: "请先打开生意模式") }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ManageError.emptyName }
+        guard amount > .zero else { throw EditError.amountMustBePositive }
+        guard (1...31).contains(day) else { throw BusinessError(message: "几号要在 1 到 31 之间") }
+        try requireAccount(accountID)
+        func on(_ ym: YearMonth) -> LocalDate {
+            let last = LocalDate(year: ym.year, month: ym.month, day: 1).adding(months: 1).adding(days: -1).day
+            return LocalDate(year: ym.year, month: ym.month, day: min(day, last))
+        }
+        var start = on(today.yearMonth)
+        if start <= today { start = on(today.yearMonth.adding(months: 1)) }
+        let template = Transaction(date: start, amount: -amount, description: trimmed, accountID: accountID, bookID: shop,
+                                   category: category, source: "重复记账")
+        var rule = Recurring(template: template, frequency: .monthly, start: start)
+        rule.count = 0
+        rule.nextDate = start
+        recurring.append(rule)
+        var snap = PlanSnapshot()
+        snap.addedRecurringIDs = [rule.id]
+        let change = snapshotChange(.add, "加固定开销：每月 \(day) 号 \(trimmed) \(amount.formatted)", ids: [], before: snap, author: author)
+        changes.append(change)
+        return change
+    }
+}
