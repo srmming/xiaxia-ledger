@@ -250,7 +250,7 @@ extension StaleOverwriteTests {
         XCTAssertEqual(try store.load().appliedNotes, ["late-001"])
     }
 
-    private func migratedReceiptQueue() throws -> (old: URL, new: URL, store: InboxApplyingStore, ids: [String]) {
+    private func migratedReceiptQueue(includeDeletion: Bool = true, now: @escaping () -> Date = Date.init) throws -> (old: URL, new: URL, store: InboxApplyingStore, ids: [String]) {
         let root = try folder(), old = root.appendingPathComponent("旧目录"), new = root.appendingPathComponent("新目录")
         let offline = root.appendingPathComponent("离线手机")
         var empty = Ledger.fresh
@@ -266,7 +266,9 @@ extension StaleOverwriteTests {
         var deleted = entered
         try deleted.removeTransactions([transaction.id], author: "手机")
         var ids: [String] = []
-        for (before, after) in [(empty, captured), (captured, entered), (entered, deleted)] {
+        var steps = [(empty, captured), (captured, entered)]
+        if includeDeletion { steps.append((entered, deleted)) }
+        for (before, after) in steps {
             let time = Date(timeIntervalSince1970: Double(ids.count))
             let note = try XCTUnwrap(after.syncNote(since: before, device: "手机", now: time))
             ids.append(note.id)
@@ -277,7 +279,7 @@ extension StaleOverwriteTests {
             try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(old).appendingPathComponent(file.lastPathComponent))
         }
         let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: new.appendingPathComponent("ledger.sqlite")),
-                                       folder: new, relocatedFrom: old)
+                                       folder: new, relocatedFrom: old, now: now)
         return (old, new, store, ids)
     }
 
@@ -311,6 +313,64 @@ extension StaleOverwriteTests {
             XCTAssertTrue(try SyncNotes.archivedIDs(in: queue.old).isEmpty)
             XCTAssertTrue(try SyncNotes.archivedIDs(in: queue.new).isEmpty)
         }
+    }
+
+    func testThreeDayTimeoutFromFirstSeenBooksWithoutPhotoAndRepairsOnce() throws {
+        var clock = Date(timeIntervalSince1970: 1_800_000_000)
+        let queue = try migratedReceiptQueue(includeDeletion: false, now: { clock })
+        let before = try queue.store.load()
+        XCTAssertTrue(before.appliedNotes.isEmpty)
+        let stamp = queue.store.changeStamp()
+        clock.addTimeInterval(3 * 86400 - 1)
+        let reopened = InboxApplyingStore(primary: queue.store.primary, folder: queue.new, relocatedFrom: queue.old, now: { clock })
+        XCTAssertTrue(try reopened.load().transactions.isEmpty)
+        XCTAssertEqual(stamp, reopened.changeStamp())
+        clock.addTimeInterval(1)
+        XCTAssertNotEqual(stamp, reopened.changeStamp())
+        let booked = try reopened.load()
+        XCTAssertEqual(booked.transactions.count, 1)
+        XCTAssertEqual(booked.appliedNotes, queue.ids)
+        XCTAssertNil(booked.captures.first?.photo)
+        XCTAssertEqual(booked.paperwork.first?.attachments, [])
+        XCTAssertEqual(booked.missingPhonePhotoCount, 1)
+        let activity = try XCTUnwrap(ExternalActivity.between(before, booked, me: "Mac"))
+        XCTAssertEqual(activity.missingPhonePhotoCount, 1)
+        XCTAssertEqual(try reopened.load().missingPhonePhotoCount, 1)
+
+        let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("模拟照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        for _ in 0..<2 {
+            let repaired = try reopened.load()
+            XCTAssertEqual(repaired.transactions, booked.transactions)
+            XCTAssertEqual(repaired.appliedNotes, queue.ids)
+            XCTAssertEqual(repaired.captures.first?.photo, "receipt.jpg")
+            XCTAssertEqual(repaired.paperwork.first?.attachments.map(\.file), ["receipt.jpg"])
+            XCTAssertEqual(repaired.missingPhonePhotoCount, 0)
+            XCTAssertEqual(activity.current(in: repaired)?.missingPhonePhotoCount, 0)
+            XCTAssertEqual(repaired.changes.map(\.id), booked.changes.map(\.id))
+        }
+    }
+
+    func testThreeDayTimeoutReleasesDeletionAndLatePhotoDoesNotReviveTransaction() throws {
+        var clock = Date()
+        let queue = try migratedReceiptQueue(now: { clock })
+        XCTAssertTrue(try queue.store.load().appliedNotes.isEmpty)
+        clock.addTimeInterval(3 * 86400 + 1)
+        let deleted = try queue.store.load()
+        XCTAssertEqual(deleted.appliedNotes, queue.ids)
+        XCTAssertEqual(deleted.changes.filter { $0.summary.hasPrefix("待记录入账：") }.count, 1)
+        XCTAssertTrue(deleted.transactions.isEmpty)
+        XCTAssertEqual(deleted.missingPhonePhotoCount, 1)
+        let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("模拟照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        let repaired = try queue.store.load()
+        XCTAssertTrue(repaired.transactions.isEmpty)
+        XCTAssertTrue(repaired.paperwork.flatMap(\.attachments).isEmpty)
+        XCTAssertEqual(repaired.captures.first?.photo, "receipt.jpg")
+        XCTAssertEqual(repaired.missingPhonePhotoCount, 0)
+        XCTAssertEqual(repaired.appliedNotes, queue.ids)
     }
 
     func testMovedMarkerPlaceholderRejectsPhoneAndAttachments() throws {

@@ -354,9 +354,12 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     /// 上次收进来的纸条（app 用来提示「收到手机记的 N 条」）。
     public private(set) var lastApplied: [SyncNote] = []
 
+    private var waitingForPhotos: [String] = []
+    private let now: () -> Date
     private let relocatedFrom: URL?
 
-    public init(primary: any LedgerStore, folder: URL, relocatedFrom: URL? = nil) {
+    public init(primary: any LedgerStore, folder: URL, relocatedFrom: URL? = nil, now: @escaping () -> Date = Date.init) {
+        self.now = now
         self.primary = primary; self.folder = folder; self.relocatedFrom = relocatedFrom
     }
 
@@ -375,12 +378,21 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     private func collectNotes(from retired: URL?) throws -> Ledger {
         var ledger = try primary.load()
         if ledger.minReaderVersion > 2 { return ledger }
-        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes)) }
+        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes), now: now()) }
         guard FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
+        let previousPhotos = ledger.changes.compactMap(\.pendingPhonePhoto)
+        for photo in previousPhotos { photo.restoreReferences(in: &ledger) }
         var applied: [SyncNote] = []
         for item in pending where late?.allows(item.note) != false && ledger.apply(item.note) { applied.append(item.note) }
-        if !applied.isEmpty {
+        var missing = late?.timedOutFiles ?? []
+        if let old = retired {
+            for photo in previousPhotos where !photo.available(from: old, in: folder) { missing.insert(photo.file) }
+        } else {
+            missing.formUnion(previousPhotos.map(\.file))
+        }
+        ledger.updatePendingPhotos(missing, now: now())
+        if !applied.isEmpty || previousPhotos != ledger.changes.compactMap(\.pendingPhonePhoto) {
             try primary.save(ledger)
             lastApplied = applied
         }
@@ -389,6 +401,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) },
                           ledgerFolder: folder)
         if let old = retired, let late { LatePhoneDelivery.archive(late.ready, from: old, to: folder, applied: done) }
+        waitingForPhotos = ledger.changes.compactMap { $0.pendingPhonePhoto?.file }
         return ledger
     }
 
@@ -398,11 +411,13 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     }
 
     public func changeStamp() -> String? {
+        lock.lock(); defer { lock.unlock() }
         let notes = SyncNotes.files(in: SyncNotes.inbox(folder)).map(\.lastPathComponent).joined(separator: ",")
         let base = primary.changeStamp()
-        let late = retiredFolder.flatMap(LatePhoneDelivery.stamp)
+        let late = retiredFolder.flatMap { LatePhoneDelivery.stamp($0, waitingFor: waitingForPhotos) }
         if notes.isEmpty && late == nil { return base }
-        return "\(base ?? "")|notes:\(notes)|late:\(late ?? "")"
+        let due = retiredFolder == nil ? [] : PhotoWaitTimes(folder: folder).expired(at: now())
+        return "\(base ?? "")|notes:\(notes)|late:\(late ?? "")|due:\(due.joined(separator: ","))"
     }
 }
 
