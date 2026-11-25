@@ -250,6 +250,69 @@ extension StaleOverwriteTests {
         XCTAssertEqual(try store.load().appliedNotes, ["late-001"])
     }
 
+    private func migratedReceiptQueue() throws -> (old: URL, new: URL, store: InboxApplyingStore, ids: [String]) {
+        let root = try folder(), old = root.appendingPathComponent("旧目录"), new = root.appendingPathComponent("新目录")
+        let offline = root.appendingPathComponent("离线手机")
+        var empty = Ledger.fresh
+        empty.accounts = [Account(id: "cash", name: "模拟现金", kind: .cash)]
+        try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(empty)
+        XCTAssertTrue(LedgerStores.migrateToContainer(new, from: old))
+        var captured = empty
+        let receipt = Capture(kind: .photo, text: "模拟小票", photo: "receipt.jpg", device: "手机")
+        captured.addCapture(receipt, author: "手机")
+        var entered = captured
+        let transaction = row("小票入账")
+        try entered.resolveCapture(receipt.id, as: transaction, author: "手机")
+        var deleted = entered
+        try deleted.removeTransactions([transaction.id], author: "手机")
+        var ids: [String] = []
+        for (before, after) in [(empty, captured), (captured, entered), (entered, deleted)] {
+            let time = Date(timeIntervalSince1970: Double(ids.count))
+            let note = try XCTUnwrap(after.syncNote(since: before, device: "手机", now: time))
+            ids.append(note.id)
+            try SyncNotes.write(note, ledgerFolder: offline)
+        }
+        try FileManager.default.createDirectory(at: SyncNotes.inbox(old), withIntermediateDirectories: true)
+        for file in SyncNotes.files(in: SyncNotes.inbox(offline)).reversed() {
+            try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(old).appendingPathComponent(file.lastPathComponent))
+        }
+        let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: new.appendingPathComponent("ledger.sqlite")),
+                                       folder: new, relocatedFrom: old)
+        return (old, new, store, ids)
+    }
+
+    func testLateReceiptPhotoThenBookingAndDeletionArchiveInOrderOnce() throws {
+        let queue = try migratedReceiptQueue()
+        XCTAssertTrue(try queue.store.load().appliedNotes.isEmpty)
+        let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("模拟照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        let received = try queue.store.load()
+        XCTAssertEqual(queue.store.lastApplied.map(\.id), queue.ids)
+        XCTAssertTrue(received.transactions.isEmpty)
+        XCTAssertEqual(received.captures.count, 1)
+        XCTAssertEqual(received.changes.filter { $0.summary.hasPrefix("待记录入账：") }.count, 1)
+        XCTAssertTrue(received.changes.compactMap(\.syncConflicts).isEmpty)
+        for folder in [queue.old, queue.new] {
+            XCTAssertEqual(try SyncNotes.archivedIDs(in: folder), queue.ids)
+            XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: folder), 0)
+        }
+        XCTAssertEqual(try queue.store.load().appliedNotes, queue.ids)
+    }
+
+    func testMissingReceiptPhotoKeepsLaterBookingAndDeletionPending() throws {
+        let queue = try migratedReceiptQueue()
+        for _ in 0..<2 {
+            let pending = try queue.store.load()
+            XCTAssertTrue(pending.appliedNotes.isEmpty)
+            XCTAssertTrue(pending.captures.isEmpty && pending.transactions.isEmpty)
+            XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: queue.old), 3)
+            XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: queue.new), 0)
+            XCTAssertTrue(try SyncNotes.archivedIDs(in: queue.old).isEmpty)
+            XCTAssertTrue(try SyncNotes.archivedIDs(in: queue.new).isEmpty)
+        }
+    }
+
     func testMovedMarkerPlaceholderRejectsPhoneAndAttachments() throws {
         let root = try folder(), old = root.appendingPathComponent("旧位置")
         try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(.fresh)

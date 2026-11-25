@@ -258,12 +258,16 @@ public enum SyncNotes {
         files(in: dir, requestDownload: LedgerFiles.requestDownload)
     }
 
-    static func files(in dir: URL, requestDownload: (URL) -> Void) -> [URL] {
+    static func files(in dir: URL, includeUndownloaded: Bool = false, requestDownload: (URL) -> Void) -> [URL] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         return names.sorted().compactMap { name in
             if name.hasPrefix("."), name.hasSuffix(".icloud") {
                 let real = String(name.dropFirst().dropLast(".icloud".count))
-                if real.hasSuffix(".json") || real.hasSuffix(".sync2") { requestDownload(dir.appendingPathComponent(real)) }
+                if real.hasSuffix(".json") || real.hasSuffix(".sync2") {
+                    let url = dir.appendingPathComponent(real)
+                    requestDownload(url)
+                    if includeUndownloaded { return url }
+                }
                 return nil
             }
             guard name.hasSuffix(".json") || name.hasSuffix(".sync2") else { return nil }
@@ -371,11 +375,11 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     private func collectNotes(from retired: URL?) throws -> Ledger {
         var ledger = try primary.load()
         if ledger.minReaderVersion > 2 { return ledger }
-        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes)) } ?? []
+        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes)) }
         guard FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
         var applied: [SyncNote] = []
-        for item in pending where ledger.apply(item.note) { applied.append(item.note) }
+        for item in pending where late?.allows(item.note) != false && ledger.apply(item.note) { applied.append(item.note) }
         if !applied.isEmpty {
             try primary.save(ledger)
             lastApplied = applied
@@ -384,7 +388,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         let done = Set(ledger.appliedNotes)
         SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) },
                           ledgerFolder: folder)
-        if let old = retired { LatePhoneDelivery.archive(late, from: old, to: folder, applied: done) }
+        if let old = retired, let late { LatePhoneDelivery.archive(late.ready, from: old, to: folder, applied: done) }
         return ledger
     }
 

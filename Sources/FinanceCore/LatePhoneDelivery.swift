@@ -18,7 +18,19 @@ enum LatePhoneDelivery {
         !name.isEmpty && name != "." && name != ".." && (name as NSString).lastPathComponent == name
     }
 
-    static func stage(from old: URL, to target: URL, applied: Set<String>) throws -> [URL] {
+    struct Batch {
+        var ready: [URL] = []
+        var waiting: [String: String] = [:] // 设备 → 最早缺件纸条编号
+        var unreadable: String? // 无法识别设备时，后续纸条都要等。
+
+        func allows(_ note: SyncNote) -> Bool {
+            if let unreadable, note.id >= unreadable { return false }
+            if let first = waiting[note.device], note.id >= first { return false }
+            return true
+        }
+    }
+
+    static func stage(from old: URL, to target: URL, applied: Set<String>) throws -> Batch {
         let fm = FileManager.default
         let assets = old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
         let newAssets = target.appendingPathComponent(LedgerFiles.attachmentsFolderName)
@@ -38,19 +50,30 @@ enum LatePhoneDelivery {
             }
         }
         let oldInbox = SyncNotes.inbox(old), newInbox = SyncNotes.inbox(target)
-        let candidates = SyncNotes.files(in: oldInbox) + SyncNotes.files(in: SyncNotes.done(old)).filter {
+        func candidates(in dir: URL) -> [URL] {
+            SyncNotes.files(in: dir, includeUndownloaded: true, requestDownload: LedgerFiles.requestDownload)
+        }
+        let sources = candidates(in: oldInbox) + candidates(in: SyncNotes.done(old)).filter {
             !applied.contains($0.deletingPathExtension().lastPathComponent)
         }
-        var ready: [URL] = []
-        for source in candidates {
+        var batch = Batch()
+        for source in sources.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let id = source.deletingPathExtension().lastPathComponent
-            guard let note = SyncNotes.read(source), note.id == id else { continue }
+            guard let note = SyncNotes.read(source), note.id == id else {
+                if applied.contains(id) { continue }
+                batch.unreadable = id
+                break
+            }
+            guard batch.allows(note) else { continue }
             let available = attachmentNames(note).allSatisfy { name in
                 guard validName(name) else { return false }
                 let original = assets.appendingPathComponent(name), copy = newAssets.appendingPathComponent(name)
                 return fm.isReadableFile(atPath: original.path) && fm.contentsEqual(atPath: original.path, andPath: copy.path)
             }
-            guard available else { continue } // 附件还在路上，既不入账也不归档。
+            guard available else {
+                if !applied.contains(id) { batch.waiting[note.device] = id }
+                continue
+            }
             let copies = [newInbox, SyncNotes.done(target)].flatMap { dir in
                 ["json", "sync2"].map { dir.appendingPathComponent(id).appendingPathExtension($0) }
             }.filter { fm.fileExists(atPath: $0.path) }
@@ -62,9 +85,9 @@ enum LatePhoneDelivery {
                 try fm.createDirectory(at: newInbox, withIntermediateDirectories: true)
                 try LedgerFiles.copyVerifiedTree(from: source, to: newInbox.appendingPathComponent(source.lastPathComponent))
             }
-            if fromInbox { ready.append(source) }
+            if fromInbox { batch.ready.append(source) }
         }
-        return ready
+        return batch
     }
 
     static func archive(_ staged: [URL], from old: URL, to target: URL, applied: Set<String>) {
