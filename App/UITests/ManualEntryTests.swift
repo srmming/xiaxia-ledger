@@ -117,7 +117,10 @@ final class ManualEntryTests: XCTestCase {
         XCTAssertTrue(select.waitForExistence(timeout: 5), "流水页没有「选择」")
         select.tap()
         // 选择模式下每一笔是一个按钮（前面带圆圈），挑两笔点。
-        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", " · "))
+        // 流水的读法是「名称、你、分类 · 账本 · 账户、金额」；刚才保存后底部会冒出「改了一笔：名称 -金额」的提示按钮，
+        // 它也带「 · 」，所以只认带「、」、且不是「改了一笔」开头的。
+        let rows = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@ AND NOT (label BEGINSWITH %@)", " · ", "、", "改了一笔"))
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5), "选择模式下没有可点的流水")
         rows.element(boundBy: 0).tap()
         rows.element(boundBy: 1).tap()
