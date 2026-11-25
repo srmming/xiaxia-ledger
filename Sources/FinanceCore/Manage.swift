@@ -78,6 +78,7 @@ extension Ledger {
         }
         if !extra.isEmpty {
             transactions += extra
+            change.resultingTransactions?.append(contentsOf: extra)
             change.transactionIDs += extra.map(\.id)
             changes[changes.count - 1] = change
         }
@@ -134,7 +135,7 @@ extension Ledger {
         if custom {
             var snapshot = PlanSnapshot()
             snapshot.profile = oldProfile
-            change.before = snapshot
+            change.saveBefore(snapshot, in: self)
             changes[changes.count - 1] = change
         }
         return change
@@ -145,8 +146,9 @@ extension Ledger {
     func snapshotChange(_ kind: ChangeRecord.Kind, _ summary: String, ids: [UUID] = [], before: PlanSnapshot,
                         previous: [Transaction]? = nil, author: String) -> ChangeRecord {
         var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
-        change.before = before
+        change.saveBefore(before, in: self)
         change.previous = previous
+        captureTransactionResults(&change)
         return change
     }
 
@@ -341,14 +343,24 @@ extension Ledger {
 
     // MARK: 目标
 
-    /// 改目标：名字、金额、截止日期、锁不锁。
+    /// 改目标：名字、金额、截止日期、锁不锁、图标、钱存在哪。
+    /// 传进来的 goal 可能是打开编辑框那一刻的旧样子（这期间又存了一笔）。所以只拿可编辑的字段，
+    /// 存款列表、大目标、排序、开始日期这些由别的操作维护的字段一律保留账本里现在的值，免得新存的那笔和目标断开。
     @discardableResult
     public mutating func updateGoal(_ goal: Goal, author: String) throws -> ChangeRecord {
         guard let i = goals.firstIndex(where: { $0.id == goal.id }) else { throw EditError.unknownGoal }
         guard goal.target.cents > 0 else { throw EditError.amountMustBePositive }
         let old = goals[i]
-        guard old != goal else { throw ManageError.nothingToChange }
-        goals[i] = goal
+        var merged = old
+        merged.name = goal.name
+        merged.target = goal.target
+        merged.deadline = goal.deadline
+        merged.locked = goal.locked
+        merged.icon = goal.icon
+        merged.stash = goal.stash
+        merged.stashNote = goal.stashNote
+        guard old != merged else { throw ManageError.nothingToChange }
+        goals[i] = merged
         let change = snapshotChange(.goal, "改了目标「\(goal.name)」", before: PlanSnapshot(goals: [old]), author: author)
         changes.append(change)
         return change
@@ -389,7 +401,13 @@ extension Ledger {
             if let i = installments.firstIndex(where: { $0.id == x.id }) { installments[i] = x } else { installments.append(x) }
         }
         for g in s.goals ?? [] {
-            if let i = goals.firstIndex(where: { $0.id == g.id }) { goals[i] = g } else { goals.append(g) }
+            if let i = goals.firstIndex(where: { $0.id == g.id }) {
+                // 撤销改目标时，改完之后新存的那几笔要留着（存款列表取并集，撤销存钱自己会把它拿掉）。
+                var back = g
+                let had = Set(g.contributionIDs)
+                back.contributionIDs += goals[i].contributionIDs.filter { !had.contains($0) }
+                goals[i] = back
+            } else { goals.append(g) }
         }
         for x in s.insights ?? [] {
             if let i = insights.firstIndex(where: { $0.id == x.id }) { insights[i] = x } else { insights.append(x) }

@@ -194,7 +194,7 @@ struct XiaxiaAvatar: View {
 
     /// 夏夏的圆形头像（会眨眼），按性格换表情。形象见 Mascot.swift。
     var body: some View {
-        MascotView(.xiaxia, pose: persona?.mascotPose ?? .idle, size: size, face: true)
+        MascotView(pose: persona?.mascotPose ?? .idle, size: size, face: true)
             .accessibilityLabel("夏夏")
     }
 }

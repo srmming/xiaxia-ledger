@@ -420,7 +420,7 @@ extension Ledger {
         guard let newPlan, let i = debts.firstIndex(where: { $0.id == debtID }) else { return change }
         let finishBefore = old.plan?.last?.date
         debts[i].plan = newPlan
-        change.before = PlanSnapshot(debts: [old])
+        change.saveBefore(PlanSnapshot(debts: [old]), in: self)
         var note = "；" + adjust!.label
         if let f = newPlan.last?.date { note += "，\(f.year) 年 \(f.month) 月还清" }
         if let a = finishBefore, let b = newPlan.last?.date, DebtPlans.months(from: b, to: a) > 0 { note += "（提前 \(DebtPlans.months(from: b, to: a)) 个月）" }

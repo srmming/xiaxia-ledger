@@ -119,6 +119,8 @@ public final class LedgerModel {
         dropMissingSelection()
         let found = ExternalActivity.between(old, fresh, me: author)
         activity = (found.map { f in activity.map { $0.merged(with: f) } ?? f } ?? activity)?.current(in: fresh)
+        // AI 在外面记了账：夏夏也拿笔写一下（同类 3 秒内只反应一次）。
+        if found != nil { MascotMood.shared.note(.recorded) }
     }
 
     // MARK: 外面的 AI 刚做了什么
@@ -231,13 +233,28 @@ public final class LedgerModel {
         try store.save(copy)
         lastStamp = store.changeStamp()
         let oldIDs = Set(ledger.transactions.map(\.id))
+        let today = LocalDate.today
+        let wasRecovered = ledger.capitalProgress(today: today)?.estimate == .done
         ledger = copy
+        reactMascot(to: change, wasRecovered: wasRecovered, today: today)
         cache = nil; authorCache = nil
         dropMissingSelection()
         revealAdded(copy.transactions.filter { !oldIDs.contains($0.id) })
         if change.canUndo { undoStack.append(change.id) }
         if !quiet { toast = Toast(text: change.summary, changeID: change.canUndo ? change.id : nil) }
         return change
+    }
+
+    /// 夏夏对这次改动的反应：记了一笔就拿笔写一下，存进目标或生意回本就庆祝（见 MascotMood）。
+    private func reactMascot(to change: ChangeRecord, wasRecovered: Bool, today: LocalDate) {
+        let mood = MascotMood.shared
+        if !wasRecovered, ledger.capitalProgress(today: today)?.estimate == .done { return mood.note(.recovered) }
+        switch change.kind {
+        case .add, .importBatch, .transfer, .capture: mood.note(.recorded)
+        // 「取出」也记成 goalDeposit，只有存进去才庆祝（这句话由 FinanceCore 生成，不翻译）。
+        case .goalDeposit where !change.summary.contains("取出"): mood.note(.saved)
+        default: mood.wake()
+        }
     }
 
     /// 不想让页面自己处理错误时用：出错就在底部提示。

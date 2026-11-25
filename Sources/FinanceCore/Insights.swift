@@ -112,7 +112,7 @@ extension Ledger {
         snapshot.addedInsightIDs = [insight.id]
         let summary = "写了\(insight.month.month) 月\(insight.kind.label)：\(insight.title)"
         var change = ChangeRecord(kind: .edit, summary: summary, transactionIDs: [], author: author)
-        change.before = snapshot
+        change.saveBefore(snapshot, in: self)
         changes.append(change)
         return change
     }
@@ -125,7 +125,7 @@ extension Ledger {
         snapshot.insights = [insights[i]]
         insights[i].dismissedAt = Date()
         var change = ChangeRecord(kind: .edit, summary: "知道了：\(insights[i].title)", transactionIDs: [], author: author)
-        change.before = snapshot
+        change.saveBefore(snapshot, in: self)
         changes.append(change)
         return change
     }

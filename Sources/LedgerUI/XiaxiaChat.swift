@@ -152,7 +152,7 @@ extension LedgerModel {
 
 /// 「夏夏在想…」。等了 15 秒还没回，提醒看一眼有没有系统弹窗：
 /// 第一次在 app 里叫 AI 时，macOS 可能问「“夏夏账本”想访问“文稿”文件夹」，不点它 AI 就一直等着（实测卡满 3 分钟）。
-/// 夏夏托着下巴想，旁边是这次帮她查账的 AI 伙伴；等久了提示去点系统的「允许」。
+/// 夏夏托着下巴想，旁边一行小字写是用哪个 AI 在查（不放 AI 公司的标志）；等久了提示去点系统的「允许」。
 private struct ThinkingRow: View {
     @Environment(LedgerModel.self) var model
     var engine: ChatEngine?
@@ -160,14 +160,11 @@ private struct ThinkingRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .bottom, spacing: 6) {
-                MascotView(.xiaxia, pose: .think, size: 72, animated: false)
-                if let engine {
-                    MascotView(MascotCharacter.of(engine), pose: .think, size: 56, animated: false)
-                }
+                MascotView(pose: .think, size: 72, animated: false)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.xia(tr("夏夏在想…"))).font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
                     if let engine {
-                        Text(tr("\(MascotCharacter.of(engine).name)（\(engine.name)）在帮她查账")).font(.caption2).foregroundStyle(Color.fg3)
+                        Text(tr("正在用 \(engine.name) 查账")).font(.caption2).foregroundStyle(Color.fg3)
                     }
                 }
                 .padding(.bottom, 8)
@@ -233,7 +230,7 @@ struct XiaxiaChatPanel: View {
 
     private func header(_ chat: XiaxiaChatState) -> some View {
         HStack(spacing: 8) {
-            MascotView(.xiaxia, size: 26, face: true, animated: false)
+            MascotView(size: 26, face: true, animated: false)
             Text(model.xiaName).font(.headline)
             Spacer()
             if !chat.available.isEmpty {
@@ -306,7 +303,7 @@ struct XiaxiaChatPanel: View {
     private func starter(_ chat: XiaxiaChatState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
-                MascotView(.xiaxia, pose: .hello, size: 96, animated: false)
+                MascotView(pose: .hello, size: 96, animated: false)
                 Text(tr("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 10)
@@ -322,7 +319,7 @@ struct XiaxiaChatPanel: View {
     private func bubble(_ m: XiaxiaChatState.Message) -> some View {
         HStack(alignment: .top, spacing: 6) {
             if m.fromUser { Spacer(minLength: 40) } else {
-                MascotView(.xiaxia, pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
+                MascotView(pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
             }
             Text(LocalizedStringKey(m.text.keepingAmountsTogether))
                 .font(.callout)

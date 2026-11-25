@@ -65,7 +65,7 @@ struct InsightCard: View {
                         Text(insight.kind == .monthlyReview ? tr("夏夏 · \(insight.month.month) 月点评") : tr("夏夏说 · \(insight.kind.label)"))
                     } icon: {
                         // 和右边站着的一样是夏夏（ming 2026-11-23：左上角是小橘、右边是夏夏，对不上）。谁写的看右上角的名字。
-                        MascotView(.xiaxia, size: 20, face: true, animated: false)
+                        MascotView(size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()
@@ -81,7 +81,7 @@ struct InsightCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(.xiaxia, pose: pose, size: large ? 120 : fixedHeight == nil ? 80 : 64)
+                        MascotView(pose: pose, size: large ? 120 : fixedHeight == nil ? 80 : 64, interactive: true)
                     }
                 }
                 if fixedHeight != nil { Spacer(minLength: 0) }
