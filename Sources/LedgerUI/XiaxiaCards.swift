@@ -212,7 +212,7 @@ struct XiaxiaCards: View {
                     Label {
                         Text(tr("夏夏 · \(n.label)"))
                     } icon: {
-                        MascotView(.xiaxia, size: 20, face: true, animated: false)
+                        MascotView(size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()
@@ -224,7 +224,7 @@ struct XiaxiaCards: View {
                         Text(n.advice.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    MascotView(.xiaxia, pose: pose(n), size: 64)
+                    MascotView(pose: pose(n), size: 64)
                         .accessibilityHidden(true)
                 }
                 Spacer(minLength: 0)

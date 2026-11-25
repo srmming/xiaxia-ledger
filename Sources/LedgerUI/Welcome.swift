@@ -101,14 +101,6 @@ struct WelcomeView: View {
             case .other: [.hermes, .cursor]
             }
         }
-        /// 出来打招呼的伙伴。
-        var partner: MascotCharacter {
-            switch self {
-            case .claude, .newbie: .orange
-            case .chatgpt: .lilac
-            case .gemini, .other: .star
-            }
-        }
         /// 没装的话装哪个、去哪下。
         var install: (name: String, url: String) {
             switch self {
@@ -167,7 +159,6 @@ struct WelcomeView: View {
     @State private var linked: [AIApp] = []
     /// 这台 Mac 上有、还没连的。
     @State private var toConnect: [AIApp] = []
-    @State private var partner: MascotCharacter?
     @State private var tryStartedAt = Date()
     /// AI 真的来读过账本了（fin 握手）。
     @State private var handshakeSeen = false
@@ -233,16 +224,9 @@ struct WelcomeView: View {
                 speechBubble
                 ZStack(alignment: .bottom) {
                     HStack(alignment: .bottom, spacing: 0) {
-                        // 伙伴出来时夏夏让一点位置，两个加起来不超出这一栏
-                        MascotView(.xiaxia, pose: pose, size: partner == nil ? size : size * 0.8, talking: thinking)
+                        MascotView(pose: pose, size: size, talking: thinking)
                             .id(pose)
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
-                        if let partner {
-                            // 选了哪家 AI，哪家的小伙伴就跳出来。
-                            MascotView(partner, pose: .idle, size: size * 0.46)
-                                .id(partner)
-                                .transition(.move(edge: .trailing).combined(with: .scale(scale: 0.6, anchor: .bottom)).combined(with: .opacity))
-                        }
                     }
                     .padding(.bottom, size * 0.05)
                     .background(alignment: .bottom) {
@@ -743,7 +727,7 @@ struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(tr("夏夏想要什么样子？")).font(.headline).foregroundStyle(Color.fg2)
             HStack(spacing: 8) {
-                ForEach(MascotLook.allCases) { l in
+                ForEach(MascotLook.kidChoices) { l in
                     chip(l.label, symbol: l == .girl ? "face.smiling" : "face.smiling.inverse", on: lookRaw == l.rawValue) {
                         guard lookRaw != l.rawValue else { return }
                         withAnimation(.spring(duration: 0.45, bounce: 0.3)) { lookRaw = l.rawValue }
@@ -969,7 +953,7 @@ struct WelcomeView: View {
             Task { await say(tr("要几个账本？"), pose: .idle) }
         case .ai:
             if aiMode == .trying {
-                withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; partner = nil; family = nil; checking = nil }
+                withAnimation(.smooth(duration: 0.35)) { aiMode = .choose; family = nil; checking = nil }
                 Task { await say(tr("换一个也行，你平时用哪个？"), pose: .think) }
             } else {
                 checking = nil
@@ -1111,7 +1095,6 @@ struct WelcomeView: View {
         withAnimation(.smooth(duration: 0.35)) {
             aiMode = .trying
             checking = nil
-            if !linked.isEmpty || !toConnect.isEmpty { partner = f.partner }
         }
         if !linked.isEmpty {
             await say(tr("连接上了！"), pose: .cheer)
@@ -1180,7 +1163,7 @@ struct WelcomeView: View {
             if linked.isEmpty, toConnect.isEmpty {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
-                    withAnimation(.bouncy) { toConnect = found; partner = f.partner }
+                    withAnimation(.bouncy) { toConnect = found }
                     await say(tr("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。"), pose: .cheer)
                     continue
                 }
@@ -1191,7 +1174,6 @@ struct WelcomeView: View {
                 withAnimation(.bouncy) {
                     linked = nowLinked
                     toConnect.removeAll { nowLinked.contains($0) }
-                    partner = f.partner
                 }
                 await say(tr("连接上了！"), pose: .cheer)
                 continue
@@ -1392,7 +1374,7 @@ struct ChatDemo: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                MascotView(.xiaxia, size: 24, face: true, animated: false)
+                MascotView(size: 24, face: true, animated: false)
                 Text(tr("夏夏")).font(.headline)
                 Spacer()
                 Text(engineName).font(.caption).foregroundStyle(Color.brand)
@@ -1407,7 +1389,7 @@ struct ChatDemo: View {
                 }
                 if typing {
                     HStack(spacing: 6) {
-                        MascotView(.xiaxia, size: 22, face: true, animated: false)
+                        MascotView(size: 22, face: true, animated: false)
                         Text(tr("夏夏在想…")).font(.caption).foregroundStyle(Color.fg3)
                     }
                     .transition(.opacity)
@@ -1434,7 +1416,7 @@ struct ChatDemo: View {
 
     private func bubble(_ text: String, mine: Bool) -> some View {
         HStack(alignment: .bottom, spacing: 6) {
-            if mine { Spacer(minLength: 40) } else { MascotView(.xiaxia, size: 22, face: true, animated: false) }
+            if mine { Spacer(minLength: 40) } else { MascotView(size: 22, face: true, animated: false) }
             Text(text).font(.callout)
                 .foregroundStyle(mine ? Color.white : Color.primary)
                 .padding(.horizontal, 12).padding(.vertical, 8)

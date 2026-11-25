@@ -1600,5 +1600,14 @@ extension L10n {
         "金额，可以写算式，比如 12,50+3,20": "Amount. You can type a sum, e.g. 12,50+3,20",
         "，分类%@": ", category %@",
         "没有删：账本刚刚有变化，请重新看一眼再删": "Not deleted: the ledger just changed. Take another look, then delete again",
+        "夏夏的样子": "Xiaxia’s look",
+        "女孩": "Girl",
+        "男孩": "Boy",
+        "成年女": "Woman",
+        "成年男": "Man",
+        "金渐层猫": "Golden cat",
+        "西高地白㹴": "Westie",
+        "水豚": "Capybara",
+        "正在用 %@ 查账": "Checking the books with %@",
     ]
 }
