@@ -71,9 +71,11 @@ extension LedgerModel {
     }
 }
 
-/// 顶上的「生活 | 生意」两格（开着生意模式时代替账本菜单）。
+/// 「生活 | 生意」两格（开着生意模式时代替账本菜单）：Mac 在侧栏最上面，iPhone 在标题栏正中。
 struct SideSwitch: View {
     @Environment(LedgerModel.self) var model
+    /// Mac 侧栏里铺满整宽；iPhone 标题栏里按字的宽度。
+    var fill = false
     var body: some View {
         let selection = Binding(get: { model.side }, set: { s in withAnimation(.snappy) { model.switchSide(s) } })
         Picker(tr("生活还是生意"), selection: selection) {
@@ -82,7 +84,9 @@ struct SideSwitch: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .fixedSize()
+        .controlSize(fill ? .large : .regular)
+        .frame(maxWidth: fill ? .infinity : nil)
+        .fixedSize(horizontal: !fill, vertical: true)
         .tint(model.side == .business ? Color.shop : Color.brand)
         .help(tr("切换看生活还是生意；在哪边就默认记到哪边"))
         .accessibilityIdentifier("sideSwitch")

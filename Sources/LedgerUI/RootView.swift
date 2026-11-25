@@ -256,6 +256,12 @@ struct MacRoot: View {
                 Section { row(.settings) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+            // 生活和生意是两个大空间，侧栏的页面跟着变：切换放侧栏最上面、整宽（ming 2026-11-25：放顶栏中间按着不对）。
+            .safeAreaInset(edge: .top, spacing: 4) {
+                if model.businessOn {
+                    SideSwitch(fill: true).padding(.horizontal, 12).padding(.top, 2)
+                }
+            }
             .safeAreaInset(edge: .bottom) { SidebarFooter() }
         } detail: {
             let section = model.section ?? .overview
@@ -359,8 +365,9 @@ struct MacToolbar: ToolbarContent {
 struct BookSwitch: View {
     @Environment(LedgerModel.self) var model
     var body: some View {
-        // 开着生意模式：换成「生活 | 生意」两格（设计稿 ③）。账本管理还在 设置 → 账本与账户。
-        if model.businessOn { SideSwitch() } else { bookMenu }
+        // 开着生意模式：顶栏不放账本菜单，「生活 | 生意」在侧栏最上面（Mac）/ 标题栏正中（iPhone）。
+        // 账本管理还在 设置 → 账本与账户。
+        if !model.businessOn { bookMenu }
     }
 
     private var bookMenu: some View {
