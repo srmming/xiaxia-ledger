@@ -1599,5 +1599,6 @@ extension L10n {
         "金额 %@": "Importe %@",
         "金额，可以写算式，比如 12,50+3,20": "Importe. Puedes escribir una operación, p. ej. 12,50+3,20",
         "，分类%@": ", categoría %@",
+        "没有删：账本刚刚有变化，请重新看一眼再删": "No se borró: el libro acaba de cambiar. Revísalo y vuelve a borrar",
     ]
 }
