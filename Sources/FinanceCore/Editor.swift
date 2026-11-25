@@ -45,9 +45,16 @@ extension Ledger {
 
     @discardableResult
     mutating func record(_ kind: ChangeRecord.Kind, _ summary: String, ids: [UUID], author: String) -> ChangeRecord {
-        let change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
+        var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
+        captureTransactionResults(&change)
         changes.append(change)
         return change
+    }
+
+    func captureTransactionResults(_ change: inout ChangeRecord) {
+        guard !change.transactionIDs.isEmpty, change.kind != .remove else { return }
+        let ids = Set(change.transactionIDs)
+        change.resultingTransactions = transactions.filter { ids.contains($0.id) }
     }
 
     // MARK: 流水
@@ -98,6 +105,7 @@ extension Ledger {
         let text = direction == .theyOweMe ? "\(counterparty) 欠我 \(amount.formatted)" : "我欠 \(counterparty) \(amount.formatted)"
         var change = ChangeRecord(kind: .debt, summary: "记欠款：\(text)", transactionIDs: ids, author: author)
         change.debtID = debt.id
+        captureTransactionResults(&change)
         changes.append(change)
         return (debt, change)
     }
@@ -161,6 +169,7 @@ extension Ledger {
         var change = ChangeRecord(kind: .installment, summary: "记分期：\(name) \(total.formatted)，分 \(count) 期",
                                   transactionIDs: ids, author: author)
         change.installmentID = inst.id
+        captureTransactionResults(&change)
         changes.append(change)
         return (inst, change)
     }
@@ -179,6 +188,7 @@ extension Ledger {
         var change = ChangeRecord(kind: .installmentPayment, summary: "记分期还款：\(inst.name) 第 \(n)/\(inst.count) 期 \(pay.formatted)",
                                   transactionIDs: [tx.id], author: author)
         change.installmentID = id
+        captureTransactionResults(&change)
         changes.append(change)
         return change
     }
@@ -236,8 +246,9 @@ extension Ledger {
         goals.append(goal)
         var change = ChangeRecord(kind: .goal, summary: "建目标「\(name)」\(target.formatted)\(locked ? "（锁定）" : "")",
                                   transactionIDs: [], author: author)
-        if !unpinned.isEmpty { change.before = PlanSnapshot(goals: unpinned) }
+        if !unpinned.isEmpty { change.saveBefore(PlanSnapshot(goals: unpinned), in: self) }
         change.goalID = goal.id
+        captureTransactionResults(&change)
         changes.append(change)
         return (goal, change)
     }
@@ -370,6 +381,7 @@ extension Ledger {
         }
         var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
         change.previous = before
+        change.resultingTransactions = transactions.filter { set.contains($0.id) }
         changes.append(change)
         return change
     }
@@ -454,6 +466,26 @@ extension Ledger {
         guard let i = changes.firstIndex(where: { $0.id == changeID }) else { throw EditError.unknownChange }
         let change = changes[i]
         guard !change.undone else { throw EditError.alreadyUndone }
+        guard change.kind != .delete, change.syncConflicts == nil else { throw EditError.notUndoable }
+        let reversals = try transactionReversals(for: change, later: changes.suffix(from: i + 1))
+
+        var restoredPlan = change.before
+        if let before = change.before {
+            if let hashes = change.planFieldHashes {
+                restoredPlan = try before.checked(in: self, hashes: hashes).snapshot
+                let fields = try before.affectedFields(after: hashes)
+                for next in changes.suffix(from: i + 1) where !next.undone {
+                    guard let snapshot = next.before, let evidence = next.planFieldHashes else { continue }
+                    for (row, changed) in try snapshot.affectedFields(after: evidence) {
+                        if let ours = fields[row], ours.contains("*") || changed.contains("*") || !ours.isDisjoint(with: changed) {
+                            throw BusinessError(message: "这次改过的字段后来又被修改，无法撤销")
+                        }
+                    }
+                }
+            } else if !changes.suffix(from: i + 1).filter({ !$0.undone }).isEmpty {
+                throw BusinessError(message: "旧改动缺少字段记录，无法确认撤销是否会覆盖后续改动")
+            }
+        }
         if let debtID = change.debtID {
             // 还款记录还在时不能先撤销借款本身。
             if let d = debts.first(where: { $0.id == debtID }), !d.repaymentIDs.isEmpty { throw EditError.notUndoable }
@@ -473,7 +505,7 @@ extension Ledger {
                 installments[k].paidIDs.removeAll { ids.contains($0) }
             }
         }
-        if var before = change.before {
+        if var before = restoredPlan {
             if before.changedBusiness == true {
                 guard !changes.dropFirst(i + 1).contains(where: { !$0.undone && $0.before?.changedBusiness == true }) else { throw EditError.notUndoable }
                 before.addedBookIDs = before.addedBookIDs?.filter { id in
@@ -489,10 +521,9 @@ extension Ledger {
             transactions += previous.filter { !existing.contains($0.id) }
         } else if let previous = change.previous {
             // 改过的流水：换回原样。
-            let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
-            for k in transactions.indices { if let o = old[transactions[k].id] { transactions[k] = o } }
+            for k in transactions.indices { if let row = reversals[transactions[k].id] { transactions[k] = row } }
             // 这次改动顺带新加的流水（比如标成转账时补的另一半）：删掉。
-            let extra = Set(change.transactionIDs).subtracting(old.keys)
+            let extra = Set(change.transactionIDs).subtracting(previous.map(\.id))
             if !extra.isEmpty { transactions.removeAll { extra.contains($0.id) } }
         } else {
             let ids = Set(change.transactionIDs)

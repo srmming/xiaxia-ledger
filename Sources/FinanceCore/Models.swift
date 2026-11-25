@@ -206,6 +206,9 @@ public struct ChangeRecord: Identifiable, Hashable, Codable, Sendable {
     /// 建分期、记分期还款的改动指向那个分期，撤销时用。
     public var installmentID: UUID?
     /// 改分类、分账本、标转账这类「改已有流水」的改动：改之前的样子。撤销时换回去。
+    public var syncConflicts: [SyncConflict]?
+    public var planFieldHashes: [String: [String: Data]]?
+    public var resultingTransactions: [Transaction]?
     public var previous: [Transaction]?
     /// 改或删账户、账本、借款、分期、目标的改动：改之前的样子。撤销时放回去。
     public var before: PlanSnapshot?

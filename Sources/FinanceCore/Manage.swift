@@ -78,6 +78,7 @@ extension Ledger {
         }
         if !extra.isEmpty {
             transactions += extra
+            change.resultingTransactions?.append(contentsOf: extra)
             change.transactionIDs += extra.map(\.id)
             changes[changes.count - 1] = change
         }
@@ -134,7 +135,7 @@ extension Ledger {
         if custom {
             var snapshot = PlanSnapshot()
             snapshot.profile = oldProfile
-            change.before = snapshot
+            change.saveBefore(snapshot, in: self)
             changes[changes.count - 1] = change
         }
         return change
@@ -145,8 +146,9 @@ extension Ledger {
     func snapshotChange(_ kind: ChangeRecord.Kind, _ summary: String, ids: [UUID] = [], before: PlanSnapshot,
                         previous: [Transaction]? = nil, author: String) -> ChangeRecord {
         var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: ids, author: author)
-        change.before = before
+        change.saveBefore(before, in: self)
         change.previous = previous
+        captureTransactionResults(&change)
         return change
     }
 

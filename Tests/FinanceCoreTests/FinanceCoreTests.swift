@@ -1026,8 +1026,9 @@ final class ProfileTests: XCTestCase {
         _ = try l.renameCategory("宠物", to: "猫狗", author: "我")
         XCTAssertTrue(l.profile.categories.contains(CustomCategory(name: "猫狗", income: false)))
         XCTAssertFalse(l.profile.categories.contains { $0.name == "宠物" })
-        _ = try l.undo(changeID: c.id, author: "我")
-        XCTAssertFalse(l.profile.categories.contains { $0.name == "宠物" && !$0.income })
+        let renamed = l.profile.categories
+        XCTAssertThrowsError(try l.undo(changeID: c.id, author: "我"))
+        XCTAssertEqual(l.profile.categories, renamed, "撤销旧分类不能覆盖后来那次改名")
     }
 
     func testCategoryIcons() throws {

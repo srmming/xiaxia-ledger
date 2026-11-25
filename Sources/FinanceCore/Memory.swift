@@ -490,7 +490,10 @@ extension Ledger {
         }
         // 改动记录里存着的旧样子：整条忘掉就拿走，只忘一行就把那一行从每份旧样子里拿走。
         var titles: Set<String> = [old.title]
+        let redacted = memories.first { $0.id == id }
         for c in changes.indices {
+            changes[c].redactMemoryEvidence(old: old, current: redacted)
+            changes[c].syncConflicts?.removeAll { $0.table == "memories" && $0.rowID == id.uuidString }
             guard var before = changes[c].before else { continue }
             let touched = (before.memories ?? []).contains { $0.id == id } || (before.addedMemoryIDs ?? []).contains(id)
             guard touched else { continue }
@@ -640,7 +643,7 @@ extension Ledger {
 
     mutating func appendMemoryChange(_ summary: String, before: PlanSnapshot, author: String) -> ChangeRecord {
         var change = ChangeRecord(kind: .edit, summary: summary, transactionIDs: [], author: author)
-        change.before = before
+        change.saveBefore(before, in: self)
         changes.append(change)
         return change
     }

@@ -21,7 +21,18 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork", "receivables"]
 
+    private func requireDownloadedFile() throws {
+        let placeholder = url.deletingLastPathComponent().appendingPathComponent(".\(url.lastPathComponent).icloud")
+        if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: placeholder.path) {
+            #if canImport(Darwin)
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            #endif
+            throw BusinessError(message: "账本还在从 iCloud 下载，请稍后再试")
+        }
+    }
+
     public func load() throws -> Ledger {
+        try requireDownloadedFile()
         guard FileManager.default.fileExists(atPath: url.path) else {
             let fresh = Ledger.fresh
             fresh.revision.record(url, digest: nil)
@@ -110,6 +121,7 @@ public struct SQLiteLedgerStore: LedgerStore {
     }
 
     func save(_ ledger: Ledger, writeWALSnapshot: (SQLiteDB, URL) throws -> Void) throws {
+        try requireDownloadedFile()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try ledger.checkBusinessVersion()
         // WAL 写连接失败退出时，由只读连接最后关闭，避免自动 checkpoint 改动原文件。

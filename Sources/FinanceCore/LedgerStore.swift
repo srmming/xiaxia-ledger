@@ -142,26 +142,59 @@ public enum LedgerStores {
         let target = container.appendingPathComponent("ledger.sqlite")
         let source = old.appendingPathComponent("ledger.sqlite")
         let marker = old.appendingPathComponent(movedMarker)
-        guard fm.fileExists(atPath: source.path), !fm.fileExists(atPath: marker.path) else { return false }
+        guard old.standardizedFileURL.resolvingSymlinksInPath() != container.standardizedFileURL.resolvingSymlinksInPath(),
+              fm.fileExists(atPath: source.path), !fm.fileExists(atPath: marker.path) else { return false }
+        let pending = container.appendingPathComponent(".搬家待确认")
         #if canImport(SQLite3)
         do {
-            try fm.createDirectory(at: container, withIntermediateDirectories: true)
-            let from = try SQLiteDB(url: source, allowCreate: false)
-            try from.holdExclusiveLock()
-            guard !fm.fileExists(atPath: marker.path), try from.hasLedger() else { return false }
-            let to = try SQLiteDB(url: target)
-            try to.holdExclusiveLock()
-            if try to.hasLedger() {
-                // 在同一把目标锁内核对占位账本、留备份、安装源快照。
-                guard try SQLiteLedgerStore(url: target).read(from: to) == Ledger.fresh else { return false }
-                let aside = container.appendingPathComponent("ledger.sqlite.空账本-\(UUID().uuidString)")
-                try to.writeSnapshot(to: aside)
+            return try LedgerFiles.withActiveFolder(old) {
+                try LedgerFiles.withActiveFolder(container) {
+                    // 先确认所有待收纸条可读；损坏的纸条不能悄悄跳过。
+                    for url in SyncNotes.files(in: SyncNotes.inbox(old)) {
+                        guard let note = SyncNotes.read(url), note.id == url.deletingPathExtension().lastPathComponent else { return false }
+                    }
+                    _ = try InboxApplyingStore(primary: SQLiteLedgerStore(url: source), folder: old).load()
+                    let from = try SQLiteDB(url: source, allowCreate: false)
+                    try from.holdExclusiveLock()
+                    guard !fm.fileExists(atPath: marker.path), try from.hasLedger() else { return false }
+                    let to = try SQLiteDB(url: target)
+                    try to.holdExclusiveLock()
+                    if try to.hasLedger() {
+                        let isFresh = try SQLiteLedgerStore(url: target).read(from: to) == Ledger.fresh
+                        if isFresh {
+                            let aside = container.appendingPathComponent("ledger.sqlite.空账本-\(UUID().uuidString)")
+                            try to.writeSnapshot(to: aside)
+                        } else {
+                            // 上次数据库复制完成、旧目录的切换标记却未写成：只有目标内容未动才可重试。
+                            guard let staged = try? Data(contentsOf: pending), staged == (try to.storageDigest()) else { return false }
+                        }
+                    }
+                    let sourceLedger = try SQLiteLedgerStore(url: source).read(from: from)
+                    let unapplied = SyncNotes.unapplied(ledgerFolder: old, ledger: sourceLedger)
+                    guard unapplied.isEmpty else { return false }
+                    for directory in [LedgerFiles.attachmentsFolderName, SyncNotes.folderName] {
+                        try LedgerFiles.copyVerifiedTree(from: old.appendingPathComponent(directory),
+                                                         to: container.appendingPathComponent(directory))
+                    }
+                    let assets = container.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+                    let referenced = sourceLedger.captures.compactMap(\.photo) + sourceLedger.paperwork.flatMap { $0.attachments.map(\.file) }
+                    let oldAssets = old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+                    guard referenced.allSatisfy({ name in
+                        name == (name as NSString).lastPathComponent && !name.isEmpty && name != "." && name != ".."
+                        && fm.isReadableFile(atPath: oldAssets.appendingPathComponent(name).path)
+                        && fm.contentsEqual(atPath: oldAssets.appendingPathComponent(name).path,
+                                            andPath: assets.appendingPathComponent(name).path)
+                    }), let digest = try from.storageDigest() else { return false }
+                    try digest.write(to: pending, options: .atomic)
+                    try from.copyDatabase(to: to)
+                    try to.exec("PRAGMA journal_mode = DELETE")
+                    guard try to.storageDigest() == digest else { return false }
+                    try Data("账本已经搬到 app 的 iCloud 容器（iCloud 云盘里的「夏夏账本」app 文件夹），这里的 ledger.sqlite 是搬家前的备份，不再更新。\n".utf8)
+                        .write(to: marker, options: .atomic)
+                    try? fm.removeItem(at: pending)
+                    return true
+                }
             }
-            try from.copyDatabase(to: to)
-            try to.exec("PRAGMA journal_mode = DELETE")
-            try Data("账本已经搬到 app 的 iCloud 容器（iCloud 云盘里的「夏夏账本」app 文件夹），这里的 ledger.sqlite 是搬家前的备份，不再更新。\n".utf8)
-                .write(to: marker, options: .atomic)
-            return true
         } catch { return false }
         #else
         return false
@@ -200,7 +233,8 @@ public enum LedgerStores {
         let container = containerDocumentsOnDisk.appendingPathComponent("ledger.sqlite")
         let fm = FileManager.default
         if fm.fileExists(atPath: container.path),
-           !fm.fileExists(atPath: iCloudFolder.appendingPathComponent("ledger.sqlite").path)
+           (!fm.fileExists(atPath: iCloudFolder.appendingPathComponent("ledger.sqlite").path)
+                && !fm.fileExists(atPath: iCloudFolder.appendingPathComponent(".ledger.sqlite.icloud").path))
             || fm.fileExists(atPath: iCloudFolder.appendingPathComponent(movedMarker).path) {
             return sqlite(container)
         }
@@ -224,7 +258,11 @@ public enum LedgerStores {
         if hasICloudEntitlement, let docs = ubiquityDocuments() {
             try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
             #if os(macOS)
-            migrateToContainer(docs)
+            if !migrateToContainer(docs),
+               !FileManager.default.fileExists(atPath: iCloudFolder.appendingPathComponent(movedMarker).path),
+               ["ledger.sqlite", ".ledger.sqlite.icloud"].contains(where: { FileManager.default.fileExists(atPath: iCloudFolder.appendingPathComponent($0).path) }) {
+                return sqlite(iCloudFolder.appendingPathComponent("ledger.sqlite"))
+            }
             #endif
             let file = docs.appendingPathComponent("ledger.sqlite")
             #if os(iOS)
@@ -270,7 +308,9 @@ public struct MigratingStore: LedgerStore {
     public init(primary: SQLiteLedgerStore, legacy: JSONFileLedgerStore) { self.primary = primary; self.legacy = legacy }
 
     public func load() throws -> Ledger {
-        if !FileManager.default.fileExists(atPath: primary.url.path), FileManager.default.fileExists(atPath: legacy.url.path) {
+        let placeholder = primary.url.deletingLastPathComponent().appendingPathComponent(".\(primary.url.lastPathComponent).icloud")
+        if !FileManager.default.fileExists(atPath: primary.url.path), !FileManager.default.fileExists(atPath: placeholder.path),
+           FileManager.default.fileExists(atPath: legacy.url.path) {
             return try legacy.load()
         }
         return try primary.load()

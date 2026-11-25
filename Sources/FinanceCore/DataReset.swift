@@ -189,7 +189,11 @@ public enum LedgerBackup {
     }
 
     public static func load(_ backup: URL, replacing target: Ledger) throws -> Ledger {
-        try load(backup).replacingContents(of: target)
+        var restored = try load(backup)
+        var seen = Set(restored.appliedNotes)
+        let archived = try target.revision.ledgerFolder.map(SyncNotes.archivedIDs(in:)) ?? []
+        restored.appliedNotes += (target.appliedNotes + archived).filter { seen.insert($0).inserted }
+        return restored.replacingContents(of: target)
     }
 
 }
