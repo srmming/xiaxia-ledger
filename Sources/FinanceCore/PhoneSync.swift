@@ -35,6 +35,9 @@ public struct SyncNote: Codable, Sendable, Equatable {
     public var memories: [Memory]?
     public var captures: [Capture]?
     public var paperwork: [Paperwork]?
+    public var receivables: [Receivable]?
+    public var changedBusiness: Bool?
+    public var business: BusinessSettings?
     public var profile: Profile?
     public var currency: CurrencySettings?
     public var lastStatementDate: [String: LocalDate]?
@@ -49,7 +52,7 @@ public struct SyncNote: Codable, Sendable, Equatable {
     public var isEmpty: Bool {
         books == nil && accounts == nil && transactions == nil && changes == nil && debts == nil && installments == nil
             && goals == nil && insights == nil && subscriptions == nil && recurring == nil && memories == nil
-            && captures == nil && paperwork == nil && profile == nil && currency == nil && lastStatementDate == nil
+            && receivables == nil && changedBusiness != true && captures == nil && paperwork == nil && profile == nil && currency == nil && lastStatementDate == nil
             && (deletes ?? [:]).isEmpty
     }
 
@@ -107,6 +110,8 @@ extension Ledger {
         n.memories = take("memories", old.memories, memories, key: \.id, name: \.uuidString)
         n.captures = take("captures", old.captures, captures, key: \.id, name: \.uuidString)
         n.paperwork = take("paperwork", old.paperwork, paperwork, key: \.id, name: \.uuidString)
+        n.receivables = take("receivables", old.receivables, receivables, key: \.id, name: \.uuidString)
+        if business != old.business { n.changedBusiness = true; n.business = business }
         if profile != old.profile { n.profile = profile }
         if currency != old.currency { n.currency = currency }
         if lastStatementDate != old.lastStatementDate { n.lastStatementDate = lastStatementDate }
@@ -137,6 +142,8 @@ extension Ledger {
         upsert(&memories, note.memories, d["memories"], key: \.id, name: \.uuidString)
         upsert(&captures, note.captures, d["captures"], key: \.id, name: \.uuidString)
         upsert(&paperwork, note.paperwork, d["paperwork"], key: \.id, name: \.uuidString)
+        upsert(&receivables, note.receivables, d["receivables"], key: \.id, name: \.uuidString)
+        if note.changedBusiness == true { business = note.business }
         if let p = note.profile { profile = p }
         if let c = note.currency { currency = c; Money.defaultCurrency = c.base }
         if let l = note.lastStatementDate { lastStatementDate = l }
@@ -251,6 +258,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     public func load() throws -> Ledger {
         lock.lock(); defer { lock.unlock() }
         var ledger = try primary.load()
+        if ledger.minReaderVersion > 2 { return ledger }
         let fm = FileManager.default
         guard fm.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
@@ -317,7 +325,9 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
 
     public func save(_ ledger: Ledger) throws {
         lock.lock(); defer { lock.unlock() }
+        try ledger.checkBusinessVersion()
         let old = base ?? .fresh
+        try old.checkBusinessVersion()
         guard var note = ledger.syncNote(since: old, device: device) else { base = ledger; return }
         note.device = device
         try SyncNotes.write(note, ledgerFolder: folder)

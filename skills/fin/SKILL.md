@@ -147,3 +147,5 @@ context 的记忆里出现「该整理了」时，找个不打断用户的时候
 - 分类整体改名或并进另一个分类：MCP `rename_category`（`from`、`to`），先 `dry_run`。
 
 **写错了**：`fin history` 找到那条改动，`fin undo <编号>`。
+
+生意模式下，先看 context 的 businessBookID 和 lifeBookIDs。已确认的生活或生意收支用 side=life 或 business；归属拿不准先问。profit 查利润，capital 查本钱和回本进度。

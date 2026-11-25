@@ -55,6 +55,10 @@ public struct JSONFileLedgerStore: LedgerStore {
 
     public func save(_ ledger: Ledger) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let stored = try load().minReaderVersion
+        var ledger = ledger
+        ledger.minReaderVersion = try ledger.versionForSave(stored: stored)
+        if ledger.minReaderVersion > stored { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -158,7 +162,9 @@ public enum LedgerStores {
     public static func defaultStore() -> any LedgerStore {
         if let override = ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"], !override.isEmpty {
             let url = URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
-            return url.pathExtension.lowercased() == "json" ? JSONFileLedgerStore(url: url) : sqlite(url)
+            if url.pathExtension.lowercased() == "json" { return JSONFileLedgerStore(url: url) }
+            // 显式路径只在同目录查旧 JSON，不能导入其他位置的账本。
+            return sqlite(url, legacyURL: url.deletingPathExtension().appendingPathExtension("json"))
         }
         // 容器里有账本，而且老位置没有账本或已经搬过家，才用容器里的；
         // 否则（比如 iPhone 先建了个空账本、Mac 还没搬）继续用老位置，fin 不会突然读到空账本。
@@ -214,9 +220,9 @@ public enum LedgerStores {
     /// iPhone 本机的账本（没接 iCloud 文件夹时用的那本）。
     public static func localPhoneStore() -> any LedgerStore { sqlite(appSupportFolder.appendingPathComponent("ledger.sqlite")) }
 
-    static func sqlite(_ url: URL) -> any LedgerStore {
+    static func sqlite(_ url: URL, legacyURL: URL? = nil) -> any LedgerStore {
         #if canImport(SQLite3)
-        let legacy = JSONFileLedgerStore(url: appSupportFolder.appendingPathComponent("ledger.json"))
+        let legacy = JSONFileLedgerStore(url: legacyURL ?? appSupportFolder.appendingPathComponent("ledger.json"))
         // 读账本时顺便收 iPhone 写的小纸条（见 PhoneSync.swift）。
         return InboxApplyingStore(primary: MigratingStore(primary: SQLiteLedgerStore(url: url), legacy: legacy),
                                   folder: url.deletingLastPathComponent())

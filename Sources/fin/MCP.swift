@@ -114,6 +114,12 @@ enum MCPTools {
     }
 
     static let list: [[String: Any]] = [
+        tool("business_status", "生意模式设置", [:], readOnly: true),
+        tool("business_on", "打开生意模式，多本时指定 book", ["book": prop("string","账本"), "dry_run": dryRun], readOnly: false),
+        tool("business_off", "关闭生意模式", ["dry_run": dryRun], readOnly: false),
+        tool("profit", "生意月利润", ["month": prop("string","YYYY-MM")], required: ["month"], readOnly: true),
+        tool("capital", "本钱和回本进度", [:], readOnly: true),
+        tool("capital_set", "设置本钱", ["total": prop("string","本钱"), "opened_on": prop("string","开始日期"), "recovered_before": prop("string","之前已回本"), "dry_run": dryRun], required: ["total"], readOnly: false),
         tool("context", "说明书：账本、账户和余额、数据覆盖日期、借款合计、最近改动、统计口径。先调这个。", [:], readOnly: true),
         tool("welcome", "新用户第一次记账的带路步骤。用户说刚装好夏夏账本、「带我记下第一笔」「开始记账」时先调这个，照返回的步骤做。", [:], readOnly: true),
         tool("list_transactions", "查流水。", [
@@ -151,6 +157,7 @@ enum MCPTools {
         tool("history", "改动记录：谁、什么时候、改了什么。", ["limit": prop("integer", "最多几条，默认 20")], readOnly: true),
         tool("add_transaction", "记一笔收支。amount 负数是支出、正数是收入。repeat 填了就设成重复记账，以后到日子自动记。", [
             "amount": prop("string", "金额，如 -12,50 或 300；也可以是算式 -12,50-3,20"),
+            "side": prop("string","life 或 business"),
             "description": prop("string", "名称：买了什么、在哪花的"),
             "account": prop("string", "账户 id"),
             "book": prop("string", "账本 id"),
@@ -162,7 +169,7 @@ enum MCPTools {
             "until": prop("string", "重复到哪天为止（可不填）"),
             "original": prop("string", "用别的币种付的原价，如「50 USD」（欧元卡在国外刷卡时）。amount 填银行扣的数"),
             "author": author, "dry_run": dryRun,
-        ], required: ["amount", "description", "account", "book"], readOnly: false),
+        ], required: ["amount", "description", "account"], readOnly: false),
         tool("add_debt", "记一笔欠款。direction：they_owe_me（我借出去）或 i_owe（我借来的）。", [
             "counterparty": prop("string", "对方"),
             "direction": ["type": "string", "enum": ["they_owe_me", "i_owe"], "description": "方向"],
@@ -602,12 +609,30 @@ enum MCPTools {
             return try json(Plans.installments(ledger))
         case "history":
             return try json(Array(ledger.changes.suffix(int("limit", 20)).reversed()))
+        case "business_status": return try json(ledger.business ?? BusinessSettings())
+        case "business_on":
+            switch try ledger.enableBusinessMode(choose: s("book"), author: who) {
+            case .enabled(let change): return try commit(change)
+            case .needsChoice(let books): throw ToolError(message: "请选择账本：" + books.map(\.id).joined(separator: "、"))
+            }
+        case "business_off": return try commit(ledger.disableBusinessMode(author: who))
+        case "profit":
+            guard let month = YearMonth(try req("month")) else { throw ToolError(message: "月份写成 YYYY-MM") }
+            return try json(ledger.businessReport(month: month, today: .today))
+        case "capital": return try json(ledger.capitalProgress(today: .today))
+        case "capital_set":
+            var capital = ledger.business?.capital ?? Capital(total: .zero)
+            capital.total = try money("total")
+            if let opened = try date("opened_on") { capital.openedOn = opened }
+            if s("recovered_before") != nil { capital.recoveredBefore = try money("recovered_before") }
+            return try commit(try ledger.setCapital(capital, author: who))
         case "add_transaction":
             guard let amount = Money.evaluate(try req("amount")) else { throw ToolError(message: "金额看不懂：\(a["amount"] ?? "")") }
             let tags = Tags.clean(a["tags"] as? [String] ?? [])
             var tx = Transaction(date: try date("date") ?? .today, amount: amount, description: try req("description"),
-                                 accountID: try req("account"), bookID: try req("book"), category: s("category"), source: "手记（\(who)）",
+                                 accountID: try req("account"), bookID: s("book"), category: s("category"), source: "手记（\(who)）",
                                  note: s("note"), tags: tags.isEmpty ? nil : tags)
+            let reason = try ledger.routeEntry(&tx, side: s("side"))
             tx.fx = ledger.fxNote(accountID: tx.accountID, date: tx.date)
             if let o = s("original") {
                 do { tx.original = try parseForeign(o, sign: tx.amount.cents < 0 ? -1 : 1) }
@@ -615,9 +640,11 @@ enum MCPTools {
             }
             if let r = s("repeat") {
                 guard let f = Recurring.Frequency(rawValue: r) else { throw ToolError(message: "repeat 要写 weekly、monthly 或 yearly") }
-                return try commit(try ledger.addRecurring(tx, frequency: f, until: try date("until"), author: who))
+                let change = try ledger.addRecurring(tx, frequency: f, until: try date("until"), author: who)
+                return try commit(ledger.describeRoute(change, reason: reason))
             }
-            return try commit(try ledger.addTransaction(tx, author: who))
+            let change = try ledger.addTransaction(tx, author: who)
+            return try commit(ledger.describeRoute(change, reason: reason))
         case "split_transaction":
             let t = try ledger.findTransactions([try req("id")])[0]
             guard let raw = a["parts"] as? [[String: Any]], raw.count >= 2 else { throw ToolError(message: "parts 至少要两份") }

@@ -49,6 +49,13 @@ run account add cash 现金 --kind cash --dry-run
 run account add cash 现金 --kind cash
 run account add caixa Caixa
 run account add revolut Revolut
+run business on --book shop --json
+run business status --json
+run capital set --total 1000 --recovered-before 10 --json
+run capital --json
+run add --side business --account cash --dry-run -- -5 花材
+run profit --month 2026-11 --json
+run business off --json
 run account add pot 储蓄罐 --kind savings
 run account add stash 私房钱 --kind cash --private
 run accounts --json
@@ -284,6 +291,13 @@ for spec in \
   'accounts|{}' \
   'monthly_report|{"month":"2026-11"}' \
   'reconcile|{"account":"revolut","balance":"110,05"}' \
+  'business_status|{}' \
+  'business_on|{"book":"shop","dry_run":true}' \
+  'business_off|{"dry_run":true}' \
+  'profit|{"month":"2026-11"}' \
+  'capital|{}' \
+  'capital_set|{"total":"1200","dry_run":true}' \
+  'add_transaction|{"amount":"12","description":"测试收款","account":"cash","side":"business","dry_run":true}' \
   'account_transfer|{"amount":"10","from_account":"caixa","to_account":"cash","dry_run":true}' \
   'add_account|{"id":"n26","name":"N26","opening_balance":"200","dry_run":true}' \
   'debts|{}' 'installments|{}' 'goals|{}' 'history|{"limit":3}' \

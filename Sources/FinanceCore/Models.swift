@@ -235,6 +235,8 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 这次改动新写的意见：撤销时删掉。
     public var addedInsightIDs: [UUID]?
     /// 这次改动新加的账户、账本：撤销时删掉。
+    public var changedBusiness: Bool?
+    public var business: BusinessSettings?
     public var addedAccountIDs: [String]?
     public var addedBookIDs: [String]?
     /// 夏夏性格、目标、自己加的分类改之前的样子。
@@ -268,6 +270,9 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
 
 /// 整份账本数据。
 public struct Ledger: Codable, Sendable, Equatable {
+    public var business: BusinessSettings?
+    public var receivables: [Receivable] = []
+    public var minReaderVersion = 1
     public var schemaVersion: Int = 1
     public var books: [Book] = []
     public var accounts: [Account] = []
@@ -303,6 +308,7 @@ public struct Ledger: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
+        case business, receivables, minReaderVersion
         case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
         case currency, subscriptions
         case memories
@@ -312,6 +318,9 @@ public struct Ledger: Codable, Sendable, Equatable {
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        business = try c.decodeIfPresent(BusinessSettings.self, forKey: .business)
+        receivables = try c.decodeIfPresent([Receivable].self, forKey: .receivables) ?? []
+        minReaderVersion = try c.decodeIfPresent(Int.self, forKey: .minReaderVersion) ?? 1
         schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         books = try c.decodeIfPresent([Book].self, forKey: .books) ?? []
         accounts = try c.decodeIfPresent([Account].self, forKey: .accounts) ?? []

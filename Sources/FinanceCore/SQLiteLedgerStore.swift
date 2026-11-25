@@ -18,22 +18,38 @@ public struct SQLiteLedgerStore: LedgerStore {
         fileStamp([url, URL(fileURLWithPath: url.path + "-wal"), URL(fileURLWithPath: url.path + "-journal")])
     }
 
-    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork"]
+    static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork", "receivables"]
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
-        let db = try SQLiteDB(url: url)
-        try db.migrate()
+        let db = try SQLiteDB(url: url, readOnly: true)
+        let existing = Set(try db.query("SELECT name FROM sqlite_master WHERE type = 'table'"))
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
         func rows<T: Decodable>(_ table: String, _ type: T.Type) throws -> [T] {
-            try db.query("SELECT json FROM \(table) ORDER BY seq").enumerated().map { i, json in
+            guard existing.contains(table) else { return [] }
+            return try db.query("SELECT json FROM \(table) ORDER BY seq").enumerated().map { i, json in
                 do { return try dec.decode(T.self, from: Data(json.utf8)) }
                 catch { throw LedgerReadError(table: table, row: i + 1, underlying: error) }
             }
         }
         var ledger = Ledger(books: try rows("books", Book.self), accounts: try rows("accounts", Account.self),
                             transactions: try rows("transactions", Transaction.self), changes: try rows("changes", ChangeRecord.self))
+        ledger.receivables = try rows("receivables", Receivable.self)
+        if existing.contains("meta") {
+            ledger.minReaderVersion = try db.minimumVersion()
+            if let value = try db.query("SELECT value FROM meta WHERE key = 'business'").first {
+                let data = Data(value.utf8)
+                ledger.business = try dec.decode(BusinessSettings.self, from: data)
+                let history = try dec.decode(BusinessUndoIndex.self, from: data)
+                for i in ledger.changes.indices {
+                    if let prior = history.undo?[ledger.changes[i].id.uuidString] {
+                        ledger.changes[i].before?.changedBusiness = true
+                        ledger.changes[i].before?.business = prior.settings
+                    }
+                }
+            }
+        }
         ledger.debts = try rows("debts", Debt.self)
         ledger.installments = try rows("installments", Installment.self)
         ledger.goals = try rows("goals", Goal.self)
@@ -44,6 +60,7 @@ public struct SQLiteLedgerStore: LedgerStore {
         // 待记录、小票发票和报销（2026-11-23 加）：各一张表；旧版本不认识，会原样留着。
         ledger.captures = try rows("captures", Capture.self)
         ledger.paperwork = try rows("paperwork", Paperwork.self)
+        guard existing.contains("meta") else { return ledger }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'appliedNotes'").first {
             ledger.appliedNotes = (try? dec.decode([String].self, from: Data(v.utf8))) ?? []
         }
@@ -69,8 +86,9 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public func save(_ ledger: Ledger) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try ledger.checkBusinessVersion()
+        let existed = FileManager.default.fileExists(atPath: url.path)
         let db = try SQLiteDB(url: url)
-        try db.migrate()
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         enc.dateEncodingStrategy = .iso8601
@@ -78,7 +96,26 @@ public struct SQLiteLedgerStore: LedgerStore {
 
         try db.exec("BEGIN IMMEDIATE")
         do {
+            let stored = try db.minimumVersion()
+            let version = try ledger.versionForSave(stored: stored)
+            if existed && version > stored { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
+            try db.migrate()
+            try db.run("INSERT OR REPLACE INTO meta (key,value) VALUES ('minReaderVersion',?)", [version])
+            if let settings = ledger.business {
+                // 旧 Codable 会删掉 changes 里不认识的撤销字段；随设置留一份。
+                var fields = try JSONSerialization.jsonObject(with: enc.encode(settings)) as? [String: Any] ?? [:]
+                var undo: [String: BusinessUndoIndex.Prior] = [:]
+                for change in ledger.changes where !change.undone && change.before?.changedBusiness == true {
+                    undo[change.id.uuidString] = .init(settings: change.before?.business)
+                }
+                fields["undo"] = try JSONSerialization.jsonObject(with: enc.encode(undo))
+                let data = try JSONSerialization.data(withJSONObject: fields, options: .sortedKeys)
+                try db.run("INSERT OR REPLACE INTO meta (key,value) VALUES ('business',?)", [String(decoding: data, as: UTF8.self)])
+            } else { try db.exec("DELETE FROM meta WHERE key='business'") }
             for t in Self.tables { try db.exec("DELETE FROM \(t)") }
+            for (i, row) in ledger.receivables.enumerated() {
+                try db.run("INSERT INTO receivables (id,seq,json) VALUES (?,?,?)", [row.id.uuidString, i, js(row)])
+            }
             for (i, b) in ledger.books.enumerated() { try db.run("INSERT INTO books (id, seq, json) VALUES (?, ?, ?)", [b.id, i, js(b)]) }
             for (i, a) in ledger.accounts.enumerated() { try db.run("INSERT INTO accounts (id, seq, json) VALUES (?, ?, ?)", [a.id, i, js(a)]) }
             for (i, t) in ledger.transactions.enumerated() {
@@ -124,6 +161,11 @@ public struct SQLiteLedgerStore: LedgerStore {
     }
 }
 
+private struct BusinessUndoIndex: Decodable {
+    struct Prior: Codable { let settings: BusinessSettings? }
+    let undo: [String: Prior]?
+}
+
 /// 账本里某一条读不出来：说清楚是哪张表的第几条、哪个字段，方便修，而不是只说「格式不正确」。
 public struct LedgerReadError: Error, LocalizedError {
     public let table: String
@@ -160,22 +202,31 @@ final class SQLiteDB {
     private var handle: OpaquePointer?
     private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
-    init(url: URL) throws {
-        guard sqlite3_open_v2(url.path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
+    init(url: URL, readOnly: Bool = false) throws {
+        let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+        guard sqlite3_open_v2(url.path, &handle, flags | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
             let msg = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "打不开 \(url.path)"
             sqlite3_close(handle)
             throw SQLiteError(message: msg)
         }
         sqlite3_busy_timeout(handle, 5000)
-        try exec("PRAGMA journal_mode = DELETE")
+        // SQLite 默认使用 DELETE；打开只读或新版文件时不改变日志模式。
         try exec("PRAGMA foreign_keys = OFF")
     }
 
     deinit { sqlite3_close(handle) }
 
+    func minimumVersion() throws -> Int {
+        guard !(try query("SELECT name FROM sqlite_master WHERE name='meta'")).isEmpty,
+              let raw = try query("SELECT value FROM meta WHERE key='minReaderVersion'").first else { return 1 }
+        guard let version = Int(raw) else { throw BusinessError(message: "账本的格式版本无效") }
+        return version
+    }
+
     func migrate() throws {
         try exec("""
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS receivables (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS transactions (

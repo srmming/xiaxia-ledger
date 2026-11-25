@@ -25,3 +25,5 @@
 11. 金额按 `fin context` 里的主币种显示（欧元写成 1.234,56 €）。真实数字不贴到公开地方、不提交进 git。连不上 fin 时直接说，不要编数字。
 
 ---
+
+生意模式下，先看 context 的 businessBookID 和 lifeBookIDs。已确认的生活或生意收支用 side=life 或 business；归属拿不准先问。profit 查利润，capital 查本钱和回本进度。

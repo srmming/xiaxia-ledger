@@ -473,7 +473,16 @@ extension Ledger {
                 installments[k].paidIDs.removeAll { ids.contains($0) }
             }
         }
-        if let before = change.before { restore(before) }
+        if var before = change.before {
+            if before.changedBusiness == true {
+                guard !changes.dropFirst(i + 1).contains(where: { !$0.undone && $0.before?.changedBusiness == true }) else { throw EditError.notUndoable }
+                before.addedBookIDs = before.addedBookIDs?.filter { id in
+                    !transactions.contains { $0.bookID == id } && !recurring.contains { $0.template.bookID == id }
+                    && !debts.contains { $0.bookID == id } && !goals.contains { $0.bookID == id } && !installments.contains { $0.bookID == id }
+                }
+            }
+            restore(before)
+        }
         if change.kind == .remove, let previous = change.previous {
             // 删掉的流水：放回来（借款、分期、目标里的引用不自动恢复，改动记录里写明了）。
             let existing = Set(transactions.map(\.id))
