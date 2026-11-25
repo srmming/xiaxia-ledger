@@ -110,8 +110,6 @@ extension Ledger {
         n.memories = take("memories", old.memories, memories, key: \.id, name: \.uuidString)
         n.captures = take("captures", old.captures, captures, key: \.id, name: \.uuidString)
         n.paperwork = take("paperwork", old.paperwork, paperwork, key: \.id, name: \.uuidString)
-        n.receivables = take("receivables", old.receivables, receivables, key: \.id, name: \.uuidString)
-        if business != old.business { n.changedBusiness = true; n.business = business }
         if profile != old.profile { n.profile = profile }
         if currency != old.currency { n.currency = currency }
         if lastStatementDate != old.lastStatementDate { n.lastStatementDate = lastStatementDate }
@@ -328,6 +326,9 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
         try ledger.checkBusinessVersion()
         let old = base ?? .fresh
         try old.checkBusinessVersion()
+        guard ledger.business == old.business, ledger.receivables == old.receivables else {
+            throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
+        }
         guard var note = ledger.syncNote(since: old, device: device) else { base = ledger; return }
         note.device = device
         try SyncNotes.write(note, ledgerFolder: folder)

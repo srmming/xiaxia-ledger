@@ -71,30 +71,19 @@ final class BusinessTests: XCTestCase {
         try l.undo(changeID: c.id, author: author)
         XCTAssertEqual(l.transactions[0], bag)
     }
-    func testJSONAndPhoneRoundTrip() throws {
-        var ledger = Ledger.fresh
-        let change = try ledger.startWithBusiness(capital: .init(cents: 500), author: author)
-        XCTAssertEqual(ledger.business?.startSide, .business)
-        XCTAssertEqual(ledger.lifeBookIDs.count, 1)
-        ledger.receivables = [.init(name: "模拟应收", amount: .init(cents: 123))]
-        let note = try XCTUnwrap(ledger.syncNote(since: .fresh, device: "模拟手机"))
-        var synced = Ledger.fresh
-        XCTAssertTrue(synced.apply(note))
-        XCTAssertEqual(synced.business, ledger.business)
-        XCTAssertEqual(synced.receivables, ledger.receivables)
+    func testJSONRejectsBusinessAndReceivablesWithoutChangingFile() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let store = JSONFileLedgerStore(url: dir.appendingPathComponent("synthetic.json"))
         try store.save(.fresh)
-        try store.save(ledger)
-        let loaded = try store.load()
-        XCTAssertEqual(loaded.business, ledger.business)
-        XCTAssertEqual(loaded.receivables, ledger.receivables)
-        XCTAssertEqual(loaded.minReaderVersion, 2)
-        XCTAssertEqual(LedgerBackup.list(for: store.url).count, 1)
-        try ledger.undo(changeID: change.id, author: author)
-        XCTAssertNil(ledger.business)
-        XCTAssertEqual(ledger.books, Ledger.fresh.books)
+        let original = try Data(contentsOf: store.url)
+        var ledger = Ledger.fresh
+        _ = try ledger.startWithBusiness(capital: .init(cents: 500), author: author)
+        for value in [ledger, { var l = Ledger.fresh; l.receivables = [.init(name: "模拟应收", amount: .init(cents: 123))]; return l }()] {
+            XCTAssertThrowsError(try store.save(value)) { XCTAssertEqual($0.localizedDescription, "生意模式需要 SQLite 账本") }
+            XCTAssertEqual(try Data(contentsOf: store.url), original)
+        }
+        ledger = .fresh
         let future = Data(#"{"minReaderVersion":99}"#.utf8)
         try future.write(to: store.url)
         XCTAssertEqual(try store.load().minReaderVersion, 99)
@@ -193,7 +182,7 @@ extension BusinessTests {
         let store = SQLiteLedgerStore(url: url)
         try store.save(.fresh)
         XCTAssertEqual(try SQLiteDB(url: url).query("PRAGMA journal_mode=WAL"), ["wal"])
-        _ = try store.load()
+        try store.save(try store.load())
         XCTAssertEqual(try SQLiteDB(url: url, readOnly: true).query("PRAGMA journal_mode"), ["delete"])
     }
 
@@ -206,5 +195,107 @@ extension BusinessTests {
         XCTAssertGreaterThan(months, 0)
         let capital = try XCTUnwrap(ledger.business?.capital)
         XCTAssertEqual(capital.items.reduce(Money.zero) { $0 + $1.amount }, capital.total)
+    }
+}
+
+extension BusinessTests {
+    func testPhoneRejectsBusinessChangesBeforeWritingNote() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let phone = PhoneSyncStore(folder: dir, cache: dir.appendingPathComponent("cache.sqlite"))
+        let original = try phone.load()
+        var settings = original
+        _ = try settings.enableBusinessMode(author: author)
+        var debt = original
+        debt.receivables = [.init(name: "模拟应收", amount: .init(cents: 20))]
+        for change in [settings, debt] {
+            XCTAssertThrowsError(try phone.save(change)) { XCTAssertTrue($0.localizedDescription.contains("在 Mac 上修改")) }
+            XCTAssertTrue(SyncNotes.files(in: SyncNotes.inbox(dir)).isEmpty)
+            XCTAssertEqual(try phone.load(), original)
+        }
+        var ordinary = original
+        ordinary.transactions.append(tx("手机记账", 200, book: "personal"))
+        try phone.save(ordinary)
+        XCTAssertEqual(SyncNotes.files(in: SyncNotes.inbox(dir)).count, 1)
+    }
+
+    func testCannotSwitchBooksWithCapital() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        let capitalChange = try l.setCapital(.init(total: .init(cents: 100)), author: author)
+        l.books.append(Book(id: "second", name: "二店", kind: .business))
+        let before = l
+        XCTAssertThrowsError(try l.enableBusinessMode(choose: "second", author: author)) {
+            XCTAssertTrue($0.localizedDescription.contains("清掉"))
+        }
+        XCTAssertEqual(l, before)
+        try l.undo(changeID: capitalChange.id, author: author)
+        _ = try l.enableBusinessMode(choose: "second", author: author)
+        XCTAssertEqual(l.businessBook?.id, "second")
+    }
+
+    func testTakeHomeUsesTransferIDBeforeDate() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        var out = tx("拿回家", -1000, account: "shop")
+        var home = tx("生活收款", 1000, book: "personal", date: "2026-04-02", account: "life")
+        var unrelated = tx("店内同额入账", 1000, account: "other")
+        out.flow = .internal; home.flow = .internal; unrelated.flow = .internal
+        out.transferID = UUID(); home.transferID = out.transferID
+        l.transactions = [out, unrelated, home]
+        XCTAssertEqual(try l.businessReport(month: today.yearMonth, today: today).takenHome.cents, 1000)
+        // 少了明确配对的收款端，也不能用其他编号或未配对的流水补上。
+        l.transactions.removeLast()
+        unrelated.bookID = "personal"
+        l.transactions.append(unrelated)
+        XCTAssertEqual(try l.businessReport(month: today.yearMonth, today: today).takenHome.cents, 0)
+    }
+
+    func testWALBackupFailurePreservesBytesAndRetryBacksUpCommittedRows() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: dir) }
+        let src = dir.appendingPathComponent("source.sqlite")
+        let url = dir.appendingPathComponent("active.sqlite")
+        try SQLiteLedgerStore(url: src).save(.starter)
+        let db = try SQLiteDB(url: src)
+        try db.exec("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; DELETE FROM books WHERE id='miora'")
+        // 模拟关闭前复制的主文件和 WAL，已提交的删除仍只在 WAL 里。
+        for suffix in ["", "-wal"] {
+            try fm.copyItem(atPath: src.path + suffix, toPath: url.path + suffix)
+        }
+        let wal = URL(fileURLWithPath: url.path + "-wal")
+        let mainBytes = try Data(contentsOf: url), walBytes = try Data(contentsOf: wal)
+        let store = SQLiteLedgerStore(url: url)
+        var ledger = try store.load()
+        XCTAssertEqual(ledger.books.map(\.id), ["personal"])
+        _ = try ledger.enableBusinessMode(author: author)
+        let folder = LedgerBackup.folder(for: url)
+        try Data().write(to: folder)
+        XCTAssertThrowsError(try store.save(ledger))
+        XCTAssertEqual(try Data(contentsOf: url), mainBytes)
+        XCTAssertEqual(try Data(contentsOf: wal), walBytes)
+        XCTAssertEqual(try SQLiteDB.reader(url: url).query("PRAGMA journal_mode"), ["wal"])
+        try fm.removeItem(at: folder)
+        try store.save(ledger)
+        let backup = try XCTUnwrap(LedgerBackup.list(for: url).first)
+        let restored = try LedgerBackup.load(backup.url)
+        XCTAssertEqual(restored.books.map(\.id), ["personal"])
+        XCTAssertNil(restored.business)
+        XCTAssertEqual(try store.load().business, ledger.business)
+        XCTAssertEqual(try SQLiteDB.reader(url: url).query("PRAGMA journal_mode"), ["delete"])
+    }
+
+    func testDisabledContextOmitsBusinessKeys() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        let encoder = JSONEncoder()
+        func fields() throws -> [String: Any] {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(LedgerContext(ledger: l))) as? [String: Any])
+        }
+        XCTAssertEqual(try fields()["businessEnabled"] as? Bool, true)
+        _ = l.disableBusinessMode(author: author)
+        let context = try fields()
+        for key in ["businessEnabled", "businessBookID", "lifeBookIDs"] { XCTAssertNil(context[key]) }
     }
 }

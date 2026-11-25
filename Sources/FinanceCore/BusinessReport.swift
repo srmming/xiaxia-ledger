@@ -40,9 +40,9 @@ extension Ledger {
         let visible = baseTransactions.filter { !hidden.contains($0.accountID) && $0.date <= today }
         let life = Set(lifeBookIDs)
         let eligible = visible.filter { $0.bookID == book.id || life.contains($0.bookID ?? "") }
-        let paired = Summaries.pairInternal(eligible).crossBook.filter { $0.bookID == book.id && $0.amount < .zero && $0.date.yearMonth == month }
+        let paired = Summaries.pairInternal(eligible.filter { $0.transferID == nil }).crossBook.filter { $0.bookID == book.id && $0.amount < .zero && $0.date.yearMonth == month }
         let lifeIncoming = Set(eligible.filter { life.contains($0.bookID ?? "") && $0.amount > .zero }.compactMap(\.transferID))
-        let explicit = eligible.filter { $0.flow != .internal && $0.bookID == book.id && $0.date.yearMonth == month && $0.amount < .zero && $0.transferID.map(lifeIncoming.contains) == true }
+        let explicit = eligible.filter { $0.bookID == book.id && $0.date.yearMonth == month && $0.amount < .zero && $0.transferID.map(lifeIncoming.contains) == true }
         let home = (paired + explicit).reduce(Money.zero) { $0 - $1.amount }
         let fixed = recurring.filter { !$0.paused && $0.template.bookID == book.id && $0.template.amount < .zero
             && !hidden.contains($0.template.accountID) && $0.start.yearMonth <= month && ($0.until?.yearMonth ?? month) >= month }

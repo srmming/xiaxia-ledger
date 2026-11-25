@@ -6,7 +6,7 @@ set -u
 FIN="${1:-.build/debug/fin}"
 FIN="$(cd "$(dirname "$FIN")" && pwd)/$(basename "$FIN")"
 WORK="$(mktemp -d)"
-export XIAXIA_LEDGER_PATH="$WORK/ledger.json"
+export XIAXIA_LEDGER_PATH="$WORK/ledger.sqlite"
 export XIAXIA_AUTHOR="smoke"
 export XIAXIA_NO_OPEN=1
 FAILS=0
@@ -81,6 +81,20 @@ run capital --json
 run add --side business --account cash --dry-run -- -5 花材
 run profit --month 2026-11 --json
 run business off --json
+# testDisabledContextOutput：关闭后旧版 context 的文字和键不能多出生意信息。
+python3 - "$FIN" <<'CHECK_CONTEXT' || FAILS=$((FAILS + 1))
+import json, subprocess, sys
+fin = sys.argv[1]
+text = subprocess.check_output([fin, "context"], text=True)
+assert text.startswith("账本：\n") and "生意模式：" not in text
+args = {"name": "context", "arguments": {}}
+request = {"jsonrpc":"2.0", "id":1, "method":"tools/call", "params":args}
+response = subprocess.check_output([fin, "mcp"], input=json.dumps(request) + "\n", text=True)
+mcp = json.loads(json.loads(response)["result"]["content"][0]["text"])
+cli = json.loads(subprocess.check_output([fin, "context", "--json"]))
+assert mcp == cli and not {"businessEnabled", "businessBookID", "lifeBookIDs"}.intersection(cli)
+assert json.loads(subprocess.check_output([fin, "business", "status", "--json"]))["enabled"] is False
+CHECK_CONTEXT
 run account add pot 储蓄罐 --kind savings
 run account add stash 私房钱 --kind cash --private
 run accounts --json
@@ -474,8 +488,8 @@ export XIAXIA_LEDGER_PATH="$DEMO"
   run reconcile --account daily --balance 1000
 export XIAXIA_LEDGER_PATH="$REAL_TMP"
 # 同一天、同一个种子，两次生成的账本一模一样。
-"$FIN" demo --out "$WORK/demo/a.json" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.json" --end 2026-11-20 >/dev/null
-cmp -s "$WORK/demo/a.json" "$WORK/demo/b.json" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
+"$FIN" demo --out "$WORK/demo/a.sqlite" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.sqlite" --end 2026-11-20 >/dev/null
+cmp -s "$WORK/demo/a.sqlite" "$WORK/demo/b.sqlite" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 手机记的：小纸条收进账本、入账、挂小票、报销（SQLite 账本在临时「夏夏账本」文件夹） ====="
 JSON_TMP="$XIAXIA_LEDGER_PATH"

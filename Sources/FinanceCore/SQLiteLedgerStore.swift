@@ -22,7 +22,7 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
-        let db = try SQLiteDB(url: url)
+        let db = try SQLiteDB.reader(url: url)
         let existing = Set(try db.query("SELECT name FROM sqlite_master WHERE type = 'table'"))
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
@@ -84,11 +84,28 @@ public struct SQLiteLedgerStore: LedgerStore {
         return ledger
     }
 
+    /// 用 SQLite 的一致性快照把已提交、仍在 WAL 里的页一起写进备份。
+    /// 只读连接先退出，之后写连接才能切换日志模式。
+    private func backupWALBeforeUpgrade(_ ledger: Ledger) throws -> Bool {
+        let reader = try SQLiteDB.reader(url: url)
+        let stored = try reader.minimumVersion()
+        guard try ledger.versionForSave(stored: stored) > stored,
+              try reader.query("PRAGMA journal_mode").first == "wal" else { return false }
+        _ = try LedgerBackup.make(of: url, label: "开生意模式前") { destination in
+            try reader.run("VACUUM INTO ?", [destination.path])
+        }
+        return true
+    }
+
     public func save(_ ledger: Ledger) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try ledger.checkBusinessVersion()
         let existed = FileManager.default.fileExists(atPath: url.path)
+        let walBackedUp = try existed && backupWALBeforeUpgrade(ledger)
         let db = try SQLiteDB(url: url)
+        let storedBeforeWrite = try db.minimumVersion()
+        _ = try ledger.versionForSave(stored: storedBeforeWrite)
+        try db.exec("PRAGMA journal_mode = DELETE")
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         enc.dateEncodingStrategy = .iso8601
@@ -98,7 +115,7 @@ public struct SQLiteLedgerStore: LedgerStore {
         do {
             let stored = try db.minimumVersion()
             let version = try ledger.versionForSave(stored: stored)
-            if existed && version > stored { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
+            if existed && version > stored && !walBackedUp { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
             try db.migrate()
             try db.run("INSERT OR REPLACE INTO meta (key,value) VALUES ('minReaderVersion',?)", [version])
             if let settings = ledger.business {
@@ -210,14 +227,18 @@ final class SQLiteDB {
             throw SQLiteError(message: msg)
         }
         sqlite3_busy_timeout(handle, 5000)
-        // 第一次查询可让 SQLite 回滚未提交的事务。新版账本不能改日志模式。
-        if !readOnly, try minimumVersion() <= 2 {
-            try exec("PRAGMA journal_mode = DELETE")
-        }
         try exec("PRAGMA foreign_keys = OFF")
     }
 
     deinit { sqlite3_close(handle) }
+
+    static func reader(url: URL) throws -> SQLiteDB {
+        // 有回滚日志时允许 SQLite 恢复中断的事务；读取 WAL 不触发 checkpoint。
+        let fm = FileManager.default
+        let pendingWAL = fm.fileExists(atPath: url.path + "-wal")
+        let rollback = fm.fileExists(atPath: url.path + "-journal")
+        return try SQLiteDB(url: url, readOnly: pendingWAL && !rollback)
+    }
 
     func minimumVersion() throws -> Int {
         guard !(try query("SELECT name FROM sqlite_master WHERE name='meta'")).isEmpty,

@@ -89,6 +89,10 @@ extension Ledger {
         var settings = business ?? BusinessSettings()
         let candidates = books.filter(\.isBusiness)
         var added: [String] = []
+        if settings.capital != nil, let bound = settings.businessBookID,
+           (bookID != nil && bookID != bound || !candidates.contains(where: { $0.id == bound })) {
+            throw BusinessError(message: "换生意账本前，请先清掉原账本的本钱")
+        }
         if let id = bookID {
             guard candidates.contains(where: { $0.id == id }) else { throw BusinessError(message: "请选择生意账本") }
             settings.businessBookID = id

@@ -124,6 +124,13 @@ public enum LedgerBackup {
     /// 只留最近 `keep` 份。
     @discardableResult
     public static func make(of file: URL, label: String, keep: Int = 10, now: Date = Date()) throws -> URL? {
+        try make(of: file, label: label, keep: keep, now: now) { destination in
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+    }
+
+    static func make(of file: URL, label: String, keep: Int = 10, now: Date = Date(),
+                     writeSnapshot: (URL) throws -> Void) throws -> URL? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: file.path) else { return nil }
         let dir = folder(for: file)
@@ -135,7 +142,10 @@ public enum LedgerBackup {
         while fm.fileExists(atPath: dest.path) {
             dest = dir.appendingPathComponent("ledger-\(f.string(from: now))-\(label)-\(n).\(ext)"); n += 1
         }
-        try fm.copyItem(at: file, to: dest)
+        let staging = dir.appendingPathComponent(".\(UUID().uuidString).tmp")
+        defer { try? fm.removeItem(at: staging) }
+        try writeSnapshot(staging)
+        try fm.moveItem(at: staging, to: dest)
         // 复制会带上原文件的修改时间；列表显示的是「什么时候备份的」，改成现在。
         try? fm.setAttributes([.modificationDate: now], ofItemAtPath: dest.path)
         for old in list(for: file).dropFirst(keep) { try? fm.removeItem(at: old.url) }

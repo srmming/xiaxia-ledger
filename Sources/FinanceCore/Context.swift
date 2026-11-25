@@ -13,9 +13,9 @@ public struct LedgerContext: Codable, Sendable {
         public var balanceInBase: String?
     }
 
-    public var businessEnabled: Bool
+    public var businessEnabled: Bool?
     public var businessBookID: String?
-    public var lifeBookIDs: [String]
+    public var lifeBookIDs: [String]?
     public var books: [BookInfo]
     public var accounts: [AccountInfo]
     public var transactionCount: Int
@@ -96,9 +96,11 @@ public struct LedgerContext: Codable, Sendable {
     ]
 
     public init(ledger: Ledger) {
-        businessEnabled = ledger.business?.enabled == true
-        businessBookID = ledger.businessBook?.id
-        lifeBookIDs = ledger.lifeBookIDs
+        if ledger.business?.enabled == true {
+            businessEnabled = true
+            businessBookID = ledger.businessBook?.id
+            lifeBookIDs = ledger.lifeBookIDs
+        }
         let balances = ledger.accountBalances()
         books = ledger.books.map { b in
             BookInfo(id: b.id, name: b.name, transactions: ledger.transactions.filter { $0.bookID == b.id }.count)

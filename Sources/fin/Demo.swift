@@ -13,7 +13,7 @@ struct DemoCommand: ParsableCommand {
         只能写到新文件；要覆盖以前生成的示例账本加 --force。真实账本所在的位置一律不写。
         """)
 
-    @Option(help: "写到哪个文件，.sqlite 或 .json 结尾。") var out: String
+    @Option(help: "写到哪个文件，.sqlite 结尾。") var out: String
     @Option(help: "示例账本里的「今天」，如 2026-11-20。不填 = 今天。流水从 12 个月前的 1 号到这天。") var end: String?
     @Option(help: "随机种子。同一个种子、同一个「今天」生成的账本一模一样。") var seed: UInt64 = DemoData.defaultSeed
     @Flag(help: "文件已经在了也覆盖（只肯覆盖以前生成的示例账本）。") var force = false
@@ -22,7 +22,7 @@ struct DemoCommand: ParsableCommand {
     func run() throws {
         let url = URL(fileURLWithPath: (out as NSString).expandingTildeInPath).standardizedFileURL
         let ext = url.pathExtension.lowercased()
-        guard ext == "json" || ext == "sqlite" else { throw ValidationError("文件名要以 .sqlite 或 .json 结尾") }
+        guard ext == "sqlite" else { throw ValidationError("生意模式需要 SQLite 账本，请用 .sqlite 结尾的文件名") }
         let target = url.resolvingSymlinksInPath().path
         if LedgerStores.standardLocations.contains(where: { $0.resolvingSymlinksInPath().path == target }) {
             throw ValidationError("这里是真实账本的位置，不能写示例数据：\(url.path)")

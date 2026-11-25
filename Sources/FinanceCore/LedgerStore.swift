@@ -54,11 +54,16 @@ public struct JSONFileLedgerStore: LedgerStore {
     }
 
     public func save(_ ledger: Ledger) throws {
+        let existing = try load()
+        try ledger.checkBusinessVersion()
+        try existing.checkBusinessVersion()
+        for value in [ledger, existing] {
+            guard value.business == nil, value.receivables.isEmpty, value.minReaderVersion < 2,
+                  !value.changes.contains(where: { $0.before?.changedBusiness == true }) else {
+                throw BusinessError(message: "生意模式需要 SQLite 账本")
+            }
+        }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let stored = try load().minReaderVersion
-        var ledger = ledger
-        ledger.minReaderVersion = try ledger.versionForSave(stored: stored)
-        if ledger.minReaderVersion > stored { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601

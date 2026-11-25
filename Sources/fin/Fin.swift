@@ -96,7 +96,9 @@ struct ContextCommand: ParsableCommand {
     func run() throws {
         let ctx = LedgerContext(ledger: try loadLedger())
         if options.json { return try Output.json(ctx) }
-        print("生意模式：\(ctx.businessEnabled ? "打开" : "关闭")，生意账本 \(ctx.businessBookID ?? "—")，生活账本 \(ctx.lifeBookIDs.joined(separator: "、"))")
+        if let life = ctx.lifeBookIDs {
+            print("生意模式：打开，生意账本 \(ctx.businessBookID ?? "—")，生活账本 \(life.joined(separator: "、"))")
+        }
         print("账本：")
         for b in ctx.books { print("  \(b.id)\t\(b.name)\t\(b.transactions) 笔") }
         print("账户：")
