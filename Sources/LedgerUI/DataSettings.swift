@@ -255,21 +255,22 @@ struct DemoBanner: View {
 }
 
 
-/// 删除数据的确认：点「删除…」时把范围和要删的数量定下来；最后点「删除」时再核对一次，对不上就不删。
+/// 删除数据的确认：点「删除…」时把范围和那一刻的整本账本定下来；最后点「删除」时账本只要有一点不一样
+/// （删了一笔又记一笔、重建了同名账本……）就不删，让人重新确认。磁盘上已经被别处改过、界面还没刷新的情况，
+/// 由保存时的校验拦住（LedgerModel.wipe → store.save）。
 struct WipeConfirmation: Equatable {
     let scope: WipeScope
     let name: String
     let count: WipeCount
+    private let snapshot: Ledger
 
     init(scope: WipeScope, name: String, ledger: Ledger) {
         self.scope = scope
         self.name = name
         self.count = ledger.wipeCount(scope)
+        self.snapshot = ledger
     }
 
-    /// 范围里的账本还在，要删的东西和当时给人看的一样多。
-    func stillValid(in ledger: Ledger) -> Bool {
-        if case .book(let id) = scope, !ledger.books.contains(where: { $0.id == id }) { return false }
-        return ledger.wipeCount(scope) == count
-    }
+    /// 和点「删除…」时的账本一模一样，才按当时给人看的范围删。
+    func stillValid(in ledger: Ledger) -> Bool { ledger == snapshot }
 }

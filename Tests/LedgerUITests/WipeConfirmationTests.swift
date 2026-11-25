@@ -34,4 +34,30 @@ final class WipeConfirmationTests: XCTestCase {
         _ = try changed.addTransaction(tx, author: "测试")
         XCTAssertFalse(pending.stillValid(in: changed))
     }
+
+    /// 审查复现：删掉一笔再记一笔，数量一样，但新记的那笔不能被删。
+    func testSwapOneEntryKeepsCountButCancels() throws {
+        let ledger = demo()
+        let book = ledger.books[0].id
+        let pending = WipeConfirmation(scope: .book(book), name: "个人", ledger: ledger)
+        var changed = ledger
+        let old = try XCTUnwrap(changed.transactions.first { $0.bookID == book })
+        _ = try changed.removeTransactions([old.id], author: "测试")
+        let tx = Transaction(date: old.date, amount: Money(cents: -999), description: "新记的一笔", accountID: old.accountID, bookID: book)
+        _ = try changed.addTransaction(tx, author: "测试")
+        XCTAssertEqual(changed.wipeCount(.book(book)), pending.count, "数量故意弄成一样")
+        XCTAssertFalse(pending.stillValid(in: changed))
+    }
+
+    /// 审查复现：删掉账本再建一个同 ID 同名的，也不算同一份。
+    func testRecreatedSameBookCancels() throws {
+        let ledger = demo()
+        let book = ledger.books[1]
+        let pending = WipeConfirmation(scope: .book(book.id), name: "店", ledger: ledger)
+        var changed = ledger
+        changed.books.removeAll { $0.id == book.id }
+        changed.books.append(Book(id: book.id, name: book.name, currency: book.currency, kind: book.kind))
+        changed.transactions = changed.transactions.map { var t = $0; if t.bookID == book.id { t.note = "改过" }; return t }
+        XCTAssertFalse(pending.stillValid(in: changed))
+    }
 }
