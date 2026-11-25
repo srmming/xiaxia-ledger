@@ -76,6 +76,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   snap() {
     local name="$1"; shift
+    # 快速模式：SHOTS 是一个正则，只截名字对得上的（见 .github/workflows/build.yml）。
+    if [ -n "${SHOTS:-}" ] && ! [[ "$name" =~ $SHOTS ]]; then return; fi
     # 用 open 启动，让 app 被激活。系统参数（-AppleLanguages 这种成对的）放前面：
     # 开关都带上值（-XiaxiaDemo 1）：参数凑不成「-键 值」对时，多出来的那个词会被 macOS 当成要打开的文件，
     # app 就不开主窗口了（只有个数凑成双数的那次截到了）。

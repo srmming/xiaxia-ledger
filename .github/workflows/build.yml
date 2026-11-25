@@ -23,18 +23,27 @@ jobs:
     timeout-minutes: 60  # 截图越来越多（2026-11-23 四个改动一起加），40 分钟跑到 Mac 截图就被掐断
     steps:
       - uses: actions/checkout@v4
+      # 快速模式（2026-11-25 ming 嫌一轮一个多小时太慢）：仓库里有 ci/mode 写着 mac 时，只编 Mac app、只截 ci/shots 里列的几张，
+      # 不跑 swift build/test、fin、iPhone 编译和界面测试。合并前删掉 ci/mode，完整跑一遍。
+      - name: 看是不是快速模式
+        run: |
+          if [ "$(cat ci/mode 2>/dev/null)" = "mac" ]; then echo "MAC_ONLY=1" >> "$GITHUB_ENV"; echo "SHOTS=$(cat ci/shots 2>/dev/null)" >> "$GITHUB_ENV"; echo "快速模式：只编 Mac、只截改到的页"; fi
       - name: 工具版本
         run: |
           mkdir -p ci-out
           xcodebuild -version | tee ci-out/versions.txt
           swift --version 2>&1 | tee -a ci-out/versions.txt
       - name: swift build
+        if: ${{ env.MAC_ONLY != '1' }}
         run: set -o pipefail; swift build 2>&1 | tee ci-out/swift-build.log
       - name: swift test
+        if: ${{ env.MAC_ONLY != '1' }}
         run: set -o pipefail; swift test 2>&1 | tee ci-out/swift-test.log
       - name: fin 和 MCP 实际跑一遍（临时示例账本）
+        if: ${{ env.MAC_ONLY != '1' }}
         run: set -o pipefail; bash scripts/fin-smoke.sh .build/debug/fin 2>&1 | tee ci-out/fin-smoke.log
       - name: 全局安装脚本（在假的 HOME 里试装）
+        if: ${{ env.MAC_ONLY != '1' }}
         run: |
           set -o pipefail
           FAKE=$(mktemp -d); mkdir -p "$FAKE/.claude" "$FAKE/.codex" "$FAKE/Library/Application Support/Claude"
@@ -61,12 +70,14 @@ jobs:
           printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"ci"}}}' \
             | XIAXIA_LEDGER_PATH="$(mktemp -d)/ledger.json" "$APP/Contents/MacOS/fin" mcp | grep -q xiaxia-ledger
       - name: 编译 iPhone app
+        if: ${{ env.MAC_ONLY != '1' }}
         run: |
           set -o pipefail
           xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Debug \
             -derivedDataPath App/build -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ci-out/xcode-ios.log | grep -E "error|BUILD" || true
           grep -q "BUILD SUCCEEDED" ci-out/xcode-ios.log
       - name: iPhone 界面自动检查（空账本 / 示例账本，都在内存里，不碰真账本）
+        if: ${{ env.MAC_ONLY != '1' }}
         run: |
           set -o pipefail
           DEVICE="$(xcrun simctl list devices available | grep -E 'iPhone 1[5-9]( Pro)? \(' | head -1 | grep -oE '[0-9A-F-]{36}')"
