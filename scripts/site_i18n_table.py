@@ -3,11 +3,7 @@
 
 T = {
     # <head>
-    "夏夏账本：Mac 上的原生记账 app。图表一眼看清收支、家底和欠款；记账直接跟你的 AI 说一句。账本存在你自己的电脑上。": (
-        "Xiaxia Ledger: a native money app for Mac. Charts show your income, spending, net worth and debts at a glance; to log something, just tell your AI. Your ledger stays on your own computer.",
-        "Xiaxia Ledger: una app nativa de finanzas para Mac. Los gráficos muestran de un vistazo tus ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA. Tu libro se queda en tu ordenador."),
     "夏夏账本 · 看一眼就知道钱去哪了": ("Xiaxia Ledger · See where your money went at a glance", "Xiaxia Ledger · Mira de un vistazo adónde se fue tu dinero"),
-    "看一眼就知道钱去哪了。记账，跟 AI 说一句就行。": ("See where your money went at a glance. To log it, just tell your AI.", "Mira de un vistazo adónde se fue tu dinero. Para apuntarlo, díselo a tu IA."),
     "夏夏账本更新": ("Xiaxia Ledger updates", "Novedades de Xiaxia Ledger"),
     "主导航": ("Main navigation", "Navegación principal"),
     # 导航
@@ -17,15 +13,11 @@ T = {
     "更新日志": ("Changelog", "Novedades"),
     "下载": ("Download", "Descargar"),
     # 头图
-    "看一眼，<br>就知道<em>钱去哪了</em>。": ("One look,<br>and you know <em>where the money went</em>.", "Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>."),
-    "夏夏账本是 Mac 上的原生记账 app。图表帮你看清收支、家底和欠款；记账直接跟你的 AI 说一句，夏夏还会给你出主意。": (
-        "Xiaxia Ledger is a native money app for Mac. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.",
-        "Xiaxia Ledger es una app nativa de finanzas para Mac. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja."),
+    "看一眼，<br><span class=\"nw\">就知道<em>钱去哪了</em>。</span>": ("One look,<br>and you know <em>where the money went</em>.", "Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>."),
     "下载 Mac 版": ("Download for Mac", "Descargar para Mac"),
     "先看看界面": ("Take the tour first", "Ver el recorrido"),
     "免费下载": ("Free download", "Descarga gratuita"),
     "· 需要 macOS 14 Sonoma 或更新": ("· Requires macOS 14 Sonoma or later", "· Requiere macOS 14 Sonoma o posterior"),
-    "这个月还能剩 813 €，比上月多哦 ✨": ("813 € left this month, more than last ✨", "Este mes te sobran 813 €, más que el pasado ✨"),
     "夏夏：蓝头发的鲸鱼娘，在挥手打招呼": ("Xiaxia: a blue-haired whale girl waving hello", "Xiaxia: una chica ballena de pelo azul que saluda"),
     # 为什么
     "为什么用夏夏账本": ("Why Xiaxia Ledger", "Por qué Xiaxia Ledger"),
@@ -38,22 +30,12 @@ T = {
         "How much is left this month, how fast you're spending, where it goes, whether your net worth grew. One point per page, no scrolling.",
         "Cuánto queda este mes, a qué ritmo gastas, en qué se va, si tu patrimonio ha crecido. Una idea por página, sin desplazarte."),
     "说一句就记上": ("Say it and it's logged", "Lo dices y queda apuntado"),
-    "「午饭 12,50」「把这张对账单导进来」，跟 Claude、ChatGPT Codex 等 AI 说就行，它帮你记、帮你分类。": (
-        "“Lunch 12,50”, “import this bank statement”: just tell Claude, ChatGPT Codex or another AI, and it logs and categorises for you.",
-        "«Comida 12,50», «importa este extracto»: díselo a Claude, ChatGPT Codex u otra IA y lo apunta y lo clasifica por ti."),
     "夏夏给你出主意": ("Xiaxia gives you advice", "Xiaxia te aconseja"),
     "多出来的钱放哪、哪个订阅悄悄涨价了、谁的钱该催了，夏夏看着你的账本提醒你。": (
         "Where to put spare money, which subscription quietly got pricier, who still owes you: Xiaxia watches your ledger and reminds you.",
         "Dónde poner el dinero que sobra, qué suscripción ha subido sin avisar, quién te debe: Xiaxia mira tu libro y te lo recuerda."),
     "账本在你自己手里": ("Your ledger stays yours", "Tu libro es tuyo"),
-    "账本是你 Mac 上的一个文件，不传到我们的服务器，也不需要银行密码。每次改动都有记录，随时能撤销。": (
-        "The ledger is a file on your Mac. It isn't uploaded to our servers and needs no bank password. Every change is recorded and can be undone.",
-        "El libro es un archivo en tu Mac. No se sube a nuestros servidores ni necesita la contraseña del banco. Cada cambio queda registrado y se puede deshacer."),
     # 看看界面
-    "原生 Mac app，深浅色都好看。": ("A native Mac app, good-looking in light and dark.", "Una app nativa de Mac, bonita en claro y en oscuro."),
-    "苹果原生组件做的，窗口拉大拉小都是一屏看完。下面的数字全是示例数据。": (
-        "Built with Apple's native components; resize the window and each page still fits on one screen. All numbers below are sample data, and the screenshots show the Chinese interface.",
-        "Hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino."),
     "选择页面": ("Choose a page", "Elige una página"),
     "总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。": (
         "Overview: how much is left this month, whether you're spending faster or slower than last month, and Xiaxia's comments to swipe through.",
@@ -81,9 +63,6 @@ T = {
         "También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas."),
     # 连上 AI
     "你已经在用的 AI，<br>就是你的记账员。": ("The AI you already use<br>is your bookkeeper.", "La IA que ya usas<br>es tu contable."),
-    "第一次打开夏夏账本，它会找出你 Mac 上装了的 AI 工具，勾好点「连上」就行。连好以后，在 AI 里说话，账就记进夏夏账本；你在 app 里看。": (
-        "The first time you open Xiaxia Ledger it finds the AI tools on your Mac; tick the ones you want and click Connect. After that, talk to your AI and it lands in the ledger; you look at it in the app.",
-        "La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; marca las que quieras y pulsa Conectar. Después, habla con tu IA y queda en el libro; tú lo miras en la app."),
     "能自动连上的 AI 工具": ("AI tools that connect automatically", "Herramientas de IA que se conectan solas"),
     "Claude 桌面版": ("Claude Desktop", "Claude Desktop"),
     "别的 AI 也行：在设置里点「一键复制配置提示词」，粘给它，它会自己接好。用 DeepSeek、通义千问、Kimi 的，可以通过 Hermes Agent 或 Cherry Studio 连。": (
@@ -130,13 +109,7 @@ T = {
     "小星": ("Xiaoxing", "Xiaoxing"),
     # iPhone
     "iPhone 版": ("iPhone", "iPhone"),
-    "手机上也能看，正在打磨中。": ("On your phone too. Still being polished.", "También en el móvil. Aún la estamos puliendo."),
-    "iPhone 和 Mac 通过 iCloud 看同一本账。iPhone 版还没公开下载，做好了会在这里通知。": (
-        "iPhone and Mac read the same ledger through iCloud. The iPhone app isn't available to download yet; we'll announce it here when it's ready.",
-        "El iPhone y el Mac ven el mismo libro mediante iCloud. La app de iPhone aún no se puede descargar; lo anunciaremos aquí cuando esté lista."),
     "iPhone 总览页（示例数据）": ("iPhone Overview page (sample data)", "Página Resumen en iPhone (datos de ejemplo)"),
-    "iPhone 夏夏点评页（示例数据）": ("iPhone page with Xiaxia's comments (sample data)", "Página con los comentarios de Xiaxia en iPhone (datos de ejemplo)"),
-    "iPhone 深色模式（示例数据）": ("iPhone in dark mode (sample data)", "iPhone en modo oscuro (datos de ejemplo)"),
     # 怎么装
     "三步装好，一分钟。": ("Three steps, one minute.", "Tres pasos, un minuto."),
     "需要 macOS 14 Sonoma 或更新的系统。看系统版本：点屏幕左上角": ("Requires macOS 14 Sonoma or later. To check your version, click", "Requiere macOS 14 Sonoma o posterior. Para ver tu versión, pulsa"),
@@ -150,9 +123,6 @@ T = {
         "In Applications, double-click 夏夏账本. Your Mac asks whether to open an app downloaded from the internet; click <b>Open</b>. From then on it behaves like any other app.",
         "En Aplicaciones, haz doble clic en 夏夏账本. El Mac pregunta si quieres abrir una app descargada de internet; pulsa <b>Abrir</b>. A partir de ahí funciona como cualquier otra app."),
     "连上你的 AI": ("Connect your AI", "Conecta tu IA"),
-    "第一次打开会弹出「连上你的 AI」，点<b>连上</b>，按提示重开一下 AI 工具，再对它说一句「记一笔：咖啡 3,20」试试。": (
-        "On first launch a “Connect your AI” window appears. Click <b>Connect</b>, restart your AI tool when asked, then try telling it “Log this: coffee 3,20”.",
-        "Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b>, reinicia tu herramienta de IA cuando lo pida y prueba a decirle «Apunta: café 3,20»."),
     "打不开，提示「无法验证开发者」或「已损坏」怎么办？": ("It won't open and says the developer can't be verified, or that it's damaged. What now?", "No se abre y dice que no se puede verificar el desarrollador o que está dañada. ¿Qué hago?"),
     "先关掉那个提示框。": ("Close that dialog first.", "Primero cierra ese aviso."),
     "打开「系统设置」→「隐私与安全性」，拉到最下面。": ("Open System Settings → Privacy & Security and scroll to the bottom.", "Abre Ajustes del Sistema → Privacidad y seguridad y baja hasta el final."),
@@ -160,7 +130,6 @@ T = {
         "Where it says 夏夏账本 was blocked, click <b>Open Anyway</b> next to it and enter your Mac password.",
         "Donde dice que se ha bloqueado 夏夏账本, pulsa <b>Abrir igualmente</b> e introduce la contraseña del Mac."),
     "还是不行，就把 dmg 删掉重新下载一次（下载没完成也会这样）。": ("Still stuck? Delete the dmg and download it again (an incomplete download causes this too).", "¿Sigue sin ir? Borra el dmg y descárgalo otra vez (una descarga incompleta también lo provoca)."),
-    "没有弹出「连上你的 AI」，或者我想以后再连？": ("The “Connect your AI” window didn't appear, or I'd rather connect later.", "No ha salido «Conecta tu IA», o prefiero conectarla más tarde."),
     "随时可以在 app 的「设置」→「AI 连接」里重新打开引导。也可以点「一键复制配置提示词」，粘给任何一个 AI，它会一步步帮你接好。": (
         "You can reopen the guide any time in the app under Settings → AI connections. Or copy the setup prompt and paste it to any AI; it will walk you through it.",
         "Puedes volver a abrir la guía cuando quieras en Ajustes → Conexiones de IA. O copia el texto de configuración y pégaselo a cualquier IA; te guiará paso a paso."),
@@ -194,4 +163,76 @@ T = {
     "// 女生版 / 男生版": ("// girls / boys", "// girls / boys"),
     "// 预载男生版，切换时不闪": ("// preload", "// preload"),
     "// 从自动更新文件读最新版本号和大小，读不到就保持「免费下载」": ("// version from appcast", "// version from appcast"),
+    # 2026-11-25 官网改版新加、改过的
+    "跳到正文": ("Skip to content", "Saltar al contenido"),
+    "菜单": ("Menu", "Menú"),
+    "<b>新</b>看看这次更新了什么 →": ("<b>New</b>See what's new →", "<b>Nuevo</b>Mira las novedades →"),
+    "把网址发给自己": ("Send me the link", "Enviarme el enlace"),
+    "'网址已复制，粘贴发给自己就行。'": ("'Link copied. Paste it into a message to yourself.'", "'Enlace copiado. Pégalo en un mensaje para ti.'"),
+    "'复制不了，请长按地址栏复制：'": ("'Couldn’t copy. Long-press the address bar to copy: '", "'No se pudo copiar. Mantén pulsada la barra de direcciones para copiar: '"),
+    "这个月还能剩 <b>813&nbsp;€</b>，比上月多哦 ✨": ("<b>813&nbsp;€</b> left this month, more than last ✨", "Este mes te sobran <b>813&nbsp;€</b>, más que el pasado ✨"),
+    "第一次打开夏夏账本，它会找出你 Mac 上装了的 AI 工具，每个 AI 旁边点一下「连接」就行。连好以后，在 AI 里说话，账就记进夏夏账本；你在 app 里看。": (
+        "The first time you open Xiaxia Ledger it finds the AI tools on your Mac; click Connect next to each one. After that, talk to your AI and it lands in the ledger; you look at it in the app.",
+        "La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; pulsa Conectar junto a cada una. Después, habla con tu IA y queda en el libro; tú lo miras en la app."),
+    "连完夏夏账本自己测一遍，确认 AI 能读到账本。": (
+        "After connecting, Xiaxia Ledger checks by itself that the AI can read your ledger.",
+        "Tras conectar, Xiaxia Ledger comprueba por sí sola que la IA puede leer tu libro."),
+    "第一次打开会弹出「连接你的 AI」，在你的 AI 旁边点<b>连接</b>，按提示重开一下 AI 工具，再对它说一句「记一笔：咖啡 3,20」试试。": (
+        "On first launch a “Connect your AI” window appears. Click <b>Connect</b> next to your AI, restart the AI tool when asked, then try telling it “Log this: coffee 3,20”.",
+        "Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b> junto a tu IA, reiníciala cuando lo pida y prueba a decirle «Apunta: café 3,20»."),
+    "没有弹出「连接你的 AI」，或者我想以后再连？": ("The “Connect your AI” window didn't appear, or I'd rather connect later.", "No ha salido «Conecta tu IA», o prefiero conectarla más tarde."),
+    "「午饭 12,50」「把这张对账单导进来」，跟 Claude、Codex 等 AI 说就行，它帮你记、帮你分类。": (
+        "“Lunch 12,50”, “import this bank statement”: just tell Claude, Codex or another AI, and it logs and categorises for you.",
+        "«Comida 12,50», «importa este extracto»: díselo a Claude, Codex u otra IA y lo apunta y lo clasifica por ti."),
+    "// 截图切换：点一下或用左右方向键": ("// tour tabs: click or arrow keys", "// tour tabs: click or arrow keys"),
+    "// 手机上：把网址发给自己（能分享就弹分享，不能就复制）": ("// phone: send yourself the link", "// phone: send yourself the link"),
+    "/* 配色从夏夏身上取：墨蓝头发、海水色发尾、金色算盘珠、奶油色围裙。橙色只给按钮。 */": ("/* palette from Xiaxia: ink-blue hair, sea-green tips, gold abacus beads, cream apron; orange only on buttons */", "/* palette from Xiaxia: ink-blue hair, sea-green tips, gold abacus beads, cream apron; orange only on buttons */"),
+    "/* 四件事：像账本里的四行 */": ("/* four points, like ledger rows */", "/* four points, like ledger rows */"),
+    "/* cast：拍立得 */": ("/* cast: polaroids */", "/* cast: polaroids */"),
+    "/* 结尾 */": ("/* closing band */", "/* closing band */"),
+    # 2026-11-25 iPhone 版
+    "夏夏账本：Mac 上的原生记账 app，现在就能免费下载；iPhone 版即将推出，能随手记、拍小票，开了 iCloud 云盘还能和 Mac 同步同一本账。图表一眼看清收支、家底和欠款；记账直接跟你的 AI 说一句。": ("Xiaxia Ledger: a native money app for Mac, free to download now. The iPhone app is coming soon: quick entries, receipt photos, and with iCloud Drive turned on, the same ledger as your Mac. Charts show your income, spending, net worth and debts at a glance; to log something, just tell your AI.",
+        "Xiaxia Ledger: una app nativa de finanzas para Mac, ya gratis para descargar. La app de iPhone llega muy pronto: apuntes rápidos, fotos de tiques y, con iCloud Drive activado, el mismo libro que en tu Mac. Los gráficos muestran de un vistazo ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA."),
+    "看一眼就知道钱去哪了。Mac 版现在就能下载，iPhone 版即将推出；记账跟 AI 说一句就行。": ("See where your money went at a glance. Download for Mac now; the iPhone app is coming soon. To log something, just tell your AI.",
+        "Mira de un vistazo adónde se fue tu dinero. Descárgala ya para Mac; la app de iPhone llega muy pronto. Para apuntar algo, díselo a tu IA."),
+    "夏夏账本是 Mac 上的原生记账 app，iPhone 版即将推出，支持通过 iCloud 和 Mac 同步同一本账。图表帮你看清收支、家底和欠款；记账直接跟你的 AI 说一句，夏夏还会给你出主意。": ("Xiaxia Ledger is a native money app for Mac, with an iPhone app coming soon that can sync the same ledger with your Mac through iCloud. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.",
+        "Xiaxia Ledger es una app nativa de finanzas para Mac, y la de iPhone llega muy pronto y podrá sincronizar el mismo libro con tu Mac mediante iCloud. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja."),
+    "iPhone 版即将推出 →": ("iPhone app coming soon →",
+        "App de iPhone muy pronto →"),
+    "账本是你自己的一个文件，放在你的 Mac 上（开了 iCloud 云盘就跟着 iCloud 走），不传到我们的服务器，也不需要银行密码。每次改动都有记录，随时能撤销。": ("The ledger is your own file on your Mac (with iCloud Drive turned on, it lives in your iCloud). It isn't uploaded to our servers and needs no bank password. Every change is recorded and can be undone.",
+        "El libro es un archivo tuyo en tu Mac (con iCloud Drive activado, va en tu iCloud). No se sube a nuestros servidores ni necesita la contraseña del banco. Cada cambio queda registrado y se puede deshacer."),
+    "Mac 上一屏看完，深浅色都好看。": ("One screen per page on Mac, good-looking in light and dark.",
+        "En el Mac, cada página en una pantalla, bonita en claro y en oscuro."),
+    "Mac 版用苹果原生组件做的，窗口拉大拉小都是一屏看完。下面的数字全是示例数据。": ("The Mac app is built with Apple's native components; resize the window and each page still fits on one screen. All numbers below are sample data, and the screenshots show the Chinese interface.",
+        "La app de Mac está hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino."),
+    "即将推出": ("Coming soon",
+        "Muy pronto"),
+    "口袋里，<br>也是同一本账。": ("In your pocket,<br>the same ledger.",
+        "En tu bolsillo,<br>el mismo libro."),
+    "开了 iCloud 云盘，iPhone 和 Mac 接上同一个「夏夏账本」文件夹，就会自动同步：在手机上记的，回到电脑上就看得到。iPhone 版还没公开下载，做好了会在这里通知。": ("With iCloud Drive turned on and both devices linked to the same Xiaxia Ledger folder, iPhone and Mac sync automatically: what you add on your phone shows up on your computer. The iPhone app isn't available to download yet; we'll announce it here when it's ready. Screenshots show the Chinese interface.",
+        "Con iCloud Drive activado y los dos dispositivos enlazados a la misma carpeta de Xiaxia Ledger, el iPhone y el Mac se sincronizan solos: lo que apuntas en el móvil aparece en el ordenador. La app de iPhone aún no se puede descargar; lo anunciaremos aquí cuando esté lista. Las capturas muestran la interfaz en chino."),
+    "随手记一笔": ("Quick entry",
+        "Apunte rápido"),
+    "打开就能记，金额、分类、账户点几下就好，还能「再记一笔」连着记。": ("Open it and add an entry: amount, category and account in a few taps, and “Add another” to keep going.",
+        "Ábrela y apunta: importe, categoría y cuenta en unos toques, y «Apuntar otro» para seguir."),
+    "拍小票": ("Snap the receipt",
+        "Fotografía el tique"),
+    "对着小票拍一张，或者说一句「午饭 10 欧」，先存进待记录，之后让夏夏补进账本。": ("Take a photo of a receipt or type “lunch 10 euros”; it waits in your to-do list until Xiaxia adds it to the ledger.",
+        "Haz una foto al tique o escribe «comida 10 euros»; queda pendiente hasta que Xiaxia lo pase al libro."),
+    "报销一页看清": ("Expense claims on one page",
+        "Reembolsos en una página"),
+    "哪些没交、哪些交了在等钱、哪些已经到账，一页看清，还能导出报销单。": ("What's not submitted, what's waiting to be paid and what's been paid, all on one page, and you can export a claim sheet.",
+        "Qué falta por presentar, qué espera el pago y qué ya se cobró, todo en una página, y puedes exportar la hoja de reembolso."),
+    "和 Mac 同步": ("Syncs with your Mac",
+        "Se sincroniza con tu Mac"),
+    "在 iPhone 上选一次 iCloud 云盘里的「夏夏账本」文件夹，就和 Mac 看同一本账，不用导来导去；总览、收支、家底、计划在手机上也都能看。": ("Pick the Xiaxia Ledger folder in iCloud Drive once on your iPhone and it shares one ledger with your Mac, no exporting back and forth; Overview, income and spending, net worth and plans are all on your phone too.",
+        "Elige una vez en el iPhone la carpeta de Xiaxia Ledger en iCloud Drive y compartirá el mismo libro con tu Mac, sin exportar de un lado a otro; Resumen, ingresos y gastos, patrimonio y planes también están en el móvil."),
+    "iPhone 上的「记一笔」：可以拍小票或说一句，下面是计算器键盘（示例数据）": ("Adding an entry on iPhone: snap a receipt or type a sentence, with a calculator keypad below (sample data)",
+        "Apuntar en iPhone: fotografía un tique o escribe una frase, con teclado de calculadora debajo (datos de ejemplo)"),
+    "iPhone 上的报销页：待提交、已提交、已到账分开列出（示例数据）": ("Expense claims on iPhone: not submitted, submitted and paid listed separately (sample data)",
+        "Reembolsos en iPhone: por presentar, presentados y cobrados por separado (datos de ejemplo)"),
+    "在手机上看？iPhone 版即将推出，可以先看看它能做什么；Mac 版要回到电脑上下载，先把网址发给自己就行。": ("On your phone? The iPhone app is coming soon; see what it can do below. The Mac app downloads on your computer, so send yourself this link.",
+        "¿Estás en el móvil? La app de iPhone llega muy pronto; mira abajo lo que hace. La de Mac se descarga en el ordenador: envíate este enlace."),
+    "看看 iPhone 版": ("See the iPhone app",
+        "Ver la app de iPhone"),
 }

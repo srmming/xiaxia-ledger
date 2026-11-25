@@ -7,7 +7,7 @@
 翻译表在 scripts/site_i18n_table.py。改了首页文字：改表 → 跑这个脚本 → 一起提交。
 更新日志页的英文、西语由 scripts/changelog.py site 生成。只用 Python 自带的库。
 """
-import os, re, sys
+import os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = os.path.join(ROOT, "site")
@@ -31,7 +31,8 @@ def localize(page, lang, table):
     page = rx.sub(lambda m: table[m.group(0)][i], page)
     page = page.replace('<html lang="zh-CN">', f'<html lang="{HTML_LANG[lang]}">')
     # 子目录里的页面，图片这些要往上找一层
-    page = re.sub(r'((?:src|href|data-img|data-girl|data-boy)=")assets/', r"\1../assets/", page)
+    page = re.sub(r'((?:src|srcset|href|data-img|data-girl|data-boy)=")assets/', r"\1../assets/", page)
+    page = page.replace("url(assets/", "url(../assets/")
     # 站内链接留在同一种语言里
     page = page.replace('href="/#', f'href="/{lang}/#').replace('class="logo" href="/"', f'class="logo" href="/{lang}/"')
     # 语言切换：当前语言标出来
@@ -68,6 +69,11 @@ def main():
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f: f.write(out)
             print(f"写好了 site/{lang}/index.html")
+    if not check:
+        # 标题用的手写字体只截了页面上用到的字，改了标题要重新截
+        font = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site-font.py")
+        if subprocess.run([sys.executable, font]).returncode != 0:
+            print("⚠︎ 标题字体没更新（见上面的提示）；新标题里的字会先用系统楷体顶上")
     sys.exit(bad)
 
 
