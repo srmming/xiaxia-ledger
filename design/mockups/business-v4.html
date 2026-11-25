@@ -1,0 +1,113 @@
+<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>生意模式 v4</title><style>
+:root{--shop:#0B6577;--shopSoft:rgba(14,124,146,.09);--income:#0E6B40;--fg:#1d1d1f;--fg2:#6e6e73;--fg3:#a1a1a6;--page:#F5F5F7;--card:#fff;--line:rgba(0,0,0,.07)}
+.dark{--shop:#2FA4BA;--shopSoft:rgba(47,164,186,.14);--income:#36C77F;--fg:#f5f5f7;--fg2:#a1a1a6;--fg3:#6e6e73;--page:#000;--card:#1C1C1E;--line:rgba(255,255,255,.09)}
+*{box-sizing:border-box}
+body{margin:0;background:#ECEAE4;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2b2b2b;line-height:1.5}
+.doc{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px}.sub{color:#777;font-size:13px;margin-bottom:22px}
+h2{font-size:20px;margin:0 0 6px}.what{color:#555;font-size:14px;margin:0 0 16px;max-width:860px}
+section{margin:0 0 44px}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums}
+/* 流程 */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.step{background:#fff;border-radius:18px;padding:18px 18px 16px;position:relative}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--shop);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px}
+.step h3{font-size:17px;margin:12px 0 4px}.step p{font-size:13px;color:#555;margin:0}
+.step .when{font-size:12px;color:var(--shop);font-weight:600;margin-top:10px}
+.step .mini{margin-top:12px;background:#F5F5F7;border-radius:12px;padding:12px;font-size:12px;color:#333;min-height:74px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.step:not(:last-child)::after{content:"›";position:absolute;right:-12px;top:44%;font-size:26px;color:#bbb}
+.seg{display:inline-flex;background:rgba(118,118,128,.12);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:4px 14px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--card);color:var(--shop);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dark .seg{background:rgba(118,118,128,.24)}
+.sw{width:38px;height:22px;border-radius:11px;background:#34C759;position:relative;display:inline-block;vertical-align:middle}.sw::after{content:"";position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;border-radius:14px;font-weight:600;font-size:16px;padding:14px}
+.btn.p{background:var(--shop);color:#fff}.btn.s{background:var(--shopSoft);color:var(--shop)}
+.row{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.cap{text-align:center;font-size:12px;color:#888;margin-top:8px}
+/* Mac */
+.mac{width:780px;border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18);background:var(--page)}
+.tb{height:50px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.dots{display:flex;gap:7px}.dots i{width:12px;height:12px;border-radius:50%;background:#FF5F57}.dots i:nth-child(2){background:#FEBC2E}.dots i:nth-child(3){background:#28C840}
+.tb .sp{flex:1}.tb .add{background:var(--shop);color:#fff;border-radius:8px;padding:5px 12px;font-size:13px;font-weight:600}
+.macbody{display:flex;height:500px}
+.sb{width:170px;padding:14px 10px;font-size:13px;color:var(--fg2);background:rgba(0,0,0,.025);border-right:1px solid var(--line)}
+.sb div{padding:5px 10px;border-radius:7px}.sb .on{background:rgba(0,0,0,.06);color:var(--fg);font-weight:600}
+.main{flex:1;padding:56px 72px;display:flex;flex-direction:column}
+/* iPhone */
+.ph{width:300px;height:620px;border-radius:46px;background:#111;padding:10px;box-shadow:0 18px 50px rgba(0,0,0,.2)}
+.scr{height:100%;border-radius:37px;background:var(--page);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.sbar{display:flex;justify-content:space-between;padding:14px 26px 0;font-size:13px;font-weight:600;color:var(--fg)}
+.nav{display:flex;justify-content:center;padding:14px 0 0}
+.phmain{flex:1;padding:40px 24px 0;display:flex;flex-direction:column}
+.tabs{display:flex;justify-content:space-around;padding:10px 0 26px;border-top:1px solid var(--line);font-size:10px;color:var(--fg3)}
+.tabs .on{color:var(--shop);font-weight:600}
+/* 生意首页共用 */
+.lbl{font-size:13px;color:var(--fg2)}
+.big{font-size:64px;font-weight:700;letter-spacing:-1.5px;line-height:1.05;color:var(--fg)}
+.ph .big{font-size:48px}
+.delta{font-size:14px;color:var(--fg2);margin-top:6px}.delta b{color:var(--income);font-weight:600}
+.payback{margin-top:auto}
+.track{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:8px 0 6px}.track i{display:block;height:100%;width:46%;background:var(--shop);border-radius:3px}
+.quiet{display:flex;gap:22px;font-size:13px;color:var(--fg2);margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.quiet b{display:block;color:var(--fg);font-size:15px;font-weight:600}
+.note{background:#fff;border-radius:14px;padding:14px 16px;font-size:13px;color:#444;max-width:300px}
+.note b{color:#111}
+.sheet{width:300px;background:var(--card);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}.chips span{padding:6px 12px;border-radius:16px;background:#F2F2F7;font-size:13px}.chips .on{background:var(--shopSoft);color:var(--shop);font-weight:600}
+
+.card{background:var(--card);border-radius:18px;padding:18px 20px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.k{font-size:13px;color:var(--fg2)}
+.v{font-size:22px;font-weight:700;color:var(--fg)}
+.ok{color:var(--income);font-weight:600}
+.warnc{color:#B8322A;font-weight:600}
+.dark .warnc{color:#FF6A5F}
+.pill2{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 9px;border-radius:10px;background:var(--shopSoft);color:var(--shop);font-weight:600}
+.field{display:flex;align-items:center;justify-content:space-between;background:var(--page);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--fg)}
+.field .in{font-size:22px;font-weight:700}
+.macmain{flex:1;padding:36px 48px;display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-content:start}
+.ph .phmain{padding:18px 16px 0;gap:12px}
+.tiny{font-size:11px;color:var(--fg3)}
+.btn,.num,b{white-space:nowrap}
+.ph .phmain{gap:9px;padding-top:12px}
+.ph .card{padding:12px 14px!important}
+.ph .big{font-size:40px!important}
+</style></head><body><div class="doc">
+<h1>生意模式 · 首页新版 v4</h1><div class="sub">2026-11-25 · 按 ming 的四个问题重排：今天赚了没有 → 这个月比上月 → 手上的钱够不够付下周 → 什么时候回本。金额全是编的示例。</div>
+<section id="home"><h2>① 生意首页</h2><p class="what">从上到下就是你问的顺序。最上面「今天赚了」最大，旁边就是「记今天收入」。回本卡只给刚开店、填了本钱还没回本的人看。</p>
+<div class="row"><div><div class="mac ui"><div class="tb"><div class="dots"><i></i><i></i><i></i></div><span class="seg"><span>生活</span><span class="on">生意</span></span><div class="sp"></div><span class="add">＋ 记一笔</span></div>
+<div class="macbody"><div class="sb"><div class="on">总览</div><div>花销</div><div>趋势</div><div>家底</div><div>目标</div><div>欠款与分期</div><div style="margin-top:10px">流水</div><div>设置</div></div><div class="macmain"><div class="stack"><div class="card"><div class="k">今天赚了 · 11 月 25 日 周二</div><div class="big num" style="color:var(--shop)">+384 €</div>
+<div class="k" style="margin-top:6px">收了 <b class="num" style="color:var(--fg)">420 €</b> − 花了 <b class="num" style="color:var(--fg)">36 €</b></div>
+<div style="display:flex;gap:10px;margin-top:16px"><div class="btn p" style="flex:1">＋ 记今天收入</div><div class="btn s" style="flex:1">记开销</div></div></div><div class="card"><div class="k">11 月到今天赚了</div><div class="v num" style="font-size:30px">2.340 €</div>
+<div class="k" style="margin-top:2px">比 10 月 25 日那时 <span class="ok">多 310 €</span></div></div></div><div class="stack"><div class="card"><div class="k">手上能动的钱</div><div class="v num" style="font-size:30px">6.280 €</div>
+<div style="display:flex;gap:24px;margin-top:6px" class="k"><span>现金 <b class="num" style="color:var(--fg)">860 €</b></span><span>店里的卡 <b class="num" style="color:var(--fg)">5.420 €</b></span></div>
+<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px;font-size:14px;color:var(--fg)">下周要付 <b class="num">2.600 €</b>（30 号工资 1.400、1 号房租 1.200）<br><span class="ok">✓ 够，付完还剩 3.680 €</span></div></div><div class="card"><div style="display:flex;justify-content:space-between;font-size:14px"><b>回本 46%</b><span class="k">大约还要 14 个月</span></div>
+<div class="track"><i></i></div><div class="tiny">刚开店才有这张卡，回本那天会庆祝一下，之后自动收起。</div></div></div></div></div></div><div class="cap">Mac · 浅色</div></div><div><div class="ph"><div class="scr ui"><div class="sbar"><span>9:41</span><span></span></div>
+<div class="nav"><span class="seg"><span>生活</span><span class="on">生意</span></span></div><div class="phmain"><div class="card" style="padding:16px"><div class="k">今天赚了</div><div class="big num" style="color:var(--shop);font-size:46px">+384 €</div><div class="k">收了 420 € − 花了 36 €</div>
+<div style="display:flex;gap:8px;margin-top:12px"><div class="btn p" style="flex:1;padding:11px;font-size:15px">＋ 记今天收入</div><div class="btn s" style="padding:11px 14px;font-size:15px">记开销</div></div></div><div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center"><div><div class="k">11 月到今天赚了</div><div class="v num">2.340 €</div></div><span class="ok" style="font-size:13px">比上月同期 +310 €</span></div><div class="card" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="k">手上能动的钱</div><div class="v num">6.280 €</div></div>
+<div class="tiny" style="margin-top:2px">现金 860 € · 店里的卡 5.420 €</div>
+<div style="font-size:13px;margin-top:10px;color:var(--fg)">下周要付 2.600 €（工资、房租）<span class="ok"> ✓ 够</span></div></div><div class="card" style="padding:12px 16px"><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg)"><b>回本 46%</b><span class="k">还要约 14 个月</span></div><div class="track" style="margin-bottom:0"><i></i></div></div></div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div></div><div class="cap">iPhone · 钱够付下周</div></div><div><div class="ph"><div class="scr ui dark"><div class="sbar"><span>9:41</span><span></span></div>
+<div class="nav"><span class="seg"><span>生活</span><span class="on">生意</span></span></div><div class="phmain"><div class="card" style="padding:16px"><div class="k">今天赚了</div><div class="big num" style="color:var(--shop);font-size:46px">+384 €</div><div class="k">收了 420 € − 花了 36 €</div>
+<div style="display:flex;gap:8px;margin-top:12px"><div class="btn p" style="flex:1;padding:11px;font-size:15px">＋ 记今天收入</div><div class="btn s" style="padding:11px 14px;font-size:15px">记开销</div></div></div><div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center"><div><div class="k">11 月到今天赚了</div><div class="v num">2.340 €</div></div><span class="ok" style="font-size:13px">比上月同期 +310 €</span></div><div class="card" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="k">手上能动的钱</div><div class="v num">2.280 €</div></div>
+<div class="tiny" style="margin-top:2px">现金 860 € · 店里的卡 1.420 €</div>
+<div style="font-size:13px;margin-top:10px;color:var(--fg)">下周要付 2.600 €（工资、房租）<span class="warnc"> 还差 320 €</span></div></div></div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div></div><div class="cap">iPhone · 深色，钱不够时标红写差多少</div></div></div></section>
+<section id="income"><h2>② 记今天收入：一屏就完</h2><p class="what">只问「今天收了多少」。现金一个框、刷卡/转账一个框，上面自动加总，点「记好了」就记成两笔（现金进店里现金，刷卡进公司卡）。哪个框空着就不记。</p>
+<div class="row"><div><div class="ph"><div class="scr ui"><div class="sbar"><span>9:41</span><span></span></div><div style="display:flex;justify-content:space-between;padding:14px 20px 0;font-size:15px"><span style="color:var(--shop)">取消</span><b>记今天收入</b><span style="width:30px"></span></div><div class="phmain" style="padding:30px 20px 0"><div class="k" style="text-align:center">今天收了多少</div>
+<div class="num" style="font-size:52px;font-weight:700;text-align:center;color:var(--fg)">420 €</div><div class="tiny" style="text-align:center;margin-bottom:18px">两个框自动加起来</div>
+<div class="field"><span>💶 现金</span><span class="in num">120</span></div>
+<div class="field"><span>💳 刷卡 / 转账</span><span class="in num">300</span></div>
+<div class="btn p" style="margin-top:auto;margin-bottom:30px">记好了</div></div></div></div><div class="cap">iPhone · Mac 上是同样的小窗口</div></div></div></section>
+<section id="payback"><h2>③ 回本卡：只给刚开店的人</h2><p class="what">填了开店本钱、还没回本才显示。回本那天庆祝一下，点「收起」或者过一周自动收起，以后首页不再出现。</p>
+<div class="row"><div class="card" style="width:300px"><div style="display:flex;justify-content:space-between;font-size:14px"><b>回本 46%</b><span class="k">大约还要 14 个月</span></div><div class="track"><i></i></div><div class="tiny">已经赚回 32.400 € / 开店花了 70.000 €</div></div><div class="card" style="width:300px"><div style="text-align:center;font-size:30px">🎉</div><div style="text-align:center;font-weight:700;font-size:17px">今天回本了！</div><div class="k" style="text-align:center">开店花的 70.000 € 全赚回来了，用了 19 个月。之后赚的都是净赚。</div><div class="btn s" style="margin-top:12px;padding:9px">收起这张卡</div></div><div class="card" style="width:300px"><div class="k">没填开店本钱，或者已经回本：首页不显示这张卡。</div><div class="tiny" style="margin-top:6px">想看可以去 设置 → 生意模式。</div></div></div></section>
+<section id="accounts"><h2>④ 账户分生活 / 生意</h2><p class="what">回答「公司卡里有多少、会不会和生活撞一起」：每个账户标一下算哪边。</p>
+<div class="row"><div class="card" style="width:380px;padding:6px 18px">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)"><div><b>公司卡 · CaixaBank</b><div class="tiny">银行卡</div></div><span class="seg" style="font-size:12px"><span>生活</span><span class="on">生意</span></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)"><div><b>店里现金</b><div class="tiny">现金</div></div><span class="seg" style="font-size:12px"><span>生活</span><span class="on">生意</span></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)"><div><b>日常卡</b><div class="tiny">银行卡</div></div><span class="seg" style="font-size:12px"><span class="on" style="color:#B4441F">生活</span><span>生意</span></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0"><div><b>Revolut</b><div class="tiny">两边都在用</div></div><span class="seg" style="font-size:12px"><span>生活</span><span>生意</span><span class="on" style="color:#444">混用</span></span></div></div><div class="note" style="max-width:420px"><b>怎么算：</b><br>
+· 公司卡、店里现金算<b>生意</b>：出现在生意首页「手上能动的钱」，<b>不</b>算进生活那边的「能随便花」。<br>
+· 日常卡算<b>生活</b>。<br>
+· 混着用的卡（比如 Revolut）：按每一笔记在哪边拆开算——店里花的算生意，家里花的算生活。<br>
+· 家底页的「总共有多少钱」两边都算，一分不漏。<br><br>
+在 设置 → 账本与账户 里点一个账户，就能改它算哪边。</div></div></section>
+</div></body></html>
