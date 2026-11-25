@@ -9,6 +9,7 @@ import SwiftUI
 /// - 「记下」后关掉；「再记一笔」记下后清空金额和名称，接着记。
 /// 改一笔（model.editingID 有值）用同一张表，按钮变成「保存」。写入都标「你」、进改动记录，能撤销。
 struct QuickAdd: View {
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     @Environment(LedgerModel.self) var model
     @Environment(\.dismiss) var dismiss
 
@@ -142,7 +143,7 @@ struct QuickAdd: View {
                 detailRows
             }
 
-            if editing == nil {
+            if editing == nil && aiInPages {
                 AskAIReader { ask in
                     (Text(tr("要记分期、借款、导对账单？")) + Text(tr("跟夏夏说更快")).foregroundColor(.ai))
                         .font(.caption).foregroundStyle(Color.fg2).multilineTextAlignment(.center)

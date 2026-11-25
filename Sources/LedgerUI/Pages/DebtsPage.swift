@@ -5,6 +5,7 @@ import SwiftUI
 /// 最上面夏夏说一句（别人欠的到期没还就俏皮催一下）；顶上三个数：我欠的、欠我的、本月要还多少，下面一条「还清时间线」；
 /// 再往下左边「我欠的」（分期 + 借来的），右边「欠我的」。本月要还的排最前，快到期的标红。这些都已经算进家底。
 struct DebtsPage: View {
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     @Environment(LedgerModel.self) var model
     /// iPhone 的「计划」标签里也用这一页，那里外面已经有滚动了。
     var embedded = false
@@ -237,7 +238,7 @@ struct DebtsPage: View {
                 Text(tr("还有 \(lines.count - maxRows) 笔，跟夏夏说「列出我所有的欠款和分期」。")).font(.caption).foregroundStyle(Color.fg2).padding(.top, 4)
             }
             if !short, let tip = repayTip(installments: installments, borrowed: borrowed) {
-                repayFooter(tip)
+                if aiInPages { repayFooter(tip) }
             }
         }
         .kitCard()

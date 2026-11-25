@@ -360,6 +360,8 @@ struct KitEmptyState: View {
     var prompt: String? = nil
     var page = tr("总览")
     var buttonTitle = tr("复制好去问 AI")
+    /// 页面上的 AI 提示层（见 CharacterLayer.swift）：关着时不放「问夏夏」按钮，只留说明。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
 
     var body: some View {
         AskAIReader { ask in
@@ -374,7 +376,7 @@ struct KitEmptyState: View {
                 Text(title).font(.headline)
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                if let prompt {
+                if let prompt, aiInPages {
                     Button { ask(prompt, page: page) } label: { Label(model.chatReady ? model.xia(tr("跟夏夏说")) : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)

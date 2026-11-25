@@ -41,7 +41,13 @@ struct XiaxiaSays: View {
     /// 问完要不要让 AI 顺手给这一页写条意见（帮忙写提醒消息时不用）。
     var asksInsight = true
 
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     var body: some View {
+        // 页面上的 AI 提示剥离成单独一层（ming 2026-11-25「所有的界面 AI 提示都剥离」），默认不显示。
+        if aiInPages { pageBody }
+    }
+
+    @ViewBuilder private var pageBody: some View {
         if let insight = model.ledger.insight(forPage: page, month: model.shownMonth, bookID: model.selectedBookID) {
             InsightCard(insight: insight)
         } else {

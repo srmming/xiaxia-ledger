@@ -56,3 +56,27 @@ struct CharacterToggle: View {
         .accessibilityIdentifier("settings.showCharacter")
     }
 }
+
+// MARK: - AI 提示层
+
+// 页面上的 AI 提示（夏夏点评叠卡、「夏夏说」、问 AI 的话术卡、空状态和欠款页里的「问夏夏」按钮）也剥离成一层：
+// ming 2026-11-25：「所有的界面 AI 提示都剥离」「非引导页面」。页面本身只放数字和功能；
+// 问夏夏走工具栏右上角的入口（⌘K），AI 写的意见集中在「夏夏建议」页。第一次打开的引导、连 AI 页不受影响。
+// 以后想放回页面上，设置里打开「页面上显示夏夏的点评」。
+enum AILayer {
+    static let storageKey = "xiaxia.aiInPages"
+}
+
+struct AILayerToggle: View {
+    @AppStorage(AILayer.storageKey) private var shown = false
+    var body: some View {
+        Toggle(isOn: $shown.animation(.snappy)) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tr("页面上显示夏夏的点评"))
+                Text(tr("关着时各页只放数字和功能，夏夏的意见都在「夏夏建议」里，问她点右上角。")).font(.caption).foregroundStyle(Color.fg2)
+            }
+        }
+        .toggleStyle(.switch)
+        .accessibilityIdentifier("settings.aiInPages")
+    }
+}
