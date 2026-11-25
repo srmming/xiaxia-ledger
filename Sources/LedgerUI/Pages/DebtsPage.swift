@@ -84,15 +84,7 @@ struct DebtsPage: View {
                 addButtons
             }
             #endif
-            if !o.payoffs.isEmpty {
-                if short {
-                    // 窗口矮：时间线只留一行字（哪个月全部还清 + 每笔哪个月清），一屏放下。
-                    PayoffTimeline(overview: o, compact: true)
-                } else {
-                    Divider()
-                    PayoffTimeline(overview: o)
-                }
-            }
+            // 还清时间线（插旗子那条）去掉了（ming 2026-11-25）：每笔哪个月还清写在下面各自那一行里。
         }
         .kitCard(padding: short ? 14 : 18)
         .accessibilityElement(children: .contain)

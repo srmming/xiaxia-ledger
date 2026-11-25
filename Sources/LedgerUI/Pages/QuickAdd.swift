@@ -60,7 +60,11 @@ struct QuickAdd: View {
         lists = Lists(
             categories: model.categories(bookID: bookID, income: income, limit: 60),
             names: model.nameSuggestions("", income: income, limit: 500),
-            frequent: model.ledger.frequentEntries(income: income, limit: 6).filter { visible.contains($0.accountID) },
+            // 常记的只拿这一边的（店里记一笔不出现咖啡、会员这些自己的东西）。
+            frequent: model.ledger.frequentEntries(income: income, limit: 12).filter { t in
+                visible.contains(t.accountID)
+                    && (!model.businessOn || model.ledger.side(of: t) == (shopMode ? .business : .life))
+            }.prefix(6).map { $0 },
             tags: model.ledger.allTags)
     }
 
@@ -837,7 +841,8 @@ struct QuickAdd: View {
             }
             .padding(2)
         }
-        .frame(height: 150)
+        // 正好三行（一格约 58 高），多了上下滚。
+        .frame(height: 182)
     }
 
     private func accountPicker(_ title: String, _ slot: AccountSlot) -> some View {

@@ -32,6 +32,11 @@ struct FixedCostsPage: View {
                             if r.id != rules.last?.id { Divider().padding(.leading, 44) }
                         }
                     }
+                    // 加一项：放在清单下面、店里的颜色，一眼看得到（ming 2026-11-25：以前太不显眼）。
+                    Button { model.sheet = .fixedCost } label: { Label(tr("加一项"), systemImage: "plus") }
+                        .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                        .keyboardShortcut("n", modifiers: [.command, .shift])
+                        .help(tr("加一项固定开销（⌘⇧N）"))
                 }
             }
             .kitCard(padding: 20)
@@ -60,12 +65,6 @@ struct FixedCostsPage: View {
                 }
             }
             .kitCard()
-            if !rules.isEmpty {
-                Button { model.sheet = .fixedCost } label: {
-                    Label(tr("加一项固定开销"), systemImage: "plus").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.soft)
-            }
         }
         .kitPage()
         .confirmationDialog(tr("停掉「\(confirmStop?.template.description ?? "")」？"), isPresented: Binding(get: { confirmStop != nil }, set: { if !$0 { confirmStop = nil } })) {
@@ -121,38 +120,72 @@ struct FixedCostEditor: View {
 
     private static let kinds = ["房租", "工资", "水电", "网费", "保险", "会计", "其他"]
 
+    @FocusState private var amountFocused: Bool
+
+    private var amount: Money? { Money.evaluate(amountText).flatMap { $0 > .zero ? $0 : nil } }
+
     var body: some View {
-        Form {
-            Section {
-                Picker(tr("是什么"), selection: $category) {
-                    ForEach(Self.kinds, id: \.self) { Text(trKey($0)).tag($0) }
+        // 一行一项，打开就能打金额；回车加上，Esc 取消（ming 2026-11-25 重做）。
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    LabeledContent(tr("每月多少")) {
+                        TextField(tr("每月多少"), text: $amountText, prompt: Text("0,00"))
+                            .labelsHidden()
+                            .font(.title2.weight(.semibold)).monospacedDigit()
+                            .multilineTextAlignment(.trailing)
+                            .focused($amountFocused)
+                            .onSubmit(save)
+                            #if os(iOS)
+                            .keyboardType(.decimalPad)
+                            #endif
+                    }
+                    Picker(tr("是什么"), selection: $category) {
+                        ForEach(Self.kinds, id: \.self) { Text(trKey($0)).tag($0) }
+                    }
+                    TextField(tr("名字"), text: $name, prompt: Text(tr("比如 店面房租")))
                 }
-                TextField(tr("名字"), text: $name, prompt: Text(tr("比如 店面房租")))
-                TextField(tr("每月多少"), text: $amountText, prompt: Text("1200"))
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                Picker(tr("每月几号付"), selection: $day) {
-                    ForEach(1...31, id: \.self) { Text(tr("\($0) 号")).tag($0) }
+                Section {
+                    Picker(tr("每月几号"), selection: $day) {
+                        ForEach(1...31, id: \.self) { Text(tr("\($0) 号")).tag($0) }
+                    }
+                    Picker(tr("从哪个账户付"), selection: $account) {
+                        ForEach(choices) { a in Text(a.name).tag(a.id) }
+                    }
+                } footer: {
+                    Text(amount.map { tr("每月 \(day) 号从「\(model.accountName(account))」付 \($0.rounded)，从下一个 \(day) 号开始自动记，记在生意这边。") }
+                         ?? tr("从下一个 \(day) 号开始，每月自动记一笔，记在生意这边。"))
+                        .font(.caption).foregroundStyle(Color.fg2)
                 }
-                Picker(tr("从哪个账户付"), selection: $account) {
-                    ForEach(choices) { a in Text(a.name).tag(a.id) }
-                }
-            } footer: {
-                Text(tr("从下一个 \(day) 号开始，每月自动记一笔，记在生意这边。"))
+                if let error { Text(error).foregroundStyle(Color.alert) }
             }
-            if let error { Text(error).foregroundStyle(Color.alert) }
+            .formStyle(.grouped)
+            #if os(macOS)
+            Divider()
+            HStack {
+                Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
+                Spacer()
+                Button(action: save) { Text(tr("加上")).frame(minWidth: 80) }
+                    .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(amount == nil || account.isEmpty)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            #endif
         }
-        .formStyle(.grouped)
         .navigationTitle(tr("加固定开销"))
+        #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("加上"), action: save).disabled(Money.evaluate(amountText).map { $0 > .zero } != true || account.isEmpty)
+                Button(tr("加上"), action: save).disabled(amount == nil || account.isEmpty)
             }
         }
+        #endif
         .onAppear {
             account = model.ledger.dailyAccounts().card ?? choices.first?.id ?? ""
+            if name.isEmpty { name = trKey(category) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { amountFocused = true }
         }
         .onChange(of: category) { old, new in
             if name.isEmpty || name == trKey(old) { name = new == "其他" ? "" : trKey(new) }
