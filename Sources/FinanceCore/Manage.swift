@@ -375,6 +375,7 @@ extension Ledger {
     // MARK: 撤销时放回去
 
     mutating func restore(_ s: PlanSnapshot) {
+        if s.changedBusiness == true { business = s.business }
         for a in s.accounts ?? [] {
             if let i = accounts.firstIndex(where: { $0.id == a.id }) { accounts[i] = a } else { accounts.append(a) }
         }

@@ -155,8 +155,7 @@ final class DemoDataTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let json = JSONFileLedgerStore(url: dir.appendingPathComponent("demo.json"))
-        try json.save(l)
-        XCTAssertEqual(try json.load(), l)
+        XCTAssertThrowsError(try json.save(l))
         #if canImport(SQLite3)
         let db = SQLiteLedgerStore(url: dir.appendingPathComponent("demo.sqlite"))
         try db.save(l)

@@ -230,6 +230,7 @@ struct DemoBuilder {
         }
         // 店里账户刷的一笔五金店，导入时没分账本，后面再分到小店。
         let hardware = add(demoDay(months[11], 17), eur(-23.4), "COMPRA TARJ. FERRETERIA ALBA 3310", "shop", book: nil, cat: "维修")
+        businessExample()
         closeBatches()
         edits(hardware)
         untidy()
@@ -816,6 +817,26 @@ struct DemoBuilder {
     // MARK: 收尾
 
     /// 排好顺序，把所有随机 id 换成由种子算出来的固定 id。
+    mutating func businessExample() {
+        let stock = add(start, eur(-600), "花店开业首批花材", "shop", book: Self.S, cat: "耗材")
+        spend(end, eur(18), "书包", "shop", Self.S, "购物")
+        var settings = BusinessSettings()
+        settings.enabled = true
+        settings.businessBookID = Self.S
+        settings.capital = Capital(total: eur(32000), openedOn: start, items: [
+            .init(name: "首批花材", amount: eur(600), txIDs: stock.map { [$0] }),
+            .init(name: "开店押金", amount: eur(800)),
+            .init(name: "花店装修和冷藏设备", amount: eur(30600))
+        ])
+        l.business = settings
+        l.minReaderVersion = 2
+        for (category, value) in [("店租", 550.0), ("员工工资", 760.0)] {
+            let date = LocalDate(year: end.year, month: end.month, day: 1)
+            let tx = Transaction(date: date, amount: eur(-value), description: category, accountID: "shop", bookID: Self.S, category: category)
+            l.recurring.append(Recurring(template: tx, frequency: .monthly, start: date))
+        }
+    }
+
     mutating func finish() -> Ledger {
         // 同一天里期初余额排最前。
         l.transactions = l.transactions.enumerated()

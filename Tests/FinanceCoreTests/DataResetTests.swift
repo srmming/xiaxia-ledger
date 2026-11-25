@@ -81,7 +81,7 @@ final class DataResetTests: XCTestCase {
     func testBackupCopiesFileAndKeepsLatest() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("xiaxia-backup-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
-        let store = JSONFileLedgerStore(url: dir.appendingPathComponent("ledger.json"))
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite"))
         XCTAssertNil(try LedgerBackup.make(of: store.url, label: "删除前"), "账本文件还没有时不用备份")
         try store.save(demo)
         XCTAssertEqual(LedgerBackup.fileURL(of: store), store.url)
@@ -109,7 +109,7 @@ final class DataResetTests: XCTestCase {
         var wiped = demo
         try wiped.wipe(.everything, author: "测试")
         try store.save(wiped)
-        let restored = try LedgerBackup.load(made[3])
+        let restored = try LedgerBackup.load(made[3], replacing: wiped)
         XCTAssertEqual(restored.transactions.count, demo.transactions.count)
         XCTAssertEqual(restored.accounts, demo.accounts)
         try store.save(restored)

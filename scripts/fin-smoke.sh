@@ -6,7 +6,7 @@ set -u
 FIN="${1:-.build/debug/fin}"
 FIN="$(cd "$(dirname "$FIN")" && pwd)/$(basename "$FIN")"
 WORK="$(mktemp -d)"
-export XIAXIA_LEDGER_PATH="$WORK/ledger.json"
+export XIAXIA_LEDGER_PATH="$WORK/ledger.sqlite"
 export XIAXIA_AUTHOR="smoke"
 export XIAXIA_NO_OPEN=1
 FAILS=0
@@ -49,6 +49,52 @@ run account add cash 现金 --kind cash --dry-run
 run account add cash 现金 --kind cash
 run account add caixa Caixa
 run account add revolut Revolut
+# 生意模式关闭时，命令行和 MCP 的返回文字、落盘改动说明均沿用原文。
+python3 - "$FIN" "$WORK/旧版记账文案.json" <<'CHECK_ADD' || FAILS=$((FAILS + 1))
+import json, os, subprocess, sys
+fin, path = sys.argv[1:]
+env = dict(os.environ, XIAXIA_LEDGER_PATH=path)
+def run(*args, input=None):
+    return subprocess.check_output([fin, *args], input=input, env=env, text=True)
+def last_change():
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)["changes"][-1]
+
+run("account", "add", "cash", "测试现金", "--kind", "cash")
+summary = "记一笔 1,00 € 测试收款"
+out = run("add", "1", "测试收款", "--account", "cash", "--book", "personal")
+change = last_change()
+short_id = change["id"][:8]
+assert change["summary"] == summary
+assert out == f"已记：{summary}（改动 {short_id}，写错了用 fin undo {short_id} 撤销）\n"
+args = {"amount":"1", "description":"测试收款", "account":"cash", "book":"personal"}
+request = {"jsonrpc":"2.0", "id":1, "method":"tools/call", "params":{"name":"add_transaction", "arguments":args}}
+response = json.loads(run("mcp", input=json.dumps(request) + "\n"))["result"]
+change = last_change()
+assert not response["isError"] and change["summary"] == summary
+assert response["content"][0]["text"] == f"已记：{summary}\n改动 id：{change['id'][:8].lower()}（写错了用 undo 撤销）"
+CHECK_ADD
+run business on --book shop --json
+run business status --json
+run capital set --total 1000 --recovered-before 10 --json
+run capital --json
+run add --side business --account cash --dry-run -- -5 花材
+run profit --month 2026-11 --json
+run business off --json
+# testDisabledContextOutput：关闭后旧版 context 的文字和键不能多出生意信息。
+python3 - "$FIN" <<'CHECK_CONTEXT' || FAILS=$((FAILS + 1))
+import json, subprocess, sys
+fin = sys.argv[1]
+text = subprocess.check_output([fin, "context"], text=True)
+assert text.startswith("账本：\n") and "生意模式：" not in text
+args = {"name": "context", "arguments": {}}
+request = {"jsonrpc":"2.0", "id":1, "method":"tools/call", "params":args}
+response = subprocess.check_output([fin, "mcp"], input=json.dumps(request) + "\n", text=True)
+mcp = json.loads(json.loads(response)["result"]["content"][0]["text"])
+cli = json.loads(subprocess.check_output([fin, "context", "--json"]))
+assert mcp == cli and not {"businessEnabled", "businessBookID", "lifeBookIDs"}.intersection(cli)
+assert json.loads(subprocess.check_output([fin, "business", "status", "--json"]))["enabled"] is False
+CHECK_CONTEXT
 run account add pot 储蓄罐 --kind savings
 run account add stash 私房钱 --kind cash --private
 run accounts --json
@@ -284,6 +330,13 @@ for spec in \
   'accounts|{}' \
   'monthly_report|{"month":"2026-11"}' \
   'reconcile|{"account":"revolut","balance":"110,05"}' \
+  'business_status|{}' \
+  'business_on|{"book":"shop","dry_run":true}' \
+  'business_off|{"dry_run":true}' \
+  'profit|{"month":"2026-11"}' \
+  'capital|{}' \
+  'capital_set|{"total":"1200","dry_run":true}' \
+  'add_transaction|{"amount":"12","description":"测试收款","account":"cash","side":"business","dry_run":true}' \
   'account_transfer|{"amount":"10","from_account":"caixa","to_account":"cash","dry_run":true}' \
   'add_account|{"id":"n26","name":"N26","opening_balance":"200","dry_run":true}' \
   'debts|{}' 'installments|{}' 'goals|{}' 'history|{"limit":3}' \
@@ -435,8 +488,8 @@ export XIAXIA_LEDGER_PATH="$DEMO"
   run reconcile --account daily --balance 1000
 export XIAXIA_LEDGER_PATH="$REAL_TMP"
 # 同一天、同一个种子，两次生成的账本一模一样。
-"$FIN" demo --out "$WORK/demo/a.json" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.json" --end 2026-11-20 >/dev/null
-cmp -s "$WORK/demo/a.json" "$WORK/demo/b.json" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
+"$FIN" demo --out "$WORK/demo/a.sqlite" --end 2026-11-20 >/dev/null && "$FIN" demo --out "$WORK/demo/b.sqlite" --end 2026-11-20 >/dev/null
+cmp -s "$WORK/demo/a.sqlite" "$WORK/demo/b.sqlite" && echo "两次生成一模一样" || { echo "↳ 两次生成不一样"; FAILS=$((FAILS + 1)); }
 
 echo; echo "===== 手机记的：小纸条收进账本、入账、挂小票、报销（SQLite 账本在临时「夏夏账本」文件夹） ====="
 JSON_TMP="$XIAXIA_LEDGER_PATH"

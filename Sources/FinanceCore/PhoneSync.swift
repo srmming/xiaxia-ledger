@@ -35,6 +35,9 @@ public struct SyncNote: Codable, Sendable, Equatable {
     public var memories: [Memory]?
     public var captures: [Capture]?
     public var paperwork: [Paperwork]?
+    public var receivables: [Receivable]?
+    public var changedBusiness: Bool?
+    public var business: BusinessSettings?
     public var profile: Profile?
     public var currency: CurrencySettings?
     public var lastStatementDate: [String: LocalDate]?
@@ -49,7 +52,7 @@ public struct SyncNote: Codable, Sendable, Equatable {
     public var isEmpty: Bool {
         books == nil && accounts == nil && transactions == nil && changes == nil && debts == nil && installments == nil
             && goals == nil && insights == nil && subscriptions == nil && recurring == nil && memories == nil
-            && captures == nil && paperwork == nil && profile == nil && currency == nil && lastStatementDate == nil
+            && receivables == nil && changedBusiness != true && captures == nil && paperwork == nil && profile == nil && currency == nil && lastStatementDate == nil
             && (deletes ?? [:]).isEmpty
     }
 
@@ -137,6 +140,8 @@ extension Ledger {
         upsert(&memories, note.memories, d["memories"], key: \.id, name: \.uuidString)
         upsert(&captures, note.captures, d["captures"], key: \.id, name: \.uuidString)
         upsert(&paperwork, note.paperwork, d["paperwork"], key: \.id, name: \.uuidString)
+        upsert(&receivables, note.receivables, d["receivables"], key: \.id, name: \.uuidString)
+        if note.changedBusiness == true { business = note.business }
         if let p = note.profile { profile = p }
         if let c = note.currency { currency = c; Money.defaultCurrency = c.base }
         if let l = note.lastStatementDate { lastStatementDate = l }
@@ -251,6 +256,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     public func load() throws -> Ledger {
         lock.lock(); defer { lock.unlock() }
         var ledger = try primary.load()
+        if ledger.minReaderVersion > 2 { return ledger }
         let fm = FileManager.default
         guard fm.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
@@ -289,7 +295,6 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
     /// 账本在手机本地的副本（最后一次成功下载的），没网时照样能看。
     public let cache: URL
     private let lock = NSLock()
-    private var base: Ledger?
     /// 账本文件还没从 iCloud 下载下来（先显示上次的副本）。
     public private(set) var waitingForDownload = false
     /// 文件夹里还没有账本（Mac 还没开过）。
@@ -303,6 +308,10 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
 
     public func load() throws -> Ledger {
         lock.lock(); defer { lock.unlock() }
+        return try readCurrent()
+    }
+
+    private func readCurrent() throws -> Ledger {
         refreshCache()
         var ledger: Ledger
         #if canImport(SQLite3)
@@ -311,20 +320,28 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
         ledger = .fresh
         #endif
         for item in SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger) { ledger.apply(item.note) }
-        base = ledger
+        ledger.revision.record(ledgerURL, digest: try ledger.contentDigest())
         return ledger
     }
 
     public func save(_ ledger: Ledger) throws {
         lock.lock(); defer { lock.unlock() }
-        let old = base ?? .fresh
-        guard var note = ledger.syncNote(since: old, device: device) else { base = ledger; return }
-        note.device = device
-        try SyncNotes.write(note, ledgerFolder: folder)
-        // 自己的纸条已经「收」进手机看到的账本里了，记下编号，下次读时不会再收一遍。
-        var mine = ledger
-        mine.appliedNotes.append(note.id)
-        base = mine
+        try ledger.checkBusinessVersion()
+        try FileManager.default.createDirectory(at: cache.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try withLedgerFileLock(at: cache) {
+            let current = try readCurrent()
+            try current.checkBusinessVersion()
+            try ledger.revision.check(ledgerURL, current: current.contentDigest())
+            guard ledger.business == current.business, ledger.receivables == current.receivables else {
+                throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
+            }
+            guard let note = ledger.syncNote(since: current, device: device) else { return }
+            var next = current
+            next.apply(note)
+            let digest = try next.contentDigest()
+            try SyncNotes.write(note, ledgerFolder: folder)
+            ledger.revision.record(ledgerURL, digest: digest)
+        }
     }
 
     public func changeStamp() -> String? {

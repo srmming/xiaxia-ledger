@@ -165,6 +165,8 @@ final class PhoneCaptureTests: XCTestCase {
         var start = sample()
         start.transactions = [Transaction(date: today, amount: Money(cents: -100), description: "示例", accountID: "card")]
         try mac.save(start)
+        let file = folder.appendingPathComponent("ledger.sqlite")
+        let beforePhone = try Data(contentsOf: file)
 
         let phone = PhoneSyncStore(folder: folder, cache: dir.appendingPathComponent("phone/cache.sqlite"))
         var p = try phone.load()
@@ -192,7 +194,8 @@ final class PhoneCaptureTests: XCTestCase {
         XCTAssertEqual(try phone.load().transactions.count, 2)
 
         // Mac 被旧的一份覆盖（收过的丢了）：「已收」里的纸条下次读时补回来
-        try SQLiteLedgerStore(url: folder.appendingPathComponent("ledger.sqlite")).save(start)
+        XCTAssertThrowsError(try SQLiteLedgerStore(url: file).save(start))
+        try beforePhone.write(to: file, options: .atomic) // 模拟外部同步送回旧文件
         XCTAssertEqual(try mac.load().transactions.count, 2)
     }
 

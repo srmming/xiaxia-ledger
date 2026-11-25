@@ -67,6 +67,7 @@ extension Ledger {
         case .everything:
             var fresh = Ledger.fresh
             fresh.schemaVersion = schemaVersion
+            fresh.minReaderVersion = minReaderVersion
             fresh.profile = profile
             // 自己加的分类是跟着账本内容走的，一起清；名字、性格、称呼留着。
             fresh.profile.categories = []
@@ -76,7 +77,7 @@ extension Ledger {
             let change = ChangeRecord(kind: .delete, summary: "清空了全部数据（\(count.text)）\(tail)", transactionIDs: [],
                                       author: author, createdAt: now)
             fresh.changes = [change]
-            self = fresh
+            self = fresh.replacingContents(of: self)
             return change
         case .book(let id):
             guard let book = books.first(where: { $0.id == id }) else { throw EditError.unknownBook(id) }
@@ -124,6 +125,28 @@ public enum LedgerBackup {
     /// 只留最近 `keep` 份。
     @discardableResult
     public static func make(of file: URL, label: String, keep: Int = 10, now: Date = Date()) throws -> URL? {
+        try make(of: file, label: label, keep: keep, now: now) { destination in
+            #if canImport(SQLite3)
+            if file.pathExtension.lowercased() == "sqlite" {
+                let source = try SQLiteDB.reader(url: file)
+                try source.exec("BEGIN")
+                _ = try source.minimumVersion() // 固定读快照，复制 DELETE 主文件期间不允许提交。
+                if try source.query("PRAGMA journal_mode").first == "wal" {
+                    try source.exec("COMMIT")
+                    try source.writeSnapshot(to: destination)
+                } else {
+                    try FileManager.default.copyItem(at: file, to: destination)
+                    try source.exec("COMMIT")
+                }
+                return
+            }
+            #endif
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+    }
+
+    static func make(of file: URL, label: String, keep: Int = 10, now: Date = Date(),
+                     writeSnapshot: (URL) throws -> Void) throws -> URL? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: file.path) else { return nil }
         let dir = folder(for: file)
@@ -135,7 +158,10 @@ public enum LedgerBackup {
         while fm.fileExists(atPath: dest.path) {
             dest = dir.appendingPathComponent("ledger-\(f.string(from: now))-\(label)-\(n).\(ext)"); n += 1
         }
-        try fm.copyItem(at: file, to: dest)
+        let staging = dir.appendingPathComponent(".\(UUID().uuidString).tmp")
+        defer { try? fm.removeItem(at: staging) }
+        try writeSnapshot(staging)
+        try fm.moveItem(at: staging, to: dest)
         // 复制会带上原文件的修改时间；列表显示的是「什么时候备份的」，改成现在。
         try? fm.setAttributes([.modificationDate: now], ofItemAtPath: dest.path)
         for old in list(for: file).dropFirst(keep) { try? fm.removeItem(at: old.url) }
@@ -161,4 +187,9 @@ public enum LedgerBackup {
         #endif
         return try JSONFileLedgerStore(url: backup).load()
     }
+
+    public static func load(_ backup: URL, replacing target: Ledger) throws -> Ledger {
+        try load(backup).replacingContents(of: target)
+    }
+
 }

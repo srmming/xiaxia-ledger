@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 #if os(macOS)
 import Security
 #endif
@@ -44,21 +45,44 @@ public struct JSONFileLedgerStore: LedgerStore {
     }
 
     public func load() throws -> Ledger {
-        guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
-        let data = try Data(contentsOf: url)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            let fresh = Ledger.fresh
+            fresh.revision.record(url, digest: nil)
+            return fresh
+        }
+        return try decode(Data(contentsOf: url))
+    }
+
+    private func decode(_ data: Data) throws -> Ledger {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let ledger = try decoder.decode(Ledger.self, from: data)
+        ledger.revision.record(url, digest: Data(SHA256.hash(data: data)))
         Money.defaultCurrency = ledger.currency.base
         return ledger
     }
 
     public func save(_ ledger: Ledger) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(ledger).write(to: url, options: .atomic)
+        try withLedgerFileLock(at: url) {
+            let current = FileManager.default.fileExists(atPath: url.path) ? try Data(contentsOf: url) : nil
+            let existing = try current.map(decode) ?? .fresh
+            try ledger.checkBusinessVersion()
+            try existing.checkBusinessVersion()
+            for value in [ledger, existing] {
+                guard value.business == nil, value.receivables.isEmpty, value.minReaderVersion < 2,
+                      !value.changes.contains(where: { $0.before?.changedBusiness == true }) else {
+                    throw BusinessError(message: "生意模式需要 SQLite 账本")
+                }
+            }
+            try ledger.revision.check(url, current: existing.revision.expected(at: url))
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(ledger)
+            try data.write(to: url, options: .atomic)
+            ledger.revision.record(url, digest: Data(SHA256.hash(data: data)))
+        }
     }
 
     public func changeStamp() -> String? { fileStamp([url]) }
@@ -119,20 +143,29 @@ public enum LedgerStores {
         let source = old.appendingPathComponent("ledger.sqlite")
         let marker = old.appendingPathComponent(movedMarker)
         guard fm.fileExists(atPath: source.path), !fm.fileExists(atPath: marker.path) else { return false }
-        if fm.fileExists(atPath: target.path) {
-            // 容器里已经有账本：一般是 iPhone 先开过、建了个空账本。空的就挪开当备份、换成 Mac 上的老账本；
-            // 里面已经有流水就不动（可能是另一台 Mac 搬过来的），免得覆盖。
-            guard (try? sqlite(target).load().transactions.isEmpty) == true else { return false }
-            let aside = container.appendingPathComponent("ledger.sqlite.空账本-\(Int(Date().timeIntervalSince1970))")
-            do { try fm.moveItem(at: target, to: aside) } catch { return false }
-        }
+        #if canImport(SQLite3)
         do {
             try fm.createDirectory(at: container, withIntermediateDirectories: true)
-            try fm.copyItem(at: source, to: target)
-            try? Data("账本已经搬到 app 的 iCloud 容器（iCloud 云盘里的「夏夏账本」app 文件夹），这里的 ledger.sqlite 是搬家前的备份，不再更新。\n".utf8)
-                .write(to: marker)
+            let from = try SQLiteDB(url: source, allowCreate: false)
+            try from.holdExclusiveLock()
+            guard !fm.fileExists(atPath: marker.path), try from.hasLedger() else { return false }
+            let to = try SQLiteDB(url: target)
+            try to.holdExclusiveLock()
+            if try to.hasLedger() {
+                // 在同一把目标锁内核对占位账本、留备份、安装源快照。
+                guard try SQLiteLedgerStore(url: target).read(from: to) == Ledger.fresh else { return false }
+                let aside = container.appendingPathComponent("ledger.sqlite.空账本-\(UUID().uuidString)")
+                try to.writeSnapshot(to: aside)
+            }
+            try from.copyDatabase(to: to)
+            try to.exec("PRAGMA journal_mode = DELETE")
+            try Data("账本已经搬到 app 的 iCloud 容器（iCloud 云盘里的「夏夏账本」app 文件夹），这里的 ledger.sqlite 是搬家前的备份，不再更新。\n".utf8)
+                .write(to: marker, options: .atomic)
             return true
         } catch { return false }
+        #else
+        return false
+        #endif
     }
 
     /// 老位置搬完后放的说明文件；有它才说明容器里的账本是从这里搬过去的。
@@ -158,7 +191,9 @@ public enum LedgerStores {
     public static func defaultStore() -> any LedgerStore {
         if let override = ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"], !override.isEmpty {
             let url = URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
-            return url.pathExtension.lowercased() == "json" ? JSONFileLedgerStore(url: url) : sqlite(url)
+            if url.pathExtension.lowercased() == "json" { return JSONFileLedgerStore(url: url) }
+            // 显式路径只在同目录查旧 JSON，不能导入其他位置的账本。
+            return sqlite(url, legacyURL: url.deletingPathExtension().appendingPathExtension("json"))
         }
         // 容器里有账本，而且老位置没有账本或已经搬过家，才用容器里的；
         // 否则（比如 iPhone 先建了个空账本、Mac 还没搬）继续用老位置，fin 不会突然读到空账本。
@@ -214,9 +249,9 @@ public enum LedgerStores {
     /// iPhone 本机的账本（没接 iCloud 文件夹时用的那本）。
     public static func localPhoneStore() -> any LedgerStore { sqlite(appSupportFolder.appendingPathComponent("ledger.sqlite")) }
 
-    static func sqlite(_ url: URL) -> any LedgerStore {
+    static func sqlite(_ url: URL, legacyURL: URL? = nil) -> any LedgerStore {
         #if canImport(SQLite3)
-        let legacy = JSONFileLedgerStore(url: appSupportFolder.appendingPathComponent("ledger.json"))
+        let legacy = JSONFileLedgerStore(url: legacyURL ?? appSupportFolder.appendingPathComponent("ledger.json"))
         // 读账本时顺便收 iPhone 写的小纸条（见 PhoneSync.swift）。
         return InboxApplyingStore(primary: MigratingStore(primary: SQLiteLedgerStore(url: url), legacy: legacy),
                                   folder: url.deletingLastPathComponent())
@@ -241,7 +276,16 @@ public struct MigratingStore: LedgerStore {
         return try primary.load()
     }
 
-    public func save(_ ledger: Ledger) throws { try primary.save(ledger) }
+    public func save(_ ledger: Ledger) throws {
+        guard ledger.revision.expected(at: legacy.url) != nil, ledger.revision.expected(at: primary.url) == nil else {
+            return try primary.save(ledger)
+        }
+        try withLedgerFileLock(at: legacy.url) {
+            let current = try legacy.load()
+            try ledger.revision.check(legacy.url, current: current.revision.expected(at: legacy.url))
+            try primary.save(ledger)
+        }
+    }
 
     public func changeStamp() -> String? { primary.changeStamp() ?? legacy.changeStamp() }
 }

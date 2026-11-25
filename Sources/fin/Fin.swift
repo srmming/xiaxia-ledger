@@ -8,7 +8,7 @@ struct Fin: ParsableCommand {
         commandName: "fin",
         abstract: "夏夏账本命令行：给 AI 和人查看、整理财务。",
         discussion: "账本在哪：跑 fin where。一般在 iCloud 云盘「夏夏账本/ledger.sqlite」；签名正式版搬家后在 app 的 iCloud 容器里；没开 iCloud 云盘就在 ~/Library/Application Support/XiaxiaLedger/。可用 XIAXIA_LEDGER_PATH 覆盖（.json 结尾用 JSON 文件）。",
-        subcommands: [ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
+        subcommands: [BusinessCommand.self, ProfitCommand.self, CapitalCommand.self, ContextCommand.self, WhereCommand.self, BooksCommand.self, BookCommand.self, AccountsCommand.self, TxCommand.self, SummaryCommand.self, DebtsCommand.self, InstallmentsCommand.self, GoalsCommand.self,
                       AddCommand.self, DebtCommand.self, AccountCommand.self, ImportCommand.self, FXCommand.self, SubscriptionsCommand.self, SubscriptionCommand.self, CategorizeCommand.self,
                       AssignCommand.self, EditCommand.self, RemoveCommand.self, ReconcileCommand.self, ReportCommand.self, TransferCommand.self, InstallmentCommand.self, GoalCommand.self, HistoryCommand.self, UndoCommand.self, InsightCommand.self, SplitCommand.self, CopyCommand.self, RefundCommand.self, TagCommand.self, RepeatCommand.self, MCPCommand.self, ConnectCommand.self, SetupCommand.self, DemoCommand.self, MemoryCommand.self, RegularsCommand.self, PhoneCommand.self, ReceiptCommand.self, ReimburseCommand.self]
     )
@@ -96,6 +96,9 @@ struct ContextCommand: ParsableCommand {
     func run() throws {
         let ctx = LedgerContext(ledger: try loadLedger())
         if options.json { return try Output.json(ctx) }
+        if let life = ctx.lifeBookIDs {
+            print("生意模式：打开，生意账本 \(ctx.businessBookID ?? "—")，生活账本 \(life.joined(separator: "、"))")
+        }
         print("账本：")
         for b in ctx.books { print("  \(b.id)\t\(b.name)\t\(b.transactions) 笔") }
         print("账户：")
@@ -385,7 +388,8 @@ struct AddCommand: ParsableCommand {
     @Argument(help: "金额，如 -12,50（支出）或 300（收入）。") var amount: String
     @Argument(help: "说明，如「超市」。") var text: String
     @Option(help: "账户 id。") var account: String
-    @Option(help: "账本 id。") var book: String
+    @Option(help: "账本 id。") var book: String?
+    @Option(help: "life 或 business") var side: String?
     @Option(help: "分类。") var category: String?
     @Option(help: "日期，默认今天。") var date: String?
     @Option(help: "备注。") var note: String?
@@ -400,6 +404,7 @@ struct AddCommand: ParsableCommand {
         var tx = Transaction(date: d, amount: try parseAmount(amount), description: text,
                              accountID: account, bookID: book, category: category, source: "手记",
                              note: note.flatMap { $0.isEmpty ? nil : $0 }, tags: Tags.clean(tag).isEmpty ? nil : Tags.clean(tag))
+        let reason = try ledger.routeEntry(&tx, side: side)
         tx.fx = ledger.fxNote(accountID: account, date: d)
         if let original { tx.original = try parseForeign(original, sign: tx.amount.cents < 0 ? -1 : 1) }
         let change: ChangeRecord
@@ -409,7 +414,8 @@ struct AddCommand: ParsableCommand {
         } else {
             change = try ledger.addTransaction(tx, author: w.who)
         }
-        try finish(ledger, change, w)
+        let routed = ledger.describeRoute(change, reason: reason)
+        try finish(ledger, routed, w)
     }
 }
 
