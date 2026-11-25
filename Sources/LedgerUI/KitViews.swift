@@ -179,6 +179,8 @@ struct TxRow: View {
     @Environment(LedgerModel.self) var model
     let tx: Transaction
     var showDate = false
+    /// 谁记的（「我」/「AI」小标签）也算 AI 提示层，默认不显示（ming 2026-11-25）。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
 
     var body: some View {
         let internalMove = tx.flow != nil
@@ -187,7 +189,7 @@ struct TxRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(Merchant.display(tx.description)).font(.callout.weight(.medium)).lineLimit(1)
                 HStack(spacing: 5) {
-                    if let author = model.authors[tx.id] {
+                    if aiInPages, let author = model.authors[tx.id] {
                         if model.isMe(author) { KitTag.me() } else { KitTag.ai() }
                     }
                     Text(detail).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
