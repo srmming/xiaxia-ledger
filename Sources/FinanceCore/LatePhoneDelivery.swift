@@ -20,6 +20,7 @@ enum LatePhoneDelivery {
 
     struct Batch {
         var ready: [URL] = []
+        var observedBookings = Set<UUID>()
         var timedOutFiles: Set<String> = []
         var waiting: [String: String] = [:] // 设备 → 最早缺件纸条编号
         var unreadable: String? // 无法识别设备时，后续纸条都要等。
@@ -68,6 +69,7 @@ enum LatePhoneDelivery {
                 batch.unreadable = batch.unreadable ?? id
                 continue
             }
+            if !applied.contains(id) { batch.observedBookings.formUnion(note.addedTransactionIDs) }
             let missing = attachmentNames(note).filter { name in
                 guard validName(name) else { return true }
                 let original = assets.appendingPathComponent(name), copy = newAssets.appendingPathComponent(name)

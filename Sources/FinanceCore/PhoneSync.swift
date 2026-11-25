@@ -78,6 +78,35 @@ private func rowDiff<T: Equatable, K: Hashable>(_ old: [T], _ new: [T], key: (T)
     return (changed.isEmpty ? nil : changed, removed)
 }
 
+extension SyncNote {
+    func originalValues(in table: String) -> [String: Data] {
+        var before = originalRows?[table] ?? [:]
+        // 旧纸条没有行级凭据；旧版 edit 的改动记录有时保留了原流水。
+        if originalRows == nil && table == "transactions" {
+            for change in changes ?? [] where !(change.kind == .remove && change.undone) {
+                for old in change.previous ?? [] where before[old.id.uuidString] == nil {
+                    before[old.id.uuidString] = try? FieldMerge.encode(old)
+                }
+            }
+        }
+        // 旧手机撤销只翻转删除记录上的 undone。它的 previous 是待恢复的流水。
+        if originalRows == nil && table == "changes" {
+            for var change in changes ?? [] where change.kind == .remove && change.undone {
+                change.undone = false
+                before[change.id.uuidString] = try? FieldMerge.encode(change)
+            }
+        }
+        return before
+    }
+
+    var addedTransactionIDs: Set<UUID> {
+        guard let transactions, !transactions.isEmpty else { return [] }
+        let before = originalValues(in: "transactions")
+        let undoIDs = Set((changes ?? []).filter { $0.kind == .remove && $0.undone }.flatMap(\.transactionIDs))
+        return Set(transactions.map(\.id).filter { before[$0.uuidString] == nil && !undoIDs.contains($0) })
+    }
+}
+
 struct NoteMerger {
     let note: SyncNote
     var conflicts: [SyncConflict] = []
@@ -85,15 +114,7 @@ struct NoteMerger {
 
     mutating func rows<T: Codable & Equatable, K: Hashable>(_ local: inout [T], _ incoming: [T]?, _ table: String,
                                                              key: (T) -> K, name: (K) -> String) {
-        var before = note.originalRows?[table] ?? [:]
-        // 旧纸条没有行级凭据；旧版 edit 的改动记录有时保留了原流水。
-        if note.originalRows == nil && table == "transactions" {
-            for change in note.changes ?? [] {
-                for old in change.previous ?? [] where before[old.id.uuidString] == nil {
-                    before[old.id.uuidString] = try? FieldMerge.encode(old)
-                }
-            }
-        }
+        let before = note.originalValues(in: table)
         for id in note.deletes?[table] ?? [] {
             guard !skipped.contains(.init(table, id)), let i = local.firstIndex(where: { name(key($0)) == id }) else { continue }
             if let base = before[id], (try? FieldMerge.encode(local[i])) == base { local.remove(at: i) }
@@ -190,14 +211,29 @@ extension Ledger {
         let timestamp = receivedAt ?? note.createdAt
         var awaiting = pendingPhoneDeletes ?? PhoneDeletionReceipts()
         let proposedIDs = Set((note.transactions ?? []).map(\.id))
-        // 手机撤销会把原删除记录标为 undone，并带回同编号流水。
+        // 撤销比原删除先到时，从撤销纸条的原值重建那条历史，再走相同的合并。
+        let originalChanges = note.originalValues(in: "changes")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
         for change in note.changes ?? [] where change.undone && change.kind == .remove {
+            if !changes.contains(where: { $0.id == change.id }),
+               let data = originalChanges[change.id.uuidString],
+               let original = try? decoder.decode(ChangeRecord.self, from: data),
+               original.id == change.id && original.kind == .remove && !original.undone {
+                changes.append(original)
+            }
             if let original = changes.first(where: { $0.id == change.id && !$0.undone && $0.kind == .remove }) {
                 for id in original.transactionIDs where proposedIDs.contains(id) { awaiting.received[id.uuidString] = nil }
             }
         }
         let suppressed = proposedIDs.filter { awaiting.received[$0.uuidString] != nil }
-        let skipped = Set(suppressed.map { SyncRowKey("transactions", $0.uuidString) })
+        var skipped = Set(suppressed.map { SyncRowKey("transactions", $0.uuidString) })
+        for deletion in note.changes ?? [] where deletion.kind == .remove && !deletion.undone {
+            if let undone = changes.first(where: { $0.id == deletion.id && $0.undone && $0.kind == .remove }) {
+                skipped.insert(.init("changes", deletion.id.uuidString))
+                for id in undone.transactionIDs { skipped.insert(.init("transactions", id.uuidString)) }
+            }
+        }
         let groups = linkedConflicts(in: note, ignoring: skipped)
         var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked.union(skipped))
         for id in suppressed { merger.skipped.insert(.init("paperwork", id.uuidString)) }
@@ -206,12 +242,12 @@ extension Ledger {
         }
         // 已有行的删除仍须比较旧值；关联计划被拒时也不能偷偷保留删除意图。
         let absentDeletes = (note.deletes?["transactions"] ?? []).compactMap(UUID.init(uuidString:)).filter { id in
-            !transactions.contains { $0.id == id } && !groups.blocked.contains(.init("transactions", id.uuidString))
+            !transactions.contains { $0.id == id } && !merger.skipped.contains(.init("transactions", id.uuidString))
         }
         for id in absentDeletes where awaiting.received[id.uuidString] == nil {
-            awaiting.received[id.uuidString] = floor(timestamp.timeIntervalSince1970)
+            awaiting.received[id.uuidString] = .waitingSince(floor(timestamp.timeIntervalSince1970))
         }
-        let lateAdds = suppressed.filter { note.originalRows?["transactions"]?[$0.uuidString] == nil }
+        let lateAdds = suppressed.intersection(note.addedTransactionIDs)
         if !lateAdds.isEmpty {
             for id in lateAdds { awaiting.received[id.uuidString] = nil }
             let bytes = Array(SHA256.hash(data: Data(("late-deleted:" + note.id).utf8)).prefix(16))
@@ -413,13 +449,17 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         if ledger.minReaderVersion > 2 { return ledger }
         let time = now()
         let previousDeletes = ledger.pendingPhoneDeletes
-        ledger.prunePhoneDeletes(at: time)
-        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes), now: now()) }
+        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes), now: time) }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
         let previousPhotos = ledger.changes.compactMap(\.pendingPhonePhoto)
         for photo in previousPhotos { photo.restoreReferences(in: &ledger) }
         var applied: [SyncNote] = []
         for item in pending where late?.allows(item.note) != false && ledger.apply(item.note, receivedAt: time) { applied.append(item.note) }
+        if ledger.pendingPhoneDeletes != nil {
+            var observed = late?.observedBookings ?? []
+            for item in pending { observed.formUnion(item.note.addedTransactionIDs) }
+            ledger.prunePhoneDeletes(at: time, observed: observed)
+        }
         var missing = late?.timedOutFiles ?? []
         if let old = retired {
             for photo in previousPhotos where !photo.available(from: old, in: folder) { missing.insert(photo.file) }
@@ -437,7 +477,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
             SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) }, ledgerFolder: folder)
         }
         if let old = retired, let late { LatePhoneDelivery.archive(late.ready, from: old, to: folder, applied: done) }
-        nextDeleteExpiry = ledger.pendingPhoneDeletes?.received.values.min().map { Date(timeIntervalSince1970: $0 + PhoneDeletionReceipts.lifetime) }
+        nextDeleteExpiry = ledger.pendingPhoneDeletes?.earliestWaitingTime.map { Date(timeIntervalSince1970: $0 + PhoneDeletionReceipts.lifetime) }
         waitingForPhotos = ledger.changes.compactMap { $0.pendingPhonePhoto?.file }
         return ledger
     }

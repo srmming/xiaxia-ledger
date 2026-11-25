@@ -508,7 +508,7 @@ extension StaleOverwriteTests {
         let persisted = try JSONEncoder().encode(value)
         value = try JSONDecoder().decode(Ledger.self, from: persisted)
         value.prunePhoneDeletes(at: start.addingTimeInterval(30 * 86400 - 1))
-        XCTAssertEqual(value.pendingPhoneDeletes?.received[id.uuidString], start.timeIntervalSince1970)
+        XCTAssertEqual(value.pendingPhoneDeletes?.received[id.uuidString], .waitingSince(start.timeIntervalSince1970))
         value.prunePhoneDeletes(at: start.addingTimeInterval(30 * 86400))
         XCTAssertNil(value.pendingPhoneDeletes)
     }
@@ -521,6 +521,108 @@ extension StaleOverwriteTests {
         let inbox = SyncNotes.inbox(folder)
         try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
         try encoder.encode(legacy).write(to: inbox.appendingPathComponent(legacy.id + ".json"))
+    }
+
+    func testLegacyDeleteThenRenameAndAmountEditThenInitialBooking() throws {
+        let base = ledger(), dir = try folder()
+        let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite")), folder: dir)
+        var renamed = base, edit = base.transactions[0]
+        edit.description = "改过名字"
+        try renamed.editTransaction(edit, author: "手机")
+        var changed = renamed
+        edit.amount = .init(cents: 789)
+        try changed.editTransaction(edit, author: "手机")
+        var deleted = changed
+        try deleted.removeTransactions([edit.id], author: "手机")
+        let order = [(changed, deleted), (base, renamed), (renamed, changed), (.fresh, base)]
+        for (i, pair) in order.enumerated() {
+            let note = try XCTUnwrap(pair.1.syncNote(since: pair.0, device: "旧手机"))
+            try writeLegacyNote(note, folder: dir)
+            let mac = try store.load()
+            XCTAssertTrue(mac.transactions.isEmpty)
+            XCTAssertEqual(mac.pendingPhoneDeletes?.count ?? 0, i == 3 ? 0 : 1)
+            XCTAssertEqual(mac.changes.filter { $0.summary.contains("晚到的入账") }.count, i == 3 ? 1 : 0)
+        }
+    }
+
+    private func checkBookingWaitingAcrossExpiry(photoOnDay: Int?, undoOnDay30: Bool, temporarilyOffline: Bool = false) throws {
+        var time = Date(timeIntervalSince1970: 1_800_000_000)
+        let queue = try migratedReceiptQueue(now: { time })
+        let held = try holdReceiptAndBooking(in: queue.old)
+        let deletion = try XCTUnwrap(queue.store.load().changes.first { $0.kind == .remove })
+        let id = try XCTUnwrap(deletion.transactionIDs.first)
+        time.addTimeInterval(29 * 86400)
+        for file in held {
+            try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
+        }
+        XCTAssertEqual(try queue.store.load().pendingPhoneDeletes?.received[id.uuidString], .bookingSeen)
+        let booking = try XCTUnwrap(held.last)
+        let visible = SyncNotes.inbox(queue.old).appendingPathComponent(booking.lastPathComponent)
+        let offline = try folder().appendingPathComponent(booking.lastPathComponent)
+        if temporarilyOffline { try FileManager.default.moveItem(at: visible, to: offline) }
+        let reopened = InboxApplyingStore(primary: queue.store.primary, folder: queue.new, relocatedFrom: queue.old, now: { time })
+        time.addTimeInterval(86400)
+        var waiting = try reopened.load()
+        XCTAssertEqual(waiting.pendingPhoneDeletes?.received[id.uuidString], .bookingSeen)
+        XCTAssertEqual(waiting.appliedNotes, [queue.ids[2]])
+        if undoOnDay30 {
+            try waiting.undo(changeID: deletion.id, author: "Mac")
+            try reopened.save(waiting)
+        }
+        time.addTimeInterval(Double((photoOnDay ?? 32) - 30) * 86400)
+        if temporarilyOffline { try FileManager.default.moveItem(at: offline, to: visible) }
+        if photoOnDay != nil {
+            let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+            try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+            try Data("模拟照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        }
+        for _ in 0..<2 {
+            let mac = try reopened.load()
+            XCTAssertNil(mac.pendingPhoneDeletes)
+            XCTAssertEqual(mac.transactions.map(\.id), undoOnDay30 ? [id] : [])
+            XCTAssertEqual(mac.appliedNotes, [queue.ids[2], queue.ids[0], queue.ids[1]])
+            XCTAssertEqual(mac.changes.filter { $0.summary.contains("晚到的入账") }.count, undoOnDay30 ? 0 : 1)
+        }
+    }
+
+    func testDay29BookingSurvivesDay30CleanupUntilDay31Photo() throws {
+        try checkBookingWaitingAcrossExpiry(photoOnDay: 31, undoOnDay30: false)
+    }
+
+    func testObservedBookingTemporarilyOfflineAtExpiryAfterRestart() throws {
+        try checkBookingWaitingAcrossExpiry(photoOnDay: 31, undoOnDay30: false, temporarilyOffline: true)
+    }
+
+    func testDay29BookingStillSuppressedAt72HourPhotoTimeout() throws {
+        try checkBookingWaitingAcrossExpiry(photoOnDay: nil, undoOnDay30: false)
+    }
+
+    func testUndoAtDay30WhileBookingWaitsForPhoto() throws {
+        try checkBookingWaitingAcrossExpiry(photoOnDay: 31, undoOnDay30: true)
+    }
+
+    func testPhoneUndoBookingAndDeletionInAllDeliveryOrders() throws {
+        let booked = ledger()
+        var deleted = booked
+        let deletion = try deleted.removeTransactions([booked.transactions[0].id], author: "手机")
+        var undone = deleted
+        try undone.undo(changeID: deletion.id, author: "手机")
+        let pairs = [(Ledger.fresh, booked), (booked, deleted), (deleted, undone)]
+        let notes = try pairs.map { try XCTUnwrap($0.1.syncNote(since: $0.0, device: "手机")) }
+        for legacy in [false, true] {
+            for order in [[0,1,2], [0,2,1], [1,0,2], [1,2,0], [2,0,1], [2,1,0]] {
+                var mac = Ledger.fresh
+                for i in order {
+                    var note = notes[i]
+                    if legacy { note.originalRows = nil }
+                    mac.apply(note)
+                }
+                XCTAssertEqual(mac.transactions, booked.transactions, "旧格式 \(legacy)，顺序 \(order)")
+                XCTAssertNil(mac.pendingPhoneDeletes)
+                XCTAssertEqual(mac.changes.first { $0.id == deletion.id }?.undone, true)
+                XCTAssertTrue(mac.changes.allSatisfy { $0.syncConflicts == nil })
+            }
+        }
     }
 
     func testLegacyJSONBookingWithoutSequenceIsApplied() throws {

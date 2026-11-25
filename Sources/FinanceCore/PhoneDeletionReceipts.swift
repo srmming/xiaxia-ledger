@@ -1,18 +1,44 @@
 import Foundation
 
-/// 键是流水 UUID，值是首次收到删除的 Unix 时间。旧格式只有 UUID，没有时间。
+/// 尚未看到入账的删除凭据按收件时间过期，已看到入账的保留至处理完成。
 struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
     static let lifetime: TimeInterval = 30 * 86400
-    var received: [String: TimeInterval] = [:]
+    enum State: Codable, Equatable, Sendable {
+        case waitingSince(TimeInterval)
+        case bookingSeen
+
+        init(from decoder: Decoder) throws {
+            let value = try decoder.singleValueContainer()
+            if let time = try? value.decode(TimeInterval.self) { self = .waitingSince(time) }
+            else if try value.decode(String.self) == "bookingSeen" { self = .bookingSeen }
+            else { throw DecodingError.dataCorruptedError(in: value, debugDescription: "未知的删除凭据状态") }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var value = encoder.singleValueContainer()
+            switch self {
+            case .waitingSince(let time): try value.encode(time)
+            case .bookingSeen: try value.encode("bookingSeen")
+            }
+        }
+    }
+
+    var received: [String: State] = [:]
+    var earliestWaitingTime: TimeInterval? {
+        received.values.compactMap { state in
+            guard case .waitingSince(let time) = state else { return nil }
+            return time
+        }.min()
+    }
     var count: Int { received.count }
 
     init() {}
     init(from decoder: Decoder) throws {
         let value = try decoder.singleValueContainer()
-        if let dated = try? value.decode([String: TimeInterval].self) {
+        if let dated = try? value.decode([String: State].self) {
             received = dated
         } else {
-            for id in try value.decode([UUID].self) { received[id.uuidString] = -1 }
+            for id in try value.decode([UUID].self) { received[id.uuidString] = .waitingSince(-1) }
         }
     }
 
@@ -21,17 +47,22 @@ struct PhoneDeletionReceipts: Codable, Equatable, Sendable {
         try value.encode(received)
     }
 
-    mutating func prune(at now: Date) {
+    mutating func prune(at now: Date, observed: Set<UUID>) {
         let time = now.timeIntervalSince1970
         // 没有时间的旧凭据，从本次首次读取开始计算保留期限。
-        received = received.mapValues { $0 == -1 ? time : $0 }.filter { time - $0.value < Self.lifetime }
+        for id in observed where received[id.uuidString] != nil { received[id.uuidString] = .bookingSeen }
+        for (id, state) in received {
+            guard case .waitingSince(let start) = state else { continue }
+            if start == -1 { received[id] = .waitingSince(time) }
+            else if time - start >= Self.lifetime { received[id] = nil }
+        }
     }
 }
 
 extension Ledger {
-    mutating func prunePhoneDeletes(at now: Date) {
+    mutating func prunePhoneDeletes(at now: Date, observed: Set<UUID> = []) {
         guard var receipts = pendingPhoneDeletes else { return }
-        receipts.prune(at: now)
+        receipts.prune(at: now, observed: observed)
         let updated = receipts.received.isEmpty ? nil : receipts
         if updated != pendingPhoneDeletes { pendingPhoneDeletes = updated }
     }
