@@ -22,7 +22,7 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
-        let db = try SQLiteDB(url: url, readOnly: true)
+        let db = try SQLiteDB(url: url)
         let existing = Set(try db.query("SELECT name FROM sqlite_master WHERE type = 'table'"))
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
@@ -210,7 +210,10 @@ final class SQLiteDB {
             throw SQLiteError(message: msg)
         }
         sqlite3_busy_timeout(handle, 5000)
-        // SQLite 默认使用 DELETE；打开只读或新版文件时不改变日志模式。
+        // 第一次查询可让 SQLite 回滚未提交的事务。新版账本不能改日志模式。
+        if !readOnly, try minimumVersion() <= 2 {
+            try exec("PRAGMA journal_mode = DELETE")
+        }
         try exec("PRAGMA foreign_keys = OFF")
     }
 

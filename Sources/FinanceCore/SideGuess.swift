@@ -32,26 +32,36 @@ public enum SideGuess {
     }
 }
 extension Ledger {
-    public func routeEntry(_ tx: inout Transaction, side requested: String?) throws -> String {
+    public func routeEntry(_ tx: inout Transaction, side requested: String?) throws -> String? {
+        let explicitBook = tx.bookID
         if let requested {
-            guard let side = Side(rawValue: requested), let id = bookID(for: side), tx.bookID == nil || tx.bookID == id else { throw BusinessError(message: "请确认生活或生意和账本选择一致") }
+            guard let side = Side(rawValue: requested), let id = bookID(for: side), explicitBook == nil || explicitBook == id else {
+                throw BusinessError(message: "请确认生活或生意和账本选择一致")
+            }
             tx.bookID = id
-            return "归到\(id)（指定了\(requested)）"
+            guard business?.enabled == true, explicitBook == nil else { return nil }
+            return "放到\(side.label)（指定了\(side.label)）"
         }
-        if let id = tx.bookID { return "归到\(id)（指定账本）" }
+        if explicitBook != nil { return nil }
         guard business?.enabled == true else { throw BusinessError(message: "请指定账本") }
         if let guess = SideGuess.suggestion(tx, ledger: self), let id = bookID(for: guess.to) {
-            tx.bookID = id; return "归到\(id)（\(guess.reason)）"
+            tx.bookID = id
+            return "放到\(guess.to.label)（\(guess.reason)）"
         }
         throw BusinessError(message: "请确认记在生活还是生意，指定 side 或 book")
     }
 }
 
 extension Ledger {
-    public mutating func describeRoute(_ change: ChangeRecord, reason: String) -> ChangeRecord {
+    public mutating func describeRoute(_ change: ChangeRecord, reason: String?) -> ChangeRecord {
+        guard let reason else { return change }
         var result = change
         result.summary += " · " + reason
         if let index = changes.lastIndex(where: { $0.id == change.id }) { changes[index] = result }
         return result
     }
+}
+
+private extension Side {
+    var label: String { self == .business ? "生意" : "生活" }
 }

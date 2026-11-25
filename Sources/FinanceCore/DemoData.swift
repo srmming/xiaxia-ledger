@@ -823,9 +823,10 @@ struct DemoBuilder {
         var settings = BusinessSettings()
         settings.enabled = true
         settings.businessBookID = Self.S
-        settings.capital = Capital(total: eur(1400), openedOn: start, items: [
+        settings.capital = Capital(total: eur(32000), openedOn: start, items: [
             .init(name: "首批花材", amount: eur(600), txIDs: stock.map { [$0] }),
-            .init(name: "开店押金", amount: eur(800))
+            .init(name: "开店押金", amount: eur(800)),
+            .init(name: "花店装修和冷藏设备", amount: eur(30600))
         ])
         l.business = settings
         l.minReaderVersion = 2

@@ -147,3 +147,64 @@ final class BusinessTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), newer)
     }
 }
+
+extension BusinessTests {
+    func testDescribeOnlyRoutedEntries() throws {
+        var ledger = Ledger.starter
+        _ = try ledger.enableBusinessMode(author: author)
+        var explicit = tx("书包", -100, book: "personal")
+        XCTAssertNil(try ledger.routeEntry(&explicit, side: nil))
+        XCTAssertNil(try ledger.routeEntry(&explicit, side: "life"))
+        var automatic = explicit
+        automatic.bookID = nil
+        XCTAssertEqual(try ledger.routeEntry(&automatic, side: nil), "放到生活（说明里有「书包」）")
+        XCTAssertEqual(automatic.bookID, "personal")
+        automatic.bookID = nil
+        XCTAssertEqual(try ledger.routeEntry(&automatic, side: "business"), "放到生意（指定了生意）")
+        _ = ledger.disableBusinessMode(author: author)
+        automatic.bookID = nil
+        XCTAssertNil(try ledger.routeEntry(&automatic, side: "business"))
+    }
+
+    func testLoadRecoversHotRollbackJournal() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("source.sqlite")
+        let interrupted = dir.appendingPathComponent("interrupted.sqlite")
+        try SQLiteLedgerStore(url: source).save(.starter)
+        let writer = try SQLiteDB(url: source)
+        try writer.exec("PRAGMA cache_size=1; PRAGMA cache_spill=1; PRAGMA synchronous=FULL; BEGIN IMMEDIATE")
+        try writer.exec("DELETE FROM books; INSERT INTO meta VALUES ('spill', zeroblob(262144))")
+        // 复制已经写出脏页、仍未提交的文件对，模拟进程在这里退出。
+        try fm.copyItem(at: source, to: interrupted)
+        let journal = URL(fileURLWithPath: interrupted.path + "-journal")
+        try fm.copyItem(at: URL(fileURLWithPath: source.path + "-journal"), to: journal)
+        try writer.exec("ROLLBACK")
+        XCTAssertThrowsError(try SQLiteDB(url: interrupted, readOnly: true).query("SELECT json FROM books"))
+        XCTAssertEqual(try SQLiteLedgerStore(url: interrupted).load(), .starter)
+        XCTAssertFalse(fm.fileExists(atPath: journal.path))
+    }
+
+    func testWritableConnectionRestoresDeleteJournalMode() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("test.sqlite")
+        let store = SQLiteLedgerStore(url: url)
+        try store.save(.fresh)
+        XCTAssertEqual(try SQLiteDB(url: url).query("PRAGMA journal_mode=WAL"), ["wal"])
+        _ = try store.load()
+        XCTAssertEqual(try SQLiteDB(url: url, readOnly: true).query("PRAGMA journal_mode"), ["delete"])
+    }
+
+    func testDemoShowsPartialRecoveryAndEstimate() throws {
+        let end = LocalDate("2026-11-25")!
+        let ledger = DemoData.make(endingOn: end)
+        let progress = try XCTUnwrap(ledger.capitalProgress(today: end))
+        XCTAssertTrue((0.4...0.6).contains(progress.fraction))
+        guard case .months(let months) = progress.estimate else { return XCTFail("示例应能估算回本月数") }
+        XCTAssertGreaterThan(months, 0)
+        let capital = try XCTUnwrap(ledger.business?.capital)
+        XCTAssertEqual(capital.items.reduce(Money.zero) { $0 + $1.amount }, capital.total)
+    }
+}

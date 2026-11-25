@@ -49,6 +49,31 @@ run account add cash 现金 --kind cash --dry-run
 run account add cash 现金 --kind cash
 run account add caixa Caixa
 run account add revolut Revolut
+# 生意模式关闭时，命令行和 MCP 的返回文字、落盘改动说明均沿用原文。
+python3 - "$FIN" "$WORK/旧版记账文案.json" <<'CHECK_ADD' || FAILS=$((FAILS + 1))
+import json, os, subprocess, sys
+fin, path = sys.argv[1:]
+env = dict(os.environ, XIAXIA_LEDGER_PATH=path)
+def run(*args, input=None):
+    return subprocess.check_output([fin, *args], input=input, env=env, text=True)
+def last_change():
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)["changes"][-1]
+
+run("account", "add", "cash", "测试现金", "--kind", "cash")
+summary = "记一笔 1,00 € 测试收款"
+out = run("add", "1", "测试收款", "--account", "cash", "--book", "personal")
+change = last_change()
+short_id = change["id"][:8]
+assert change["summary"] == summary
+assert out == f"已记：{summary}（改动 {short_id}，写错了用 fin undo {short_id} 撤销）\n"
+args = {"amount":"1", "description":"测试收款", "account":"cash", "book":"personal"}
+request = {"jsonrpc":"2.0", "id":1, "method":"tools/call", "params":{"name":"add_transaction", "arguments":args}}
+response = json.loads(run("mcp", input=json.dumps(request) + "\n"))["result"]
+change = last_change()
+assert not response["isError"] and change["summary"] == summary
+assert response["content"][0]["text"] == f"已记：{summary}\n改动 id：{change['id'][:8].lower()}（写错了用 undo 撤销）"
+CHECK_ADD
 run business on --book shop --json
 run business status --json
 run capital set --total 1000 --recovered-before 10 --json
