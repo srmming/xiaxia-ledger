@@ -37,6 +37,10 @@ struct WealthPage: View {
                         heroCard(w)
                         // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
                         if !Viewport.isShort(viewport) { debtsCard }
+                        // 下个月要付：每一样、多少钱、合计（ming 2026-11-25）。
+                        if let due = model.lifeOutlook()?.next, !due.isEmpty {
+                            NextMonthDueCard(due: due, maxRows: Viewport.isShort(viewport) ? 3 : 5)
+                        }
                     } side: {
                         accountsCard
                     }

@@ -248,9 +248,10 @@ extension Ledger {
 
     /// 加一项固定开销：每月 day 号从 accountID 付 amount。不马上记一笔：从下一个 day 号起，到日子自动记上。能撤销。
     @discardableResult
+    /// bookID：记到哪个账本；不填就是生意账本（生活那边认出来的固定开销「算」时传个人账本）。
     public mutating func addFixedCost(name: String, amount: Money, day: Int, accountID: String, category: String,
-                                      today: LocalDate = .today, author: String) throws -> ChangeRecord {
-        guard let shop = businessBook?.id else { throw BusinessError(message: "请先打开生意模式") }
+                                      bookID: String? = nil, today: LocalDate = .today, author: String) throws -> ChangeRecord {
+        guard let shop = bookID ?? businessBook?.id else { throw BusinessError(message: "请先打开生意模式") }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ManageError.emptyName }
         guard amount > .zero else { throw EditError.amountMustBePositive }

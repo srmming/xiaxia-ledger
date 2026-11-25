@@ -168,6 +168,7 @@ enum MCPTools {
             "repeat": ["type": "string", "enum": ["weekly", "monthly", "yearly"], "description": "重复：每周 / 每月 / 每年（可不填）"],
             "until": prop("string", "重复到哪天为止（可不填）"),
             "original": prop("string", "用别的币种付的原价，如「50 USD」（欧元卡在国外刷卡时）。amount 填银行扣的数"),
+            "one_off": prop("boolean", "支出才填：是不是一次性的大开销（买家电、机票、修车这种不是每月都有的）。自己判断着填，不用问用户"),
             "author": author, "dry_run": dryRun,
         ], required: ["amount", "description", "account"], readOnly: false),
         tool("add_debt", "记一笔欠款。direction：they_owe_me（我借出去）或 i_owe（我借来的）。", [
@@ -240,6 +241,14 @@ enum MCPTools {
             "remove": ["type": "array", "items": ["type": "string"], "description": "要去掉的标签"],
             "author": author, "dry_run": dryRun,
         ], required: ["ids"], readOnly: false),
+        tool("one_off_review", "待复核：最近 60 天还没标过「一次性 / 平时」的支出（用户自己手记的、导入时没标的），附规则的猜测 guess。每次连上先看一眼，有就自己判断、用 mark_one_off 悄悄标好，不要问用户、也不用告诉用户。标了只影响预测卡（月底大概花、每天平均），不改流水。", [
+            "limit": prop("integer", "最多几条，默认 50"),
+        ], readOnly: true),
+        tool("mark_one_off", "标几笔支出是不是一次性开销（one_off true = 一次性，false = 平时的开销）。悄悄做，不用问用户。能撤销。", [
+            "ids": ["type": "array", "items": ["type": "string"], "description": "流水 id"],
+            "one_off": prop("boolean", "true 一次性，false 平时的"),
+            "author": author, "dry_run": dryRun,
+        ], required: ["ids", "one_off"], readOnly: false),
         tool("list_recurring", "重复记账（房租、话费这种到日子自动记的）：多久一次、下次哪天、是否暂停。", [:], readOnly: true),
         tool("set_recurring", "把已有的一笔设成重复，从它的下一期开始自动记。", [
             "id": prop("string", "流水 id"),
@@ -644,7 +653,20 @@ enum MCPTools {
                 return try commit(ledger.describeRoute(change, reason: reason))
             }
             let change = try ledger.addTransaction(tx, author: who)
+            if tx.amount.cents < 0, let oneOff = a["one_off"] as? Bool { _ = try? ledger.markOneOff([tx.id], oneOff: oneOff, author: who) }
             return try commit(ledger.describeRoute(change, reason: reason))
+        case "one_off_review":
+            struct Row: Encodable { var id: String; var date: String; var amount: String; var description: String; var category: String?; var book: String?; var guess: Bool }
+            let limit = (a["limit"] as? Int) ?? 50
+            return try json(Outlook.reviewQueue(ledger, limit: limit).map {
+                Row(id: String($0.tx.id.uuidString.prefix(8)).lowercased(), date: $0.tx.date.description, amount: $0.tx.amount.formatted,
+                    description: $0.tx.description, category: $0.tx.category, book: $0.tx.bookID, guess: $0.guess)
+            })
+        case "mark_one_off":
+            guard let ids = a["ids"] as? [String], !ids.isEmpty else { throw ToolError(message: "ids 要是非空的字符串数组") }
+            guard let oneOff = a["one_off"] as? Bool else { throw ToolError(message: "one_off 要填 true 或 false") }
+            let txs = try ledger.findTransactions(ids)
+            return try commit(try ledger.markOneOff(txs.map(\.id), oneOff: oneOff, author: who))
         case "split_transaction":
             let t = try ledger.findTransactions([try req("id")])[0]
             guard let raw = a["parts"] as? [[String: Any]], raw.count >= 2 else { throw ToolError(message: "parts 至少要两份") }

@@ -279,6 +279,9 @@ struct BusinessWealth: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .kitCard()
+            if let due = model.shopOutlook()?.next, !due.isEmpty {
+                NextMonthDueCard(due: due, shop: true, maxRows: 4)
+            }
         }
     }
 

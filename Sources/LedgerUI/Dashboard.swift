@@ -220,6 +220,22 @@ extension LedgerModel {
                                  now: wealthBreakdown(ym).spendable, history: history)
     }
 
+    /// 预测卡（ming 2026-11-25）：生活这边。数据不到一个月是 nil。
+    func lifeOutlook() -> Outlook.Life? {
+        Outlook.life(ledger, balance: wealthBreakdown(LocalDate.today.yearMonth).spendable, hiddenAccounts: hiddenAccounts)
+    }
+
+    /// 预测卡：生意这边，钱是店里账户现在一共多少。
+    func shopOutlook() -> Outlook.Business? {
+        let ids = Set(ledger.businessAccountIDs).subtracting(hiddenAccounts)
+        return Outlook.business(ledger, balance: ids.reduce(Money.zero) { $0 + (balances[$1] ?? .zero) }, hiddenAccounts: hiddenAccounts)
+    }
+
+    /// 这一边认出来、还没问过的固定开销。
+    func fixedGuessesHere() -> [Outlook.FixedGuess] {
+        Outlook.fixedGuesses(ledger, side: side, hiddenAccounts: hiddenAccounts)
+    }
+
     /// 最近 3 个过完的、有花销的月平均每月花多少（正数）。没有过完的月就用这个月到现在的。
     func averageMonthlySpend() -> Money { averageMonthlySpend(books: [nil]) }
 

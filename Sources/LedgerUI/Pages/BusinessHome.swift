@@ -379,11 +379,14 @@ struct DailyTakingsSheet: View {
                 row(tr("收了"), received.rounded)
                 row(tr("花了（这天记的开销）"), (-spent).rounded)
                 Divider()
+                // 还没填收入时不下「亏了」的结论，免得一打开就吓人。
+                let undecided = received == .zero && already.total == .zero
                 HStack {
-                    Text(earned.isExpense ? tr("这天亏了") : tr("这天赚了")).font(.headline)
+                    Text(undecided ? tr("填了收入就算赚没赚") : earned.isExpense ? tr("这天亏了") : tr("这天赚了")).font(.headline)
+                        .foregroundStyle(undecided ? Color.fg2 : Color.primary)
                     Spacer()
-                    Text(earned.magnitude.rounded).font(.system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
-                        .foregroundStyle(earned.isExpense ? Color.alert : Color.income)
+                    Text(undecided ? "—" : earned.magnitude.rounded).font(.system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
+                        .foregroundStyle(undecided ? Color.fg3 : earned.isExpense ? Color.alert : Color.income)
                         .contentTransition(.numericText(value: Double(earned.cents)))
                         .animation(.snappy, value: earned)
                 }
@@ -414,7 +417,7 @@ struct DailyTakingsSheet: View {
                     if account.wrappedValue.isEmpty { Text(tr("选账户")).tag("") }
                     ForEach(choices) { a in Text(a.name).tag(a.id) }
                 }
-                .labelsHidden().pickerStyle(.menu).fixedSize().font(.caption)
+                .labelsHidden().pickerStyle(.menu).fixedSize().font(.caption).tint(Color.shop)
                 #if os(macOS)
                 .buttonStyle(.borderless)
                 #endif

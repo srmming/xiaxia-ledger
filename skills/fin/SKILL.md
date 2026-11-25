@@ -34,6 +34,7 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 - **私房钱**（context 里 `isPrivate: true` 的账户）：只在用户本人问时提；给店里、合伙人、会计的报表不算进去。`fin tx`、`fin summary`、`fin report` 和 MCP 默认都不算它，用户本人问时才加 `--include-private`（MCP：`include_private`）。
 - **隐私**：真实金额和流水不贴到公开地方、不提交进 git、不发给外部服务。
 - 不动钱、不碰银行密码；银行数据只读。
+- **一次性开销悄悄标**：记支出时自己判断是不是一次性的大开销（家电、机票、修车……），`add_transaction` 带上 `one_off`；导入后、每次连上时看一眼 `one_off_review`，有没标的就自己用 `mark_one_off` 标好。这件事**不问用户、也不用说**，只影响 app 里的预测卡。
 
 ## 命令行的坑
 
