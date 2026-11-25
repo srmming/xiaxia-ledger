@@ -50,8 +50,11 @@ def check(d, need=None):
             if not t.get("title") or not t.get("summary"): errs.append(f"{v} 的 {lang} 缺 title 或 summary")
             if len(t.get("items", [])) != len(r.get("items", [])): errs.append(f"{v} 的 {lang} 条数和中文不一样")
         for im in images_of(r):
-            if not os.path.exists(os.path.join(SITE, im.get("src", ""))): errs.append(f"{v} 的配图 site/{im.get('src')} 不存在")
-            elif im.get("style") != "art" and not (im.get("alt") or {}).get("zh"): errs.append(f"{v} 的配图 {im.get('src')} 缺 alt（写清图里是什么）")
+            src = im.get("src") or ""
+            if not src or not os.path.isfile(os.path.join(SITE, src)): errs.append(f"{v} 的配图 site/{src} 不存在（images 里每张都要写 src）")
+            # 只有新写法 images 必须写 alt；旧写法 image 用默认的「x.y.z 版截图（示例数据）」
+            elif r.get("images") and im.get("style") != "art" and not (im.get("alt") or {}).get("zh"):
+                errs.append(f"{v} 的配图 {src} 缺 alt（写清图里是什么）")
     vs = [vkey(r["version"]) for r in rs if re.fullmatch(r"\d+\.\d+\.\d+", r.get("version", ""))]
     if vs != sorted(vs, reverse=True): errs.append("新版本要放在最前面")
     if need and need not in seen: errs.append(f"还没有 {need} 这一条")
@@ -319,6 +322,8 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
 @media (max-width:760px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
+.mdl{display:none}
+@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:15px}}
 /* header */
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:56px 0 28px}
 .top h1{font-size:clamp(40px,7vw,60px);line-height:1.1;text-wrap:balance}
@@ -340,7 +345,8 @@ li{margin:7px 0}
 .latest li::marker,.body li::marker{color:var(--coral-t);content:"● ";font-size:.7em}
 .figs{display:grid;gap:14px;margin-top:22px}
 figure{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--paper2)}
-figure a{display:block}
+figure a{display:block;border-radius:inherit}
+figure a:focus-visible{outline:3px solid var(--sea);outline-offset:-5px}
 figure img{width:100%}
 figure.art{border:0;background:none;border-radius:0}
 figure.art img{width:160px;margin:0 auto}
@@ -378,7 +384,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
       <a href="/#install">怎么装</a>
       <a href="changelog.html" aria-current="page">更新日志</a>
       <span class="lang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span>
-      <details class="menu"><summary>菜单</summary><div><a href="/#tour">看看界面</a><a href="/#install">怎么装</a><a href="changelog.html" aria-current="page">更新日志</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
+      <details class="menu"><summary>菜单</summary><div><a href="/#tour">看看界面</a><a href="/#install">怎么装</a><a href="changelog.html" aria-current="page">更新日志</a><a class="mdl" href="/download/xiaxia-ledger.dmg">下载</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
       <a class="btn" href="/download/xiaxia-ledger.dmg">下载</a>
     </div>
   </div>

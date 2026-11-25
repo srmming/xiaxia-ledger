@@ -71,6 +71,8 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
 @media (max-width:760px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
+.mdl{display:none}
+@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:15px}}
 /* header */
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:56px 0 28px}
 .top h1{font-size:clamp(40px,7vw,60px);line-height:1.1;text-wrap:balance}
@@ -92,7 +94,8 @@ li{margin:7px 0}
 .latest li::marker,.body li::marker{color:var(--coral-t);content:"● ";font-size:.7em}
 .figs{display:grid;gap:14px;margin-top:22px}
 figure{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--paper2)}
-figure a{display:block}
+figure a{display:block;border-radius:inherit}
+figure a:focus-visible{outline:3px solid var(--sea);outline-offset:-5px}
 figure img{width:100%}
 figure.art{border:0;background:none;border-radius:0}
 figure.art img{width:160px;margin:0 auto}
@@ -130,7 +133,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
       <a href="/es/#install">Instalar</a>
       <a href="changelog.html" aria-current="page">Novedades</a>
       <span class="lang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span>
-      <details class="menu"><summary>Menú</summary><div><a href="/es/#tour">Recorrido</a><a href="/es/#install">Instalar</a><a href="changelog.html" aria-current="page">Novedades</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span></div></details>
+      <details class="menu"><summary>Menú</summary><div><a href="/es/#tour">Recorrido</a><a href="/es/#install">Instalar</a><a href="changelog.html" aria-current="page">Novedades</a><a class="mdl" href="/download/xiaxia-ledger.dmg">Descargar</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span></div></details>
       <a class="btn" href="/download/xiaxia-ledger.dmg">Descargar</a>
     </div>
   </div>
