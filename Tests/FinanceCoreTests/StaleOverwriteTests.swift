@@ -22,26 +22,30 @@ final class StaleOverwriteTests: XCTestCase {
     }
 
     func testQueuedPhoneRenamePreservesMacAmountAndReportsSameFieldConflict() throws {
+        let sameTime = Date(timeIntervalSince1970: 1_800_000_000)
         let base = ledger()
         var handset = base, mac = base
         var edit = base.transactions[0]
         edit.description = "手机的新名字"; edit.note = "手机补充"
         try handset.editTransaction(edit, author: "手机")
-        let note = try XCTUnwrap(handset.syncNote(since: base, device: "模拟手机"))
+        handset.changes[0].createdAt = sameTime
+        let note = try XCTUnwrap(handset.syncNote(since: base, device: "模拟手机", now: sameTime))
         let dir = try folder()
         try SyncNotes.write(note, ledgerFolder: dir)
         let wire = try XCTUnwrap(SyncNotes.files(in: SyncNotes.inbox(dir)).first.flatMap(SyncNotes.read))
         edit = base.transactions[0]
         edit.amount = .init(cents: 789)
         try mac.editTransaction(edit, author: "Mac")
+        mac.changes[0].createdAt = sameTime
         var conflict = mac
         XCTAssertTrue(mac.apply(wire))
         XCTAssertEqual(mac.transactions[0].description, "手机的新名字")
         XCTAssertEqual(mac.transactions[0].amount.cents, 789)
-        XCTAssertNil(mac.changes.compactMap(\.syncConflicts).first)
+        XCTAssertEqual(mac.changes.compactMap(\.syncConflicts), [])
 
         edit.description = "Mac 的新名字"
         try conflict.editTransaction(edit, author: "Mac")
+        conflict.changes[1].createdAt = sameTime.addingTimeInterval(-60)
         XCTAssertTrue(conflict.apply(wire))
         XCTAssertEqual(conflict.transactions[0].description, "Mac 的新名字")
         XCTAssertEqual(conflict.transactions[0].amount.cents, 789)
