@@ -247,7 +247,9 @@ public struct MigratingStore: LedgerStore {
 
     public func load() throws -> Ledger {
         if !FileManager.default.fileExists(atPath: primary.url.path), FileManager.default.fileExists(atPath: legacy.url.path) {
-            return try legacy.load()
+            var ledger = try legacy.load()
+            ledger.upgradeBaseline.readVersion = ledger.minReaderVersion
+            return ledger
         }
         return try primary.load()
     }

@@ -159,6 +159,7 @@ extension Ledger {
 /// 两份指纹分别覆盖「读后一次改多项」以及「app 已保存过其他改动，再开启生意」。
 /// 指纹属于存储来源，不参与账本内容的相等比较。
 struct UpgradeBaseline: Equatable, Sendable {
+    var readVersion: Int?
     var read: Data?
     var beforeBusiness: Data?
     var changeID: UUID?

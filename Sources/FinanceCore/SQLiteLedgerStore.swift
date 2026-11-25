@@ -21,11 +21,16 @@ public struct SQLiteLedgerStore: LedgerStore {
     static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork", "receivables"]
 
     public func load() throws -> Ledger {
-        guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            var fresh = Ledger.fresh
+            fresh.upgradeBaseline.readVersion = fresh.minReaderVersion
+            return fresh
+        }
         let db = try SQLiteDB.reader(url: url)
         try db.exec("BEGIN")
         var ledger = try read(from: db)
         try db.exec("COMMIT")
+        ledger.upgradeBaseline.readVersion = ledger.minReaderVersion
         if ledger.minReaderVersion < 2 {
             ledger.upgradeBaseline.read = try ledger.upgradeFingerprint()
         }
@@ -104,10 +109,15 @@ public struct SQLiteLedgerStore: LedgerStore {
         }
     }
 
-    /// 两个开启操作也可能并发。若对方已经完成升级，不能退回普通保存路径覆盖它。
+    /// 普通编辑也可能来自升级前的窗口。自己的升级已落盘时，改动编号可证明
+    /// 这个内存副本参与了升级，无需强制它重新打开。
     private func rejectCompetingUpgrade(_ ledger: Ledger, stored: Int, db: SQLiteDB) throws {
-        guard stored >= 2, let id = ledger.upgradeBaseline.changeID else { return }
-        guard try !db.query("SELECT id FROM changes WHERE id = ?", [id.uuidString]).isEmpty else { throw changedElsewhere }
+        guard stored >= 2 else { return }
+        if let id = ledger.upgradeBaseline.changeID {
+            guard try !db.query("SELECT id FROM changes WHERE id = ?", [id.uuidString]).isEmpty else { throw changedElsewhere }
+        } else if let readVersion = ledger.upgradeBaseline.readVersion, readVersion < stored {
+            throw changedElsewhere
+        }
     }
 
     public func save(_ ledger: Ledger) throws {

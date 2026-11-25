@@ -376,3 +376,67 @@ extension BusinessTests {
         XCTAssertEqual(LedgerBackup.list(for: store.url).count, 1)
     }
 }
+
+extension BusinessTests {
+    func testPreUpgradeEntryCannotOverwriteBusinessInDeleteMode() throws {
+        try checkPreUpgradeEntry(wal: false)
+    }
+
+    func testPreUpgradeEntryCannotOverwriteBusinessInWALMode() throws {
+        try checkPreUpgradeEntry(wal: true)
+    }
+
+    private func checkPreUpgradeEntry(wal: Bool) throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("synthetic.sqlite"))
+        var seed = Ledger.starter
+        seed.accounts = [Account(id: "shop", name: "模拟现金", kind: .cash)]
+        try store.save(seed)
+        if wal { try SQLiteDB(url: store.url).exec("PRAGMA journal_mode=WAL") }
+
+        var ordinary = try store.load(), owner = try store.load()
+        let first = tx("升级时的模拟收款", 200), second = tx("升级后继续记账", 300)
+        _ = try owner.enableBusinessMode(author: "窗口甲")
+        try owner.addTransaction(first, author: "窗口甲")
+        try store.save(owner)
+        try owner.addTransaction(second, author: "窗口甲")
+        try store.save(owner) // 原升级窗口不重新读，也能继续记。
+
+        // 升级默认转回 DELETE；也覆盖数据库实际使用 WAL 时的独占锁入口。
+        if wal { try SQLiteDB(url: store.url).exec("PRAGMA journal_mode=WAL") }
+        let mode = wal ? "wal" : "delete"
+        XCTAssertEqual(try SQLiteDB.reader(url: store.url).query("PRAGMA journal_mode"), [mode])
+        let bytes = try Data(contentsOf: store.url)
+        let other = tx("另一个窗口的模拟收款", 400)
+        try ordinary.addTransaction(other, author: "窗口乙")
+        XCTAssertThrowsError(try store.save(ordinary)) {
+            XCTAssertEqual($0.localizedDescription, "账本刚被别处改过，请再试一次")
+        }
+        XCTAssertEqual(try Data(contentsOf: store.url), bytes)
+        XCTAssertEqual(try SQLiteDB.reader(url: store.url).query("PRAGMA journal_mode"), [mode])
+        var latest = try store.load()
+        XCTAssertEqual(latest.business, owner.business)
+        XCTAssertEqual(latest.transactions, [first, second])
+        try latest.addTransaction(other, author: "窗口乙")
+        try store.save(latest)
+        XCTAssertEqual(try store.load().transactions, [first, second, other])
+    }
+
+    func testTwoOrdinaryWindowsKeepLegacySaveBehaviorBeforeUpgrade() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("legacy.sqlite"))
+        var seed = Ledger.starter
+        seed.accounts = [Account(id: "shop", name: "模拟现金", kind: .cash)]
+        try store.save(seed)
+        var first = try store.load(), second = try store.load()
+        try first.addTransaction(tx("甲", 100), author: "甲")
+        try store.save(first)
+        try second.addTransaction(tx("乙", 200), author: "乙")
+        try store.save(second)
+        let last = try store.load()
+        XCTAssertEqual(last.minReaderVersion, 1)
+        XCTAssertEqual(last.transactions, second.transactions)
+    }
+}

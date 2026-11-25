@@ -67,6 +67,8 @@ extension Ledger {
         case .everything:
             var fresh = Ledger.fresh
             fresh.schemaVersion = schemaVersion
+            fresh.minReaderVersion = minReaderVersion
+            fresh.upgradeBaseline.readVersion = minReaderVersion
             fresh.profile = profile
             // 自己加的分类是跟着账本内容走的，一起清；名字、性格、称呼留着。
             fresh.profile.categories = []
@@ -167,7 +169,12 @@ public enum LedgerBackup {
     /// 读出备份里的账本（恢复前先看看里面有多少东西，恢复时把它存回去）。
     public static func load(_ backup: URL) throws -> Ledger {
         #if canImport(SQLite3)
-        if backup.pathExtension != "json" { return try SQLiteLedgerStore(url: backup).load() }
+        if backup.pathExtension != "json" {
+            var ledger = try SQLiteLedgerStore(url: backup).load()
+            // 明确从备份恢复：读取版本属于备份文件，并非即将替换的目标文件。
+            ledger.upgradeBaseline = UpgradeBaseline()
+            return ledger
+        }
         #endif
         return try JSONFileLedgerStore(url: backup).load()
     }
