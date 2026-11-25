@@ -49,8 +49,10 @@ struct OverviewPage: View {
             } else {
                 XiaxiaCards(nudges: nudges, insights: insights)
             }
-            // 手机上随口记的、拍的小票，还没进账本的：一张卡 +「同步今天的」。
+            // 手机上随口记的、拍的小票：Mac 上挪到流水页最上面（ming 2026-11-25：首页只放数字）。
+            #if os(iOS)
             PendingCapturesCard()
+            #endif
             // 速度图收矮、最近流水 4 条：1280×800 一屏放得下（ming：「尽量不要上下拉」）。
             // 账本卡收成一行一个、放到右栏最近流水下面（右栏下面原来空着），左边只留结论和速度图。
             Columns {
