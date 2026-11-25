@@ -58,6 +58,17 @@ final class BusinessTests: XCTestCase {
         l.transactions.append(tx("销售", 100, category: "营业收入"))
         XCTAssertEqual(l.capitalProgress(today: today)?.estimate, .done)
     }
+    func testDailyProfitEndsAtMonthProfit() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.transactions = [tx("销售", 1000, category: "营业收入"), tx("花材", -300), tx("私房", 200, account: "stash")]
+        l.accounts.append(Account(id: "stash", name: "隐藏", kind: .cash, isPrivate: true))
+        let line = l.businessDailyProfit(month: today.yearMonth, today: today)
+        XCTAssertEqual(line.count, today.day)
+        XCTAssertEqual(line.last, try l.businessReport(month: today.yearMonth, today: today).profit)
+        XCTAssertEqual(line.last?.cents, 700)
+    }
+
     func testGuessAndMove() throws {
         var l = Ledger.starter
         _ = try l.enableBusinessMode(author: author)
