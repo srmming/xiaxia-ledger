@@ -21,7 +21,18 @@ public struct SQLiteLedgerStore: LedgerStore {
 
     static let tables = ["books", "accounts", "transactions", "changes", "debts", "installments", "goals", "insights", "subscriptions", "memories", "captures", "paperwork", "receivables"]
 
+    private func requireDownloadedFile() throws {
+        let placeholder = url.deletingLastPathComponent().appendingPathComponent(".\(url.lastPathComponent).icloud")
+        if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: placeholder.path) {
+            #if canImport(Darwin)
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            #endif
+            throw BusinessError(message: "账本还在从 iCloud 下载，请稍后再试")
+        }
+    }
+
     public func load() throws -> Ledger {
+        try requireDownloadedFile()
         guard FileManager.default.fileExists(atPath: url.path) else {
             let fresh = Ledger.fresh
             fresh.revision.record(url, digest: nil)
@@ -74,6 +85,9 @@ public struct SQLiteLedgerStore: LedgerStore {
         ledger.captures = try rows("captures", Capture.self)
         ledger.paperwork = try rows("paperwork", Paperwork.self)
         guard existing.contains("meta") else { return ledger }
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'pendingPhoneDeletes'").first {
+            ledger.pendingPhoneDeletes = try dec.decode(PhoneDeletionReceipts.self, from: Data(v.utf8))
+        }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'appliedNotes'").first {
             ledger.appliedNotes = (try? dec.decode([String].self, from: Data(v.utf8))) ?? []
         }
@@ -98,8 +112,7 @@ public struct SQLiteLedgerStore: LedgerStore {
     }
 
     private func checkRevision(_ ledger: Ledger, db: SQLiteDB) throws {
-        let marker = url.deletingLastPathComponent().appendingPathComponent(LedgerStores.movedMarker)
-        if url.lastPathComponent == "ledger.sqlite", FileManager.default.fileExists(atPath: marker.path) {
+        if url.lastPathComponent == "ledger.sqlite", LedgerFiles.hasMoved(url.deletingLastPathComponent()) {
             throw LedgerRevision.conflict
         }
         try ledger.revision.check(url, current: db.storageDigest())
@@ -110,6 +123,7 @@ public struct SQLiteLedgerStore: LedgerStore {
     }
 
     func save(_ ledger: Ledger, writeWALSnapshot: (SQLiteDB, URL) throws -> Void) throws {
+        try requireDownloadedFile()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try ledger.checkBusinessVersion()
         // WAL 写连接失败退出时，由只读连接最后关闭，避免自动 checkpoint 改动原文件。
@@ -198,6 +212,9 @@ public struct SQLiteLedgerStore: LedgerStore {
                 try db.run("INSERT INTO paperwork (id, seq, reimburse, files, json) VALUES (?, ?, ?, ?, ?)",
                            [x.id.uuidString, i, x.reimburse.rawValue, x.attachments.count, js(x)])
             }
+            if let deletes = ledger.pendingPhoneDeletes {
+                try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('pendingPhoneDeletes', ?)", [js(deletes)])
+            } else { try db.exec("DELETE FROM meta WHERE key='pendingPhoneDeletes'") }
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('appliedNotes', ?)", [js(ledger.appliedNotes)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])

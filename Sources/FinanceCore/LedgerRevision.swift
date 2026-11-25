@@ -10,6 +10,7 @@ import Glibc
 /// 因此 save 可以回写成功版本，又不会把另一份旧副本一起标记为最新。
 final class LedgerRevision: @unchecked Sendable, Equatable {
     private let lock = NSLock()
+    private var lastFile: URL?
     private var versions: [URL: Data] = [:]
 
     static func == (_ lhs: LedgerRevision, _ rhs: LedgerRevision) -> Bool { true }
@@ -19,6 +20,7 @@ final class LedgerRevision: @unchecked Sendable, Equatable {
         lock.lock(); defer { lock.unlock() }
         let copy = LedgerRevision()
         copy.versions = versions
+        copy.lastFile = lastFile
         return copy
     }
 
@@ -31,9 +33,16 @@ final class LedgerRevision: @unchecked Sendable, Equatable {
         return versions[url.standardizedFileURL.resolvingSymlinksInPath()]
     }
 
+    var ledgerFolder: URL? {
+        lock.lock(); defer { lock.unlock() }
+        return lastFile?.deletingLastPathComponent()
+    }
+
     func record(_ url: URL, digest: Data?) {
         lock.lock(); defer { lock.unlock() }
-        versions[url.standardizedFileURL.resolvingSymlinksInPath()] = digest
+        let file = url.standardizedFileURL.resolvingSymlinksInPath()
+        lastFile = file
+        versions[file] = digest
     }
 }
 

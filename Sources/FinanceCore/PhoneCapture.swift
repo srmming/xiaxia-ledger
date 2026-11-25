@@ -353,7 +353,8 @@ extension Ledger {
         captures[i].resolvedAt = Date(); captures[i].resolvedBy = author
         var change = ChangeRecord(kind: .capture, summary: "待记录入账：\(captures[i].title) → \(formatted(tx)) \(tx.description)",
                                   transactionIDs: [tx.id], author: author)
-        change.before = snap
+        change.saveBefore(snap, in: self)
+        captureTransactionResults(&change)
         changes.append(change)
         return change
     }
@@ -503,7 +504,7 @@ extension Ledger {
     /// 记一条带「之前的样子」的改动。
     mutating func recordPlan(_ kind: ChangeRecord.Kind, _ summary: String, before: PlanSnapshot, author: String) -> ChangeRecord {
         var change = ChangeRecord(kind: kind, summary: summary, transactionIDs: [], author: author)
-        change.before = before
+        change.saveBefore(before, in: self)
         changes.append(change)
         return change
     }
@@ -541,16 +542,20 @@ public enum LedgerFiles {
         guard FileManager.default.fileExists(atPath: source.path) else { throw CaptureError.fileMissing(source.path) }
         let ext = source.pathExtension.isEmpty ? "jpg" : source.pathExtension.lowercased()
         let name = "\(UUID().uuidString).\(ext)"
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try coordinatedCopy(from: source, to: folder.appendingPathComponent(name))
+        try withActiveFolder(folder.deletingLastPathComponent()) {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try coordinatedCopy(from: source, to: folder.appendingPathComponent(name))
+        }
         return name
     }
 
     /// 把一张图片（手机拍的）存进附件文件夹，返回文件名。
     public static func saveAttachment(_ data: Data, ext: String = "jpg", into folder: URL) throws -> String {
         let name = "\(UUID().uuidString).\(ext)"
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try coordinatedWrite(data, to: folder.appendingPathComponent(name))
+        try withActiveFolder(folder.deletingLastPathComponent()) {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try coordinatedWrite(data, to: folder.appendingPathComponent(name))
+        }
         return name
     }
 

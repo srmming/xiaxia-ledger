@@ -1,0 +1,116 @@
+{
+  "accounts" : [
+    {
+      "id" : "cash",
+      "isPrivate" : false,
+      "kind" : "cash",
+      "name" : "模拟现金"
+    }
+  ],
+  "appliedNotes" : [
+
+  ],
+  "books" : [
+    {
+      "currency" : "EUR",
+      "id" : "personal",
+      "kind" : "personal",
+      "name" : "个人"
+    }
+  ],
+  "captures" : [
+
+  ],
+  "changes" : [
+    {
+      "author" : "手机",
+      "createdAt" : "2026-11-25T18:06:09Z",
+      "id" : "F6427523-31E2-4C5E-BD2D-70E34DB051F7",
+      "kind" : "add",
+      "summary" : "记一笔 2,50 € 模拟原名",
+      "transactionIDs" : [
+        "E8594610-ED66-40A3-B8C8-562657ACDFBE"
+      ],
+      "undone" : false
+    },
+    {
+      "author" : "Mac",
+      "createdAt" : "2026-11-25T18:06:09Z",
+      "id" : "7EB8B9D2-DCD1-4BA7-B9D0-D7B714316247",
+      "kind" : "edit",
+      "previous" : [
+        {
+          "accountID" : "cash",
+          "amount" : {
+            "cents" : 250
+          },
+          "bookID" : "personal",
+          "date" : "2026-10-10",
+          "description" : "模拟原名",
+          "id" : "E8594610-ED66-40A3-B8C8-562657ACDFBE"
+        }
+      ],
+      "summary" : "改了一笔：模拟新名 2,50 €",
+      "transactionIDs" : [
+        "E8594610-ED66-40A3-B8C8-562657ACDFBE"
+      ],
+      "undone" : false
+    }
+  ],
+  "currency" : {
+    "base" : "EUR",
+    "rates" : {
+
+    }
+  },
+  "debts" : [
+
+  ],
+  "goals" : [
+
+  ],
+  "insights" : [
+
+  ],
+  "installments" : [
+
+  ],
+  "lastStatementDate" : {
+
+  },
+  "memories" : [
+
+  ],
+  "minReaderVersion" : 1,
+  "paperwork" : [
+
+  ],
+  "profile" : {
+    "categories" : [
+
+    ],
+    "persona" : "gentle"
+  },
+  "receivables" : [
+
+  ],
+  "recurring" : [
+
+  ],
+  "schemaVersion" : 1,
+  "subscriptions" : [
+
+  ],
+  "transactions" : [
+    {
+      "accountID" : "cash",
+      "amount" : {
+        "cents" : 250
+      },
+      "bookID" : "personal",
+      "date" : "2026-10-10",
+      "description" : "模拟新名",
+      "id" : "E8594610-ED66-40A3-B8C8-562657ACDFBE"
+    }
+  ]
+}
