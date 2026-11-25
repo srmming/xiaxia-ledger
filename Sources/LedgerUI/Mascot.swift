@@ -123,6 +123,15 @@ enum MascotLook: String, CaseIterable, Identifiable {
     static var boyAvailable: Bool { MascotImages.has("xiaxia-boy-idle") }
 }
 
+/// 正在看生意那边时为 true：形象换成生意版（成年秘书）。生意模式的界面接好后由外层设置。
+private struct MascotBusinessKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var mascotBusiness: Bool {
+        get { self[MascotBusinessKey.self] }
+        set { self[MascotBusinessKey.self] = newValue }
+    }
+}
+
 /// 读图（带缓存，读一次就留着）。
 enum MascotImages {
     private static let lock = NSLock()
@@ -149,16 +158,26 @@ enum MascotImages {
     static func has(_ key: String) -> Bool { image(key) != nil }
 
     /// 这个角色这个动作实际用哪张图：没有就退回待机图。
-    static func key(_ character: MascotCharacter, _ pose: MascotPose, look: MascotLook = .girl) -> String {
-        let p = prefix(character, look)
+    static func key(_ character: MascotCharacter, _ pose: MascotPose, look: MascotLook = .girl, business: Bool = false) -> String {
+        let p = prefix(character, look, business: business)
         let k = "\(p)-\(pose.rawValue)"
         return has(k) ? k : "\(p)-idle"
     }
 
-    /// 图名前缀：男生版有图就用 `xiaxia-boy`，否则 `xiaxia`。
-    static func prefix(_ character: MascotCharacter, _ look: MascotLook) -> String {
-        if look == .boy, has("\(character.rawValue)-boy-idle") { return "\(character.rawValue)-boy" }
-        return character.rawValue
+    /// 图名前缀，按顺序找第一套有图的：
+    /// 生意模式：`xiaxia-biz-boy`（男生）→ `xiaxia-boy`（男生的生活版）→ `xiaxia-biz` → `xiaxia`；
+    /// 生活模式：`xiaxia-boy`（男生）→ `xiaxia`。生意版的图缺了就自动用生活版，不挡发版。
+    static func prefix(_ character: MascotCharacter, _ look: MascotLook, business: Bool = false) -> String {
+        candidates(character.rawValue, look, business: business).first { has("\($0)-idle") } ?? character.rawValue
+    }
+
+    static func candidates(_ c: String, _ look: MascotLook, business: Bool) -> [String] {
+        var list: [String] = []
+        if business && look == .boy { list.append("\(c)-biz-boy") }
+        if look == .boy { list.append("\(c)-boy") }
+        if business { list.append("\(c)-biz") }
+        list.append(c)
+        return list
     }
 }
 
@@ -175,8 +194,9 @@ struct MascotView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(MascotLook.storageKey) private var lookRaw = MascotLook.girl.rawValue
+    @Environment(\.mascotBusiness) private var business
     private var look: MascotLook { MascotLook(rawValue: lookRaw) ?? .girl }
-    private var prefix: String { MascotImages.prefix(character, look) }
+    private var prefix: String { MascotImages.prefix(character, look, business: business) }
     /// 每个形象的节奏错开一点，几个一起出现时不会齐步走。
     @State private var seed = Double.random(in: 0...10)
 
@@ -206,7 +226,7 @@ struct MascotView: View {
 
     // MARK: 用哪一帧
 
-    private var baseKey: String { MascotImages.key(character, pose, look: look) }
+    private var baseKey: String { MascotImages.key(character, pose, look: look, business: business) }
 
     /// 眨眼：大约每 3.7 秒眨一下，偶尔连眨两下。只有待机图有闭眼帧。
     private func blinking(_ t: Double) -> Bool {
