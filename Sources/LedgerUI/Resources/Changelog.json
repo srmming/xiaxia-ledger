@@ -1,5 +1,5 @@
 {
-  "_说明": "更新日志唯一来源：官网 /changelog.html、Mac 更新窗口里的「新版改了什么」、app 更新后第一次打开的小卡片都从这里来。新版本放最前面。发版时 scripts/release-share.sh 会调用 scripts/changelog.py add <版本>，没有这一条就按上次发版以来合并的 PR 标题自动起草一条，再改成大白话。image 是相对官网根目录的路径（imageStyle=art 表示是角色小图，不是整页截图），只能用示例数据的截图。commit 是发版时 main 的提交，下次起草从这里往后数。 en、es 是这一版的英文、西班牙语（title、summary、items，条数和中文一样）；官网 /en/、/es/ 的更新日志页用。发版时一起写，没写的那一版在英文、西语页上先显示中文。",
+  "_说明": "更新日志唯一来源：官网 /changelog.html、Mac 更新窗口里的「新版改了什么」、app 更新后第一次打开的小卡片都从这里来。新版本放最前面。发版时 scripts/release-share.sh 会调用 scripts/changelog.py add <版本>，没有这一条就按上次发版以来合并的 PR 标题自动起草一条，再改成大白话。images 是这一版的配图（可以几张）：src 是相对官网根目录的路径，alt 写清图里是什么（zh/en/es），style=art 表示是角色小图、不是截图；只能用示例数据的截图，只截改动的那一块，宽 1200–1600 的 webp。commit 是发版时 main 的提交，下次起草从这里往后数。 en、es 是这一版的英文、西班牙语（title、summary、items，条数和中文一样）；官网 /en/、/es/ 的更新日志页用。发版时一起写，没写的那一版在英文、西语页上先显示中文。",
   "releases": [
     {
       "version": "0.2.5",
@@ -12,8 +12,34 @@
         "手机上随手记：打开就能记一笔，可以拍小票，还多了一页「报销」，哪些没交、哪些在等钱一眼看清。iPhone 和 Mac 通过 iCloud 自动同步。",
         "趋势页改成「照这样花下去」：直接告诉你月底和年底大概还剩多少，哪几样少花一半能多剩多少。",
         "连 AI 更省事：每个 AI 一个「连接」按钮，连完自己测一遍能不能读到账本；别的 AI 复制一段话，它会自己配好。",
-        "更新后会告诉你这一版改了什么，每次打开都会看一眼有没有新版；官网多了更新日志页。",
+        "更新后会告诉你这一版改了什么，每次打开都会看一眼有没有新版；官网多了更新日志页，还有英文和西班牙语版。",
         "界面开始支持英文和西班牙语，在「设置 → 隐私与外观 → 语言」里切换。默认还是中文，夏夏说的话等少数地方还没翻完。"
+      ],
+      "images": [
+        {
+          "src": "assets/changelog/0.2.5-piggy.webp",
+          "alt": {
+            "zh": "目标页：大目标「换新电脑」的小金猪，下面是三个小目标的小猪（示例数据）",
+            "en": "Goals page: the piggy bank for the main goal “New laptop”, with three small goals below (sample data)",
+            "es": "Página Objetivos: la hucha del objetivo principal «Portátil nuevo», con tres objetivos pequeños debajo (datos de ejemplo)"
+          }
+        },
+        {
+          "src": "assets/changelog/0.2.5-trends.webp",
+          "alt": {
+            "zh": "趋势页：照这样花下去，月底和年底大概还剩多少（示例数据）",
+            "en": "Trends page: if you keep spending like this, roughly what's left at the end of the month and the year (sample data)",
+            "es": "Página Tendencias: si sigues gastando así, cuánto te quedará más o menos a fin de mes y de año (datos de ejemplo)"
+          }
+        },
+        {
+          "src": "assets/changelog/0.2.5-connect.webp",
+          "alt": {
+            "zh": "连接你的 AI：每个 AI 一个「连接」按钮，旁边写着连好了没有（示例）",
+            "en": "Connect your AI: each AI has its own Connect button and shows whether it's connected (example)",
+            "es": "Conecta tu IA: cada IA tiene su botón Conectar y muestra si ya está conectada (ejemplo)"
+          }
+        }
       ],
       "en": {
         "title": "Golden piggy bank, quick entry on your phone, one-click AI connection",
@@ -23,7 +49,7 @@
           "Quick entry on your phone: open and add an entry, snap a receipt, and use the new Expense claims page to see what’s not submitted and what’s waiting to be paid. iPhone and Mac sync automatically through iCloud.",
           "The Trends page now answers “if I keep spending like this”: roughly how much is left at month end and year end, and how much more you’d have by halving a few categories.",
           "Connecting an AI is easier: each AI has a Connect button that then tests whether it can read the ledger. For other AIs, copy one prompt and it sets itself up.",
-          "After an update the app tells you what changed and checks for new versions every time it opens. The website has a release notes page.",
+          "After an update the app tells you what changed and checks for new versions every time it opens. The website has a release notes page, and English and Spanish versions.",
           "The interface now starts to support English and Spanish, under Settings → Privacy & appearance → Language. Chinese remains the default, and a few places such as Xiaxia’s comments aren’t translated yet."
         ]
       },
@@ -35,7 +61,7 @@
           "Apuntes rápidos en el móvil: abre y apunta, fotografía un tique y usa la nueva página de reembolsos para ver qué falta por presentar y qué está pendiente de cobro. iPhone y Mac se sincronizan solos con iCloud.",
           "La página Tendencias responde ahora a «si sigo gastando así»: cuánto te quedará más o menos a fin de mes y a fin de año, y cuánto más tendrías reduciendo a la mitad algunas categorías.",
           "Conectar una IA es más fácil: cada IA tiene un botón Conectar que después comprueba si puede leer el libro. Para otras IA, copia un texto y se configura sola.",
-          "Tras actualizar, la app te cuenta qué ha cambiado y comprueba si hay versión nueva cada vez que se abre. La web tiene una página de novedades.",
+          "Tras actualizar, la app te cuenta qué ha cambiado y comprueba si hay versión nueva cada vez que se abre. La web tiene una página de novedades y versiones en inglés y en español.",
           "La interfaz empieza a estar disponible en inglés y español, en Ajustes → Privacidad y apariencia → Idioma. El chino sigue siendo el idioma por defecto y algunas partes, como los comentarios de Xiaxia, aún no están traducidas."
         ]
       }
@@ -51,7 +77,16 @@
         "下面写着这些钱够花几个月，按你自己每月的花销算；有生意账本时只算个人花销。",
         "总存款变成一根彩色粗条，一种颜色一块，下面的小卡写着每块钱是哪些账户、哪些目标。"
       ],
-      "image": "assets/changelog/0.2.4.webp",
+      "images": [
+        {
+          "src": "assets/changelog/0.2.4.webp",
+          "alt": {
+            "zh": "家底页：最大的数字是现在能随便花的钱，下面一根彩色粗条分出每块钱（示例数据）",
+            "en": "Net worth page: the big number is what you can spend freely, with a coloured bar splitting up your money (sample data)",
+            "es": "Página Patrimonio: la cifra grande es lo que puedes gastar libremente, con una barra de colores que reparte tu dinero (datos de ejemplo)"
+          }
+        }
+      ],
       "en": {
         "title": "Net worth page redesigned: see what you can freely spend right now",
         "summary": "Open Net worth and the biggest number is the money you can freely spend today, plus how many months it would last.",
@@ -82,7 +117,16 @@
         "删除数据：可以只删一部分，也可以全删，删之前自动复制一份账本。",
         "从备份恢复：从更新前、删除前留下的备份里挑一份恢复。"
       ],
-      "image": "assets/changelog/0.2.3.webp",
+      "images": [
+        {
+          "src": "assets/changelog/0.2.3.webp",
+          "alt": {
+            "zh": "设置里的「数据」：看演示数据、删除数据（示例数据）",
+            "en": "The Data section in Settings: try sample data, delete data (sample data)",
+            "es": "La sección Datos en Ajustes: ver datos de ejemplo, borrar datos (datos de ejemplo)"
+          }
+        }
+      ],
       "en": {
         "title": "New “Data” section in Settings: try a demo, delete data, restore from a backup",
         "summary": "See what every page looks like with data before you log anything; deleting always makes a backup first, so a mistake can be undone.",
@@ -114,7 +158,16 @@
         "「目标」页看存钱来不来得及，「订阅」页找出白花钱的订阅，「欠款与分期」页按我欠的、欠我的排好。",
         "拍小票记账，用小票上的日期，不再记成今天。"
       ],
-      "image": "assets/tour-spending.webp",
+      "images": [
+        {
+          "src": "assets/tour-spending.webp",
+          "alt": {
+            "zh": "花销页：这个月和上个月并排对比（示例数据）",
+            "en": "Spending page: this month next to last month (sample data)",
+            "es": "Página Gastos: este mes junto al anterior (datos de ejemplo)"
+          }
+        }
+      ],
       "en": {
         "title": "Spending, Trends and Net worth redesigned; new Goals, Subscriptions and Debts & instalments pages",
         "summary": "The money pages were laid out again to fit on one screen, and three new pages look after savings goals, subscriptions and debts.",
@@ -148,8 +201,17 @@
         "夏夏的记忆：记得你定的规矩和你的习惯，在「设置 → 夏夏的记忆」里能看能改。",
         "换了新的 app 图标：夏夏头像。"
       ],
-      "image": "assets/xiaxia-boy-cheer.webp",
-      "imageStyle": "art",
+      "images": [
+        {
+          "src": "assets/xiaxia-boy-cheer.webp",
+          "style": "art",
+          "alt": {
+            "zh": "男生版夏夏在欢呼",
+            "en": "The boy version of Xiaxia cheering",
+            "es": "La versión chico de Xiaxia celebrando"
+          }
+        }
+      ],
       "en": {
         "title": "Xiaxia now has a boy version, and remembers your habits",
         "summary": "On first launch you can pick the girl or boy set and name your assistant; Xiaxia has also started keeping notes.",

@@ -17,7 +17,7 @@ T = {
     "更新日志": ("Changelog", "Novedades"),
     "下载": ("Download", "Descargar"),
     # 头图
-    "看一眼，<br>就知道<em>钱去哪了</em>。": ("One look,<br>and you know <em>where the money went</em>.", "Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>."),
+    "看一眼，<br><span class=\"nw\">就知道<em>钱去哪了</em>。</span>": ("One look,<br>and you know <em>where the money went</em>.", "Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>."),
     "夏夏账本是 Mac 上的原生记账 app。图表帮你看清收支、家底和欠款；记账直接跟你的 AI 说一句，夏夏还会给你出主意。": (
         "Xiaxia Ledger is a native money app for Mac. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.",
         "Xiaxia Ledger es una app nativa de finanzas para Mac. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja."),
@@ -25,7 +25,6 @@ T = {
     "先看看界面": ("Take the tour first", "Ver el recorrido"),
     "免费下载": ("Free download", "Descarga gratuita"),
     "· 需要 macOS 14 Sonoma 或更新": ("· Requires macOS 14 Sonoma or later", "· Requiere macOS 14 Sonoma o posterior"),
-    "这个月还能剩 813 €，比上月多哦 ✨": ("813 € left this month, more than last ✨", "Este mes te sobran 813 €, más que el pasado ✨"),
     "夏夏：蓝头发的鲸鱼娘，在挥手打招呼": ("Xiaxia: a blue-haired whale girl waving hello", "Xiaxia: una chica ballena de pelo azul que saluda"),
     # 为什么
     "为什么用夏夏账本": ("Why Xiaxia Ledger", "Por qué Xiaxia Ledger"),
@@ -38,9 +37,6 @@ T = {
         "How much is left this month, how fast you're spending, where it goes, whether your net worth grew. One point per page, no scrolling.",
         "Cuánto queda este mes, a qué ritmo gastas, en qué se va, si tu patrimonio ha crecido. Una idea por página, sin desplazarte."),
     "说一句就记上": ("Say it and it's logged", "Lo dices y queda apuntado"),
-    "「午饭 12,50」「把这张对账单导进来」，跟 Claude、ChatGPT Codex 等 AI 说就行，它帮你记、帮你分类。": (
-        "“Lunch 12,50”, “import this bank statement”: just tell Claude, ChatGPT Codex or another AI, and it logs and categorises for you.",
-        "«Comida 12,50», «importa este extracto»: díselo a Claude, ChatGPT Codex u otra IA y lo apunta y lo clasifica por ti."),
     "夏夏给你出主意": ("Xiaxia gives you advice", "Xiaxia te aconseja"),
     "多出来的钱放哪、哪个订阅悄悄涨价了、谁的钱该催了，夏夏看着你的账本提醒你。": (
         "Where to put spare money, which subscription quietly got pricier, who still owes you: Xiaxia watches your ledger and reminds you.",
@@ -81,9 +77,6 @@ T = {
         "También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas."),
     # 连上 AI
     "你已经在用的 AI，<br>就是你的记账员。": ("The AI you already use<br>is your bookkeeper.", "La IA que ya usas<br>es tu contable."),
-    "第一次打开夏夏账本，它会找出你 Mac 上装了的 AI 工具，勾好点「连上」就行。连好以后，在 AI 里说话，账就记进夏夏账本；你在 app 里看。": (
-        "The first time you open Xiaxia Ledger it finds the AI tools on your Mac; tick the ones you want and click Connect. After that, talk to your AI and it lands in the ledger; you look at it in the app.",
-        "La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; marca las que quieras y pulsa Conectar. Después, habla con tu IA y queda en el libro; tú lo miras en la app."),
     "能自动连上的 AI 工具": ("AI tools that connect automatically", "Herramientas de IA que se conectan solas"),
     "Claude 桌面版": ("Claude Desktop", "Claude Desktop"),
     "别的 AI 也行：在设置里点「一键复制配置提示词」，粘给它，它会自己接好。用 DeepSeek、通义千问、Kimi 的，可以通过 Hermes Agent 或 Cherry Studio 连。": (
@@ -150,9 +143,6 @@ T = {
         "In Applications, double-click 夏夏账本. Your Mac asks whether to open an app downloaded from the internet; click <b>Open</b>. From then on it behaves like any other app.",
         "En Aplicaciones, haz doble clic en 夏夏账本. El Mac pregunta si quieres abrir una app descargada de internet; pulsa <b>Abrir</b>. A partir de ahí funciona como cualquier otra app."),
     "连上你的 AI": ("Connect your AI", "Conecta tu IA"),
-    "第一次打开会弹出「连上你的 AI」，点<b>连上</b>，按提示重开一下 AI 工具，再对它说一句「记一笔：咖啡 3,20」试试。": (
-        "On first launch a “Connect your AI” window appears. Click <b>Connect</b>, restart your AI tool when asked, then try telling it “Log this: coffee 3,20”.",
-        "Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b>, reinicia tu herramienta de IA cuando lo pida y prueba a decirle «Apunta: café 3,20»."),
     "打不开，提示「无法验证开发者」或「已损坏」怎么办？": ("It won't open and says the developer can't be verified, or that it's damaged. What now?", "No se abre y dice que no se puede verificar el desarrollador o que está dañada. ¿Qué hago?"),
     "先关掉那个提示框。": ("Close that dialog first.", "Primero cierra ese aviso."),
     "打开「系统设置」→「隐私与安全性」，拉到最下面。": ("Open System Settings → Privacy & Security and scroll to the bottom.", "Abre Ajustes del Sistema → Privacidad y seguridad y baja hasta el final."),
@@ -160,7 +150,6 @@ T = {
         "Where it says 夏夏账本 was blocked, click <b>Open Anyway</b> next to it and enter your Mac password.",
         "Donde dice que se ha bloqueado 夏夏账本, pulsa <b>Abrir igualmente</b> e introduce la contraseña del Mac."),
     "还是不行，就把 dmg 删掉重新下载一次（下载没完成也会这样）。": ("Still stuck? Delete the dmg and download it again (an incomplete download causes this too).", "¿Sigue sin ir? Borra el dmg y descárgalo otra vez (una descarga incompleta también lo provoca)."),
-    "没有弹出「连上你的 AI」，或者我想以后再连？": ("The “Connect your AI” window didn't appear, or I'd rather connect later.", "No ha salido «Conecta tu IA», o prefiero conectarla más tarde."),
     "随时可以在 app 的「设置」→「AI 连接」里重新打开引导。也可以点「一键复制配置提示词」，粘给任何一个 AI，它会一步步帮你接好。": (
         "You can reopen the guide any time in the app under Settings → AI connections. Or copy the setup prompt and paste it to any AI; it will walk you through it.",
         "Puedes volver a abrir la guía cuando quieras en Ajustes → Conexiones de IA. O copia el texto de configuración y pégaselo a cualquier IA; te guiará paso a paso."),
@@ -194,4 +183,34 @@ T = {
     "// 女生版 / 男生版": ("// girls / boys", "// girls / boys"),
     "// 预载男生版，切换时不闪": ("// preload", "// preload"),
     "// 从自动更新文件读最新版本号和大小，读不到就保持「免费下载」": ("// version from appcast", "// version from appcast"),
+    # 2026-11-25 官网改版新加、改过的
+    "跳到正文": ("Skip to content", "Saltar al contenido"),
+    "菜单": ("Menu", "Menú"),
+    "<b>新</b>看看这次更新了什么 →": ("<b>New</b>See what's new →", "<b>Nuevo</b>Mira las novedades →"),
+    "在手机上看？夏夏账本是 Mac app，先把这个网址发给自己，回到电脑上再下载。": (
+        "On your phone? Xiaxia Ledger is a Mac app. Send yourself this link and download it on your computer.",
+        "¿Estás en el móvil? Xiaxia Ledger es una app para Mac. Envíate este enlace y descárgala en el ordenador."),
+    "把网址发给自己": ("Send me the link", "Enviarme el enlace"),
+    "'网址已复制，粘贴发给自己就行。'": ("'Link copied. Paste it into a message to yourself.'", "'Enlace copiado. Pégalo en un mensaje para ti.'"),
+    "'复制不了，请长按地址栏复制：'": ("'Couldn’t copy. Long-press the address bar to copy: '", "'No se pudo copiar. Mantén pulsada la barra de direcciones para copiar: '"),
+    "这个月还能剩 <b>813&nbsp;€</b>，比上月多哦 ✨": ("<b>813&nbsp;€</b> left this month, more than last ✨", "Este mes te sobran <b>813&nbsp;€</b>, más que el pasado ✨"),
+    "第一次打开夏夏账本，它会找出你 Mac 上装了的 AI 工具，每个 AI 旁边点一下「连接」就行。连好以后，在 AI 里说话，账就记进夏夏账本；你在 app 里看。": (
+        "The first time you open Xiaxia Ledger it finds the AI tools on your Mac; click Connect next to each one. After that, talk to your AI and it lands in the ledger; you look at it in the app.",
+        "La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; pulsa Conectar junto a cada una. Después, habla con tu IA y queda en el libro; tú lo miras en la app."),
+    "连完夏夏账本自己测一遍，确认 AI 能读到账本。": (
+        "After connecting, Xiaxia Ledger checks by itself that the AI can read your ledger.",
+        "Tras conectar, Xiaxia Ledger comprueba por sí sola que la IA puede leer tu libro."),
+    "第一次打开会弹出「连接你的 AI」，在你的 AI 旁边点<b>连接</b>，按提示重开一下 AI 工具，再对它说一句「记一笔：咖啡 3,20」试试。": (
+        "On first launch a “Connect your AI” window appears. Click <b>Connect</b> next to your AI, restart the AI tool when asked, then try telling it “Log this: coffee 3,20”.",
+        "Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b> junto a tu IA, reiníciala cuando lo pida y prueba a decirle «Apunta: café 3,20»."),
+    "没有弹出「连接你的 AI」，或者我想以后再连？": ("The “Connect your AI” window didn't appear, or I'd rather connect later.", "No ha salido «Conecta tu IA», o prefiero conectarla más tarde."),
+    "「午饭 12,50」「把这张对账单导进来」，跟 Claude、Codex 等 AI 说就行，它帮你记、帮你分类。": (
+        "“Lunch 12,50”, “import this bank statement”: just tell Claude, Codex or another AI, and it logs and categorises for you.",
+        "«Comida 12,50», «importa este extracto»: díselo a Claude, Codex u otra IA y lo apunta y lo clasifica por ti."),
+    "// 截图切换：点一下或用左右方向键": ("// tour tabs: click or arrow keys", "// tour tabs: click or arrow keys"),
+    "// 手机上：把网址发给自己（能分享就弹分享，不能就复制）": ("// phone: send yourself the link", "// phone: send yourself the link"),
+    "/* 配色从夏夏身上取：墨蓝头发、海水色发尾、金色算盘珠、奶油色围裙。橙色只给按钮。 */": ("/* palette from Xiaxia: ink-blue hair, sea-green tips, gold abacus beads, cream apron; orange only on buttons */", "/* palette from Xiaxia: ink-blue hair, sea-green tips, gold abacus beads, cream apron; orange only on buttons */"),
+    "/* 四件事：像账本里的四行 */": ("/* four points, like ledger rows */", "/* four points, like ledger rows */"),
+    "/* cast：拍立得 */": ("/* cast: polaroids */", "/* cast: polaroids */"),
+    "/* 结尾 */": ("/* closing band */", "/* closing band */"),
 }

@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xiaxia Ledger · Mira de un vistazo adónde se fue tu dinero</title>
 <meta name="description" content="Xiaxia Ledger: una app nativa de finanzas para Mac. Los gráficos muestran de un vistazo tus ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA. Tu libro se queda en tu ordenador.">
-<meta name="theme-color" content="#0f0f14">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fff8ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141a3a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Xiaxia Ledger">
 <meta property="og:description" content="Mira de un vistazo adónde se fue tu dinero. Para apuntarlo, díselo a tu IA.">
 <meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
@@ -16,181 +18,252 @@
 <link rel="icon" type="image/png" href="../assets/app-icon-64.png">
 <link rel="apple-touch-icon" href="../assets/app-icon-256.png">
 <link rel="alternate" type="application/rss+xml" title="Novedades de Xiaxia Ledger" href="/appcast.xml">
+<link rel="preload" href="../assets/fonts/xiaxia-hand.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face{font-family:"XiaHand";src:url(../assets/fonts/xiaxia-hand.woff2) format("woff2");font-weight:500;font-display:swap}
+/* palette from Xiaxia: ink-blue hair, sea-green tips, gold abacus beads, cream apron; orange only on buttons */
 :root{
-  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#ffffff; --fg:#1d1d1f; --fg2:#55555c; --fg3:#86868b;
-  --line:rgba(0,0,0,.08); --brand:#ff7a3d; --brand2:#ff9a5c; --ai:#5b5bd6; --ai-soft:rgba(91,91,214,.1);
-  --green:#1fa463; --shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.08);
-  --hero1:#14131c; --hero2:#231d3a;
-  --r:22px;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color-scheme:light dark;
+  --paper:#fff8ee; --paper2:#fbefdc; --card:#fff; --ink:#1f2a5a; --ink2:#4a5378; --ink3:#5f6789;
+  --rule:rgba(31,42,90,.07); --line:rgba(31,42,90,.14); --coral:#c4501a; --coral-h:#a84415; --coral-t:#b04716; --on-coral:#fff;
+  --coin:#f6c452; --coin-soft:rgba(246,196,82,.45); --mark:rgba(246,196,82,.5); --sea:#2a7d89; --sea-soft:rgba(42,125,137,.1);
+  --night:#1f2a5a; --night2:#141a3a;
+  --shadow:0 1px 0 rgba(31,42,90,.05),0 18px 40px -22px rgba(31,42,90,.4);
+  --hand:"XiaHand","Kaiti SC","STKaiti","KaiTi",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;
+  --r:20px;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0d0d11;--bg2:#15151b;--card:#1b1b22;--fg:#f5f5f7;--fg2:#b4b4bb;--fg3:#7d7d85;--line:rgba(255,255,255,.09);
-    --ai:#8b8bff;--ai-soft:rgba(139,139,255,.14);--green:#3ccf86;--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4)}
+  :root{--paper:#141a3a;--paper2:#19204a;--card:#1e2650;--ink:#fff8ee;--ink2:#c9cee6;--ink3:#9aa2c6;--rule:rgba(255,248,238,.045);--line:rgba(255,248,238,.13);
+    --coral:#ff9a5c;--coral-h:#ffb27a;--coral-t:#ffb27a;--on-coral:#141a3a;--coin-soft:rgba(246,196,82,.25);--mark:rgba(143,221,227,.3);--sea:#8fdde3;--sea-soft:rgba(143,221,227,.1);
+    --night:#0e1330;--night2:#0a0e26;--shadow:0 1px 0 rgba(0,0,0,.25),0 22px 50px -24px rgba(0,0,0,.8)}
 }
 *{box-sizing:border-box;margin:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--fg);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+html{scroll-behavior:smooth;scroll-padding-top:76px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{background:var(--paper);color:var(--ink);font:17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 img{max-width:100%;height:auto;display:block}
 a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sea);outline-offset:3px;border-radius:6px}
+.hand,h1,h2{font-family:var(--hand);font-weight:500;font-synthesis:none}
+:lang(en) :is(h1,h2,.hand),:lang(es) :is(h1,h2,.hand){letter-spacing:-.03em}
 .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
-.round{font-family:ui-rounded,"SF Pro Rounded",-apple-system,"PingFang SC",sans-serif}
+.ruled{background-image:repeating-linear-gradient(180deg,transparent 0 31px,var(--rule) 31px 32px)}
+.skip{position:absolute;left:12px;top:-60px;z-index:50;background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:10px;text-decoration:none;font-weight:600}
+.skip:focus{top:12px}
 
 /* nav */
-nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
-  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--line)}
-nav .wrap{display:flex;align-items:center;gap:12px;height:56px}
-nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
-nav .logo img{width:28px;height:28px;border-radius:7px}
-nav .links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--fg2)}
-nav .links a{text-decoration:none}
-nav .links a:hover{color:var(--fg)}
-nav .lang{display:flex;gap:10px;font-size:13px;white-space:nowrap}
-nav .logo{white-space:nowrap}
-nav .lang a[aria-current]{color:var(--fg);font-weight:600}
-.btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:12px 22px;font-weight:600;text-decoration:none;
-  background:var(--brand);color:#fff;transition:transform .15s,box-shadow .15s,background .15s;border:0;cursor:pointer;font-size:16px}
-.btn:hover{background:#ff6a26;transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,122,61,.35)}
-.btn.small{padding:7px 14px;font-size:14px}
-.btn.ghost{background:transparent;color:inherit;border:1px solid var(--line)}
-.btn.ghost:hover{background:var(--bg2);box-shadow:none}
+nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);
+  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;white-space:nowrap}
+.logo img{width:30px;height:30px;border-radius:8px}
+.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:15px;color:var(--ink2)}
+.links a{text-decoration:none;text-underline-offset:4px}
+.links>a:not(.btn):hover{color:var(--ink);text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px}
+.lang{display:flex;gap:4px;font-size:14px;white-space:nowrap}
+.lang a{padding:4px 6px;border-radius:6px;color:var(--ink2)}
+.lang a:hover{color:var(--ink)}
+.lang a[aria-current]{color:var(--ink);font-weight:700;background:var(--coin-soft)}
+.menu{display:none;position:relative}
+.menu summary{white-space:nowrap;list-style:none;cursor:pointer;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:600;color:var(--ink)}
+.menu summary::-webkit-details-marker{display:none}
+.menu div{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px;color:var(--ink)}
+.menu div a{padding:10px 12px;border-radius:8px}
+.menu div a:hover{background:var(--paper2)}
+.mlang{display:flex;gap:4px;padding:8px 6px 4px;margin-top:4px;border-top:1px dashed var(--line)}
+@media (max-width:820px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
+@media (max-width:520px){.links>.lang{display:none}}
+@media (min-width:521px){.mlang{display:none}}
+
+/* buttons */
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:13px 24px;font-weight:700;text-decoration:none;
+  background:var(--coral);color:var(--on-coral);border:0;cursor:pointer;font-size:17px;touch-action:manipulation;
+  box-shadow:0 2px 0 rgba(0,0,0,.12);transition:background-color .15s,transform .15s}
+.btn:hover{background:var(--coral-h)}
+.btn:active{transform:translateY(1px)}
+.btn.small{padding:8px 16px;font-size:15px}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);box-shadow:none}
+.btn.ghost:hover{background:var(--paper2);border-color:var(--ink3)}
 .btn svg{width:18px;height:18px}
-@media (max-width:720px){nav .links a:not(.btn){display:none} nav .links .lang a:not(.btn){display:inline} nav .links{gap:12px}}
 
 /* hero */
-.hero{background:radial-gradient(1200px 600px at 70% -10%,#3a2d6b 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#3b2113 0%,transparent 55%),linear-gradient(180deg,var(--hero1),var(--hero2));
-  color:#f5f5f7;padding:88px 0 0;overflow:hidden;position:relative}
-.hero .wrap:not(.shotwrap){display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
-.hero h1{font-size:clamp(38px,5.6vw,64px);line-height:1.12;letter-spacing:-.02em;font-weight:700}
-.hero h1 em{font-style:normal;background:linear-gradient(90deg,#ffb27a,#ff7a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero p.lead{font-size:20px;color:#c9c8d3;margin:20px 0 32px;max-width:520px}
-.hero .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.hero .ghost{color:#fff;border-color:rgba(255,255,255,.2)}
-.hero .ghost:hover{background:rgba(255,255,255,.08)}
-.hero .meta{margin-top:14px;font-size:13px;color:#9b9aa8}
-.hero .mascot{justify-self:center;width:min(380px,90%);filter:drop-shadow(0 24px 40px rgba(0,0,0,.45));animation:bob 5s ease-in-out infinite}
-.bubble{position:absolute;background:rgba(255,255,255,.96);color:#1d1d1f;border-radius:18px 18px 18px 6px;padding:10px 14px;font-size:14px;font-weight:500;
-  box-shadow:0 10px 30px rgba(0,0,0,.3);white-space:nowrap;z-index:2}
-.hero .mwrap{position:relative;display:grid;place-items:center}
-.hero .mwrap .bubble{top:8%;left:-4%;animation:pop 6s ease-in-out infinite}
-.shot-mac{margin:64px auto 0;max-width:1040px;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 -10px 80px rgba(120,90,255,.18),0 30px 80px rgba(0,0,0,.6);
-  border:1px solid rgba(255,255,255,.12);border-bottom:0;background:#1c1c1e;max-height:min(640px,62vw)}
-.shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a;border-bottom:1px solid rgba(255,255,255,.06)}
+.hero{padding:64px 0 0;overflow:hidden;position:relative}
+.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}
+.pill{display:inline-flex;gap:8px;align-items:center;font-size:14px;font-weight:600;text-decoration:none;padding:5px 12px 5px 6px;border-radius:999px;
+  background:var(--card);border:1px solid var(--line);margin-bottom:22px}
+.pill b{background:var(--coin);color:#1f2a5a;border-radius:999px;padding:1px 9px;font-size:12px}
+.pill:hover{border-color:var(--ink3)}
+.hero h1{font-size:clamp(38px,5.4vw,70px);line-height:1.12;letter-spacing:-.01em}
+.hero h1 .nw{white-space:nowrap}
+.hero h1 em{font-style:normal;-webkit-box-decoration-break:clone;box-decoration-break:clone;background:linear-gradient(transparent 64%,var(--mark) 64% 90%,transparent 90%);padding:0 .06em}
+.intro{font-size:20px;color:var(--ink2);margin:22px 0 30px;max-width:540px;text-wrap:pretty}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.meta{margin-top:14px;font-size:14px;color:var(--ink3)}
+.ver{font-variant-numeric:tabular-nums}
+.phone-note{display:none;margin-top:20px;padding:14px 16px;border:1.5px dashed var(--line);border-radius:14px;font-size:15px;color:var(--ink2)}
+.phone-note .btn{margin-top:10px}
+.phone-note output{display:block;margin-top:8px;font-size:14px;color:var(--sea);min-height:1.2em}
+@media (max-width:760px){.phone-note{display:block}}
+.mwrap{position:relative;display:grid;place-items:center}
+.mascot{width:min(400px,92%);filter:drop-shadow(0 22px 26px rgba(31,42,90,.22))}
+.bubble{position:absolute;top:6%;left:-2%;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:18px 18px 18px 6px;
+  padding:10px 14px;font-size:15px;font-weight:600;box-shadow:var(--shadow);max-width:min(320px,70vw);z-index:2}
+.bubble b{color:var(--coral-t);font-family:var(--round);font-variant-numeric:tabular-nums}
+.stage{position:relative;margin-top:56px;padding-bottom:0}
+.shot-mac{max-width:1000px;margin:0 auto;border-radius:12px 12px 0 0;overflow:hidden;border:1px solid var(--line);border-bottom:0;background:#1c1c1e;
+  box-shadow:0 -1px 0 var(--line),0 30px 70px -30px rgba(31,42,90,.55)}
+.shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a}
 .shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
-@media (max-width:860px){.hero{padding-top:56px}.hero .wrap:not(.shotwrap){grid-template-columns:1fr}.hero .mascot{width:240px}.hero .mwrap{order:-1}.hero .mwrap .bubble{left:0;top:-22px;max-width:calc(100vw - 40px)}}
+.shot-mac img{width:100%;aspect-ratio:16/9.4;object-fit:cover;object-position:top left}
+.phone-float{position:absolute;right:max(0px,calc(50% - 560px));bottom:-1px;width:200px;border-radius:34px 34px 0 0;padding:8px 8px 0;background:#10142c;
+  box-shadow:0 30px 60px -20px rgba(31,42,90,.6)}
+.phone-float img{border-radius:27px 27px 0 0;aspect-ratio:700/1100;object-fit:cover;object-position:top}
+@media (max-width:980px){.phone-float{width:150px;right:12px}}
+@media (max-width:760px){
+  .hero{padding-top:36px}
+  .hero-grid{grid-template-columns:1fr;gap:8px}
+  .mwrap{order:-1;justify-items:end;margin-bottom:-36px}
+  .mascot{width:170px}
+  .bubble{top:auto;bottom:62%;left:0;right:150px;max-width:none;font-size:14px}
+  .phone-float{display:none}
+  .stage{margin-top:40px}
+}
 
-@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
-@keyframes pop{0%,8%{opacity:0;transform:translateY(6px) scale(.96)}14%,86%{opacity:1;transform:none}94%,100%{opacity:0;transform:translateY(-4px)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
-
+/* sections */
 section{padding:96px 0}
-.eyebrow{font-size:14px;font-weight:600;color:var(--brand);letter-spacing:.04em}
-h2{font-size:clamp(30px,4vw,44px);line-height:1.18;letter-spacing:-.015em;margin:8px 0 14px}
-.sub{color:var(--fg2);font-size:19px;max-width:640px}
+.eyebrow{font-size:15px;font-weight:700;color:var(--coral-t);letter-spacing:.02em}
+h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap:balance}
+.sub{color:var(--ink2);font-size:19px;max-width:640px;text-wrap:pretty}
 .center{text-align:center}.center .sub{margin:0 auto}
+.alt{background-color:var(--paper2)}
 
-/* features */
-.feats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
-.feat{background:var(--card);border-radius:var(--r);padding:26px;box-shadow:var(--shadow);border:1px solid var(--line)}
-.feat .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px}
-.feat .ic svg{width:24px;height:24px}
-.feat h3{font-size:19px;margin-bottom:6px}
-.feat p{color:var(--fg2);font-size:15px}
-@media (max-width:960px){.feats{grid-template-columns:1fr 1fr}}
-@media (max-width:560px){.feats{grid-template-columns:1fr}}
+/* four points, like ledger rows */
+.why{display:grid;grid-template-columns:.8fr 1.2fr;gap:56px;align-items:start}
+.ledger{list-style:none;padding:0;border-top:2px solid var(--ink);counter-reset:n}
+.ledger li{display:grid;grid-template-columns:56px 1fr;column-gap:16px;padding:20px 0 20px;border-bottom:1px dashed var(--line)}
+.ledger li::before{counter-increment:n;content:"0" counter(n);grid-row:1/3;font-family:var(--round);font-weight:800;font-size:28px;line-height:1.1;color:var(--sea);font-variant-numeric:tabular-nums}
+.ledger h3{font-size:21px;line-height:1.3}
+.ledger p{color:var(--ink2);font-size:16px;margin-top:4px}
+@media (max-width:860px){.why{grid-template-columns:1fr;gap:24px}}
 
 /* tour */
-.tour{background:var(--bg2)}
-.tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:32px 0 28px;gap:2px;flex-wrap:wrap;justify-content:center}
-.tabs button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:15px;font-weight:500;padding:8px 18px;border-radius:999px;cursor:pointer}
-.tabs button[aria-selected=true]{background:var(--fg);color:var(--bg)}
-.tour .frame{max-width:1000px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:#1c1c1e;aspect-ratio:16/10}
-.tour .frame img{width:100%;height:100%;object-fit:cover;transition:opacity .25s}
-.tour .cap{margin-top:18px;color:var(--fg2);font-size:16px;min-height:52px}
+.tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:30px 0 26px;gap:2px;flex-wrap:wrap;justify-content:center}
+.tabs button{border:0;background:transparent;color:var(--ink2);font-size:15px;font-weight:600;padding:8px 18px;border-radius:999px;cursor:pointer;touch-action:manipulation}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected=true],.tabs button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+.frame{max-width:1000px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:var(--card)}
+.frame img{width:100%;aspect-ratio:16/10;object-fit:cover;transition:opacity .2s}
+.cap{margin:18px auto 0;color:var(--ink2);font-size:16px;min-height:52px;max-width:760px}
+.more{font-size:16px;margin-top:6px}
 
-/* ai chat */
+/* AI */
 .ai{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.receipt{position:relative;background:var(--card);padding:18px 22px 26px;margin-top:26px;max-width:420px;box-shadow:var(--shadow);border-radius:12px 12px 0 0}
+.receipt::after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;
+  background:linear-gradient(-45deg,transparent 7px,var(--card) 0) 0 0/14px 10px repeat-x,linear-gradient(45deg,transparent 7px,var(--card) 0) 0 0/14px 10px repeat-x}
+.receipt h3{font-size:14px;font-weight:700;color:var(--ink3);letter-spacing:.04em;padding-bottom:10px;border-bottom:2px dashed var(--line)}
+.receipt ul{list-style:none;padding:6px 0}
+.receipt li{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-weight:600}
+.receipt li::after{content:"✓";order:3;color:var(--sea);font-weight:800}
+.receipt li i{flex:1;border-bottom:2px dotted var(--line);transform:translateY(-4px)}
+.receipt p{font-size:14px;color:var(--ink2);padding-top:10px;border-top:2px dashed var(--line)}
+.other{margin-top:28px;color:var(--ink3);font-size:15px}
 .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
-.chat .who{font-size:12px;color:var(--fg3);margin-bottom:2px}
+.chat .who{font-size:12px;color:var(--ink3);margin-bottom:2px}
 .msg{max-width:86%;padding:10px 14px;border-radius:18px;font-size:15px}
-.msg.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:6px}
-.msg.bot{align-self:flex-start;background:var(--bg2);border-bottom-left-radius:6px}
-.msg.bot b{color:var(--ai)}
-.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
-.tools span{font-size:14px;padding:6px 12px;border-radius:999px;background:var(--ai-soft);color:var(--ai);font-weight:500}
-@media (max-width:860px){.ai{grid-template-columns:1fr}}
+.msg.me{align-self:flex-end;background:var(--ink);color:var(--paper);border-bottom-right-radius:6px}
+.msg.bot{align-self:flex-start;background:var(--paper2);border-bottom-left-radius:6px}
+.msg.bot b{color:var(--coral-t);font-variant-numeric:tabular-nums}
+@media (max-width:860px){.ai{grid-template-columns:1fr;gap:36px}}
 
-/* cast */
-.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:48px}
-.who-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;text-align:center;box-shadow:var(--shadow);transition:transform .2s}
-.who-card:hover{transform:translateY(-4px)}
-.who-card img{width:100%;aspect-ratio:1;object-fit:contain;margin-bottom:8px}
-.who-card:nth-child(odd) img{animation:bob 5.5s ease-in-out infinite}
-.who-card:nth-child(even) img{animation:bob 6.2s ease-in-out infinite reverse}
-.who-card h3{font-size:18px}
-.who-card .tag{font-size:12px;color:var(--ai);background:var(--ai-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px}
-.who-card p{font-size:14px;color:var(--fg2)}
-.who-card.lead .tag{color:var(--brand);background:rgba(255,122,61,.12)}
-.cast-note{margin-top:20px;font-size:14px;color:var(--fg3);text-align:center}
+/* cast: polaroids */
+.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:40px}
+.who-card{background:var(--card);padding:14px 14px 20px;text-align:center;box-shadow:var(--shadow);border-radius:6px;transform:rotate(var(--tilt,0deg))}
+.who-card:nth-child(1){--tilt:-1.6deg}.who-card:nth-child(2){--tilt:1.2deg}.who-card:nth-child(3){--tilt:-.8deg}.who-card:nth-child(4){--tilt:1.6deg}
+.who-card .ph{background:var(--paper2);border-radius:3px;margin-bottom:12px}
+.who-card img{width:100%;aspect-ratio:1;object-fit:contain}
+.who-card h3{font-family:var(--hand);font-weight:500;font-size:24px;line-height:1.2}
+.who-card .tag{font-size:12px;color:var(--sea);background:var(--sea-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px;font-weight:600}
+.who-card.lead .tag{color:var(--coral-t);background:var(--coin-soft)}
+.who-card p{font-size:14px;color:var(--ink2)}
 @media (max-width:860px){.cast{grid-template-columns:1fr 1fr}}
 
 /* iphone */
-.phones{display:flex;gap:20px;justify-content:center;margin-top:44px;flex-wrap:wrap}
-.phone{width:220px;border-radius:36px;padding:8px;background:#111;box-shadow:var(--shadow)}
+.phones{display:flex;gap:22px;justify-content:center;margin-top:44px;flex-wrap:wrap}
+.phone{width:220px;border-radius:36px;padding:8px;background:#10142c;box-shadow:var(--shadow)}
 .phone img{border-radius:29px}
 @media (max-width:560px){.phone{width:46%}.phone:nth-child(3){display:none}}
 
 /* install */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px;counter-reset:s}
-.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;box-shadow:var(--shadow)}
-.step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--fg);color:var(--bg);font-weight:700;margin-bottom:14px}
-.step h3{font-size:18px;margin-bottom:6px}
-.step p{font-size:15px;color:var(--fg2)}
-kbd,.k{font-family:inherit;font-size:13px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
-.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 22px}
-details{border-bottom:1px solid var(--line);padding:14px 0}
-details:last-child{border-bottom:0}
-summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:16px}
-summary::-webkit-details-marker{display:none}
-summary::after{content:"+";color:var(--fg3);font-weight:400;font-size:22px;line-height:1}
-details[open] summary::after{content:"–"}
-details p,details ol{color:var(--fg2);font-size:15px;margin-top:8px}
-details ol{padding-left:20px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px;counter-reset:s}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px 26px;box-shadow:var(--shadow)}
+.step::before{counter-increment:s;content:counter(s);display:block;font-family:var(--hand);font-size:52px;line-height:1;color:var(--coral-t);margin-bottom:10px}
+.step h3{font-size:19px;margin-bottom:6px}
+.step p{font-size:15px;color:var(--ink2)}
+.k{font-family:inherit;font-size:13px;background:var(--paper2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:4px 22px}
+details.q{border-bottom:1px dashed var(--line);padding:14px 0}
+details.q:last-child{border-bottom:0}
+details.q summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:16px}
+details.q summary::-webkit-details-marker{display:none}
+details.q summary::after{content:"+";color:var(--ink3);font-weight:400;font-size:22px;line-height:1}
+details.q[open] summary::after{content:"–"}
+details.q p,details.q ol{color:var(--ink2);font-size:15px;margin-top:8px}
+details.q ol{padding-left:20px}
+details.q a{color:var(--coral-t)}
 @media (max-width:860px){.steps{grid-template-columns:1fr}}
 
-/* download band */
-.band{background:radial-gradient(700px 300px at 50% 0%,#3a2d6b,transparent 70%),linear-gradient(180deg,var(--hero2),var(--hero1));color:#f5f5f7;text-align:center;padding:96px 0 104px;position:relative;overflow:hidden}
-.band img.m{width:150px;margin:0 auto 10px;animation:bob 5s ease-in-out infinite}
-.band h2{color:#fff}
-.band .sub{color:#c9c8d3;margin:0 auto 30px}
-.band .req{margin-top:16px;font-size:13px;color:#9b9aa8}
-footer{padding:28px 0 40px;font-size:13px;color:var(--fg3)}
+/* closing band */
+.band{background-color:var(--night);color:#fff8ee;text-align:center;padding:88px 0 96px;
+  background-image:radial-gradient(circle at 12% 30%,rgba(246,196,82,.5) 0 3px,transparent 4px),radial-gradient(circle at 86% 22%,rgba(143,221,227,.6) 0 3px,transparent 4px),
+  radial-gradient(circle at 78% 78%,rgba(246,196,82,.45) 0 2px,transparent 3px),radial-gradient(circle at 22% 82%,rgba(143,221,227,.45) 0 2px,transparent 3px)}
+.band img{width:150px;margin:0 auto 8px}
+.band h2{color:#fff8ee}
+.band .sub{color:#c9cee6;margin:0 auto 30px}
+.band .btn{background:#ff9a5c;color:#141a3a}
+.band .btn:hover{background:#ffb27a}
+.band .req{margin-top:16px;font-size:14px;color:#c9cee6}
+.band :focus-visible{outline-color:#8fdde3}
+footer{padding:28px 0 44px;font-size:14px;color:var(--ink3)}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (prefers-reduced-motion:no-preference){
+  .mascot,.band img{animation:bob 5s ease-in-out infinite}
+  .bubble{animation:pop .6s ease-out both .3s}
+  .who-card{transition:transform .2s}
+  .who-card:hover{transform:rotate(0) translateY(-4px)}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.frame img{transition:none}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-
+<a class="skip" href="#main">Saltar al contenido</a>
 <nav aria-label="Navegación principal">
   <div class="wrap">
-    <a class="logo" href="#top"><img src="../assets/app-icon-64.png" alt="" width="28" height="28">Xiaxia Ledger</a>
+    <a class="logo" href="#top"><img src="../assets/app-icon-64.png" alt="" width="30" height="30">Xiaxia Ledger</a>
     <div class="links">
       <a href="#tour">Recorrido</a>
       <a href="#ai">Conecta tu IA</a>
       <a href="#cast">Xiaxia</a>
       <a href="#install">Instalar</a>
       <a href="changelog.html">Novedades</a>
-      <span class="lang" aria-label="Language"><a href="/" data-lang="zh">中文</a><a href="/en/" data-lang="en">EN</a><a href="/es/" data-lang="es" aria-current="true">ES</a></span>
+      <span class="lang" aria-label="Language"><a href="/" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span>
+      <details class="menu"><summary>Menú</summary><div><a href="#tour">Recorrido</a><a href="#ai">Conecta tu IA</a><a href="#cast">Xiaxia</a><a href="#install">Instalar</a><a href="changelog.html">Novedades</a><span class="lang mlang" aria-label="Language"><a href="/" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span></div></details>
       <a class="btn small dl" href="/download/xiaxia-ledger.dmg">Descargar</a>
     </div>
   </div>
 </nav>
 
-<header class="hero" id="top">
-  <div class="wrap">
+<header class="hero ruled" id="top">
+  <div class="wrap hero-grid">
     <div>
+      <a class="pill" href="changelog.html"><b>Nuevo</b>Mira las novedades →</a>
       <h1>Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>.</h1>
-      <p class="lead">Xiaxia Ledger es una app nativa de finanzas para Mac. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja.</p>
+      <p class="intro">Xiaxia Ledger es una app nativa de finanzas para Mac. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja.</p>
       <div class="cta">
         <a class="btn dl" href="/download/xiaxia-ledger.dmg">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.3zM13.9 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
@@ -199,66 +272,65 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <a class="btn ghost" href="#tour">Ver el recorrido</a>
       </div>
       <p class="meta"><span class="ver">Descarga gratuita</span> · Requiere macOS 14 Sonoma o posterior</p>
+      <div class="phone-note">
+        <p>¿Estás en el móvil? Xiaxia Ledger es una app para Mac. Envíate este enlace y descárgala en el ordenador.</p>
+        <button class="btn small ghost" type="button" id="shareLink">Enviarme el enlace</button>
+        <output id="shareMsg" aria-live="polite"></output>
+      </div>
     </div>
     <div class="mwrap">
-      <span class="bubble">Este mes te sobran 813 €, más que el pasado ✨</span>
-      <img class="mascot" src="../assets/xiaxia-hello.webp" alt="Xiaxia: una chica ballena de pelo azul que saluda" width="380" height="380">
+      <p class="bubble">Este mes te sobran <b>813&nbsp;€</b>, más que el pasado ✨</p>
+      <img class="mascot" src="../assets/xiaxia-hello.webp" alt="Xiaxia: una chica ballena de pelo azul que saluda" width="380" height="380" fetchpriority="high">
     </div>
   </div>
-  <div class="wrap shotwrap">
-    <div class="shot-mac" aria-hidden="true">
+  <div class="wrap stage" aria-hidden="true">
+    <div class="shot-mac">
       <div class="bar"><i></i><i></i><i></i></div>
-      <img src="../assets/mac-overview.webp" alt="" width="1600" height="1196" fetchpriority="high">
+      <img src="../assets/mac-overview.webp" alt="" width="1600" height="1196">
+    </div>
+    <div class="phone-float">
+      <picture>
+        <source srcset="../assets/dark-ios.webp" media="(prefers-color-scheme: dark)">
+        <img src="../assets/overview-ios.webp" alt="" width="700" height="1522">
+      </picture>
     </div>
   </div>
 </header>
 
-<main>
-<section class="center">
-  <div class="wrap">
-    <p class="eyebrow">Por qué Xiaxia Ledger</p>
-    <h2>Apuntar no cansa. Mirar no agobia.</h2>
-    <p class="sub">Lo que mejor hace es enseñarte: la abres y sabes cómo va el mes. Deja el apuntar a la IA que ya usas.</p>
-    <div class="feats" style="text-align:left">
-      <div class="feat">
-        <div class="ic" style="background:rgba(255,122,61,.12);color:var(--brand)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg></div>
-        <h3>Todo en una pantalla</h3>
-        <p>Cuánto queda este mes, a qué ritmo gastas, en qué se va, si tu patrimonio ha crecido. Una idea por página, sin desplazarte.</p>
-      </div>
-      <div class="feat">
-        <div class="ic" style="background:var(--ai-soft);color:var(--ai)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
-        <h3>Lo dices y queda apuntado</h3>
-        <p>«Comida 12,50», «importa este extracto»: díselo a Claude, ChatGPT Codex u otra IA y lo apunta y lo clasifica por ti.</p>
-      </div>
-      <div class="feat">
-        <div class="ic" style="background:rgba(31,164,99,.12);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg></div>
-        <h3>Xiaxia te aconseja</h3>
-        <p>Dónde poner el dinero que sobra, qué suscripción ha subido sin avisar, quién te debe: Xiaxia mira tu libro y te lo recuerda.</p>
-      </div>
-      <div class="feat">
-        <div class="ic" style="background:rgba(120,120,128,.14);color:var(--fg2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
-        <h3>Tu libro es tuyo</h3>
-        <p>El libro es un archivo en tu Mac. No se sube a nuestros servidores ni necesita la contraseña del banco. Cada cambio queda registrado y se puede deshacer.</p>
-      </div>
+<main id="main">
+<section>
+  <div class="wrap why">
+    <div>
+      <p class="eyebrow">Por qué Xiaxia Ledger</p>
+      <h2>Apuntar no cansa. Mirar no agobia.</h2>
+      <p class="sub">Lo que mejor hace es enseñarte: la abres y sabes cómo va el mes. Deja el apuntar a la IA que ya usas.</p>
     </div>
+    <ol class="ledger">
+      <li><h3>Todo en una pantalla</h3><p>Cuánto queda este mes, a qué ritmo gastas, en qué se va, si tu patrimonio ha crecido. Una idea por página, sin desplazarte.</p></li>
+      <li><h3>Lo dices y queda apuntado</h3><p>«Comida 12,50», «importa este extracto»: díselo a Claude, Codex u otra IA y lo apunta y lo clasifica por ti.</p></li>
+      <li><h3>Xiaxia te aconseja</h3><p>Dónde poner el dinero que sobra, qué suscripción ha subido sin avisar, quién te debe: Xiaxia mira tu libro y te lo recuerda.</p></li>
+      <li><h3>Tu libro es tuyo</h3><p>El libro es un archivo en tu Mac. No se sube a nuestros servidores ni necesita la contraseña del banco. Cada cambio queda registrado y se puede deshacer.</p></li>
+    </ol>
   </div>
 </section>
 
-<section class="tour center" id="tour">
+<section class="alt center" id="tour">
   <div class="wrap">
     <p class="eyebrow">Recorrido</p>
     <h2>Una app nativa de Mac, bonita en claro y en oscuro.</h2>
     <p class="sub">Hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino.</p>
     <div class="tabs" role="tablist" aria-label="Elige una página">
-      <button role="tab" aria-selected="true" data-img="../assets/tour-overview.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
-      <button role="tab" aria-selected="false" data-img="../assets/tour-spending.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
-      <button role="tab" aria-selected="false" data-img="../assets/tour-trends.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
-      <button role="tab" aria-selected="false" data-img="../assets/tour-wealth.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
-      <button role="tab" aria-selected="false" data-img="../assets/tour-debts.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
+      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
+      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
+      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-trends.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
+      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-wealth.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
+      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-debts.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
     </div>
-    <div class="frame"><img id="tourImg" src="../assets/tour-overview.webp" alt="Captura de la página Resumen de Xiaxia Ledger (datos de ejemplo)" width="1600" height="1000" loading="lazy"></div>
-    <p class="cap" id="tourCap" aria-live="polite">Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.</p>
-    <p class="sub" style="font-size:16px">También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas.</p>
+    <div id="tourPanel" role="tabpanel" aria-labelledby="tab-overview">
+      <div class="frame"><img id="tourImg" src="../assets/tour-overview.webp" alt="Captura de la página Resumen de Xiaxia Ledger (datos de ejemplo)" width="1600" height="1000" loading="lazy"></div>
+      <p class="cap" id="tourCap" aria-live="polite">Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.</p>
+    </div>
+    <p class="sub more">También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas.</p>
   </div>
 </section>
 
@@ -267,11 +339,13 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div>
       <p class="eyebrow">Conecta tu IA</p>
       <h2>La IA que ya usas<br>es tu contable.</h2>
-      <p class="sub">La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; marca las que quieras y pulsa Conectar. Después, habla con tu IA y queda en el libro; tú lo miras en la app.</p>
-      <div class="tools" aria-label="Herramientas de IA que se conectan solas">
-        <span>Claude Desktop</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>Hermes Agent</span>
+      <p class="sub">La primera vez que abres Xiaxia Ledger, busca las herramientas de IA de tu Mac; pulsa Conectar junto a cada una. Después, habla con tu IA y queda en el libro; tú lo miras en la app.</p>
+      <div class="receipt">
+        <h3>Herramientas de IA que se conectan solas</h3>
+        <ul><li>Claude Desktop<i></i></li><li>Claude Code<i></i></li><li>Codex<i></i></li><li>Cursor<i></i></li><li>Gemini CLI<i></i></li><li>Hermes Agent<i></i></li></ul>
+        <p>Tras conectar, Xiaxia Ledger comprueba por sí sola que la IA puede leer tu libro.</p>
       </div>
-      <p style="margin-top:18px;color:var(--fg3);font-size:14px">Otras IA también valen: en Ajustes, copia el texto de configuración, pégaselo a tu IA y se conecta sola. Si usas DeepSeek, Qwen o Kimi, conéctalas con Hermes Agent o Cherry Studio.</p>
+      <p class="other">Otras IA también valen: en Ajustes, copia el texto de configuración, pégaselo a tu IA y se conecta sola. Si usas DeepSeek, Qwen o Kimi, conéctalas con Hermes Agent o Cherry Studio.</p>
     </div>
     <div class="chat" role="img" aria-label="Conversación de ejemplo: el usuario dice que la comida costó 12,50; la IA responde que está apuntado y da el total de comida del mes">
       <div class="msg me">Ramen con un compañero al mediodía, 12,50, con tarjeta de crédito</div>
@@ -282,20 +356,20 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </section>
 
-<section class="center" id="cast" style="background:var(--bg2)">
+<section class="center alt" id="cast">
   <div class="wrap">
     <p class="eyebrow">Te presento a</p>
     <h2>Xiaxia y sus compañeros de IA</h2>
     <p class="sub">Los personajes de la app parpadean y hablan. Según la IA que conectes, te acompaña su compañero. Hay un juego de chicas y otro de chicos; cámbialo cuando quieras en Ajustes.</p>
-    <div class="tabs look" role="tablist" aria-label="Elige el estilo de los personajes">
-      <button role="tab" aria-selected="true" data-look="girl">Chicas</button>
-      <button role="tab" aria-selected="false" data-look="boy">Chicos</button>
+    <div class="tabs look" role="group" aria-label="Elige el estilo de los personajes">
+      <button type="button" aria-pressed="true" data-look="girl">Chicas</button>
+      <button type="button" aria-pressed="false" data-look="boy">Chicos</button>
     </div>
-    <div class="cast" style="margin-top:8px">
-      <div class="who-card lead"><img src="../assets/xiaxia-cheer.webp" data-girl="../assets/xiaxia-cheer.webp" data-boy="../assets/xiaxia-boy-cheer.webp" alt="Xiaxia" loading="lazy" width="300" height="300"><h3>Xiaxia</h3><span class="tag">Protagonista</span><p data-girl="Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada." data-boy="Un chico ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarado.">Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada.</p></div>
-      <div class="who-card"><img src="../assets/orange-idle.webp" data-girl="../assets/orange-idle.webp" data-boy="../assets/orange-boy-idle.webp" alt="Xiaoju" loading="lazy" width="300" height="300"><h3>Xiaoju</h3><span class="tag">Compañero de Claude</span><p>Amable y cuidadoso: apunta por ti y ordena tus categorías.</p></div>
-      <div class="who-card"><img src="../assets/lilac-idle.webp" data-girl="../assets/lilac-idle.webp" data-boy="../assets/lilac-boy-idle.webp" alt="Xiaozi" loading="lazy" width="300" height="300"><h3>Xiaozi</h3><span class="tag">Compañero de Codex</span><p>Rápido y eficaz: importar extractos y conciliar es cosa suya.</p></div>
-      <div class="who-card"><img src="../assets/star-idle.webp" data-girl="../assets/star-idle.webp" data-boy="../assets/star-boy-idle.webp" alt="Xiaoxing" loading="lazy" width="300" height="300"><h3>Xiaoxing</h3><span class="tag">Gemini y otras IA</span><p>Lleno de curiosidad: se entiende con cualquier IA que llegue.</p></div>
+    <div class="cast">
+      <div class="who-card lead"><div class="ph"><img src="../assets/xiaxia-cheer.webp" data-girl="../assets/xiaxia-cheer.webp" data-boy="../assets/xiaxia-boy-cheer.webp" alt="Xiaxia" loading="lazy" width="300" height="300"></div><h3>Xiaxia</h3><span class="tag">Protagonista</span><p data-girl="Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada." data-boy="Un chico ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarado.">Una chica ballena con su pequeño ábaco. Mira tus cuentas, te aconseja y a veces es un poco descarada.</p></div>
+      <div class="who-card"><div class="ph"><img src="../assets/orange-idle.webp" data-girl="../assets/orange-idle.webp" data-boy="../assets/orange-boy-idle.webp" alt="Xiaoju" loading="lazy" width="300" height="300"></div><h3>Xiaoju</h3><span class="tag">Compañero de Claude</span><p>Amable y cuidadoso: apunta por ti y ordena tus categorías.</p></div>
+      <div class="who-card"><div class="ph"><img src="../assets/lilac-idle.webp" data-girl="../assets/lilac-idle.webp" data-boy="../assets/lilac-boy-idle.webp" alt="Xiaozi" loading="lazy" width="300" height="300"></div><h3>Xiaozi</h3><span class="tag">Compañero de Codex</span><p>Rápido y eficaz: importar extractos y conciliar es cosa suya.</p></div>
+      <div class="who-card"><div class="ph"><img src="../assets/star-idle.webp" data-girl="../assets/star-idle.webp" data-boy="../assets/star-boy-idle.webp" alt="Xiaoxing" loading="lazy" width="300" height="300"></div><h3>Xiaoxing</h3><span class="tag">Gemini y otras IA</span><p>Lleno de curiosidad: se entiende con cualquier IA que llegue.</p></div>
     </div>
   </div>
 </section>
@@ -313,7 +387,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </section>
 
-<section id="install" style="background:var(--bg2)">
+<section id="install" class="alt">
   <div class="wrap">
     <div class="center">
       <p class="eyebrow">Instalar</p>
@@ -323,10 +397,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div class="steps">
       <div class="step"><h3>Descarga y arrastra a Aplicaciones</h3><p>Pulsa el botón de descarga de arriba, abre el <span class="k">xiaxia-ledger.dmg</span> descargado y arrastra el icono 夏夏账本 a la carpeta Aplicaciones que aparece al lado.</p></div>
       <div class="step"><h3>Ábrela por primera vez</h3><p>En Aplicaciones, haz doble clic en 夏夏账本. El Mac pregunta si quieres abrir una app descargada de internet; pulsa <b>Abrir</b>. A partir de ahí funciona como cualquier otra app.</p></div>
-      <div class="step"><h3>Conecta tu IA</h3><p>Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b>, reinicia tu herramienta de IA cuando lo pida y prueba a decirle «Apunta: café 3,20».</p></div>
+      <div class="step"><h3>Conecta tu IA</h3><p>Al abrirla por primera vez aparece «Conecta tu IA». Pulsa <b>Conectar</b> junto a tu IA, reiníciala cuando lo pida y prueba a decirle «Apunta: café 3,20».</p></div>
     </div>
     <div class="help">
-      <details>
+      <details class="q">
         <summary>No se abre y dice que no se puede verificar el desarrollador o que está dañada. ¿Qué hago?</summary>
         <ol>
           <li>Primero cierra ese aviso.</li>
@@ -335,19 +409,19 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         </ol>
         <p>¿Sigue sin ir? Borra el dmg y descárgalo otra vez (una descarga incompleta también lo provoca).</p>
       </details>
-      <details>
+      <details class="q">
         <summary>No ha salido «Conecta tu IA», o prefiero conectarla más tarde.</summary>
         <p>Puedes volver a abrir la guía cuando quieras en Ajustes → Conexiones de IA. O copia el texto de configuración y pégaselo a cualquier IA; te guiará paso a paso.</p>
       </details>
-      <details>
+      <details class="q">
         <summary>Todavía no tengo ninguna herramienta de IA.</summary>
         <p>Te recomendamos empezar por <a href="https://claude.ai/download" rel="noopener">Claude Desktop</a> (tiene plan gratuito). Si usas DeepSeek, instala Hermes Agent; si usas Qwen o Kimi, Cherry Studio. Sin IA también puedes añadir apuntes a mano en la app.</p>
       </details>
-      <details>
+      <details class="q">
         <summary>¿Dónde se guarda mi libro? ¿Es seguro?</summary>
         <p>El libro está en tu propio Mac (o en iCloud Drive si lo usas). No tenemos servidor y no vemos tus cuentas. Ojo: cuando dejas que una IA lea el libro, esos apuntes van al proveedor de esa IA, igual que cualquier conversación con ella. Xiaxia Ledger nunca toca contraseñas bancarias; los extractos los exportas y entregas tú.</p>
       </details>
-      <details>
+      <details class="q">
         <summary>¿Cómo se actualiza?</summary>
         <p>La app te avisa cuando hay versión nueva; pulsa Instalar actualización y tu libro no se toca. También puedes descargarla de nuevo aquí e instalarla encima.</p>
       </details>
@@ -357,7 +431,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
 <section class="band">
   <div class="wrap">
-    <img class="m" src="../assets/xiaxia-idle.webp" alt="" width="150" height="150" loading="lazy">
+    <img src="../assets/xiaxia-idle.webp" alt="" width="150" height="150" loading="lazy">
     <h2>Empieza hoy y deja que Xiaxia te ayude con tu dinero.</h2>
     <p class="sub">Descarga, arrastra a Aplicaciones, conecta tu IA. Así de fácil.</p>
     <a class="btn dl" href="/download/xiaxia-ledger.dmg">Descargar para Mac</a>
@@ -376,18 +450,30 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <script>
 // remember the chosen language
 document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
-// tour tabs
-document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+// tour tabs: click or arrow keys
+const tabs=[...document.querySelectorAll('#tour [role=tab]')];
+function pick(b,focus){
+  tabs.forEach(x=>{const on=x===b;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1});
+  document.getElementById('tourPanel').setAttribute('aria-labelledby',b.id);
   const img=document.getElementById('tourImg');
-  img.style.opacity=.2;
+  img.style.opacity=.25;
   const n=new Image();n.onload=()=>{img.src=b.dataset.img;img.alt='Captura de Xiaxia Ledger: '+b.textContent+' (datos de ejemplo)';img.style.opacity=1};n.src=b.dataset.img;
   document.getElementById('tourCap').textContent=b.dataset.cap;
-}));
+  if(focus)b.focus();
+}
+tabs.forEach((b,i)=>{
+  b.addEventListener('click',()=>pick(b));
+  b.addEventListener('keydown',e=>{
+    const k={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];
+    if(k){e.preventDefault();pick(tabs[(i+k+tabs.length)%tabs.length],true)}
+    else if(e.key==='Home'){e.preventDefault();pick(tabs[0],true)}
+    else if(e.key==='End'){e.preventDefault();pick(tabs[tabs.length-1],true)}
+  });
+});
 // girls / boys
 document.querySelectorAll('.look button').forEach(b=>b.addEventListener('click',()=>{
   const look=b.dataset.look;
-  document.querySelectorAll('.look button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.look button').forEach(x=>x.setAttribute('aria-pressed',x===b));
   document.querySelectorAll('#cast [data-'+look+']').forEach(el=>{
     if(el.tagName==='IMG'){el.src=el.dataset[look];el.alt=el.alt.replace(/ \(versión chico\)$/,'')+(look==='boy'?' (versión chico)':'')}
     else el.textContent=el.dataset[look];
@@ -395,6 +481,14 @@ document.querySelectorAll('.look button').forEach(b=>b.addEventListener('click',
 }));
 // preload
 window.addEventListener('load',()=>document.querySelectorAll('#cast img[data-boy]').forEach(i=>{new Image().src=i.dataset.boy}));
+// phone: send yourself the link
+document.getElementById('shareLink').addEventListener('click',async()=>{
+  const url=location.origin+location.pathname, msg=document.getElementById('shareMsg');
+  try{
+    if(navigator.share){await navigator.share({title:document.title,url});return}
+    await navigator.clipboard.writeText(url);msg.textContent='Enlace copiado. Pégalo en un mensaje para ti.';
+  }catch(e){if(e&&e.name!=='AbortError')msg.textContent='No se pudo copiar. Mantén pulsada la barra de direcciones para copiar: '+url}
+});
 // version from appcast
 fetch('/appcast.xml',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
   const d=new DOMParser().parseFromString(t,'application/xml');
@@ -404,7 +498,7 @@ fetch('/appcast.xml',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject())
   const ver=(item.getElementsByTagNameNS(SP,'shortVersionString')[0]||{}).textContent||(enc&&enc.getAttributeNS(SP,'shortVersionString'));
   const len=enc&&+enc.getAttribute('length');
   if(!ver) return;
-  const txt='Versión '+ver+(len?' · '+(len/1048576).toFixed(0)+' MB':'')+' · Gratis';
+  const txt='Versión '+ver+(len?' · '+(len/1048576).toFixed(0)+' MB':'')+' · Gratis';
   document.querySelectorAll('.ver').forEach(e=>e.textContent=txt);
 }).catch(()=>{});
 </script>
