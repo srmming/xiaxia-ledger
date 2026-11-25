@@ -74,22 +74,58 @@ extension LedgerModel {
 /// 「生活 | 生意」两格（开着生意模式时代替账本菜单）：Mac 在侧栏最上面，iPhone 在标题栏正中。
 struct SideSwitch: View {
     @Environment(LedgerModel.self) var model
-    /// Mac 侧栏里铺满整宽；iPhone 标题栏里按字的宽度。
+    /// Mac 侧栏里铺满整宽（系统的分段控件在 Mac 上撑不满，自己画两格）；iPhone 标题栏里用系统分段控件。
     var fill = false
+    @Namespace private var pill
+
     var body: some View {
-        let selection = Binding(get: { model.side }, set: { s in withAnimation(.snappy) { model.switchSide(s) } })
-        Picker(tr("生活还是生意"), selection: selection) {
+        Group {
+            if fill { wide } else { segmented }
+        }
+        .help(tr("切换看生活还是生意；在哪边就默认记到哪边"))
+        .accessibilityIdentifier("sideSwitch")
+        .task(id: model.ledger.business) { model.settleSide() }
+    }
+
+    private func pick(_ s: Side) { withAnimation(.snappy) { model.switchSide(s) } }
+
+    private var segmented: some View {
+        Picker(tr("生活还是生意"), selection: Binding(get: { model.side }, set: pick)) {
             Text(Side.life.uiLabel).tag(Side.life)
             Text(Side.business.uiLabel).tag(Side.business)
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .controlSize(fill ? .large : .regular)
-        .frame(maxWidth: fill ? .infinity : nil)
-        .fixedSize(horizontal: !fill, vertical: true)
+        .fixedSize()
         .tint(model.side == .business ? Color.shop : Color.brand)
-        .help(tr("切换看生活还是生意；在哪边就默认记到哪边"))
-        .accessibilityIdentifier("sideSwitch")
-        .task(id: model.ledger.business) { model.settleSide() }
+    }
+
+    private var wide: some View {
+        HStack(spacing: 2) {
+            ForEach([Side.life, .business], id: \.self) { s in
+                let on = model.side == s
+                Button { pick(s) } label: {
+                    Text(s.uiLabel)
+                        .font(.system(size: 13, weight: on ? .semibold : .regular))
+                        .foregroundStyle(on ? Color.white : Color.fg2)
+                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .background {
+                            if on {
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(s == .business ? Color.shop : Color.brand)
+                                    .matchedGeometryEffect(id: "pill", in: pill)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(Color.sunken, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(tr("生活还是生意"))
     }
 }
