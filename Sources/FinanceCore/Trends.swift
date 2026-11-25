@@ -172,16 +172,16 @@ public struct WealthBreakdown: Equatable, Sendable {
         return debts + inst
     }
 
-    /// 只在生意账本里用的账户（有流水、而且全都记在生意账本上）。
+    /// 店里的账户：流水大多记在生意账本上的（偶尔用店里现金买了点自己的东西，不改它算店里的）。
     public static func businessAccounts(_ ledger: Ledger) -> Set<String> {
         let business = Set(ledger.books.filter(\.isBusiness).map(\.id))
         guard !business.isEmpty else { return [] }
-        var seen: [String: Bool] = [:]
-        for t in ledger.transactions where t.flow == nil {
+        var shop: [String: Int] = [:], other: [String: Int] = [:]
+        for t in ledger.transactions where t.flow == nil && t.transferID == nil {
             guard let b = t.bookID else { continue }
-            seen[t.accountID] = (seen[t.accountID] ?? true) && business.contains(b)
+            if business.contains(b) { shop[t.accountID, default: 0] += 1 } else { other[t.accountID, default: 0] += 1 }
         }
-        var set = Set(seen.filter(\.value).keys)
+        var set = Set(shop.filter { $0.value > other[$0.key, default: 0] * 4 }.keys)
         // 自己说过算哪边的，以说的为准（加账户时在哪边、后来挪过边）。
         for (id, side) in ledger.business?.accountSides ?? [:] {
             if side == .business { set.insert(id) } else { set.remove(id) }

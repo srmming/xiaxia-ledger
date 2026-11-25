@@ -3,7 +3,7 @@ import SwiftUI
 
 extension LedgerModel {
     /// 正在看的月份、账本的 AI 意见（没点「知道了」的）。
-    var shownInsights: [Insight] { ledger.insights(month: shownMonth, bookID: selectedBookID) }
+    var shownInsights: [Insight] { insightsHere(month: shownMonth) }
 
     /// 最该先看的一条：本月点评，没有就最新的一条。
     var leadInsight: Insight? { shownInsights.first }

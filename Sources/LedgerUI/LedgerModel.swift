@@ -338,7 +338,15 @@ public final class LedgerModel {
     public var changesOnThisSide: [ChangeRecord] {
         guard businessOn else { return ledger.changes }
         let side = self.side
-        return ledger.changes.filter { c in let s = ledger.sides(of: c); return s.isEmpty || s.contains(side) }
+        // 说不上属于哪边的（写建议、改通用设置）算生活这边。
+        return ledger.changes.filter { c in let s = ledger.sides(of: c); return s.isEmpty ? side == .life : s.contains(side) }
+    }
+
+    /// 夏夏建议：开着生意模式时只看这边的。没写账本的建议算生活这边。
+    public func insightsHere(month: YearMonth? = nil, includeDismissed: Bool = false) -> [Insight] {
+        let list = ledger.insights(month: month, bookID: selectedBookID, includeDismissed: includeDismissed)
+        guard businessOn, let shop = ledger.businessBook?.id else { return list }
+        return list.filter { side == .business ? $0.bookID == shop : $0.bookID != shop }
     }
 
     public var visibleTransactions: [FinanceCore.Transaction] {

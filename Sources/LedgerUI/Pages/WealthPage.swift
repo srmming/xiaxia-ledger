@@ -120,7 +120,8 @@ struct WealthPage: View {
                         Text(tr("总存款")).font(.callout.weight(.semibold))
                         Text(w.total.ui).font(.kitAmount)
                         Spacer(minLength: 8)
-                        Text(tr("所有账户里的钱加起来")).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        Text(model.businessOn ? tr("生活这边的账户加起来") : tr("所有账户里的钱加起来"))
+                            .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(tr("总存款 \(w.total.spoken)，所有账户里的钱加起来"))
@@ -134,6 +135,11 @@ struct WealthPage: View {
                     VStack(spacing: 4) { ForEach(list) { compactRow($0) } }
                 } else {
                     tiles(list)
+                }
+                if model.businessOn {
+                    // 两边加起来的总数，生意那边家底页写的是同一个数。
+                    (Text(tr("生活和生意加起来一共 ")) + em(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded) + Text(tr("。")))
+                        .font(.caption).foregroundStyle(Color.fg2)
                 }
                 if w.owedToMe.cents > 0 {
                     Text(tr("另外别人还欠你 \(w.owedToMe.rounded)，收回来再算进能花的。"))
@@ -265,7 +271,7 @@ struct WealthPage: View {
 
     /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
     @ViewBuilder private var debtsCard: some View {
-        let o = Plans.obligations(model.ledger, asOf: .today)
+        let o = Plans.obligations(model.lifeLedger, asOf: .today)
         if !o.isEmpty {
             Button { withAnimation(.snappy) { model.section = .debts } } label: {
                 HStack(spacing: 12) {

@@ -64,8 +64,8 @@ struct InsightsPage: View {
     }
 
     private var remindersCard: some View {
-        let list = (allMonths ? model.ledger.insights(bookID: model.selectedBookID, includeDismissed: true)
-                    : model.ledger.insights(month: model.shownMonth, bookID: model.selectedBookID, includeDismissed: true))
+        let list = (allMonths ? model.insightsHere(includeDismissed: true)
+                    : model.insightsHere(month: model.shownMonth, includeDismissed: true))
             .filter { $0.kind != .monthlyReview || allMonths }
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("其它提醒")) {

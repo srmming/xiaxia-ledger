@@ -72,7 +72,7 @@ final class DemoDataTests: XCTestCase {
         XCTAssertTrue(l.goals.contains { $0.savingsAccountID != nil })
         // 夏夏建议：每种都有，有一条看过了。
         XCTAssertEqual(Set(l.insights.map(\.kind)), Set(Insight.Kind.allCases))
-        XCTAssertEqual(l.insights(month: end.yearMonth).filter { $0.kind == .monthlyReview }.count, 2, "全部 + 小店各一条本月点评")
+        XCTAssertEqual(l.insights(month: end.yearMonth).filter { $0.kind == .monthlyReview }.count, 2, "个人 + 小店各一条本月点评")
         XCTAssertNil(l.insights(month: end.yearMonth).first?.bookID, "看「全部」时第一条要是总的点评，不是小店的")
         XCTAssertTrue(l.insights.contains { $0.dismissedAt != nil })
         // 还没整理的。

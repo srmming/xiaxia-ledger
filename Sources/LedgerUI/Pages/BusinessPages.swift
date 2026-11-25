@@ -191,7 +191,8 @@ struct BusinessWealth: View {
         let accounts = model.visibleAccounts.filter { shopIDs.contains($0.id) }
         let balances = model.balances
         let shopTotal = accounts.reduce(Money.zero) { $0 + (balances[$1.id] ?? .zero) }
-        let all = model.visibleAccounts.reduce(Money.zero) { $0 + (balances[$1.id] ?? .zero) }
+        // 两边加起来的真家底（减掉信用卡、借的、分期），生活那边家底页写的是同一个数。
+        let all = model.wealthBreakdown(model.shownMonth, bothSides: true).net
         let moves = model.ledger.sideTransfers(month: model.shownMonth)
         Columns(sideWidth: 360) {
             VStack(alignment: .leading, spacing: 16) {
