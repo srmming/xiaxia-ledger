@@ -196,7 +196,9 @@ public struct RootView: View {
     #if os(iOS)
     private var layout: some View { PhoneRoot() }
     #else
-    private var layout: some View { MacRoot() }
+    @ViewBuilder private var layout: some View {
+        if let page = BizPreview.page { BizPreviewRoot(page: page) } else { MacRoot() }
+    }
     #endif
 }
 

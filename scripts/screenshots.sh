@@ -150,6 +150,20 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 73-goal-wizard-size -XiaxiaEmpty 1 -XiaxiaSheet plan -XiaxiaGoalStep size
   snap 74-plans-empty -XiaxiaEmpty 1 -XiaxiaSection plans
   snap 75-plans-empty-dark -XiaxiaEmpty 1 -XiaxiaSection plans -xiaxia.appearance dark
+  # 生意模式 Mac 原生预览（2026-11-25，示例数字，等 ming 说开工再接真数据）
+  snap 90-biz-home -XiaxiaDemo 1 -XiaxiaBizPreview home
+  snap 91-biz-short -XiaxiaDemo 1 -XiaxiaBizPreview short
+  snap 92-biz-newshop-dark -XiaxiaDemo 1 -XiaxiaBizPreview newshop -xiaxia.appearance dark
+  snap 93-biz-empty -XiaxiaDemo 1 -XiaxiaBizPreview empty
+  snap 94-biz-daily -XiaxiaDemo 1 -XiaxiaBizPreview daily
+  snap 95-biz-fixed -XiaxiaDemo 1 -XiaxiaBizPreview fixed
+  snap 96-biz-fixed-dark -XiaxiaDemo 1 -XiaxiaBizPreview fixed -xiaxia.appearance dark
+  snap 97-biz-capital -XiaxiaDemo 1 -XiaxiaBizPreview capital
+  snap 98-biz-payday -XiaxiaDemo 1 -XiaxiaBizPreview payday
+  snap 99-biz-accounts -XiaxiaDemo 1 -XiaxiaBizPreview accounts
+  snap 99b-biz-transfer -XiaxiaDemo 1 -XiaxiaBizPreview transfer
+  snap 99c-biz-accounts-dark -XiaxiaDemo 1 -XiaxiaBizPreview accounts -xiaxia.appearance dark
+  snap 99d-biz-home-small -XiaxiaDemo 1 -XiaxiaBizPreview home -XiaxiaWindowSize 1000x612
   # 英文、西班牙语（2026-11-23）：每页一张 + 两张最小窗口，看有没有露中文、字挤掉、一屏放不下
   n=80
   for lang in en es; do
