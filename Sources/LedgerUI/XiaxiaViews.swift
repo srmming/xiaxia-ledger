@@ -63,7 +63,7 @@ struct XiaxiaSays: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // 夏夏本人站在卡片右边，按性格摆动作；大字号时让出位置给文字。
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(pose: model.persona.mascotPose, size: 92, interactive: true)
+                        CharacterSlot(pose: model.persona.mascotPose, size: 92, interactive: true)
                             .padding(.bottom, -6)
                             .animation(.spring(duration: 0.45, bounce: 0.35), value: model.persona)
                     }

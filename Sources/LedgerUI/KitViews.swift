@@ -367,7 +367,7 @@ struct KitEmptyState: View {
                 // 道具插画 + 站在旁边的夏夏（动作跟着这页的情况：空着在打盹、出错了担心、做完了庆祝…）
                 let glyph = art ?? Self.artFor(symbol)
                 HStack(alignment: .bottom, spacing: -18) {
-                    MascotView(pose: Self.poseFor(glyph), size: 96)
+                    CharacterSlot(pose: Self.poseFor(glyph), size: 96)
                     XiaxiaIllustration(glyph, width: 132)
                 }
                 .padding(.bottom, -2)

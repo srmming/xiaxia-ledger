@@ -229,7 +229,7 @@ struct WelcomeView: View {
                 speechBubble
                 ZStack(alignment: .bottom) {
                     HStack(alignment: .bottom, spacing: 0) {
-                        MascotView(pose: pose, size: size, talking: thinking)
+                        CharacterSlot(pose: pose, size: size, talking: thinking)
                             .id(pose)
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
@@ -1446,7 +1446,7 @@ struct ChatDemo: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                MascotView(size: 24, face: true, animated: false)
+                CharacterSlot(size: 24, face: true, animated: false)
                 Text(tr("夏夏")).font(.headline)
                 Spacer()
                 Text(engineName).font(.caption).foregroundStyle(Color.brand)
@@ -1461,7 +1461,7 @@ struct ChatDemo: View {
                 }
                 if typing {
                     HStack(spacing: 6) {
-                        MascotView(size: 22, face: true, animated: false)
+                        CharacterSlot(size: 22, face: true, animated: false)
                         Text(tr("夏夏在想…")).font(.caption).foregroundStyle(Color.fg3)
                     }
                     .transition(.opacity)
@@ -1488,7 +1488,7 @@ struct ChatDemo: View {
 
     private func bubble(_ text: String, mine: Bool) -> some View {
         HStack(alignment: .bottom, spacing: 6) {
-            if mine { Spacer(minLength: 40) } else { MascotView(size: 22, face: true, animated: false) }
+            if mine { Spacer(minLength: 40) } else { CharacterSlot(size: 22, face: true, animated: false) }
             Text(text).font(.callout)
                 .foregroundStyle(mine ? Color.white : Color.primary)
                 .padding(.horizontal, 12).padding(.vertical, 8)

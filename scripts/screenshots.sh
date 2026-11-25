@@ -103,6 +103,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   snap 1m-life-wealth -XiaxiaDemo 1 -XiaxiaBook personal -XiaxiaSection wealth
   snap 1n-life-overview -XiaxiaDemo 1 -XiaxiaBook personal
   snap 1o-welcome-side -XiaxiaEmpty 1 -XiaxiaWelcome 1 -XiaxiaWelcomeStep books
+  snap 1p-overview-no-character -XiaxiaDemo 1 -XiaxiaBook personal -xiaxia.showCharacter '<false/>'
+  snap 1q-business-no-character -XiaxiaDemo 1 -XiaxiaBook shop -xiaxia.showCharacter '<false/>'
   snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
   snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights

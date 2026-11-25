@@ -520,7 +520,7 @@ struct ActivityBanner: View {
     var body: some View {
         HStack(spacing: 12) {
             // 夏夏的小头像（谁记的写在文字里）
-            MascotView(size: 30, face: true)
+            CharacterSlot(size: 30, face: true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(activity.headline).font(.subheadline.weight(.semibold)).lineLimit(1)
                 if let last = activity.changes.last, activity.changes.count > 1 || !activity.transactionIDs.isEmpty {

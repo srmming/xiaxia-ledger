@@ -357,6 +357,7 @@ struct SettingsPaneView: View {
                     NameSettingsRows()
                 }
                 group(tr("夏夏怎么跟你说话"), note: tr("夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。")) {
+                    CharacterToggle().padding(.bottom, 6)
                     PersonaPicker()
                 }
             case .memory, .data, .business:
