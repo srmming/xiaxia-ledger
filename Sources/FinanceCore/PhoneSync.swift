@@ -78,9 +78,10 @@ private func rowDiff<T: Equatable, K: Hashable>(_ old: [T], _ new: [T], key: (T)
     return (changed.isEmpty ? nil : changed, removed)
 }
 
-private struct NoteMerger {
+struct NoteMerger {
     let note: SyncNote
     var conflicts: [SyncConflict] = []
+    var skipped = Set<SyncRowKey>()
 
     mutating func rows<T: Codable & Equatable, K: Hashable>(_ local: inout [T], _ incoming: [T]?, _ table: String,
                                                              key: (T) -> K, name: (K) -> String) {
@@ -94,12 +95,13 @@ private struct NoteMerger {
             }
         }
         for id in note.deletes?[table] ?? [] {
-            guard let i = local.firstIndex(where: { name(key($0)) == id }) else { continue }
+            guard !skipped.contains(.init(table, id)), let i = local.firstIndex(where: { name(key($0)) == id }) else { continue }
             if let base = before[id], (try? FieldMerge.encode(local[i])) == base { local.remove(at: i) }
             else { conflict(table, id, ["删除"], nil) }
         }
         for row in incoming ?? [] {
             let id = name(key(row))
+            if skipped.contains(.init(table, id)) { continue }
             let offered = try? FieldMerge.encode(row)
             guard let i = local.firstIndex(where: { key($0) == key(row) }) else {
                 if before[id] == nil { local.append(row) } else { conflict(table, id, ["电脑已删除"], offered) }
@@ -185,7 +187,8 @@ extension Ledger {
     @discardableResult
     public mutating func apply(_ note: SyncNote) -> Bool {
         guard !appliedNotes.contains(note.id) else { return false }
-        var merger = NoteMerger(note: note)
+        let groups = linkedConflicts(in: note)
+        var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked)
         merger.rows(&books, note.books, "books", key: \.id, name: { $0 })
         merger.rows(&accounts, note.accounts, "accounts", key: \.id, name: { $0 })
         merger.rows(&transactions, note.transactions, "transactions", key: \.id, name: \.uuidString)
@@ -250,22 +253,22 @@ public enum SyncNotes {
         try LedgerFiles.coordinatedWrite(try enc.encode(note), to: dir.appendingPathComponent("\(note.id).\(ext)"))
     }
 
-    /// 文件夹里的纸条文件（.json），按名字排序。iCloud 还没下载下来的（.xxx.json.icloud）顺便请系统下载，这次先不算。
+    /// 两代纸条都可能先以 iCloud 占位文件出现。只把已经下载的文件交给解码器。
     public static func files(in dir: URL) -> [URL] {
-        let fm = FileManager.default
-        guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { return [] }
-        var out: [URL] = []
-        for name in names.sorted() {
-            if name.hasPrefix("."), name.hasSuffix(".json.icloud") {
-                #if canImport(Darwin)
+        files(in: dir, requestDownload: LedgerFiles.requestDownload)
+    }
+
+    static func files(in dir: URL, requestDownload: (URL) -> Void) -> [URL] {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        return names.sorted().compactMap { name in
+            if name.hasPrefix("."), name.hasSuffix(".icloud") {
                 let real = String(name.dropFirst().dropLast(".icloud".count))
-                try? fm.startDownloadingUbiquitousItem(at: dir.appendingPathComponent(real))
-                #endif
-                continue
+                if real.hasSuffix(".json") || real.hasSuffix(".sync2") { requestDownload(dir.appendingPathComponent(real)) }
+                return nil
             }
-            if name.hasSuffix(".json") || name.hasSuffix(".sync2") { out.append(dir.appendingPathComponent(name)) }
+            guard name.hasSuffix(".json") || name.hasSuffix(".sync2") else { return nil }
+            return dir.appendingPathComponent(name)
         }
-        return out
     }
 
     public static func read(_ url: URL) -> SyncNote? {
@@ -308,8 +311,13 @@ public enum SyncNotes {
         try? fm.createDirectory(at: doneDir, withIntermediateDirectories: true)
         for u in urls where u.deletingLastPathComponent().lastPathComponent != doneFolderName {
             let target = doneDir.appendingPathComponent(u.lastPathComponent)
-            try? fm.removeItem(at: target)
-            try? fm.moveItem(at: u, to: target)
+            if fm.fileExists(atPath: target.path) {
+                guard let original = read(u), read(target) == original else { continue }
+                try? fm.removeItem(at: u)
+            } else {
+                do { try fm.moveItem(at: u, to: target) } catch { continue }
+            }
+            try? fm.setAttributes([.modificationDate: now], ofItemAtPath: target.path)
         }
         for u in files(in: doneDir) {
             if let d = (try? fm.attributesOfItem(atPath: u.path))?[.modificationDate] as? Date,
@@ -342,14 +350,29 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     /// 上次收进来的纸条（app 用来提示「收到手机记的 N 条」）。
     public private(set) var lastApplied: [SyncNote] = []
 
-    public init(primary: any LedgerStore, folder: URL) { self.primary = primary; self.folder = folder }
+    private let relocatedFrom: URL?
+
+    public init(primary: any LedgerStore, folder: URL, relocatedFrom: URL? = nil) {
+        self.primary = primary; self.folder = folder; self.relocatedFrom = relocatedFrom
+    }
+
+    private var retiredFolder: URL? { relocatedFrom.flatMap { LedgerFiles.hasMoved($0) ? $0 : nil } }
 
     public func load() throws -> Ledger {
         lock.lock(); defer { lock.unlock() }
+        if let old = retiredFolder {
+            return try withLedgerFileLock(at: folder.appendingPathComponent(".旧目录补收")) {
+                try collectNotes(from: old)
+            }
+        }
+        return try collectNotes(from: nil)
+    }
+
+    private func collectNotes(from retired: URL?) throws -> Ledger {
         var ledger = try primary.load()
         if ledger.minReaderVersion > 2 { return ledger }
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
+        let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes)) } ?? []
+        guard FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
         var applied: [SyncNote] = []
         for item in pending where ledger.apply(item.note) { applied.append(item.note) }
@@ -361,6 +384,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         let done = Set(ledger.appliedNotes)
         SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) },
                           ledgerFolder: folder)
+        if let old = retired { LatePhoneDelivery.archive(late, from: old, to: folder, applied: done) }
         return ledger
     }
 
@@ -372,7 +396,9 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     public func changeStamp() -> String? {
         let notes = SyncNotes.files(in: SyncNotes.inbox(folder)).map(\.lastPathComponent).joined(separator: ",")
         let base = primary.changeStamp()
-        return notes.isEmpty ? base : "\(base ?? "")|notes:\(notes)"
+        let late = retiredFolder.flatMap(LatePhoneDelivery.stamp)
+        if notes.isEmpty && late == nil { return base }
+        return "\(base ?? "")|notes:\(notes)|late:\(late ?? "")"
     }
 }
 

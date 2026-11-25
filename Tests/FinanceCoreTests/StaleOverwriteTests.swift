@@ -171,3 +171,134 @@ final class StaleOverwriteTests: XCTestCase {
         XCTAssertTrue(LedgerStores.migrateToContainer(new, from: old))
     }
 }
+
+extension StaleOverwriteTests {
+    func testConflictingPaymentDeletionPreservesAllPlanReferences() throws {
+        var base = ledger()
+        let payment = base.transactions[0]
+        base.installments = [.init(name: "模拟分期", bookID: "personal", accountID: "cash", total: .init(cents: 500),
+                                   count: 2, firstDate: payment.date, paidIDs: [payment.id])]
+        base.debts = [.init(counterparty: "模拟借款", direction: .iOweThem, principal: .init(cents: 500),
+                            bookID: "personal", startDate: payment.date, repaymentIDs: [payment.id])]
+        base.goals = [.init(name: "模拟目标", bookID: "personal", target: .init(cents: 500), contributionIDs: [payment.id])]
+        var phone = base
+        let deletion = try phone.removeTransactions([payment.id], author: "手机")
+        phone.transactions.append(row("另一笔独立流水"))
+        let note = try XCTUnwrap(phone.syncNote(since: base, device: "手机"))
+        var mac = base
+        mac.transactions[0].description = "Mac 改过的名称"
+        mac.apply(note)
+        XCTAssertEqual(mac.transactions.map(\.description), ["Mac 改过的名称", "另一笔独立流水"])
+        XCTAssertEqual(mac.installments, base.installments)
+        XCTAssertEqual(mac.debts, base.debts)
+        XCTAssertEqual(mac.goals, base.goals)
+        XCTAssertFalse(mac.changes.contains { $0.id == deletion.id })
+        let conflicts = try XCTUnwrap(mac.changes.last?.syncConflicts)
+        XCTAssertEqual(conflicts.count, 1)
+        let members = try JSONDecoder().decode([LinkedSyncMember].self, from: XCTUnwrap(conflicts.first?.phoneValue))
+        XCTAssertEqual(Set(members.map(\.row.table)), ["transactions", "installments", "debts", "goals"])
+
+        var clean = base
+        clean.apply(note)
+        XCTAssertEqual(clean.transactions.map(\.description), ["另一笔独立流水"])
+        XCTAssertTrue(clean.installments[0].paidIDs.isEmpty && clean.debts[0].repaymentIDs.isEmpty && clean.goals[0].contributionIDs.isEmpty)
+    }
+
+    func testConflictingPlanEditDoesNotInsertUnlinkedPayment() throws {
+        var base = ledger()
+        base.installments = [.init(name: "分期", bookID: "personal", accountID: "cash", total: .init(cents: 800),
+                                   count: 3, firstDate: base.transactions[0].date)]
+        var phone = base, mac = base
+        let a = row("手机还款"), b = row("Mac 还款")
+        phone.transactions.append(a); phone.installments[0].paidIDs = [a.id]
+        mac.transactions.append(b); mac.installments[0].paidIDs = [b.id]
+        mac.apply(try XCTUnwrap(phone.syncNote(since: base, device: "手机")))
+        XCTAssertEqual(mac.installments[0].paidIDs, [b.id])
+        XCTAssertFalse(mac.transactions.contains(a))
+        XCTAssertEqual(mac.changes.last?.syncConflicts?.first?.table, "relatedRecords")
+    }
+
+    func testLateNoteWaitsForAttachmentAndArrivesExactlyOnceAfterMigration() throws {
+        let root = try folder(), old = root.appendingPathComponent("旧位置"), new = root.appendingPathComponent("新位置")
+        try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(.fresh)
+        XCTAssertTrue(LedgerStores.migrateToContainer(new, from: old))
+        let store = LedgerStores.sqlite(new.appendingPathComponent("ledger.sqlite"), relocatedFrom: old)
+        var note = SyncNote(id: "late-001", device: "手机", createdAt: Date(), summary: "离线收款")
+        note.transactions = [row("晚到的收款")]
+        note.captures = [.init(kind: .photo, text: "小票", photo: "late.jpg", device: "手机")]
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        let inbox = SyncNotes.inbox(old)
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        let source = inbox.appendingPathComponent("late-001.sync2")
+        try encoder.encode(note).write(to: source)
+        let stamp = store.changeStamp()
+        XCTAssertTrue(try store.load().transactions.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
+        let assets = old.appendingPathComponent("附件")
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        let bytes = Data("模拟补到的照片".utf8)
+        try bytes.write(to: assets.appendingPathComponent("late.jpg"))
+        XCTAssertNotEqual(store.changeStamp(), stamp)
+        XCTAssertEqual(try store.load().transactions.map(\.description), ["晚到的收款"])
+        XCTAssertEqual(try Data(contentsOf: new.appendingPathComponent("附件/late.jpg")), bytes)
+        XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: old), 0)
+        XCTAssertEqual(SyncNotes.files(in: SyncNotes.done(old)).count, 1)
+        try encoder.encode(note).write(to: source)
+        XCTAssertFalse(LedgerStores.migrateToContainer(new, from: old)) // 已经搬完，只补收。
+        XCTAssertEqual(try store.load().transactions.count, 1)
+        XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: old), 0)
+        XCTAssertEqual(try store.load().appliedNotes, ["late-001"])
+    }
+
+    func testMovedMarkerPlaceholderRejectsPhoneAndAttachments() throws {
+        let root = try folder(), old = root.appendingPathComponent("旧位置")
+        try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(.fresh)
+        let phone = PhoneSyncStore(folder: old, cache: root.appendingPathComponent("cache/ledger.sqlite"))
+        var value = try phone.load()
+        value.transactions.append(row("旧绑定"))
+        try Data().write(to: old.appendingPathComponent(".\(LedgerStores.movedMarker).icloud"))
+        XCTAssertThrowsError(try phone.save(value)) { XCTAssertTrue($0.localizedDescription.contains("重新连接")) }
+        XCTAssertThrowsError(try LedgerFiles.saveAttachment(Data(), into: old.appendingPathComponent("附件")))
+        XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: old), 0)
+    }
+
+    func testScannerRequestsBothJSONAndSync2Placeholders() throws {
+        let dir = try folder()
+        for name in [".old.json.icloud", ".edit.sync2.icloud", ".other.txt.icloud", "ready.sync2"] {
+            try Data().write(to: dir.appendingPathComponent(name))
+        }
+        var requested: [String] = []
+        let ready = SyncNotes.files(in: dir) { requested.append($0.lastPathComponent) }
+        XCTAssertEqual(Set(requested), ["old.json", "edit.sync2"])
+        XCTAssertEqual(ready.map(\.lastPathComponent), ["ready.sync2"])
+    }
+}
+
+extension StaleOverwriteTests {
+    func testLateNoteRemainsInOldInboxWhenNewStoreCannotCommit() throws {
+        let root = try folder(), old = root.appendingPathComponent("旧位置"), new = root.appendingPathComponent("新位置")
+        try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(.fresh)
+        XCTAssertTrue(LedgerStores.migrateToContainer(new, from: old))
+        let raw = SQLiteLedgerStore(url: new.appendingPathComponent("ledger.sqlite"))
+        var note = SyncNote(id: "late-retry", device: "手机", createdAt: Date(), summary: "晚到")
+        note.transactions = [row("重试收款")]
+        let inbox = SyncNotes.inbox(old)
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(note).write(to: inbox.appendingPathComponent("late-retry.json"))
+        let blocked = InboxApplyingStore(primary: RefuseDeliverySave(raw: raw), folder: new, relocatedFrom: old)
+        XCTAssertThrowsError(try blocked.load())
+        XCTAssertTrue(try raw.load().appliedNotes.isEmpty)
+        XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: old), 1)
+        let retry = InboxApplyingStore(primary: raw, folder: new, relocatedFrom: old)
+        XCTAssertEqual(try retry.load().transactions.map(\.description), ["重试收款"])
+        XCTAssertEqual(try retry.load().appliedNotes, ["late-retry"])
+        XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: old), 0)
+    }
+}
+
+private struct RefuseDeliverySave: LedgerStore {
+    let raw: SQLiteLedgerStore
+    func load() throws -> Ledger { try raw.load() }
+    func save(_ ledger: Ledger) throws { throw BusinessError(message: "模拟写入失败") }
+}

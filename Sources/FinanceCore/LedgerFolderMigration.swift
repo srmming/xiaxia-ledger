@@ -1,8 +1,19 @@
 import Foundation
 
 extension LedgerFiles {
+    static func requestDownload(_ file: URL) {
+        #if canImport(Darwin)
+        try? FileManager.default.startDownloadingUbiquitousItem(at: file)
+        #endif
+    }
+
+    static func hasMoved(_ folder: URL) -> Bool {
+        let marker = LedgerStores.movedMarker
+        return [marker, ".\(marker).icloud"].contains { FileManager.default.fileExists(atPath: folder.appendingPathComponent($0).path) }
+    }
+
     static func requireActive(_ folder: URL) throws {
-        if FileManager.default.fileExists(atPath: folder.appendingPathComponent(LedgerStores.movedMarker).path) {
+        if hasMoved(folder) {
             throw BusinessError(message: "账本已搬家，请在手机上重新连接新的账本文件夹")
         }
     }

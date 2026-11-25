@@ -109,8 +109,7 @@ public struct SQLiteLedgerStore: LedgerStore {
     }
 
     private func checkRevision(_ ledger: Ledger, db: SQLiteDB) throws {
-        let marker = url.deletingLastPathComponent().appendingPathComponent(LedgerStores.movedMarker)
-        if url.lastPathComponent == "ledger.sqlite", FileManager.default.fileExists(atPath: marker.path) {
+        if url.lastPathComponent == "ledger.sqlite", LedgerFiles.hasMoved(url.deletingLastPathComponent()) {
             throw LedgerRevision.conflict
         }
         try ledger.revision.check(url, current: db.storageDigest())

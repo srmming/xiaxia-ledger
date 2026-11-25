@@ -142,8 +142,16 @@ public enum LedgerStores {
         let target = container.appendingPathComponent("ledger.sqlite")
         let source = old.appendingPathComponent("ledger.sqlite")
         let marker = old.appendingPathComponent(movedMarker)
-        guard old.standardizedFileURL.resolvingSymlinksInPath() != container.standardizedFileURL.resolvingSymlinksInPath(),
-              fm.fileExists(atPath: source.path), !fm.fileExists(atPath: marker.path) else { return false }
+        guard old.standardizedFileURL.resolvingSymlinksInPath() != container.standardizedFileURL.resolvingSymlinksInPath() else { return false }
+        if LedgerFiles.hasMoved(old) {
+            #if canImport(SQLite3)
+            if fm.fileExists(atPath: target.path) {
+                _ = try? InboxApplyingStore(primary: SQLiteLedgerStore(url: target), folder: container, relocatedFrom: old).load()
+            }
+            #endif
+            return false
+        }
+        guard fm.fileExists(atPath: source.path) else { return false }
         let pending = container.appendingPathComponent(".搬家待确认")
         #if canImport(SQLite3)
         do {
@@ -156,7 +164,7 @@ public enum LedgerStores {
                     _ = try InboxApplyingStore(primary: SQLiteLedgerStore(url: source), folder: old).load()
                     let from = try SQLiteDB(url: source, allowCreate: false)
                     try from.holdExclusiveLock()
-                    guard !fm.fileExists(atPath: marker.path), try from.hasLedger() else { return false }
+                    guard !LedgerFiles.hasMoved(old), try from.hasLedger() else { return false }
                     let to = try SQLiteDB(url: target)
                     try to.holdExclusiveLock()
                     if try to.hasLedger() {
@@ -235,8 +243,8 @@ public enum LedgerStores {
         if fm.fileExists(atPath: container.path),
            (!fm.fileExists(atPath: iCloudFolder.appendingPathComponent("ledger.sqlite").path)
                 && !fm.fileExists(atPath: iCloudFolder.appendingPathComponent(".ledger.sqlite.icloud").path))
-            || fm.fileExists(atPath: iCloudFolder.appendingPathComponent(movedMarker).path) {
-            return sqlite(container)
+            || LedgerFiles.hasMoved(iCloudFolder) {
+            return sqlite(container, relocatedFrom: iCloudFolder)
         }
         #if os(macOS)
         let iCloudDrive = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
@@ -259,7 +267,7 @@ public enum LedgerStores {
             try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
             #if os(macOS)
             if !migrateToContainer(docs),
-               !FileManager.default.fileExists(atPath: iCloudFolder.appendingPathComponent(movedMarker).path),
+               !LedgerFiles.hasMoved(iCloudFolder),
                ["ledger.sqlite", ".ledger.sqlite.icloud"].contains(where: { FileManager.default.fileExists(atPath: iCloudFolder.appendingPathComponent($0).path) }) {
                 return sqlite(iCloudFolder.appendingPathComponent("ledger.sqlite"))
             }
@@ -274,7 +282,11 @@ public enum LedgerStores {
                 for _ in 0..<30 where !FileManager.default.fileExists(atPath: file.path) { Thread.sleep(forTimeInterval: 0.5) }
             }
             #endif
+            #if os(macOS)
+            return sqlite(file, relocatedFrom: iCloudFolder)
+            #else
             return sqlite(file)
+            #endif
         }
         return defaultStore()
     }
@@ -287,12 +299,12 @@ public enum LedgerStores {
     /// iPhone 本机的账本（没接 iCloud 文件夹时用的那本）。
     public static func localPhoneStore() -> any LedgerStore { sqlite(appSupportFolder.appendingPathComponent("ledger.sqlite")) }
 
-    static func sqlite(_ url: URL, legacyURL: URL? = nil) -> any LedgerStore {
+    static func sqlite(_ url: URL, legacyURL: URL? = nil, relocatedFrom: URL? = nil) -> any LedgerStore {
         #if canImport(SQLite3)
         let legacy = JSONFileLedgerStore(url: legacyURL ?? appSupportFolder.appendingPathComponent("ledger.json"))
         // 读账本时顺便收 iPhone 写的小纸条（见 PhoneSync.swift）。
         return InboxApplyingStore(primary: MigratingStore(primary: SQLiteLedgerStore(url: url), legacy: legacy),
-                                  folder: url.deletingLastPathComponent())
+                                  folder: url.deletingLastPathComponent(), relocatedFrom: relocatedFrom)
         #else
         return JSONFileLedgerStore(url: url.deletingPathExtension().appendingPathExtension("json"))
         #endif
