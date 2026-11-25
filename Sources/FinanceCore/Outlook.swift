@@ -88,8 +88,12 @@ public enum Outlook {
         public var next: Due
         /// 店里账户现在一共。
         public var balance: Money
-        /// 剩下的日子还要花（固定的 + 每天平均）。
-        public var spendRest: Money
+        /// 这个月还没付的固定开销。
+        public var fixedLeft: Money
+        /// 剩下几天平时的开销（每天平均 × 天数）。
+        public var usualRest: Money
+        /// 剩下的日子还要花（固定的 + 平时的）。
+        public var spendRest: Money { fixedLeft + usualRest }
         public var endBalance: Money { balance + estimateRest - spendRest }
         /// 估收入用了几周（满 4 周才估）。
         public var weeks: Int
@@ -395,7 +399,7 @@ public enum Outlook {
         let daysLeft = max(0, end.day - today.day)
         return Business(today: today, received: Money(cents: received), estimateRest: Money(cents: rest),
                         next: due(ledger, side: .business, today: today, guesses: guesses, usual: u),
-                        balance: balance, spendRest: Money(cents: fixedLeft + u.daily * Int64(daysLeft)), weeks: 4)
+                        balance: balance, fixedLeft: Money(cents: fixedLeft), usualRest: Money(cents: u.daily * Int64(daysLeft)), weeks: 4)
     }
 }
 

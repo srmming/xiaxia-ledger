@@ -53,7 +53,7 @@ struct TrendsPage: View {
         out.append(dueItem(o.next, title: tr("下个月要付")))
         if let r = o.runway {
             let months = r < 0 ? 0 : r
-            let value = months >= 24 ? tr("两年以上") : tr("\(String(format: months < 10 ? "%.1f" : "%.0f", months)) 个月")
+            let value = months >= 24 ? tr("两年以上") : tr("\(WealthBreakdown.monthsText(months)) 个月")
             out.append(OutlookItem(id: "runway", symbol: "hourglass", title: tr("钱还能撑"), value: value,
                                    sentence: tr("现在能随便花 \(o.balance.rounded)，平时每月花 \(o.monthlySpend.rounded)。"),
                                    spoken: tr("现在的钱还能撑 \(value)"), tone: months < 2 ? .bad : .plain))
@@ -70,7 +70,7 @@ struct TrendsPage: View {
                         spoken: tr("这个月大概收 \(o.monthIncome.spoken)")),
             dueItem(o.next, title: tr("下个月店里要付")),
             OutlookItem(id: "end", symbol: "building.columns", title: tr("月底账户大概剩"), value: o.endBalance.rounded,
-                        sentence: tr("现在 \(o.balance.rounded)，加上还会收的 \(o.estimateRest.rounded)，减掉还要付的 \(o.spendRest.rounded)。"),
+                        sentence: tr("现在 \(o.balance.rounded)，加上还会收的 \(o.estimateRest.rounded)，减掉还没付的固定开销 \(o.fixedLeft.rounded) 和剩下几天平时的开销 \(o.usualRest.rounded)。"),
                         spoken: tr("月底店里账户大概剩 \(o.endBalance.spoken)"), tone: o.endBalance.cents < 0 ? .bad : .plain),
         ]
     }
@@ -122,6 +122,8 @@ struct NextMonthDueCard: View {
     let due: Outlook.Due
     var shop = false
     var maxRows = 6
+    /// 家底页用：「平时的」只给一行合计，不列明细，一屏放下。
+    var compact = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -140,7 +142,12 @@ struct NextMonthDueCard: View {
     @ViewBuilder private var blocks: some View {
         block(tr("固定的"), due.fixed, total: due.fixedTotal, empty: tr("没有登记的固定开销"))
         if !due.variable.isEmpty {
-            block(tr("平时的（最近 3 个月平均）"), due.variable, total: due.variableTotal, empty: "")
+            if compact {
+                block(tr("平时的（最近 3 个月平均）"), [], total: due.variableTotal,
+                      empty: due.variable.prefix(3).map { trKey($0.name) }.joined(separator: tr("、")) + (due.variable.count > 3 ? tr("等") : ""))
+            } else {
+                block(tr("平时的（最近 3 个月平均）"), due.variable, total: due.variableTotal, empty: "")
+            }
         }
     }
 
@@ -189,6 +196,8 @@ struct FixedGuessCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(guesses.count == 1 ? tr("这一样像是每个月固定要付的，算进固定开销吗？") : tr("这几样像是每个月固定要付的，算进固定开销吗？"))
                 .font(.callout.weight(.semibold))
+            Text(tr("没点之前，下面先按「算」估。点「不算」就不再问，数字也会跟着变。"))
+                .font(.caption).foregroundStyle(Color.fg2)
             ForEach(guesses.prefix(3)) { g in
                 HStack(spacing: 10) {
                     CategoryIcon(category: g.category, size: 26)

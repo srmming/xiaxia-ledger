@@ -29,7 +29,8 @@ struct WealthPage: View {
                 let w = model.wealthBreakdown(model.shownMonth)
                 VStack(alignment: .leading, spacing: Kit.gap) {
                     // 夏夏卡放最上面，说有用的：能随便花的钱够过几个月、欠款还不还得上、比 3 个月前多了还是少了。
-                    let nudges = Nudges.wealth(w, monthlySpend: model.personalMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
+                    let outlook = model.lifeOutlook()
+                    let nudges = Nudges.wealth(w, monthlySpend: outlook?.monthlySpend ?? model.personalMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
                                                currency: model.ledger.baseCurrency)
                     let insights = [model.ledger.insight(forPage: "wealth", month: model.shownMonth, bookID: nil)].compactMap { $0 }
                     XiaxiaCards(nudges: nudges, insights: insights, page: "家底")
@@ -38,8 +39,8 @@ struct WealthPage: View {
                         // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
                         if !Viewport.isShort(viewport) { debtsCard }
                         // 下个月要付：每一样、多少钱、合计（ming 2026-11-25）。
-                        if let due = model.lifeOutlook()?.next, !due.isEmpty {
-                            NextMonthDueCard(due: due, maxRows: Viewport.isShort(viewport) ? 3 : 5)
+                        if let due = outlook?.next, !due.isEmpty {
+                            NextMonthDueCard(due: due, maxRows: 3, compact: true)
                         }
                     } side: {
                         accountsCard
@@ -99,7 +100,8 @@ struct WealthPage: View {
     private func heroCard(_ w: WealthBreakdown) -> some View {
         let short = Viewport.isShort(viewport)
         let list = parts(w)
-        let spend = model.personalMonthlySpend()
+        // 和预测页「钱还能撑」同一个口径：平时每月花多少（不算一次性的大开销）。
+        let spend = model.lifeOutlook()?.monthlySpend ?? model.personalMonthlySpend()
         let free = w.spendable
         let hasShop = model.ledger.books.contains(where: \.isBusiness)
         let sentence: Text = {
@@ -108,7 +110,7 @@ struct WealthPage: View {
             }
             if let months = w.months(monthlySpend: spend) {
                 return Text(tr("够花 ")) + em(tr("\(WealthBreakdown.monthsText(months)) 个月"), .good)
-                    + Text(tr("，按\(hasShop ? tr("你自己") : tr("最近"))每月花 \(spend.rounded) 算。"))
+                    + Text(tr("，按\(hasShop ? tr("你自己") : "")平时每月花 \(spend.rounded) 算。"))
             }
             return Text(tr("记满一个月的开销，就能算出够花几个月。"))
         }()
