@@ -1,3 +1,4 @@
+import FinanceCore
 import SwiftUI
 
 // 人物层（ming 2026-11-25：「把夏夏界面上的人物都剥离出来」）。
