@@ -280,22 +280,39 @@ struct ProfitPaceChart: View {
 struct DailyTakingsSheet: View {
     @Environment(LedgerModel.self) var model
     @Environment(\.dismiss) var dismiss
-    @State private var cashText = ""
-    @State private var cardText = ""
-    @State private var cashAccount = ""
-    @State private var cardAccount = ""
+    /// 每种收款方式填的数（按收款方式的 id）。
+    @State private var texts: [UUID: String] = [:]
+    /// 这次记到哪个账户（默认是收款方式自己的账户，可以临时换）。
+    @State private var accounts: [UUID: String] = [:]
     @State private var date = Date()
     @State private var error: String?
-    @FocusState private var focus: Box?
-
-    enum Box: Hashable { case cash, card }
+    @State private var adding = false
+    @State private var newName = ""
+    @State private var newAccount = ""
+    @FocusState private var focus: UUID?
+    @FocusState private var newNameFocused: Bool
 
     private var day: LocalDate { LocalDate(date) }
-    private var cash: Money? { cashText.trimmingCharacters(in: .whitespaces).isEmpty ? .zero : Money.evaluate(cashText) }
-    private var card: Money? { cardText.trimmingCharacters(in: .whitespaces).isEmpty ? .zero : Money.evaluate(cardText) }
+    private var methods: [PaymentMethod] { model.ledger.paymentMethods }
+
+    private func value(_ m: PaymentMethod) -> Money? {
+        let t = (texts[m.id] ?? "").trimmingCharacters(in: .whitespaces)
+        return t.isEmpty ? .zero : Money.evaluate(t)
+    }
+    private var lines: [(method: PaymentMethod, amount: Money)]? {
+        var out: [(method: PaymentMethod, amount: Money)] = []
+        for m in methods {
+            guard let v = value(m), v >= .zero else { return nil }
+            var x = m
+            x.accountID = accounts[m.id] ?? m.accountID
+            out.append((x, v))
+        }
+        return out
+    }
+    private var typed: Money { (lines ?? []).reduce(.zero) { $0 + $1.amount } }
     private var canSave: Bool {
-        guard let cash, let card, cash >= .zero, card >= .zero, (cash + card) > .zero else { return false }
-        return (cash == .zero || !cashAccount.isEmpty) && (card == .zero || !cardAccount.isEmpty)
+        guard let lines, typed > .zero else { return false }
+        return lines.allSatisfy { $0.amount == .zero || !$0.method.accountID.isEmpty }
     }
 
     /// 选账户：店里的账户在前；一个都没有就列全部（不含私房钱）。
@@ -327,31 +344,33 @@ struct DailyTakingsSheet: View {
         .frame(width: 480)
         #endif
         .navigationTitle(tr("记今天的账"))
-        .onAppear {
-            let d = model.ledger.dailyAccounts()
-            let ids = choices.map(\.id)
-            cashAccount = d.cash ?? choices.first { $0.kind == .cash }?.id ?? ids.first ?? ""
-            cardAccount = d.card ?? choices.first { $0.kind != .cash }?.id ?? ids.first ?? ""
-            focus = .cash
-        }
+        .onAppear { focus = methods.first?.id }
     }
 
     private var content: some View {
         let already = model.ledger.dailyTakings(on: day)
         let report = try? model.ledger.businessReport(month: day.yearMonth, today: day)
         let spent = report?.todayCost ?? .zero
-        let received = already.total + (cash ?? .zero) + (card ?? .zero)
+        let received = already.total + typed
         let earned = received - spent
-        return VStack(spacing: 18) {
+        return VStack(spacing: 16) {
             VStack(spacing: 4) {
                 Text(tr("今天收了多少")).font(.title2.weight(.bold))
                 DatePicker(tr("哪天"), selection: $date, in: ...Date(), displayedComponents: .date)
                     .labelsHidden().fixedSize()
             }
-            HStack(spacing: 12) {
-                box(.cash, title: tr("现金"), symbol: "banknote", text: $cashText, account: $cashAccount)
-                box(.card, title: tr("刷卡 / 转账"), symbol: "creditcard", text: $cardText, account: $cardAccount)
+            // 每种收款方式一行：名字、多少、进哪个账户。Tab 一行行往下填（ming 2026-11-25：能加更多收款方式）。
+            VStack(spacing: 0) {
+                ForEach(Array(methods.enumerated()), id: \.element.id) { i, m in
+                    methodRow(m)
+                    if i < methods.count - 1 { Divider() }
+                }
+                Divider()
+                addRow
             }
+            .padding(.horizontal, 14)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous).strokeBorder(Color.fg3.opacity(0.25)))
             if already.total > .zero {
                 Label(tr("这天已经记了 \(already.total.rounded)，这次填的会接着加上。"), systemImage: "checkmark.circle.fill")
                     .font(.caption).foregroundStyle(Color.income)
@@ -373,41 +392,98 @@ struct DailyTakingsSheet: View {
             .padding(16)
             .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
             if let error { Text(error).font(.caption).foregroundStyle(Color.alert) }
-            Text(tr("现金记进店里的现金，刷卡记进店里的卡，都算营业收入。空着的框不记。"))
+            Text(tr("都算营业收入，空着的不记。右键一种收款方式可以拿掉。"))
                 .font(.caption).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func box(_ which: Box, title: String, symbol: String, text: Binding<String>, account: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: symbol).font(.callout.weight(.semibold)).foregroundStyle(Color.shop)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                TextField("0", text: text)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
-                    .focused($focus, equals: which)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                    .accessibilityLabel(tr("\(title)收了多少"))
-                    .accessibilityIdentifier(which == .cash ? "daily.cash" : "daily.card")
-                Text("€").font(.system(size: 18, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
+    private func symbol(_ m: PaymentMethod) -> String {
+        if m.id == PaymentMethod.cashID || m.name.contains("现金") { return "banknote" }
+        if m.id == PaymentMethod.cardID || m.name.contains("卡") { return "creditcard" }
+        return "iphone.gen3"
+    }
+
+    private func methodRow(_ m: PaymentMethod) -> some View {
+        let account = Binding(get: { accounts[m.id] ?? m.accountID }, set: { accounts[m.id] = $0 })
+        return HStack(spacing: 10) {
+            Image(systemName: symbol(m)).foregroundStyle(Color.shop).frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(trKey(m.name)).font(.callout.weight(.semibold))
+                Picker(tr("记到"), selection: account) {
+                    if account.wrappedValue.isEmpty { Text(tr("选账户")).tag("") }
+                    ForEach(choices) { a in Text(a.name).tag(a.id) }
+                }
+                .labelsHidden().pickerStyle(.menu).fixedSize().font(.caption)
+                #if os(macOS)
+                .buttonStyle(.borderless)
+                #endif
             }
-            Picker(tr("记到"), selection: account) {
-                ForEach(choices) { a in Text(a.name).tag(a.id) }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
-            .font(.caption)
+            Spacer(minLength: 8)
+            TextField("0", text: Binding(get: { texts[m.id] ?? "" }, set: { texts[m.id] = $0 }))
+                .textFieldStyle(.plain)
+                .font(.system(size: 26, weight: .bold, design: .rounded)).monospacedDigit()
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 160)
+                .focused($focus, equals: m.id)
+                .onSubmit(save)
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .accessibilityLabel(tr("\(trKey(m.name))收了多少"))
+                .accessibilityIdentifier(m.id == PaymentMethod.cashID ? "daily.cash" : m.id == PaymentMethod.cardID ? "daily.card" : "daily.\(m.name)")
+            Text("€").font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(Color.fg3)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous)
-            .strokeBorder(focus == which ? Color.shop.opacity(0.7) : Color.fg3.opacity(0.25), lineWidth: focus == which ? 1.5 : 1))
-        .onTapGesture { focus = which }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture { focus = m.id }
+        .contextMenu {
+            if methods.count > 1 {
+                Button(role: .destructive) { model.perform { try $0.removePaymentMethod(m.id, author: model.author) } } label: {
+                    Label(tr("拿掉这种收款方式"), systemImage: "minus.circle")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var addRow: some View {
+        if adding {
+            HStack(spacing: 8) {
+                TextField(tr("叫什么"), text: $newName, prompt: Text(tr("比如 Bizum、外卖平台")))
+                    .textFieldStyle(.roundedBorder)
+                    .focused($newNameFocused)
+                    .onSubmit(addMethod)
+                Picker(tr("进哪个账户"), selection: $newAccount) {
+                    ForEach(choices) { a in Text(a.name).tag(a.id) }
+                }
+                .labelsHidden().pickerStyle(.menu).fixedSize()
+                Button(tr("加上"), action: addMethod).disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty || newAccount.isEmpty)
+                Button { adding = false } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.fg3) }
+                    .buttonStyle(.plain).accessibilityLabel(tr("不加了"))
+            }
+            .padding(.vertical, 10)
+        } else {
+            Button {
+                newName = ""; newAccount = model.ledger.dailyAccounts().card ?? choices.first?.id ?? ""
+                adding = true
+                DispatchQueue.main.async { newNameFocused = true }
+            } label: {
+                Label(tr("加一种收款方式"), systemImage: "plus").font(.callout).foregroundStyle(Color.shop)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 10)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("daily.addMethod")
+        }
+    }
+
+    private func addMethod() {
+        let n = newName.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, !newAccount.isEmpty else { return }
+        do {
+            _ = try model.edit(quiet: true) { try $0.addPaymentMethod(name: n, accountID: newAccount, author: model.author) }
+            adding = false
+            if let m = methods.first(where: { $0.name == n }) { focus = m.id }
+        } catch { self.error = error.localizedDescription }
     }
 
     private func row(_ title: String, _ value: String) -> some View {
@@ -420,14 +496,10 @@ struct DailyTakingsSheet: View {
     }
 
     private func save() {
-        guard let cash, let card else { error = tr("金额看不懂，只填数字就行"); return }
+        guard let lines, canSave else { error = tr("金额看不懂，只填数字就行"); return }
         do {
-            let change = try model.edit {
-                try $0.recordDailyTakings(DailyTakings(cash: cash, card: card), date: day,
-                                          cashAccount: cashAccount.isEmpty ? nil : cashAccount,
-                                          cardAccount: cardAccount.isEmpty ? nil : cardAccount, author: model.author)
-            }
-            model.toast = LedgerModel.Toast(text: tr("记好了：收了 \((cash + card).rounded)"), changeID: change.id)
+            let change = try model.edit { try $0.recordDailyTakings(lines, date: day, author: model.author) }
+            model.toast = LedgerModel.Toast(text: tr("记好了：收了 \(typed.rounded)"), changeID: change.id)
             dismiss()
         } catch {
             self.error = error.localizedDescription

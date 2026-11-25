@@ -138,6 +138,26 @@ final class BusinessTests: XCTestCase {
         XCTAssertEqual(shopOnly[today.yearMonth]?.income.cents, 102000, "生意那边只算店里的进账")
     }
 
+    func testMorePaymentMethods() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.accounts += [Account(id: "shop", name: "公司卡", kind: .bank), Account(id: "till", name: "店里现金", kind: .cash)]
+        l.transactions = [tx("销售", 1000, category: "营业收入"), tx("零钱", 500, category: "营业收入", account: "till")]
+        XCTAssertEqual(l.paymentMethods.map(\.name), ["现金", "刷卡 / 转账"])
+        let added = try l.addPaymentMethod(name: "Bizum", accountID: "shop", author: author)
+        XCTAssertEqual(l.paymentMethods.map(\.name), ["现金", "刷卡 / 转账", "Bizum"])
+        XCTAssertThrowsError(try l.addPaymentMethod(name: "Bizum", accountID: "shop", author: author))
+        let bizum = l.paymentMethods[2]
+        let rec = try l.recordDailyTakings([(l.paymentMethods[0], Money(cents: 2000)), (bizum, Money(cents: 1500)), (l.paymentMethods[1], .zero)],
+                                           date: today, author: author)
+        XCTAssertEqual(rec.transactionIDs.count, 2)
+        XCTAssertTrue(l.transactions.contains { $0.description == "Bizum收入" && $0.accountID == "shop" && $0.category == "营业收入" })
+        XCTAssertEqual(l.dailyTakings(on: today).total.cents, 3500)
+        _ = try l.undo(changeID: rec.id, author: author)
+        _ = try l.undo(changeID: added.id, author: author)
+        XCTAssertEqual(l.paymentMethods.count, 2)
+    }
+
     func testFixedCostStartsNextTimeAndPostsAutomatically() throws {
         var l = Ledger.starter
         _ = try l.enableBusinessMode(author: author)

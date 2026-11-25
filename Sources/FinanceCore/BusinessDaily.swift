@@ -10,7 +10,71 @@ public struct DailyTakings: Equatable, Sendable {
     public var total: Money { cash + card }
 }
 
+/// 一种收款方式：叫什么、钱进哪个账户。
+public struct PaymentMethod: Codable, Hashable, Sendable, Identifiable {
+    public var id: UUID
+    public var name: String
+    public var accountID: String
+    public init(id: UUID = UUID(), name: String, accountID: String) { self.id = id; self.name = name; self.accountID = accountID }
+    public static let cashID = UUID(uuidString: "00000000-0000-0000-0000-0000000CA5E0")!
+    public static let cardID = UUID(uuidString: "00000000-0000-0000-0000-0000000CA4D0")!
+}
+
 extension Ledger {
+    /// 每天记账的收款方式：自己设过的，或者默认的「现金」「刷卡 / 转账」（钱进店里的现金和店里的卡）。
+    public var paymentMethods: [PaymentMethod] {
+        if let list = business?.paymentMethods, !list.isEmpty { return list }
+        let d = dailyAccounts()
+        return [PaymentMethod(id: PaymentMethod.cashID, name: "现金", accountID: d.cash ?? d.card ?? ""),
+                PaymentMethod(id: PaymentMethod.cardID, name: "刷卡 / 转账", accountID: d.card ?? d.cash ?? "")]
+    }
+
+    /// 加一种收款方式（比如「Bizum」「外卖平台」）。进改动记录，能撤销。
+    @discardableResult
+    public mutating func addPaymentMethod(name: String, accountID: String, author: String) throws -> ChangeRecord {
+        guard var settings = business, businessBook != nil else { throw BusinessError(message: "请先打开生意模式") }
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { throw BusinessError(message: "给收款方式起个名字") }
+        try requireAccount(accountID)
+        var list = paymentMethods
+        guard !list.contains(where: { $0.name == n }) else { throw BusinessError(message: "「\(n)」已经有了") }
+        list.append(PaymentMethod(name: n, accountID: accountID))
+        settings.paymentMethods = list
+        return changeBusinessSettings(settings, summary: "加了收款方式「\(n)」", author: author)
+    }
+
+    /// 拿掉一种收款方式（以前记的账不动）。
+    @discardableResult
+    public mutating func removePaymentMethod(_ id: UUID, author: String) throws -> ChangeRecord {
+        guard var settings = business, businessBook != nil else { throw BusinessError(message: "请先打开生意模式") }
+        var list = paymentMethods
+        guard let gone = list.first(where: { $0.id == id }), list.count > 1 else { throw BusinessError(message: "至少留一种收款方式") }
+        list.removeAll { $0.id == id }
+        settings.paymentMethods = list
+        return changeBusinessSettings(settings, summary: "拿掉收款方式「\(gone.name)」", author: author)
+    }
+
+    /// 记一天的收入，按收款方式各记一笔营业收入（0 的不记）。一条改动记录，一起撤销。
+    @discardableResult
+    public mutating func recordDailyTakings(_ lines: [(method: PaymentMethod, amount: Money)], date: LocalDate,
+                                            author: String) throws -> ChangeRecord {
+        guard let book = businessBook?.id else { throw BusinessError(message: "请先打开生意模式") }
+        guard lines.allSatisfy({ $0.amount >= .zero }) else { throw EditError.amountMustBePositive }
+        let real = lines.filter { $0.amount > .zero }
+        guard !real.isEmpty else { throw EditError.amountMustBePositive }
+        var fresh: [Transaction] = []
+        for (m, amount) in real {
+            guard !m.accountID.isEmpty else { throw BusinessError(message: "选一下「\(m.name)」记到哪个账户") }
+            try requireAccount(m.accountID)
+            let text = m.id == PaymentMethod.cashID ? "现金收入" : m.id == PaymentMethod.cardID ? "刷卡收入" : "\(m.name)收入"
+            fresh.append(Transaction(date: date, amount: amount, description: text, accountID: m.accountID, bookID: book,
+                                     category: "营业收入", source: Self.dailySource))
+        }
+        transactions += fresh
+        let total = real.reduce(Money.zero) { $0 + $1.amount }
+        return record(.add, "记 \(date) 的收入 \(total.formatted)", ids: fresh.map(\.id), author: author)
+    }
+
     /// 店里的账户：只在生意账本里用的那些（见 WealthBreakdown.businessAccounts），私房钱不算。
     public var businessAccountIDs: [String] {
         let set = WealthBreakdown.businessAccounts(self)

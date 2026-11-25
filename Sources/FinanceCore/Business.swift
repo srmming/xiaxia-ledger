@@ -47,6 +47,8 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var debtExtras: [String: DebtExtra]?
     /// 账户算哪一边（ming 2026-11-25：在哪边加就属哪边，可以挪边）。没写的按流水猜（只在生意账本里用的算生意）。
     public var accountSides: [String: Side]?
+    /// 每天记账的收款方式（现金、刷卡之外还能加 Bizum、外卖平台……）。没设过就用默认两种。
+    public var paymentMethods: [PaymentMethod]?
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -56,6 +58,7 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         capital = try c.decodeIfPresent(Capital.self, forKey: .capital)
         debtExtras = try c.decodeIfPresent([String: DebtExtra].self, forKey: .debtExtras)
         accountSides = try c.decodeIfPresent([String: Side].self, forKey: .accountSides)
+        paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods)
     }
 }
 public struct Receivable: Codable, Hashable, Sendable, Identifiable {
