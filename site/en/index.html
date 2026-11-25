@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xiaxia Ledger · See where your money went at a glance</title>
-<meta name="description" content="Xiaxia Ledger: a native money app for Mac. Charts show your income, spending, net worth and debts at a glance; to log something, just tell your AI. Your ledger stays on your own computer.">
+<meta name="description" content="Xiaxia Ledger: a native money app for Mac and iPhone that keeps one ledger in sync through iCloud. Charts show your income, spending, net worth and debts at a glance; to log something, just tell your AI, or add it on your phone and snap the receipt.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#fff8ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141a3a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Xiaxia Ledger">
-<meta property="og:description" content="See where your money went at a glance. To log it, just tell your AI.">
+<meta property="og:description" content="See where your money went at a glance. One ledger on Mac and iPhone; to log something, just tell your AI.">
 <meta property="og:image" content="https://xiaxia.ming95.com/assets/og.png">
 <link rel="alternate" hreflang="zh" href="https://xiaxia.ming95.com/">
 <link rel="alternate" hreflang="en" href="https://xiaxia.ming95.com/en/">
@@ -73,7 +73,7 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
 .menu div a{padding:10px 12px;border-radius:8px}
 .menu div a:hover{background:var(--paper2)}
 .mlang{display:flex;gap:4px;padding:8px 6px 4px;margin-top:4px;border-top:1px dashed var(--line)}
-@media (max-width:820px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
+@media (max-width:880px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
 .mdl{display:none}
@@ -104,9 +104,10 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
 .meta{margin-top:14px;font-size:14px;color:var(--ink3)}
 .ver{font-variant-numeric:tabular-nums}
 .phone-note{display:none;margin-top:20px;padding:14px 16px;border:1.5px dashed var(--line);border-radius:14px;font-size:15px;color:var(--ink2)}
-.phone-note .btn{margin-top:10px}
+.phone-note .note-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.meta a{color:var(--sea);font-weight:600;text-underline-offset:3px}
 .phone-note output{display:block;margin-top:8px;font-size:14px;color:var(--sea);min-height:1.2em}
-@media (max-width:760px){.phone-note{display:block}}
+@media (max-width:760px){.phone-note{display:block}.ilink{display:none}}
 .mwrap{position:relative;display:grid;place-items:center}
 .mascot{width:min(400px,92%);filter:drop-shadow(0 22px 26px rgba(31,42,90,.22))}
 .bubble{position:absolute;top:6%;left:-2%;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:18px 18px 18px 6px;
@@ -194,6 +195,18 @@ h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap
 
 /* iphone */
 .phones{display:flex;gap:22px;justify-content:center;margin-top:44px;flex-wrap:wrap}
+.iph{display:grid;grid-template-columns:1fr 1.15fr;gap:48px;align-items:center}
+.iph .phones{margin-top:0;gap:14px;flex-wrap:nowrap}
+.iph .phone{width:auto;flex:1 1 0;max-width:200px;border-radius:30px;padding:6px}
+.iph .phone img{border-radius:24px}
+.iph .phone:nth-child(2){transform:translateY(-22px)}
+.soon{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:var(--coin);color:#1f2a5a;font-size:13px;letter-spacing:0;vertical-align:1px}
+.feats{list-style:none;padding:0;margin:26px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:18px 26px}
+.feats li{border-top:2px dashed var(--line);padding-top:12px}
+.feats h3{font-size:19px;margin:0 0 4px}
+.feats p{margin:0;font-size:15px;color:var(--ink2)}
+@media (max-width:900px){.iph{grid-template-columns:1fr;gap:36px}.iph .phones{justify-content:center}}
+@media (max-width:520px){.feats{grid-template-columns:1fr}.iph .phone:nth-child(2){transform:none}}
 .phone{width:220px;border-radius:36px;padding:8px;background:#10142c;box-shadow:var(--shadow)}
 .phone img{border-radius:29px}
 @media (max-width:560px){.phone{width:46%}.phone:nth-child(3){display:none}}
@@ -249,13 +262,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="wrap">
     <a class="logo" href="#top"><img src="../assets/app-icon-64.png" alt="" width="30" height="30">Xiaxia Ledger</a>
     <div class="links">
+      <a href="#iphone">iPhone</a>
       <a href="#tour">Tour</a>
       <a href="#ai">Connect your AI</a>
       <a href="#cast">Xiaxia</a>
       <a href="#install">Install</a>
       <a href="changelog.html">Changelog</a>
       <span class="lang" aria-label="Language"><a href="/" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/" hreflang="en" lang="en" data-lang="en" aria-current="true">EN</a><a href="/es/" hreflang="es" lang="es" data-lang="es">ES</a></span>
-      <details class="menu"><summary>Menu</summary><div><a href="#tour">Tour</a><a href="#ai">Connect your AI</a><a href="#cast">Xiaxia</a><a href="#install">Install</a><a href="changelog.html">Changelog</a><a class="mdl" href="/download/xiaxia-ledger.dmg">Download</a><span class="lang mlang" aria-label="Language"><a href="/" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/" hreflang="en" lang="en" data-lang="en" aria-current="true">EN</a><a href="/es/" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
+      <details class="menu"><summary>Menu</summary><div><a href="#iphone">iPhone</a><a href="#tour">Tour</a><a href="#ai">Connect your AI</a><a href="#cast">Xiaxia</a><a href="#install">Install</a><a href="changelog.html">Changelog</a><a class="mdl" href="/download/xiaxia-ledger.dmg">Download</a><span class="lang mlang" aria-label="Language"><a href="/" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/" hreflang="en" lang="en" data-lang="en" aria-current="true">EN</a><a href="/es/" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
       <a class="btn small dl" href="/download/xiaxia-ledger.dmg">Download</a>
     </div>
   </div>
@@ -266,7 +280,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div>
       <a class="pill" href="changelog.html"><b>New</b>See what's new →</a>
       <h1>One look,<br>and you know <em>where the money went</em>.</h1>
-      <p class="intro">Xiaxia Ledger is a native money app for Mac. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.</p>
+      <p class="intro">Xiaxia Ledger is a native money app for Mac and iPhone, and both stay in sync on the same ledger through iCloud. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.</p>
       <div class="cta">
         <a class="btn dl" href="/download/xiaxia-ledger.dmg">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.3zM13.9 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
@@ -274,10 +288,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         </a>
         <a class="btn ghost" href="#tour">Take the tour first</a>
       </div>
-      <p class="meta"><span class="ver">Free download</span> · Requires macOS 14 Sonoma or later</p>
+      <p class="meta"><span class="ver">Free download</span> · Requires macOS 14 Sonoma or later<span class="ilink"><br><a href="#iphone">iPhone app coming soon →</a></span></p>
       <div class="phone-note">
-        <p>On your phone? Xiaxia Ledger is a Mac app. Send yourself this link and download it on your computer.</p>
-        <button class="btn small ghost" type="button" id="shareLink">Send me the link</button>
+        <p>On your phone? The iPhone app is coming soon; see what it can do below. The Mac app downloads on your computer, so send yourself this link.</p>
+        <div class="note-acts"><a class="btn small" href="#iphone">See the iPhone app</a><button class="btn small ghost" type="button" id="shareLink">Send me the link</button></div>
         <output id="shareMsg" aria-live="polite"></output>
       </div>
     </div>
@@ -312,16 +326,37 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <li><h3>Everything on one screen</h3><p>How much is left this month, how fast you're spending, where it goes, whether your net worth grew. One point per page, no scrolling.</p></li>
       <li><h3>Say it and it's logged</h3><p>“Lunch 12,50”, “import this bank statement”: just tell Claude, Codex or another AI, and it logs and categorises for you.</p></li>
       <li><h3>Xiaxia gives you advice</h3><p>Where to put spare money, which subscription quietly got pricier, who still owes you: Xiaxia watches your ledger and reminds you.</p></li>
-      <li><h3>Your ledger stays yours</h3><p>The ledger is a file on your Mac. It isn't uploaded to our servers and needs no bank password. Every change is recorded and can be undone.</p></li>
+      <li><h3>Your ledger stays yours</h3><p>The ledger is your own file, on your Mac and in your iCloud. It isn't uploaded to our servers and needs no bank password. Every change is recorded and can be undone.</p></li>
     </ol>
   </div>
 </section>
 
-<section class="alt center" id="tour">
+<section class="alt" id="iphone">
+  <div class="wrap iph">
+    <div>
+      <p class="eyebrow">iPhone <span class="soon">Coming soon</span></p>
+      <h2>In your pocket,<br>the same ledger.</h2>
+      <p class="sub">iPhone and Mac sync automatically through iCloud: what you add on your phone shows up on your computer. The iPhone app isn't available to download yet; we'll announce it here when it's ready. Screenshots show the Chinese interface.</p>
+      <ul class="feats">
+        <li><h3>Quick entry</h3><p>Open it and add an entry: amount, category and account in a few taps, and “Add another” to keep going.</p></li>
+        <li><h3>Snap the receipt</h3><p>Take a photo of a receipt or type “lunch 10 euros”; it waits in your to-do list until Xiaxia adds it to the ledger.</p></li>
+        <li><h3>Expense claims on one page</h3><p>What's not submitted, what's waiting to be paid and what's been paid, all on one page, and you can export a claim sheet.</p></li>
+        <li><h3>Syncs with your Mac</h3><p>One ledger, no exporting back and forth; Overview, income and spending, net worth and plans are all on your phone too.</p></li>
+      </ul>
+    </div>
+    <div class="phones">
+      <div class="phone"><img src="../assets/add-ios.webp" alt="Adding an entry on iPhone: snap a receipt or type a sentence, with a calculator keypad below (sample data)" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><img src="../assets/reimburse-ios.webp" alt="Expense claims on iPhone: not submitted, submitted and paid listed separately (sample data)" loading="lazy" width="700" height="1522"></div>
+      <div class="phone"><picture><source srcset="../assets/dark-ios.webp" media="(prefers-color-scheme: dark)"><img src="../assets/overview-ios.webp" alt="iPhone Overview page (sample data)" loading="lazy" width="700" height="1522"></picture></div>
+    </div>
+  </div>
+</section>
+
+<section class="center" id="tour">
   <div class="wrap">
     <p class="eyebrow">Tour</p>
-    <h2>A native Mac app, good-looking in light and dark.</h2>
-    <p class="sub">Built with Apple's native components; resize the window and each page still fits on one screen. All numbers below are sample data, and the screenshots show the Chinese interface.</p>
+    <h2>One screen per page on Mac, good-looking in light and dark.</h2>
+    <p class="sub">The Mac app is built with Apple's native components; resize the window and each page still fits on one screen. All numbers below are sample data, and the screenshots show the Chinese interface.</p>
     <div class="tabs" role="tablist" aria-label="Choose a page">
       <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-cap="Overview: how much is left this month, whether you're spending faster or slower than last month, and Xiaxia's comments to swipe through.">Overview</button>
       <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-cap="Spending: this month next to last month, as a pie or bars; Xiaxia tells you which category grew, where most of it went and how to save.">Spending</button>
@@ -337,7 +372,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </section>
 
-<section id="ai">
+<section class="alt" id="ai">
   <div class="wrap ai">
     <div>
       <p class="eyebrow">Connect your AI</p>
@@ -359,7 +394,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </section>
 
-<section class="center alt" id="cast">
+<section class="center" id="cast">
   <div class="wrap">
     <p class="eyebrow">Say hello</p>
     <h2>Xiaxia and the AI companions</h2>
@@ -373,19 +408,6 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <div class="who-card"><div class="ph"><img src="../assets/orange-idle.webp" data-girl="../assets/orange-idle.webp" data-boy="../assets/orange-boy-idle.webp" alt="Xiaoju" loading="lazy" width="300" height="300"></div><h3>Xiaoju</h3><span class="tag">Claude's companion</span><p>Gentle and careful: logs for you and tidies your categories.</p></div>
       <div class="who-card"><div class="ph"><img src="../assets/lilac-idle.webp" data-girl="../assets/lilac-idle.webp" data-boy="../assets/lilac-boy-idle.webp" alt="Xiaozi" loading="lazy" width="300" height="300"></div><h3>Xiaozi</h3><span class="tag">Codex's companion</span><p>Quick on the job: importing statements and reconciling go here.</p></div>
       <div class="who-card"><div class="ph"><img src="../assets/star-idle.webp" data-girl="../assets/star-idle.webp" data-boy="../assets/star-boy-idle.webp" alt="Xiaoxing" loading="lazy" width="300" height="300"></div><h3>Xiaoxing</h3><span class="tag">Gemini and other AIs</span><p>Endlessly curious: gets along with whatever AI shows up.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="center">
-  <div class="wrap">
-    <p class="eyebrow">iPhone</p>
-    <h2>On your phone too. Still being polished.</h2>
-    <p class="sub">iPhone and Mac read the same ledger through iCloud. The iPhone app isn't available to download yet; we'll announce it here when it's ready.</p>
-    <div class="phones">
-      <div class="phone"><img src="../assets/overview-ios.webp" alt="iPhone Overview page (sample data)" loading="lazy" width="700" height="1522"></div>
-      <div class="phone"><img src="../assets/ai-ios.webp" alt="iPhone page with Xiaxia's comments (sample data)" loading="lazy" width="700" height="1522"></div>
-      <div class="phone"><img src="../assets/dark-ios.webp" alt="iPhone in dark mode (sample data)" loading="lazy" width="700" height="1522"></div>
     </div>
   </div>
 </section>
