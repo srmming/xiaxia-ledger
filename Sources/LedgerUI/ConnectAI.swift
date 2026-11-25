@@ -339,7 +339,7 @@ struct AIStatusRows: View {
         VStack(alignment: .leading, spacing: 0) {
             AIHealthList(showMissing: false)
             ForEach(otherClients, id: \.self) { name in
-                AIHealthRowLayout(mascot: .of(author: name), level: .good, title: name,
+                AIHealthRowLayout(level: .good, title: name,
                                   status: tr("连上了 · \(handshakes[name]!.friendly) 用过账本"), fix: nil) { EmptyView() }
             }
         }
@@ -378,12 +378,12 @@ struct AIHealthList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if shown.isEmpty && unsupported.isEmpty {
-                AIHealthRowLayout(mascot: nil, level: .idle, title: tr("这台 Mac 上没找到能连的 AI"),
+                AIHealthRowLayout(level: .idle, title: tr("这台 Mac 上没找到能连的 AI"),
                                   status: tr("装一个 Claude 桌面版或 Codex，这里会自动认出来"), fix: nil) { EmptyView() }
             }
             ForEach(shown) { app in row(app) }
             ForEach(unsupported) { u in
-                AIHealthRowLayout(mascot: .star, level: .idle, title: u.name, status: tr("连不了电脑上的账本"), fix: u.advice) {
+                AIHealthRowLayout(level: .idle, title: u.name, status: tr("连不了电脑上的账本"), fix: u.advice) {
                     Button(u.alternativeTitle) { if let url = URL(string: u.alternativeURL) { openURL(url) } }
                         .buttonStyle(.softAI)
                 }
@@ -417,7 +417,7 @@ struct AIHealthList: View {
 
     @ViewBuilder private func row(_ app: AIApp) -> some View {
         let h = health(app)
-        AIHealthRowLayout(mascot: .of(app), level: testing.contains(app) ? .waiting : h.level, title: app.name,
+        AIHealthRowLayout(level: testing.contains(app) ? .waiting : h.level, title: app.name,
                           status: testing.contains(app) ? tr("正在测能不能读到账本…") : h.title, fix: errors[app] ?? h.fix) {
             if testing.contains(app) {
                 ProgressView().controlSize(.small)
@@ -497,7 +497,6 @@ struct AIHealthList: View {
 
 /// 一行的样子：头像 + 右下角圆点、名字、一句状态、一句下一步，右边按钮。
 struct AIHealthRowLayout<Trailing: View>: View {
-    var mascot: MascotCharacter?
     var level: AIHealth.Level
     var title: String
     var status: String
@@ -533,14 +532,12 @@ struct AIHealthRowLayout<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // 每个 AI 一个同样的小图标（原来是对应的伙伴头像；只留夏夏一个角色后不放 AI 公司的标志）
             Group {
-                if let mascot {
-                    MascotView(mascot, size: 32, face: true, animated: false)
-                        .saturation(level == .good || level == .waiting ? 1 : 0.35)
-                } else {
-                    Image(systemName: "sparkles").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
-                        .frame(width: 32, height: 32).background(Color.fg3.opacity(0.5), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
+                Image(systemName: "sparkles").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(level == .good || level == .waiting ? Color.ai : Color.fg3.opacity(0.5),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .overlay(alignment: .bottomTrailing) {
                 Image(systemName: symbol).font(.system(size: 7, weight: .heavy)).foregroundStyle(.white)

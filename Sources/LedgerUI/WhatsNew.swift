@@ -113,7 +113,7 @@ struct WhatsNewCard: View {
         if let top = state.entries.first {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 10) {
-                    MascotView(.xiaxia, pose: .celebrate, size: 44, face: true, animated: false)
+                    MascotView(pose: .celebrate, size: 44, face: true, animated: false)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tr("已更新到 \(state.current)")).font(.caption.weight(.semibold)).foregroundStyle(Color.brand)

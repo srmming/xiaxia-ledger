@@ -544,7 +544,7 @@ struct PiggyXiaxiaCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            MascotView(.xiaxia, pose: pose, size: 44, face: true)
+            MascotView(pose: pose, size: 44, face: true)
             VStack(alignment: .leading, spacing: 8) {
                 Text(sentence).font(.callout).fixedSize(horizontal: false, vertical: true)
                 if let p = board.needsCheck {

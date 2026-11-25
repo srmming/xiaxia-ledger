@@ -63,7 +63,7 @@ struct XiaxiaSays: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // 夏夏本人站在卡片右边，按性格摆动作；大字号时让出位置给文字。
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(.xiaxia, pose: model.persona.mascotPose, size: 92)
+                        MascotView(pose: model.persona.mascotPose, size: 92, interactive: true)
                             .padding(.bottom, -6)
                             .animation(.spring(duration: 0.45, bounce: 0.35), value: model.persona)
                     }
@@ -99,13 +99,14 @@ struct PersonaPicker: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // 夏夏和伙伴用女生版还是男生版（男生版的图到了才显示这个开关）
+            // 夏夏用女孩版还是男孩版（挑样子的界面做好前只有这两个；男孩版的图到了才显示这个开关）
             if MascotLook.boyAvailable {
-                Picker(tr("形象"), selection: $lookRaw.animation(.spring(duration: 0.45, bounce: 0.3))) {
-                    ForEach(MascotLook.allCases) { Text($0.label).tag($0.rawValue) }
+                Picker(tr("形象"), selection: Binding(get: { MascotLook.stored(lookRaw) },
+                                                    set: { MascotLook.choose($0) }).animation(.spring(duration: 0.45, bounce: 0.3))) {
+                    ForEach(MascotLook.kidChoices) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .accessibilityLabel(tr("夏夏和伙伴的形象"))
+                .accessibilityLabel(tr("夏夏的样子"))
                 .padding(.bottom, 4)
             }
             ForEach(Persona.allCases) { p in
@@ -115,7 +116,7 @@ struct PersonaPicker: View {
                 } label: {
                     HStack(alignment: .center, spacing: 12) {
                         // 每种性格一个夏夏表情；选中的那个会动
-                        MascotView(.xiaxia, pose: p.mascotPose, size: 44, face: true, animated: p == model.persona)
+                        MascotView(pose: p.mascotPose, size: 44, face: true, animated: p == model.persona)
                             .overlay(alignment: .bottomTrailing) {
                                 if p == model.persona {
                                     Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .semibold))

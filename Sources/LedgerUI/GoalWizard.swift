@@ -111,7 +111,7 @@ struct GoalWizard: View {
                     .id(step)
                     .transition(.scale(scale: 0.85, anchor: .bottom).combined(with: .opacity))
                 HStack(alignment: .bottom, spacing: -8) {
-                    MascotView(.xiaxia, pose: step == .done ? .celebrate : .idle, size: pig * 0.62)
+                    MascotView(pose: step == .done ? .celebrate : .idle, size: pig * 0.62)
                     PiggyBankView(fraction: step == .done ? 0.12 : 0, palette: main ? .main : PiggyPalette.small[0],
                                   size: pig * 0.72, dropTrigger: drop, sparkle: false)
                 }
