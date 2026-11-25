@@ -234,7 +234,7 @@ struct TransactionsPage: View {
                 Menu {
                     Button(tr("全部账户")) { filter.accountID = nil }
                     Divider()
-                    ForEach(model.visibleAccounts) { a in Button(a.name) { filter.accountID = a.id } }
+                    ForEach(model.accountsOnThisSide) { a in Button(a.name) { filter.accountID = a.id } }
                 } label: { chipLabel((filter.accountID.map { model.accountName($0) } ?? tr("账户")) + " ▾", on: filter.accountID != nil) }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 Menu {

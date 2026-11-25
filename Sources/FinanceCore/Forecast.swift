@@ -146,11 +146,12 @@ public enum CashForecast {
 
     /// 直接从流水算（app 和 fin 共用）：最近 12 个整月的进出、哪几类在悄悄变多。
     /// - now: 现在能随便花多少；history: 前几个月月底能随便花多少（画实线用）。
+    /// - only: 只算这几个账本（生意那边传生意账本：店里的钱照这样下去月底、年底剩多少）；nil 就按下面 flows 的规则。
     public static func make(_ txs: [Transaction], books: [Book], hiddenAccounts: Set<String> = [], today: LocalDate,
-                            now: Money, history: [Point] = []) -> Result? {
+                            now: Money, history: [Point] = [], only: [String]? = nil) -> Result? {
         let ym = today.yearMonth
         let months = Reports.months(endingAt: ym, count: 13)
-        let byMonth = Self.flows(txs, books: books, months: months, hiddenAccounts: hiddenAccounts)
+        let byMonth = Self.flows(txs, books: books, months: months, hiddenAccounts: hiddenAccounts, only: only)
         let full = months.filter { $0 < ym }
         let summaries = full.compactMap { m -> MonthlySummary? in
             guard let f = byMonth[m], !f.isEmpty else { return nil }
@@ -166,9 +167,10 @@ public enum CashForecast {
     /// 有生意账本时只算自己的账本（个人账本可能不止一个），和别的账本之间挪的钱：拿进来的算进、拿出去的算花；
     /// 没有生意账本就是全部账本（账本间转账两边抵消）。hiddenAccounts：不算进来的账户（私房钱藏着时）。
     public static func flows(_ txs: [Transaction], books: [Book], months: [YearMonth],
-                             hiddenAccounts: Set<String> = []) -> [YearMonth: Flow] {
+                             hiddenAccounts: Set<String> = [], only: [String]? = nil) -> [YearMonth: Flow] {
         let personal = books.filter { !$0.isBusiness }.map(\.id)
-        let scopes: [String?] = (!personal.isEmpty && personal.count < books.count) ? personal : [nil]
+        let scopes: [String?] = only.map { $0.map(Optional.some) }
+            ?? ((!personal.isEmpty && personal.count < books.count) ? personal : [nil])
         var out: [YearMonth: Flow] = [:]
         for scope in scopes {
             for s in Reports.summaries(txs, months: months, bookID: scope, hiddenAccounts: hiddenAccounts) {

@@ -328,10 +328,26 @@ public final class LedgerModel {
 
     public var visibleAccounts: [Account] { ledger.accounts.filter { showPrivate || !$0.isPrivate } }
 
+    /// 当前这边的账户（流水页筛账户用）。没开生意模式就是全部。
+    public var accountsOnThisSide: [Account] {
+        guard businessOn else { return visibleAccounts }
+        return visibleAccounts.filter { ledger.side(ofAccount: $0.id) == side }
+    }
+
+    /// 改动记录：开着生意模式时只列这边的（说不上属于哪边的两边都列）。
+    public var changesOnThisSide: [ChangeRecord] {
+        guard businessOn else { return ledger.changes }
+        let side = self.side
+        return ledger.changes.filter { c in let s = ledger.sides(of: c); return s.isEmpty || s.contains(side) }
+    }
+
     public var visibleTransactions: [FinanceCore.Transaction] {
         let hidden = hiddenAccounts
+        // 开着生意模式：只看当前这边（生活这边包括所有生活账本和还没分账本的），两边转钱各自那一笔在各自这边。
+        let split = businessOn
+        let side = self.side
         return ledger.transactions.filter { !hidden.contains($0.accountID) }
-            .filter { selectedBookID == nil || $0.bookID == selectedBookID }
+            .filter { split ? ledger.side(of: $0) == side : (selectedBookID == nil || $0.bookID == selectedBookID) }
             .sorted { ($0.date, $0.description) > ($1.date, $1.description) }
     }
 

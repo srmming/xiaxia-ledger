@@ -123,6 +123,21 @@ final class BusinessTests: XCTestCase {
         XCTAssertEqual(l.sideTransfers(month: today.yearMonth).map(\.amount.cents), [-50000])
     }
 
+    func testChangesAndForecastSplitBySide() throws {
+        var l = Ledger.starter
+        _ = try l.enableBusinessMode(author: author)
+        l.accounts += [Account(id: "shop", name: "公司卡", kind: .bank), Account(id: "life", name: "日常卡", kind: .bank)]
+        l.transactions = [tx("销售", 100000, category: "营业收入"), tx("超市", -3000, book: "personal", account: "life")]
+        let shopAdd = try l.recordDailyTakings(DailyTakings(cash: Money(cents: 2000), card: .zero), date: today,
+                                               cashAccount: "shop", cardAccount: nil, author: author)
+        XCTAssertEqual(l.sides(of: shopAdd), [.business])
+        let move = try l.transferBetweenSides(amount: Money(cents: 5000), from: "shop", to: "life", date: today, author: author)
+        XCTAssertEqual(l.sides(of: move), [.business, .life], "两边转钱两边都看得到")
+        let months = Reports.months(endingAt: today.yearMonth, count: 1)
+        let shopOnly = CashForecast.flows(l.transactions, books: l.books, months: months, only: [l.businessBook!.id])
+        XCTAssertEqual(shopOnly[today.yearMonth]?.income.cents, 102000, "生意那边只算店里的进账")
+    }
+
     func testFixedCostStartsNextTimeAndPostsAutomatically() throws {
         var l = Ledger.starter
         _ = try l.enableBusinessMode(author: author)

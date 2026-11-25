@@ -88,7 +88,7 @@ struct InsightsPage: View {
     }
 
     private var recentAIWork: some View {
-        let changes = model.ledger.changes.filter { !model.isMe($0.author) }.sorted { $0.createdAt > $1.createdAt }.prefix(6)
+        let changes = model.changesOnThisSide.filter { !model.isMe($0.author) }.sorted { $0.createdAt > $1.createdAt }.prefix(6)
         return VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: tr("AI 最近做了什么")) {
                 MoreLink(title: tr("改动记录"), section: .changes)
@@ -147,7 +147,7 @@ struct ChangesPage: View {
     @State var who = 0   // 0 全部、1 只看 AI、2 只看我
 
     var body: some View {
-        let all = model.ledger.changes.sorted { $0.createdAt > $1.createdAt }
+        let all = model.changesOnThisSide.sorted { $0.createdAt > $1.createdAt }
         let list = all.filter { c in who == 0 || (who == 1 ? !model.isMe(c.author) : model.isMe(c.author)) }
         let groups = Dictionary(grouping: list.prefix(200), by: { LocalDate($0.createdAt) }).sorted { $0.key > $1.key }
         Columns(sideWidth: 340, breakpoint: 760) {

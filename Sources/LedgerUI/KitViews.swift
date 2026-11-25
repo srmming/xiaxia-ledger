@@ -225,7 +225,12 @@ struct TxRow: View {
         case .opening: parts.append(tr("期初余额"))
         case nil:
             parts.append(tx.category ?? tr("未分类"))
-            if let b = tx.bookID { parts.append(model.bookName(b)) }
+            // 生活和生意之间转的钱：两边的流水里各有一笔，标成转账（ming 2026-11-25）。
+            if model.businessOn, tx.transferID != nil {
+                let shop = model.ledger.side(of: tx) == .business
+                parts.append(tx.amount.isIncome ? (shop ? tr("转账 · 生活那边转来") : tr("转账 · 生意那边转来"))
+                                                : (shop ? tr("转账 · 转给生活那边") : tr("转账 · 转给生意那边")))
+            } else if let b = tx.bookID { parts.append(model.bookName(b)) }
         }
         parts.append(model.accountName(tx.accountID))
         if let note = tx.note { parts.append(note) }

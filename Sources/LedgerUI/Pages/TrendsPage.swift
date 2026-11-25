@@ -14,6 +14,8 @@ struct TrendsPage: View {
     /// iPhone 竖屏：一屏放下（ming 2026-11-23「页面一律一屏看完」）——图矮一点，「想年底多剩一点」收进主卡片，「怎么算的」不放。
     private var phone: Bool { sizeClass == .compact }
     private var short: Bool { Viewport.isShort(viewport) }
+    /// 生意那边：算的是店里的钱，不是能随便花的钱。
+    private var shop: Bool { model.side == .business }
 
     var body: some View {
         Group {
@@ -32,7 +34,7 @@ struct TrendsPage: View {
 
     private func content(_ f: CashForecast.Result) -> some View {
         let nudges = Nudges.forecast(f, currency: model.ledger.baseCurrency)
-        let insights = [model.ledger.insight(forPage: "trends", month: model.shownMonth, bookID: nil)].compactMap { $0 }
+        let insights = [model.ledger.insight(forPage: "trends", month: model.shownMonth, bookID: model.selectedBookID)].compactMap { $0 }
         return VStack(alignment: .leading, spacing: Kit.gap) {
             XiaxiaCards(nudges: nudges, insights: insights, page: "趋势")
             Columns(sideWidth: 360) {
@@ -58,7 +60,8 @@ struct TrendsPage: View {
             HStack(alignment: .top, spacing: narrow ? 14 : 28) {
                 figure(label: tr("预计月底剩"), money: f.monthEnd, size: size,
                        sentence: Text(tr("\(f.today.month) 月 \(monthEndDate.day) 日，现在 ")) + em(f.now.rounded),
-                       spoken: tr("照这样花，预计 \(f.today.month) 月底能随便花的钱剩 \(f.monthEnd.spoken)，现在是 \(f.now.spoken)"))
+                       spoken: shop ? tr("照这样下去，预计 \(f.today.month) 月底店里的钱剩 \(f.monthEnd.spoken)，现在是 \(f.now.spoken)")
+                                    : tr("照这样花，预计 \(f.today.month) 月底能随便花的钱剩 \(f.monthEnd.spoken)，现在是 \(f.now.spoken)"))
                 figure(label: tr("预计\(year)剩"), money: f.yearEnd, size: size,
                        sentence: change.magnitude.cents < 1000 ? Text(tr("和现在差不多"))
                            : Text(tr("比现在")) + em("\(change.isExpense ? tr("少") : tr("多")) \(change.magnitude.rounded)", change.isExpense ? .bad : .good),
@@ -162,7 +165,8 @@ struct TrendsPage: View {
     private func howCard(_ f: CashForecast.Result) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             SectionHeader(title: tr("怎么算的")) { MoreLink(title: tr("家底"), section: .wealth) }
-            line("banknote", Text(tr("现在能随便花 ")) + em(f.now.rounded) + Text(tr("，和家底页的大数字一样")))
+            line("banknote", shop ? Text(tr("店里的账户现在一共 ")) + em(f.now.rounded) + Text(tr("，和家底页的大数字一样"))
+                                  : Text(tr("现在能随便花 ")) + em(f.now.rounded) + Text(tr("，和家底页的大数字一样")))
             line("calendar", Text(tr("最近 \(f.basisMonths) 个月平均每月进 ")) + em(f.monthlyIncome.rounded) + Text(tr("、花 ")) + em(f.monthlySpend.rounded))
             if !short {
                 line("clock", Text(tr("这个月剩下的日子大概还要花 ")) + em(f.restSpend.rounded)

@@ -292,7 +292,7 @@ struct MacRoot: View {
 
     private func row(_ s: AppSection) -> some View {
         Label { Text(model.xia(s.title)) } icon: { s.glyph.image(size: 18) }
-            .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
+            .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth, bookID: model.selectedBookID).count : 0)
             .tag(s)
     }
 }

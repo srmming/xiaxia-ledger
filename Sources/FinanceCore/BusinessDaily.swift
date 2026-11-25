@@ -211,3 +211,28 @@ extension Ledger {
         return change
     }
 }
+
+// MARK: - 改动记录分两边
+
+extension Ledger {
+    /// 这条改动属于哪边（生活 / 生意，ming 2026-11-25：每页都分开）。
+    /// 看它动到的流水（删掉的看删之前的样子）、借款、分期、改账户的归属；生意设置算生意。
+    /// 返回空集合 = 两边都相关或说不上属于哪边（比如改了一个通用设置），两边都列出来。
+    public func sides(of change: ChangeRecord) -> Set<Side> {
+        guard businessBook != nil else { return [] }
+        var out: Set<Side> = []
+        var known: [UUID: Transaction] = [:]
+        for t in (change.previous ?? []) + (change.resultingTransactions ?? []) { known[t.id] = t }
+        let byID = Dictionary(transactions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for id in change.transactionIDs {
+            if let t = byID[id] ?? known[id] { out.insert(side(of: t)) }
+        }
+        let shop = businessBook?.id
+        func bookSide(_ b: String?) -> Side { b != nil && b == shop ? .business : .life }
+        if let d = change.debtID, let debt = debts.first(where: { $0.id == d }) { out.insert(bookSide(debt.bookID)) }
+        if let i = change.installmentID, let inst = installments.first(where: { $0.id == i }) { out.insert(bookSide(inst.bookID)) }
+        if change.goalID != nil { out.insert(.life) }
+        if change.before?.changedBusiness == true || !(change.before?.addedRecurringIDs ?? []).isEmpty { out.insert(.business) }
+        return out
+    }
+}

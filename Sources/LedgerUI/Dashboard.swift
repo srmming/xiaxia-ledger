@@ -180,7 +180,22 @@ extension LedgerModel {
         let today = LocalDate.today
         let ym = today.yearMonth
         let first = recordedMonths.min() ?? ym
-        let history = Reports.months(endingAt: ym.adding(months: -1), count: 5).filter { $0 >= first }.map {
+        let past = Reports.months(endingAt: ym.adding(months: -1), count: 5).filter { $0 >= first }
+        // 生意那边：只看店里的账、店里账户里的钱（两边分开，ming 2026-11-25）。
+        if side == .business, let shop = ledger.businessBook?.id {
+            let ids = Set(ledger.businessAccountIDs).subtracting(hiddenAccounts)
+            func total(at end: LocalDate?) -> Money {
+                if end == nil { return ids.reduce(Money.zero) { $0 + (balances[$1] ?? .zero) } }
+                return baseTransactions.reduce(Money.zero) { ids.contains($1.accountID) && $1.date <= end! ? $0 + $1.amount : $0 }
+            }
+            let history = past.map { m -> CashForecast.Point in
+                let end = LocalDate(year: m.year, month: m.month, day: m.dayCount)
+                return CashForecast.Point(date: end, value: total(at: end))
+            }
+            return CashForecast.make(baseTransactions, books: ledger.books, hiddenAccounts: hiddenAccounts, today: today,
+                                     now: total(at: nil), history: history, only: [shop])
+        }
+        let history = past.map {
             CashForecast.Point(date: LocalDate(year: $0.year, month: $0.month, day: $0.dayCount), value: wealthBreakdown($0).spendable)
         }
         return CashForecast.make(baseTransactions, books: ledger.books, hiddenAccounts: hiddenAccounts, today: today,
