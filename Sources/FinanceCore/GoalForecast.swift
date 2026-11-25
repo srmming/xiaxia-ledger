@@ -54,7 +54,7 @@ extension Plans {
             if let acct = g.savingsAccountID {
                 recent = ledger.transactions.filter { $0.accountID == acct && $0.flow != .opening && $0.date > windowStart && $0.date <= today }
             } else {
-                let ids = Set(g.contributionIDs)
+                let ids = ledger.goalContributionIDs(g)
                 recent = ledger.transactions.filter { ids.contains($0.id) && $0.date > windowStart && $0.date <= today }
             }
             let sum = recent.reduce(Int64(0)) { $0 + $1.amount.cents }

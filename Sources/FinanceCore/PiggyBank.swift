@@ -186,7 +186,7 @@ extension Plans {
         if let acct = g.savingsAccountID {
             return ledger.transactions.filter { $0.accountID == acct && $0.amount.cents > 0 && $0.flow != .opening }
         }
-        let ids = Set(g.contributionIDs)
+        let ids = ledger.goalContributionIDs(g)
         return ledger.transactions.filter { ids.contains($0.id) && $0.amount.cents > 0 }
     }
 
@@ -336,5 +336,19 @@ extension Ledger {
         g.stash = stash
         g.stashNote = note.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
         return try updateGoal(g, author: author)
+    }
+}
+
+extension Ledger {
+    /// 记进这个目标进度的那些笔：目标自己的存款列表，加上「存钱 / 取钱」改动记录里指向这个目标、还没撤销的那笔。
+    /// 以前改目标时会用旧样子整条写回，把中途新存的那笔从列表里弄丢（流水还在）；改动记录一直记着是存给哪个目标的，
+    /// 所以按它补回来，老账本里已经断开的也能自己接上，不用改账本文件。
+    /// 存钱是「划出一笔、存进一笔」，算进度的是存进那笔（第二笔）；取钱算的是取出那笔（第一笔）。
+    public func goalContributionIDs(_ g: Goal) -> Set<UUID> {
+        var ids = Set(g.contributionIDs)
+        for c in changes where c.kind == .goalDeposit && c.goalID == g.id && !c.undone && c.transactionIDs.count == 2 {
+            ids.insert(c.summary.hasPrefix("从「") ? c.transactionIDs[0] : c.transactionIDs[1])
+        }
+        return ids
     }
 }

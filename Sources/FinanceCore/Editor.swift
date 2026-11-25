@@ -503,7 +503,7 @@ extension Ledger {
             debts.removeAll { $0.id == debtID }
         }
         if let goalID = change.goalID, change.kind == .goal {
-            if let g = goals.first(where: { $0.id == goalID }), !g.contributionIDs.isEmpty { throw EditError.notUndoable }
+            if let g = goals.first(where: { $0.id == goalID }), !goalContributionIDs(g).isEmpty { throw EditError.notUndoable }
             goals.removeAll { $0.id == goalID }
         }
         if let instID = change.installmentID {
