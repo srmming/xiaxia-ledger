@@ -46,11 +46,7 @@ struct TransactionsPage: View {
             } else {
                 #if os(macOS)
                 HStack(alignment: .top, spacing: Kit.gap) {
-                    // 手机上随口记的、拍的小票还没进账本的：从总览挪到这里（ming 2026-11-25：首页只放数字）。
-                    VStack(alignment: .leading, spacing: Kit.gap) {
-                        PendingCapturesCard()
-                        listCard(list)
-                    }
+                    listCard(list)
                     if wide {
                         ScrollView { detail.padding(.bottom, Kit.side) }
                             .frame(width: 340)
