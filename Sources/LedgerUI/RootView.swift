@@ -356,7 +356,7 @@ struct BookSwitch: View {
 
     private var bookMenu: some View {
         let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
-        Menu {
+        return Menu {
             Picker(tr("看哪个账本"), selection: selection) {
                 if model.ledger.books.count > 1 { Text(tr("全部")).tag(String?.none) }
                 ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
