@@ -1599,5 +1599,6 @@ extension L10n {
         "金额 %@": "Amount %@",
         "金额，可以写算式，比如 12,50+3,20": "Amount. You can type a sum, e.g. 12,50+3,20",
         "，分类%@": ", category %@",
+        "没有删：账本刚刚有变化，请重新看一眼再删": "Not deleted: the ledger just changed. Take another look, then delete again",
     ]
 }

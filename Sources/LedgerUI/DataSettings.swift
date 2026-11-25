@@ -15,10 +15,17 @@ struct DataSettingsPane: View {
     @State private var restoring: LedgerBackup.Item?
     @State private var backups: [LedgerBackup.Item] = []
     @State private var restoringCount: String?
+    /// 点「删除…」那一刻定下的范围和数量。两次确认都按它来，期间别处改了账本就不删（审查发现：确认框开着时
+    /// 那个账本在别处被删掉，选择会被清成「全部」，再点确认就成了删全部）。
+    @State private var pending: WipeConfirmation?
 
     private var scope: WipeScope { bookID.map { .book($0) } ?? .everything }
     private var count: WipeCount { model.ledger.wipeCount(scope) }
-    private var scopeName: String { bookID.map { tr("「\(model.bookName($0))」账本") } ?? tr("全部数据") }
+    private var scopeName: String { name(of: scope) }
+    private func name(of scope: WipeScope) -> String {
+        if case .book(let id) = scope { return tr("「\(model.bookName(id))」账本") }
+        return tr("全部数据")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -30,16 +37,16 @@ struct DataSettingsPane: View {
         .frame(maxWidth: .infinity)
         .kitPage()
         .onAppear { backups = model.backups }
-        .alert(tr("要删掉\(scopeName)吗？"), isPresented: $askFirst) {
-            Button(tr("取消"), role: .cancel) {}
+        .alert(tr("要删掉\(pending?.name ?? scopeName)吗？"), isPresented: $askFirst) {
+            Button(tr("取消"), role: .cancel) { pending = nil }
             Button(tr("继续"), role: .destructive) { typed = ""; askSecond = true }
         } message: {
-            Text(tr("会删掉：\(count.text)。\(keepNote)\n\n删之前自动备份，删错了能在这一页恢复。"))
+            Text(tr("会删掉：\((pending?.count ?? count).text)。\(keepNote)\n\n删之前自动备份，删错了能在这一页恢复。"))
         }
         .alert(tr("最后确认一次"), isPresented: $askSecond) {
             TextField(tr("输入「删除」两个字"), text: $typed)
                 .accessibilityIdentifier("data.wipe.confirmText")
-            Button(tr("取消"), role: .cancel) {}
+            Button(tr("取消"), role: .cancel) { pending = nil }
             Button(tr("删除"), role: .destructive) { wipe() }
         } message: {
             Text(tr("在下面输入「删除」两个字，再点删除。"))
@@ -107,7 +114,10 @@ struct DataSettingsPane: View {
                         .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 12)
-                Button(tr("删除…"), role: .destructive) { askFirst = true }
+                Button(tr("删除…"), role: .destructive) {
+                    pending = WipeConfirmation(scope: scope, name: scopeName, ledger: model.ledger)
+                    askFirst = true
+                }
                     .buttonStyle(.softAlert)
                     .disabled(count.isEmpty || model.isTryingDemo)
                     .accessibilityIdentifier("data.wipe.start")
@@ -120,7 +130,7 @@ struct DataSettingsPane: View {
     }
 
     private var keepNote: String {
-        bookID == nil ? "" : tr("账本和账户留着，余额会跟着变。")
+        (pending?.scope ?? scope) == .everything ? "" : tr("账本和账户留着，余额会跟着变。")
     }
 
     // MARK: 从备份恢复
@@ -168,9 +178,16 @@ struct DataSettingsPane: View {
             model.toast = .init(text: tr("没有删：要输入「删除」两个字才行"), changeID: nil, isError: true)
             return
         }
-        let name = scopeName
+        guard let frozen = pending else { return }
+        pending = nil
+        // 两次确认之间账本变了（那个账本被删了、别处记了账）：不删，让人看清楚再来一次。
+        guard frozen.stillValid(in: model.ledger) else {
+            model.toast = .init(text: tr("没有删：账本刚刚有变化，请重新看一眼再删"), changeID: nil, isError: true)
+            return
+        }
+        let name = frozen.name
         do {
-            let backup = try model.wipe(scope)
+            let backup = try model.wipe(frozen.scope)
             backups = model.backups
             bookID = nil
             model.toast = .init(text: backup == nil ? tr("已删除\(name)") : tr("已删除\(name)。删之前的备份留好了，可以在这一页恢复"),
@@ -234,5 +251,25 @@ struct DemoBanner: View {
             .background(Color.aiSoft)
             .accessibilityElement(children: .contain)
         }
+    }
+}
+
+
+/// 删除数据的确认：点「删除…」时把范围和要删的数量定下来；最后点「删除」时再核对一次，对不上就不删。
+struct WipeConfirmation: Equatable {
+    let scope: WipeScope
+    let name: String
+    let count: WipeCount
+
+    init(scope: WipeScope, name: String, ledger: Ledger) {
+        self.scope = scope
+        self.name = name
+        self.count = ledger.wipeCount(scope)
+    }
+
+    /// 范围里的账本还在，要删的东西和当时给人看的一样多。
+    func stillValid(in ledger: Ledger) -> Bool {
+        if case .book(let id) = scope, !ledger.books.contains(where: { $0.id == id }) { return false }
+        return ledger.wipeCount(scope) == count
     }
 }
