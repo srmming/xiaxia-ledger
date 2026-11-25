@@ -198,6 +198,10 @@ public enum LedgerBackup {
         deletes.received.merge(target.pendingPhoneDeletes?.received ?? [:]) { backup, current in
             backup == .bookingSeen ? .bookingSeen : current
         }
+        if let current = target.pendingPhoneDeletes {
+            deletes.track(current.queued.mapValues(Set.init))
+        }
+        deletes.finish(Set(restored.appliedNotes))
         restored.pendingPhoneDeletes = deletes.received.isEmpty ? nil : deletes
         return restored.replacingContents(of: target)
     }

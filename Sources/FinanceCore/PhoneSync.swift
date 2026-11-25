@@ -99,6 +99,47 @@ extension SyncNote {
         return before
     }
 
+    /// 流水既可能是操作对象，也可能只出现在撤销、拆分、凭证或计划的关联中。
+    func indexRelatedTransactions(in index: inout [String: Set<String>]) {
+        var ids = Set((transactions ?? []).map(\.id))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        func originals<T: Decodable>(_ type: T.Type, in table: String) -> [T] {
+            (originalRows?[table] ?? [:]).values.compactMap { try? decoder.decode(type, from: $0) }
+        }
+        for table in ["transactions", "paperwork"] {
+            ids.formUnion((deletes?[table] ?? []).compactMap(UUID.init(uuidString:)))
+            ids.formUnion((originalRows?[table] ?? [:]).keys.compactMap(UUID.init(uuidString:)))
+        }
+        let history = (changes ?? []) + originals(ChangeRecord.self, in: "changes")
+        let snapshots = history.compactMap(\.before)
+        for c in history {
+            ids.formUnion(c.transactionIDs)
+            ids.formUnion((c.previous ?? []).map(\.id))
+            ids.formUnion((c.resultingTransactions ?? []).map(\.id))
+        }
+        let allCaptures = (captures ?? []) + originals(Capture.self, in: "captures") + snapshots.flatMap { $0.captures ?? [] }
+        for capture in allCaptures { ids.formUnion(capture.transactionIDs ?? []) }
+        let pages = (paperwork ?? []) + originals(Paperwork.self, in: "paperwork") + snapshots.flatMap { $0.paperwork ?? [] }
+        for page in pages {
+            ids.insert(page.id)
+            if let paid = page.paidTransactionID { ids.insert(paid) }
+        }
+        for snapshot in snapshots { ids.formUnion(snapshot.addedPaperworkIDs ?? []) }
+        let allDebts = (debts ?? []) + originals(Debt.self, in: "debts") + snapshots.flatMap { $0.debts ?? [] }
+        for debt in allDebts { ids.formUnion(debt.repaymentIDs) }
+        let allGoals = (goals ?? []) + originals(Goal.self, in: "goals") + snapshots.flatMap { $0.goals ?? [] }
+        for goal in allGoals { ids.formUnion(goal.contributionIDs) }
+        let plans = (installments ?? []) + originals(Installment.self, in: "installments") + snapshots.flatMap { $0.installments ?? [] }
+        for plan in plans {
+            ids.formUnion(plan.paidIDs)
+            if let purchase = plan.purchaseID { ids.insert(purchase) }
+        }
+        let settings = [business].compactMap { $0 } + snapshots.compactMap(\.business)
+        for item in settings.flatMap({ $0.capital?.items ?? [] }) { ids.formUnion(item.txIDs ?? []) }
+        for uuid in ids { index[uuid.uuidString, default: []].insert(id) }
+    }
+
     var addedTransactionIDs: Set<UUID> {
         guard let transactions, !transactions.isEmpty else { return [] }
         let before = originalValues(in: "transactions")
@@ -207,6 +248,11 @@ extension Ledger {
     /// 收一张纸条。收过的不再收。返回收了没有。
     @discardableResult
     public mutating func apply(_ note: SyncNote, receivedAt: Date? = nil) -> Bool {
+        apply(note, receivedAt: receivedAt, queued: [:])
+    }
+
+    @discardableResult
+    fileprivate mutating func apply(_ note: SyncNote, receivedAt: Date?, queued: [String: Set<String>]) -> Bool {
         guard !appliedNotes.contains(note.id) else { return false }
         let timestamp = receivedAt ?? note.createdAt
         var awaiting = pendingPhoneDeletes ?? PhoneDeletionReceipts()
@@ -226,7 +272,18 @@ extension Ledger {
                 for id in original.transactionIDs where proposedIDs.contains(id) { awaiting.received[id.uuidString] = nil }
             }
         }
-        let suppressed = proposedIDs.filter { awaiting.received[$0.uuidString] != nil }
+        var suppressed = proposedIDs.filter { awaiting.received[$0.uuidString] != nil }
+        // 等待期已结束、入账才首次出现时，账本也可能仍有明确的删除原件。
+        // 只检查当前缺失的初次新增。撤销、正常编辑和现在仍存在的流水不走这里。
+        let firstAdds = note.addedTransactionIDs
+        if !firstAdds.isEmpty {
+            let absent = firstAdds.subtracting(transactions.map(\.id)).subtracting(suppressed)
+            if !absent.isEmpty {
+                for removal in changes where removal.kind == .remove && !removal.undone {
+                    for row in removal.previous ?? [] where absent.contains(row.id) { suppressed.insert(row.id) }
+                }
+            }
+        }
         var skipped = Set(suppressed.map { SyncRowKey("transactions", $0.uuidString) })
         for deletion in note.changes ?? [] where deletion.kind == .remove && !deletion.undone {
             if let undone = changes.first(where: { $0.id == deletion.id && $0.undone && $0.kind == .remove }) {
@@ -247,19 +304,29 @@ extension Ledger {
         for id in absentDeletes where awaiting.received[id.uuidString] == nil {
             awaiting.received[id.uuidString] = .waitingSince(floor(timestamp.timeIntervalSince1970))
         }
-        let lateAdds = suppressed.intersection(note.addedTransactionIDs)
+        if !absentDeletes.isEmpty { awaiting.track(queued) }
+        let lateAdds = suppressed.intersection(firstAdds).filter { awaiting.received[$0.uuidString] != .bookingHandled }
         if !lateAdds.isEmpty {
-            for id in lateAdds { awaiting.received[id.uuidString] = nil }
+            for id in lateAdds { awaiting.received[id.uuidString] = .bookingHandled }
             let bytes = Array(SHA256.hash(data: Data(("late-deleted:" + note.id).utf8)).prefix(16))
             let id = bytes.withUnsafeBytes { UUID(uuid: $0.loadUnaligned(as: uuid_t.self)) }
             changes.append(ChangeRecord(id: id, kind: .edit, summary: "手机已删除这笔流水，晚到的入账没有重复记入",
                                         transactionIDs: [], author: note.device, createdAt: note.createdAt))
         }
+        awaiting.finish([note.id])
         let updated = awaiting.received.isEmpty ? nil : awaiting
         if updated != pendingPhoneDeletes { pendingPhoneDeletes = updated }
         merger.rows(&books, note.books, "books", key: \.id, name: { $0 })
         merger.rows(&accounts, note.accounts, "accounts", key: \.id, name: { $0 })
         merger.rows(&transactions, note.transactions, "transactions", key: \.id, name: \.uuidString)
+        // 对已不存在的流水，整次编辑都没落地。留下冲突说明即可，否则假的编辑历史会挡住撤销删除。
+        let missingRows = Set(merger.conflicts.filter { $0.table == "transactions" && $0.fields == ["电脑已删除"] }.map(\.rowID))
+        if !missingRows.isEmpty {
+            for change in note.changes ?? [] where change.kind == .edit && !change.transactionIDs.isEmpty &&
+                change.transactionIDs.allSatisfy({ missingRows.contains($0.uuidString) }) {
+                merger.skipped.insert(.init("changes", change.id.uuidString))
+            }
+        }
         merger.rows(&changes, note.changes, "changes", key: \.id, name: \.uuidString)
         merger.rows(&debts, note.debts, "debts", key: \.id, name: \.uuidString)
         merger.rows(&installments, note.installments, "installments", key: \.id, name: \.uuidString)
@@ -453,8 +520,13 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
         let previousPhotos = ledger.changes.compactMap(\.pendingPhonePhoto)
         for photo in previousPhotos { photo.restoreReferences(in: &ledger) }
+        var queued = late?.relatedNotes ?? [:]
+        for item in pending { item.note.indexRelatedTransactions(in: &queued) }
+        ledger.pendingPhoneDeletes?.track(queued)
         var applied: [SyncNote] = []
-        for item in pending where late?.allows(item.note) != false && ledger.apply(item.note, receivedAt: time) { applied.append(item.note) }
+        for item in pending where late?.allows(item.note) != false && ledger.apply(item.note, receivedAt: time, queued: queued) { applied.append(item.note) }
+        let done = Set(ledger.appliedNotes)
+        ledger.pendingPhoneDeletes?.finish(done)
         if ledger.pendingPhoneDeletes != nil {
             var observed = late?.observedBookings ?? []
             for item in pending { observed.formUnion(item.note.addedTransactionIDs) }
@@ -472,7 +544,6 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
             lastApplied = applied
         }
         // 收过的（包括以前收过、文件还在「手机记的」里的）挪走。
-        let done = Set(ledger.appliedNotes)
         if FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) {
             SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) }, ledgerFolder: folder)
         }
