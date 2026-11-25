@@ -299,3 +299,80 @@ extension BusinessTests {
         for key in ["businessEnabled", "businessBookID", "lifeBookIDs"] { XCTAssertNil(context[key]) }
     }
 }
+
+extension BusinessTests {
+    func testConcurrentWALCommitRequiresReloadAndIsIncludedInUpgradeBackup() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("synthetic.sqlite"))
+        try store.save(.starter)
+        var stale = try store.load()
+        _ = try stale.enableBusinessMode(author: author)
+
+        let payment = tx("另一窗口的模拟收款", 1234)
+        func insertPayment(_ db: SQLiteDB, _ entry: Transaction) throws {
+            let json = String(decoding: try JSONEncoder().encode(entry), as: UTF8.self)
+            try db.run("""
+                INSERT INTO transactions (id,seq,date,amount_cents,account_id,book_id,description,json)
+                VALUES (?,1,?,?,?,?,?,?)
+                """, [entry.id.uuidString, entry.date.description, entry.amount.cents, entry.accountID, entry.bookID, entry.description, json])
+        }
+        do {
+            let other = try SQLiteDB(url: store.url)
+            try other.exec("PRAGMA journal_mode=WAL")
+            try insertPayment(other, payment)
+        }
+        // 对方已经提交并关闭连接。此时没有锁竞争，必须靠快照校验拦下旧数据。
+        let bytes = try Data(contentsOf: store.url)
+        XCTAssertThrowsError(try store.save(stale)) {
+            XCTAssertEqual($0.localizedDescription, "账本刚被别处改过，请再试一次")
+        }
+        XCTAssertEqual(try Data(contentsOf: store.url), bytes)
+        XCTAssertTrue(LedgerBackup.list(for: store.url).isEmpty)
+
+        var retry = try store.load()
+        XCTAssertEqual(retry.transactions, [payment])
+        XCTAssertNil(retry.business)
+        _ = try retry.enableBusinessMode(author: author)
+        var testedLock = false
+        try store.save(retry) { source, destination in
+            // 来自另一连接的普通写入必须等候；此处设为零等待，让测试无需依靠定时或轮询。
+            let other = try SQLiteDB(url: store.url)
+            try other.exec("PRAGMA busy_timeout=0")
+            XCTAssertThrowsError(try insertPayment(other, self.tx("同时记账", 200))) {
+                XCTAssertTrue($0.localizedDescription.contains("locked"))
+            }
+            try source.writeSnapshot(to: destination)
+            testedLock = true
+        }
+        XCTAssertTrue(testedLock)
+        let backup = try XCTUnwrap(LedgerBackup.list(for: store.url).first)
+        let original = try LedgerBackup.load(backup.url)
+        let upgraded = try store.load()
+        XCTAssertNil(original.business)
+        XCTAssertEqual(upgraded.business, retry.business)
+        XCTAssertEqual(original.transactions, [payment])
+        XCTAssertEqual(upgraded.transactions, [payment])
+    }
+}
+
+extension BusinessTests {
+    func testCompetingBusinessUpgradeCannotOverwriteWinner() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("two-writers.sqlite"))
+        try store.save(.starter)
+        var first = try store.load(), second = try store.load()
+        _ = try first.enableBusinessMode(author: "甲")
+        _ = try second.enableBusinessMode(author: "乙")
+        first.transactions.append(tx("甲窗口的模拟收款", 345))
+        try store.save(first)
+        let bytes = try Data(contentsOf: store.url)
+        XCTAssertThrowsError(try store.save(second)) {
+            XCTAssertEqual($0.localizedDescription, "账本刚被别处改过，请再试一次")
+        }
+        XCTAssertEqual(try Data(contentsOf: store.url), bytes)
+        XCTAssertEqual(try store.load().transactions, first.transactions)
+        XCTAssertEqual(LedgerBackup.list(for: store.url).count, 1)
+    }
+}

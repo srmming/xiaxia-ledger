@@ -270,6 +270,9 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
 
 /// 整份账本数据。
 public struct Ledger: Codable, Sendable, Equatable {
+    // 不编码：仅用于首次写生意设置时核对磁盘快照。
+    var upgradeBaseline = UpgradeBaseline()
+
     public var business: BusinessSettings?
     public var receivables: [Receivable] = []
     public var minReaderVersion = 1

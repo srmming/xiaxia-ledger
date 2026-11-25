@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum Side: String, Codable, Sendable {
     case life, business
@@ -76,10 +77,17 @@ extension Ledger {
         return transactions.reversed().compactMap(\.bookID).first(where: ids.contains) ?? lifeBookIDs.first
     }
     private mutating func changeBusiness(_ settings: BusinessSettings, added: [String] = [], summary: String, author: String) -> ChangeRecord {
+        let firstBusinessChange = minReaderVersion < 2 && business == nil
+        if firstBusinessChange {
+            var prior = self
+            prior.books.removeAll { added.contains($0.id) }
+            upgradeBaseline.beforeBusiness = try? prior.upgradeFingerprint()
+        }
         var snapshot = PlanSnapshot(addedBookIDs: added)
         snapshot.changedBusiness = true
         snapshot.business = business
         let change = snapshotChange(.edit, summary, before: snapshot, author: author)
+        if firstBusinessChange { upgradeBaseline.changeID = change.id }
         business = settings
         minReaderVersion = max(minReaderVersion, 2)
         changes.append(change)
@@ -145,5 +153,23 @@ extension Ledger {
         try checkBusinessVersion()
         guard stored <= 2 else { throw BusinessError(message: "账本是新版夏夏写的，请先升级") }
         return max(stored, minReaderVersion, business != nil || !receivables.isEmpty ? 2 : 1)
+    }
+}
+
+/// 两份指纹分别覆盖「读后一次改多项」以及「app 已保存过其他改动，再开启生意」。
+/// 指纹属于存储来源，不参与账本内容的相等比较。
+struct UpgradeBaseline: Equatable, Sendable {
+    var read: Data?
+    var beforeBusiness: Data?
+    var changeID: UUID?
+    static func == (_ lhs: Self, _ rhs: Self) -> Bool { true }
+}
+
+extension Ledger {
+    func upgradeFingerprint() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return Data(SHA256.hash(data: try encoder.encode(self)))
     }
 }

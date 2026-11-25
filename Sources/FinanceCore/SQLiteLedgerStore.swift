@@ -23,6 +23,16 @@ public struct SQLiteLedgerStore: LedgerStore {
     public func load() throws -> Ledger {
         guard FileManager.default.fileExists(atPath: url.path) else { return .fresh }
         let db = try SQLiteDB.reader(url: url)
+        try db.exec("BEGIN")
+        var ledger = try read(from: db)
+        try db.exec("COMMIT")
+        if ledger.minReaderVersion < 2 {
+            ledger.upgradeBaseline.read = try ledger.upgradeFingerprint()
+        }
+        return ledger
+    }
+
+    private func read(from db: SQLiteDB) throws -> Ledger {
         let existing = Set(try db.query("SELECT name FROM sqlite_master WHERE type = 'table'"))
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
@@ -84,38 +94,68 @@ public struct SQLiteLedgerStore: LedgerStore {
         return ledger
     }
 
-    /// 用 SQLite 的一致性快照把已提交、仍在 WAL 里的页一起写进备份。
-    /// 只读连接先退出，之后写连接才能切换日志模式。
-    private func backupWALBeforeUpgrade(_ ledger: Ledger) throws -> Bool {
-        let reader = try SQLiteDB.reader(url: url)
-        let stored = try reader.minimumVersion()
-        guard try ledger.versionForSave(stored: stored) > stored,
-              try reader.query("PRAGMA journal_mode").first == "wal" else { return false }
-        _ = try LedgerBackup.make(of: url, label: "开生意模式前") { destination in
-            try reader.run("VACUUM INTO ?", [destination.path])
+    private var changedElsewhere: BusinessError { BusinessError(message: "账本刚被别处改过，请再试一次") }
+
+    /// 锁住写入后读取，不能使用 load()（它会另开连接）。
+    private func verifyUpgradeBase(_ ledger: Ledger, db: SQLiteDB) throws {
+        let current = try read(from: db).upgradeFingerprint()
+        guard current == ledger.upgradeBaseline.read || current == ledger.upgradeBaseline.beforeBusiness else {
+            throw changedElsewhere
         }
-        return true
+    }
+
+    /// 两个开启操作也可能并发。若对方已经完成升级，不能退回普通保存路径覆盖它。
+    private func rejectCompetingUpgrade(_ ledger: Ledger, stored: Int, db: SQLiteDB) throws {
+        guard stored >= 2, let id = ledger.upgradeBaseline.changeID else { return }
+        guard try !db.query("SELECT id FROM changes WHERE id = ?", [id.uuidString]).isEmpty else { throw changedElsewhere }
     }
 
     public func save(_ ledger: Ledger) throws {
+        try save(ledger, writeWALSnapshot: { try $0.writeSnapshot(to: $1) })
+    }
+
+    func save(_ ledger: Ledger, writeWALSnapshot: (SQLiteDB, URL) throws -> Void) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try ledger.checkBusinessVersion()
-        let existed = FileManager.default.fileExists(atPath: url.path)
-        let walBackedUp = try existed && backupWALBeforeUpgrade(ledger)
+        // WAL 写连接失败退出时，由只读连接最后关闭，避免自动 checkpoint 改动原文件。
+        var keepWAL: SQLiteDB?
+        defer { withExtendedLifetime(keepWAL) {} }
         let db = try SQLiteDB(url: url)
-        let storedBeforeWrite = try db.minimumVersion()
-        _ = try ledger.versionForSave(stored: storedBeforeWrite)
-        try db.exec("PRAGMA journal_mode = DELETE")
+        let isWAL = try db.query("PRAGMA journal_mode").first == "wal"
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         enc.dateEncodingStrategy = .iso8601
         func js<T: Encodable>(_ v: T) throws -> String { String(decoding: try enc.encode(v), as: UTF8.self) }
 
-        try db.exec("BEGIN IMMEDIATE")
         do {
+            if isWAL {
+                // 先以普通模式读取 WAL 索引，再启用独占模式。这样 SQLite 在空事务结束后
+                // 仍持有同一把文件锁，可以在事务外做 VACUUM INTO 和切换日志模式。
+                _ = try db.minimumVersion()
+                try db.exec("PRAGMA locking_mode = EXCLUSIVE")
+                try db.exec("BEGIN EXCLUSIVE")
+                let stored = try db.minimumVersion()
+                let version = try ledger.versionForSave(stored: stored)
+                let upgrade = try version > stored && db.hasLedger()
+                if upgrade { try verifyUpgradeBase(ledger, db: db) }
+                try rejectCompetingUpgrade(ledger, stored: stored, db: db)
+                try db.exec("COMMIT")
+                if upgrade {
+                    _ = try LedgerBackup.make(of: url, label: "开生意模式前") { destination in
+                        try writeWALSnapshot(db, destination)
+                    }
+                }
+                try db.exec("PRAGMA journal_mode = DELETE")
+            }
+            try db.exec("BEGIN IMMEDIATE")
             let stored = try db.minimumVersion()
             let version = try ledger.versionForSave(stored: stored)
-            if existed && version > stored && !walBackedUp { _ = try LedgerBackup.make(of: url, label: "开生意模式前") }
+            try rejectCompetingUpgrade(ledger, stored: stored, db: db)
+            guard try db.query("PRAGMA journal_mode").first != "wal" else { throw changedElsewhere }
+            if try !isWAL && version > stored && db.hasLedger() {
+                try verifyUpgradeBase(ledger, db: db)
+                _ = try LedgerBackup.make(of: url, label: "开生意模式前")
+            }
             try db.migrate()
             try db.run("INSERT OR REPLACE INTO meta (key,value) VALUES ('minReaderVersion',?)", [version])
             if let settings = ledger.business {
@@ -173,6 +213,13 @@ public struct SQLiteLedgerStore: LedgerStore {
             try db.exec("COMMIT")
         } catch {
             try? db.exec("ROLLBACK")
+            if isWAL {
+                try? db.exec("PRAGMA locking_mode = NORMAL")
+                _ = try? db.minimumVersion() // 完成释放独占锁，再交给只读连接。
+                keepWAL = try? SQLiteDB(url: url, readOnly: true)
+                _ = try? keepWAL?.minimumVersion()
+            }
+            if let sqlite = error as? SQLiteError, sqlite.isBusy { throw changedElsewhere }
             throw error
         }
     }
@@ -211,6 +258,7 @@ public struct LedgerReadError: Error, LocalizedError {
 
 public struct SQLiteError: Error, LocalizedError {
     public let message: String
+    var isBusy = false
     public var errorDescription: String? { "账本数据库出错：\(message)" }
 }
 
@@ -238,6 +286,14 @@ final class SQLiteDB {
         let pendingWAL = fm.fileExists(atPath: url.path + "-wal")
         let rollback = fm.fileExists(atPath: url.path + "-journal")
         return try SQLiteDB(url: url, readOnly: pendingWAL && !rollback)
+    }
+
+    func hasLedger() throws -> Bool {
+        try !query("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").isEmpty
+    }
+
+    func writeSnapshot(to destination: URL) throws {
+        try run("VACUUM INTO ?", [destination.path])
     }
 
     func minimumVersion() throws -> Int {
@@ -278,7 +334,8 @@ final class SQLiteDB {
         guard sqlite3_exec(handle, sql, nil, nil, &err) == SQLITE_OK else {
             let msg = err.map { String(cString: $0) } ?? "未知错误"
             sqlite3_free(err)
-            throw SQLiteError(message: msg)
+            let code = sqlite3_errcode(handle)
+            throw SQLiteError(message: msg, isBusy: code == SQLITE_BUSY || code == SQLITE_LOCKED)
         }
     }
 
@@ -307,8 +364,8 @@ final class SQLiteDB {
     }
 
     /// 只取第一列文字。
-    func query(_ sql: String) throws -> [String] {
-        let stmt = try prepare(sql, [])
+    func query(_ sql: String, _ arguments: [Any?] = []) throws -> [String] {
+        let stmt = try prepare(sql, arguments)
         defer { sqlite3_finalize(stmt) }
         var out: [String] = []
         while true {
