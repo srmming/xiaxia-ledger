@@ -18,13 +18,8 @@ struct BusinessHome: View {
         let month = model.shownMonth
         let report = try? model.ledger.businessReport(month: month, today: today)
         let progress = model.ledger.capitalProgress(today: today)
+        // ming 2026-11-25：生意首页不要最上面那叠夏夏点评卡，大数字就是整页的重心。
         VStack(alignment: .leading, spacing: Kit.gap) {
-            if let report {
-                let book = model.selectedBookID
-                let main = model.ledger.insight(forPage: "business", month: month, bookID: book)
-                XiaxiaCards(nudges: Nudges.business(report, progress: progress, month: month, today: today, currency: model.ledger.baseCurrency),
-                            insights: [main].compactMap { $0 }, page: tr("生意"))
-            }
             Columns {
                 heroCard(report, month: month, today: today)
             } side: {
@@ -59,7 +54,7 @@ struct BusinessHome: View {
                 Text(tr("这个月还没有店里的账。每天关店后点「记今天的账」，这里就会画出这个月赚钱的线。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             } else {
-                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: short ? 70 : 170)
+                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: short ? 90 : 240)
             }
         }
         .kitCard(padding: short ? 14 : 20)
