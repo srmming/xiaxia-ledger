@@ -194,8 +194,9 @@ public enum LedgerBackup {
         var seen = Set(restored.appliedNotes)
         let archived = try target.revision.ledgerFolder.map(SyncNotes.archivedIDs(in:)) ?? []
         restored.appliedNotes += (target.appliedNotes + archived).filter { seen.insert($0).inserted }
-        let deletes = Set(target.pendingPhoneDeletes ?? []).union(restored.pendingPhoneDeletes ?? [])
-        restored.pendingPhoneDeletes = deletes.isEmpty ? nil : deletes.sorted()
+        var deletes = restored.pendingPhoneDeletes ?? PhoneDeletionReceipts()
+        deletes.received.merge(target.pendingPhoneDeletes?.received ?? [:]) { _, current in current }
+        restored.pendingPhoneDeletes = deletes.received.isEmpty ? nil : deletes
         return restored.replacingContents(of: target)
     }
 

@@ -185,10 +185,18 @@ extension Ledger {
 
     /// 收一张纸条。收过的不再收。返回收了没有。
     @discardableResult
-    public mutating func apply(_ note: SyncNote) -> Bool {
+    public mutating func apply(_ note: SyncNote, receivedAt: Date? = nil) -> Bool {
         guard !appliedNotes.contains(note.id) else { return false }
-        var awaiting = Set(pendingPhoneDeletes ?? [])
-        let suppressed = awaiting.intersection((note.transactions ?? []).map(\.id))
+        let timestamp = receivedAt ?? note.createdAt
+        var awaiting = pendingPhoneDeletes ?? PhoneDeletionReceipts()
+        let proposedIDs = Set((note.transactions ?? []).map(\.id))
+        // 手机撤销会把原删除记录标为 undone，并带回同编号流水。
+        for change in note.changes ?? [] where change.undone && change.kind == .remove {
+            if let original = changes.first(where: { $0.id == change.id && !$0.undone && $0.kind == .remove }) {
+                for id in original.transactionIDs where proposedIDs.contains(id) { awaiting.received[id.uuidString] = nil }
+            }
+        }
+        let suppressed = proposedIDs.filter { awaiting.received[$0.uuidString] != nil }
         let skipped = Set(suppressed.map { SyncRowKey("transactions", $0.uuidString) })
         let groups = linkedConflicts(in: note, ignoring: skipped)
         var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked.union(skipped))
@@ -200,18 +208,19 @@ extension Ledger {
         let absentDeletes = (note.deletes?["transactions"] ?? []).compactMap(UUID.init(uuidString:)).filter { id in
             !transactions.contains { $0.id == id } && !groups.blocked.contains(.init("transactions", id.uuidString))
         }
-        awaiting.formUnion(absentDeletes)
+        for id in absentDeletes where awaiting.received[id.uuidString] == nil {
+            awaiting.received[id.uuidString] = floor(timestamp.timeIntervalSince1970)
+        }
         let lateAdds = suppressed.filter { note.originalRows?["transactions"]?[$0.uuidString] == nil }
         if !lateAdds.isEmpty {
-            awaiting.subtract(lateAdds)
+            for id in lateAdds { awaiting.received[id.uuidString] = nil }
             let bytes = Array(SHA256.hash(data: Data(("late-deleted:" + note.id).utf8)).prefix(16))
             let id = bytes.withUnsafeBytes { UUID(uuid: $0.loadUnaligned(as: uuid_t.self)) }
             changes.append(ChangeRecord(id: id, kind: .edit, summary: "手机已删除这笔流水，晚到的入账没有重复记入",
                                         transactionIDs: [], author: note.device, createdAt: note.createdAt))
         }
-        if !absentDeletes.isEmpty || !lateAdds.isEmpty {
-            pendingPhoneDeletes = awaiting.isEmpty ? nil : awaiting.sorted()
-        }
+        let updated = awaiting.received.isEmpty ? nil : awaiting
+        if updated != pendingPhoneDeletes { pendingPhoneDeletes = updated }
         merger.rows(&books, note.books, "books", key: \.id, name: { $0 })
         merger.rows(&accounts, note.accounts, "accounts", key: \.id, name: { $0 })
         merger.rows(&transactions, note.transactions, "transactions", key: \.id, name: \.uuidString)
@@ -377,6 +386,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     /// 上次收进来的纸条（app 用来提示「收到手机记的 N 条」）。
     public private(set) var lastApplied: [SyncNote] = []
 
+    private var nextDeleteExpiry: Date?
     private var waitingForPhotos: [String] = []
     private let now: () -> Date
     private let relocatedFrom: URL?
@@ -401,13 +411,15 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
     private func collectNotes(from retired: URL?) throws -> Ledger {
         var ledger = try primary.load()
         if ledger.minReaderVersion > 2 { return ledger }
+        let time = now()
+        let previousDeletes = ledger.pendingPhoneDeletes
+        ledger.prunePhoneDeletes(at: time)
         let late = try retired.map { try LatePhoneDelivery.stage(from: $0, to: folder, applied: Set(ledger.appliedNotes), now: now()) }
-        guard FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) else { return ledger }
         let pending = SyncNotes.unapplied(ledgerFolder: folder, ledger: ledger)
         let previousPhotos = ledger.changes.compactMap(\.pendingPhonePhoto)
         for photo in previousPhotos { photo.restoreReferences(in: &ledger) }
         var applied: [SyncNote] = []
-        for item in pending where late?.allows(item.note) != false && ledger.apply(item.note) { applied.append(item.note) }
+        for item in pending where late?.allows(item.note) != false && ledger.apply(item.note, receivedAt: time) { applied.append(item.note) }
         var missing = late?.timedOutFiles ?? []
         if let old = retired {
             for photo in previousPhotos where !photo.available(from: old, in: folder) { missing.insert(photo.file) }
@@ -415,15 +427,17 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
             missing.formUnion(previousPhotos.map(\.file))
         }
         ledger.updatePendingPhotos(missing, now: now())
-        if !applied.isEmpty || previousPhotos != ledger.changes.compactMap(\.pendingPhonePhoto) {
+        if !applied.isEmpty || previousDeletes != ledger.pendingPhoneDeletes || previousPhotos != ledger.changes.compactMap(\.pendingPhonePhoto) {
             try primary.save(ledger)
             lastApplied = applied
         }
         // 收过的（包括以前收过、文件还在「手机记的」里的）挪走。
         let done = Set(ledger.appliedNotes)
-        SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) },
-                          ledgerFolder: folder)
+        if FileManager.default.fileExists(atPath: SyncNotes.inbox(folder).path) {
+            SyncNotes.archive(SyncNotes.files(in: SyncNotes.inbox(folder)).filter { done.contains($0.deletingPathExtension().lastPathComponent) }, ledgerFolder: folder)
+        }
         if let old = retired, let late { LatePhoneDelivery.archive(late.ready, from: old, to: folder, applied: done) }
+        nextDeleteExpiry = ledger.pendingPhoneDeletes?.received.values.min().map { Date(timeIntervalSince1970: $0 + PhoneDeletionReceipts.lifetime) }
         waitingForPhotos = ledger.changes.compactMap { $0.pendingPhonePhoto?.file }
         return ledger
     }
@@ -438,6 +452,7 @@ public final class InboxApplyingStore: LedgerStore, @unchecked Sendable {
         let notes = SyncNotes.files(in: SyncNotes.inbox(folder)).map(\.lastPathComponent).joined(separator: ",")
         let base = primary.changeStamp()
         let late = retiredFolder.flatMap { LatePhoneDelivery.stamp($0, waitingFor: waitingForPhotos) }
+        if let expiry = nextDeleteExpiry, now() >= expiry { return "\(base ?? "")|删除凭据到期" }
         if notes.isEmpty && late == nil { return base }
         let due = retiredFolder == nil ? [] : PhotoWaitTimes(folder: folder).expired(at: now())
         return "\(base ?? "")|notes:\(notes)|late:\(late ?? "")|due:\(due.joined(separator: ","))"

@@ -86,7 +86,7 @@ public struct SQLiteLedgerStore: LedgerStore {
         ledger.paperwork = try rows("paperwork", Paperwork.self)
         guard existing.contains("meta") else { return ledger }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'pendingPhoneDeletes'").first {
-            ledger.pendingPhoneDeletes = try dec.decode([UUID].self, from: Data(v.utf8))
+            ledger.pendingPhoneDeletes = try dec.decode(PhoneDeletionReceipts.self, from: Data(v.utf8))
         }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'appliedNotes'").first {
             ledger.appliedNotes = (try? dec.decode([String].self, from: Data(v.utf8))) ?? []

@@ -413,6 +413,10 @@ extension StaleOverwriteTests {
             XCTAssertEqual(result.appliedNotes, [queue.ids[2], queue.ids[0], queue.ids[1]])
             XCTAssertEqual(result.changes.filter { $0.summary.contains("晚到的入账") }.count, 1)
         }
+        let database = queue.new.appendingPathComponent("ledger.sqlite")
+        let cleaned = try Data(contentsOf: database)
+        XCTAssertNil(try reopened.load().pendingPhoneDeletes)
+        XCTAssertEqual(try Data(contentsOf: database), cleaned)
     }
 
     func testUnmatchedDeleteAllowsLaterBookingsEvenAfter72Hours() throws {
@@ -430,9 +434,118 @@ extension StaleOverwriteTests {
             try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
             let result = try queue.store.load()
             XCTAssertTrue(result.transactions.contains(try XCTUnwrap(next.transactions?.first)))
-            XCTAssertEqual(result.pendingPhoneDeletes, tombstones)
+            XCTAssertEqual(result.pendingPhoneDeletes, days == 0 ? tombstones : nil)
             XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: queue.old), 0)
         }
+    }
+
+    private func checkUndoBeforeLateBooking(onPhone: Bool) throws {
+        let queue = try migratedReceiptQueue()
+        let held = try holdReceiptAndBooking(in: queue.old)
+        let removed = try queue.store.load()
+        let phone = PhoneSyncStore(folder: queue.new, device: "手机", cache: try folder().appendingPathComponent("cache.sqlite"))
+        var restored = onPhone ? try phone.load() : removed
+        let change = try XCTUnwrap(removed.changes.first { $0.kind == .remove })
+        try restored.undo(changeID: change.id, author: onPhone ? "手机" : "Mac")
+        XCTAssertNil(restored.pendingPhoneDeletes)
+        if onPhone {
+            try phone.save(restored)
+        } else {
+            try queue.store.save(restored)
+        }
+        let saved = try queue.store.load()
+        XCTAssertNil(saved.pendingPhoneDeletes)
+        XCTAssertEqual(saved.transactions.map(\.id), change.transactionIDs)
+        XCTAssertTrue(saved.changes.contains { $0.id == change.id && $0.undone })
+
+        let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("模拟照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        for file in held {
+            try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
+        }
+        let final = try queue.store.load()
+        XCTAssertEqual(final.transactions, saved.transactions)
+        XCTAssertFalse(final.changes.contains { $0.syncConflicts != nil })
+        XCTAssertTrue(queue.ids.allSatisfy { final.appliedNotes.contains($0) })
+    }
+
+    func testMacUndoRestoresDeletedTransactionBeforeLateBooking() throws {
+        try checkUndoBeforeLateBooking(onPhone: false)
+    }
+
+    func testPhoneUndoRestoresDeletedTransactionBeforeLateBooking() throws {
+        try checkUndoBeforeLateBooking(onPhone: true)
+    }
+
+    func testUnmatchedTombstonesExpireAfter30DaysWithoutFurtherWrites() throws {
+        var now = Date(timeIntervalSince1970: 1_800_000_000)
+        let queue = try migratedReceiptQueue(now: { now })
+        _ = try holdReceiptAndBooking(in: queue.old)
+        XCTAssertEqual(try queue.store.load().pendingPhoneDeletes?.count, 1)
+        now.addTimeInterval(30 * 86400 - 1)
+        let reopened = InboxApplyingStore(primary: queue.store.primary, folder: queue.new, relocatedFrom: queue.old, now: { now })
+        XCTAssertEqual(try reopened.load().pendingPhoneDeletes?.count, 1)
+        let stamp = reopened.changeStamp()
+        now.addTimeInterval(1)
+        XCTAssertNotEqual(stamp, reopened.changeStamp())
+        let cleaned = try reopened.load()
+        XCTAssertNil(cleaned.pendingPhoneDeletes)
+        let db = queue.new.appendingPathComponent("ledger.sqlite")
+        let bytes = try Data(contentsOf: db)
+        for _ in 0..<3 {
+            now.addTimeInterval(86400)
+            XCTAssertEqual(try reopened.load(), cleaned)
+            XCTAssertEqual(try Data(contentsOf: db), bytes)
+        }
+    }
+
+    func testUndatedTombstonesStartRetentionAtFirstRead() throws {
+        let id = UUID(), start = Date(timeIntervalSince1970: 1_800_000_000)
+        var value = Ledger.fresh
+        value.pendingPhoneDeletes = try JSONDecoder().decode(PhoneDeletionReceipts.self, from: JSONEncoder().encode([id]))
+        value.prunePhoneDeletes(at: start)
+        let persisted = try JSONEncoder().encode(value)
+        value = try JSONDecoder().decode(Ledger.self, from: persisted)
+        value.prunePhoneDeletes(at: start.addingTimeInterval(30 * 86400 - 1))
+        XCTAssertEqual(value.pendingPhoneDeletes?.received[id.uuidString], start.timeIntervalSince1970)
+        value.prunePhoneDeletes(at: start.addingTimeInterval(30 * 86400))
+        XCTAssertNil(value.pendingPhoneDeletes)
+    }
+
+    private func writeLegacyNote(_ note: SyncNote, folder: URL) throws {
+        var legacy = note
+        legacy.originalRows = nil
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let inbox = SyncNotes.inbox(folder)
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        try encoder.encode(legacy).write(to: inbox.appendingPathComponent(legacy.id + ".json"))
+    }
+
+    func testLegacyJSONBookingWithoutSequenceIsApplied() throws {
+        let dir = try folder()
+        let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite")), folder: dir)
+        var add = SyncNote(id: "old-add", device: "旧手机", createdAt: Date(), summary: "模拟入账")
+        add.transactions = [row("旧手机入账")]
+        try writeLegacyNote(add, folder: dir)
+        XCTAssertEqual(try store.load().transactions, add.transactions)
+        XCTAssertEqual(try SyncNotes.archivedIDs(in: dir), [add.id])
+    }
+
+    func testLegacyJSONDeletionWithOriginalInChangeIsApplied() throws {
+        let dir = try folder(), base = ledger()
+        let store = InboxApplyingStore(primary: SQLiteLedgerStore(url: dir.appendingPathComponent("ledger.sqlite")), folder: dir)
+        try store.save(base)
+        var removed = base
+        try removed.removeTransactions([base.transactions[0].id], author: "旧手机")
+        let delete = try XCTUnwrap(removed.syncNote(since: base, device: "旧手机"))
+        try writeLegacyNote(delete, folder: dir)
+        let saved = try store.load()
+        XCTAssertTrue(saved.transactions.isEmpty)
+        XCTAssertNil(saved.pendingPhoneDeletes)
+        XCTAssertTrue(saved.changes.allSatisfy { $0.syncConflicts == nil })
+        XCTAssertEqual(try SyncNotes.archivedIDs(in: dir), [delete.id])
     }
 
     func testMovedMarkerPlaceholderRejectsPhoneAndAttachments() throws {

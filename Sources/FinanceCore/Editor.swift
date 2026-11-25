@@ -519,6 +519,7 @@ extension Ledger {
             // 删掉的流水：放回来（借款、分期、目标里的引用不自动恢复，改动记录里写明了）。
             let existing = Set(transactions.map(\.id))
             transactions += previous.filter { !existing.contains($0.id) }
+            clearPhoneDeletes(previous.map(\.id))
         } else if let previous = change.previous {
             // 改过的流水：换回原样。
             for k in transactions.indices { if let row = reversals[transactions[k].id] { transactions[k] = row } }
