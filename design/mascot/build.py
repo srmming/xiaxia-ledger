@@ -12,7 +12,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 OUT = os.path.join(ROOT, "Sources/LedgerUI/Resources/Mascot")
 SIZE = 640
 # 自动找脸找错时手动指定（比如庆祝图里粉色存钱罐会被当成脸）
-OVERRIDES = {"xiaxia-celebrate": (0.455, 0.37, 0.4)}
+OVERRIDES = {"xiaxia-celebrate": (0.455, 0.37, 0.4),
+             "xiaxia-biz-boy-hello": (0.48, 0.185, 0.21)}  # 挥手的手被当成脸
 
 def face(im, full_body=False):
     """脸在图里的位置：亮肤色像素最集中的地方。返回 (中心 x, 中心 y, 边长)，都按图宽归一化。

@@ -14,12 +14,13 @@ final class MascotImagesTests: XCTestCase {
         XCTAssertEqual(MascotImages.key(.xiaxia, .write), "xiaxia-write")
     }
 
-    /// 缺图时一级一级退：男生生意版还没画，男生在生意那边先用男生的生活版。
+    /// 缺图时一级一级退：生意男生版 → 男生生活版 → 生意女生版 → 生活女生版。
     func testFallbackOrder() {
         XCTAssertEqual(MascotImages.candidates("xiaxia", .boy, business: true), ["xiaxia-biz-boy", "xiaxia-boy", "xiaxia-biz", "xiaxia"])
         XCTAssertEqual(MascotImages.candidates("xiaxia", .girl, business: true), ["xiaxia-biz", "xiaxia"])
         XCTAssertEqual(MascotImages.candidates("xiaxia", .boy, business: false), ["xiaxia-boy", "xiaxia"])
-        XCTAssertEqual(MascotImages.prefix(.xiaxia, .boy, business: true), "xiaxia-boy")
+        XCTAssertEqual(MascotImages.prefix(.xiaxia, .boy, business: true), "xiaxia-biz-boy")
+        XCTAssertEqual(MascotImages.key(.xiaxia, .worried, look: .boy, business: true), "xiaxia-biz-boy-worried")
     }
 
     /// 生意版没有的动作退回生意版的待机图，不混进生活版的画风。
