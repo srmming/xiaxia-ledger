@@ -101,8 +101,9 @@ struct PersonaPicker: View {
         VStack(spacing: 8) {
             // 夏夏用女孩版还是男孩版（挑样子的界面做好前只有这两个；男孩版的图到了才显示这个开关）
             if MascotLook.boyAvailable {
-                Picker(tr("形象"), selection: $lookRaw.animation(.spring(duration: 0.45, bounce: 0.3))) {
-                    ForEach(MascotLook.kidChoices) { Text($0.label).tag($0.rawValue) }
+                Picker(tr("形象"), selection: Binding(get: { MascotLook.stored(lookRaw) },
+                                                    set: { MascotLook.choose($0) }).animation(.spring(duration: 0.45, bounce: 0.3))) {
+                    ForEach(MascotLook.kidChoices) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel(tr("夏夏的样子"))

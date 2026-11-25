@@ -1609,5 +1609,7 @@ extension L10n {
         "西高地白㹴": "Westie",
         "水豚": "Capybara",
         "正在用 %@ 查账": "Checking the books with %@",
+        "摸摸夏夏": "Pet Xiaxia",
+        "夏夏会回应你一下": "Xiaxia will react",
     ]
 }

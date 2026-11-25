@@ -100,6 +100,18 @@ enum MascotLook: String, CaseIterable, Identifiable {
         return look
     }
 
+    /// 用户自己挑过样子没有：挑样子的地方会记 `chosenKey`；老版本没有这个记号，但只要存过样子（设置里点过女生 / 男生）
+    /// 也算挑过——没动过的人这个键根本不存在。
+    static func userChose(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: chosenKey) || defaults.object(forKey: storageKey) != nil
+    }
+
+    /// 用户在挑样子的地方选了一个：存下来，并记「自己挑过」。
+    static func choose(_ look: MascotLook, _ defaults: UserDefaults = .standard) {
+        defaults.set(look.rawValue, forKey: storageKey)
+        defaults.set(true, forKey: chosenKey)
+    }
+
     /// 开生意模式时推荐的样子：没自己挑过的女孩 / 男孩换成同性别的成年版；挑过的、宠物、已经是成年版的不动。
     static func businessSuggestion(current: MascotLook, chosen: Bool) -> MascotLook? {
         guard !chosen else { return nil }
@@ -116,7 +128,7 @@ enum MascotLook: String, CaseIterable, Identifiable {
     @discardableResult
     static func applyBusinessDefault(_ defaults: UserDefaults = .standard) -> MascotLook? {
         let current = stored(defaults.string(forKey: storageKey) ?? MascotLook.girl.rawValue)
-        guard let target = businessSuggestion(current: current, chosen: defaults.bool(forKey: chosenKey)) else { return nil }
+        guard let target = businessSuggestion(current: current, chosen: userChose(defaults)) else { return nil }
         defaults.set(target.rawValue, forKey: storageKey)
         return current
     }
@@ -259,8 +271,8 @@ struct MascotView: View {
         .id("\(prefix)-\(shownPose.rawValue)-\(face)")
         .transition(.asymmetric(insertion: .scale(scale: 0.85).combined(with: .opacity), removal: .opacity))
         .contentShape(Rectangle())
+        // 互动的夏夏是一个按钮（读屏和键盘也能「摸摸夏夏」）；别的地方只是装饰，读屏跳过。
         .modifier(MascotInteraction(mood: mood, look: look))
-        .accessibilityHidden(true)
     }
 
     // MARK: 用哪一帧
@@ -373,14 +385,16 @@ private struct MascotInteraction: ViewModifier {
 
     func body(content: Content) -> some View {
         if let mood {
-            content
-                .onTapGesture { withAnimation(.spring(duration: 0.35, bounce: 0.4)) { mood.poke() } }
+            Button { withAnimation(.spring(duration: 0.35, bounce: 0.4)) { mood.poke() } } label: { content }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tr("摸摸夏夏"))
+                .accessibilityHint(tr("夏夏会回应你一下"))
                 #if os(macOS)
                 .onHover { inside in if inside { mood.wake() } }
                 #endif
                 .onAppear { mood.start() }
         } else {
-            content
+            content.accessibilityHidden(true)
         }
     }
 }

@@ -54,15 +54,34 @@ final class MascotLookTests: XCTestCase {
         XCTAssertNil(MascotLook.businessSuggestion(current: .cat, chosen: false))
     }
 
-    func testApplyBusinessDefaultReturnsPreviousForUndo() throws {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "MascotLookTests-\(UUID().uuidString)"))
+    private func freshDefaults() throws -> UserDefaults {
+        try XCTUnwrap(UserDefaults(suiteName: "MascotLookTests-\(UUID().uuidString)"))
+    }
+
+    /// 从没挑过样子的人（设置里没有这个键）：开生意模式换成成年女，返回原来的给「换回来」；再开一次不再换。
+    func testApplyBusinessDefaultOnlyForUntouchedUsers() throws {
+        let defaults = try freshDefaults()
+        XCTAssertFalse(MascotLook.userChose(defaults))
+        XCTAssertEqual(MascotLook.applyBusinessDefault(defaults), .girl, "返回换之前的，给「换回来」用")
+        XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "woman")
+        XCTAssertNil(MascotLook.applyBusinessDefault(defaults), "已经换过，再开一次不动")
+    }
+
+    /// 审查复现：老用户在设置里选过「男生」（老版本只存样子、没有「挑过」记号），开生意模式不能被换掉。
+    func testOldUserWhoPickedBoyIsKept() throws {
+        let defaults = try freshDefaults()
         defaults.set("boy", forKey: MascotLook.storageKey)
-        XCTAssertEqual(MascotLook.applyBusinessDefault(defaults), .boy, "返回换之前的，给「换回来」用")
-        XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "man")
-        XCTAssertNil(MascotLook.applyBusinessDefault(defaults), "已经是成年版，再开一次不动")
-        defaults.set("girl", forKey: MascotLook.storageKey)
-        defaults.set(true, forKey: MascotLook.chosenKey)
-        XCTAssertNil(MascotLook.applyBusinessDefault(defaults), "自己挑过的不动")
+        XCTAssertTrue(MascotLook.userChose(defaults))
+        XCTAssertNil(MascotLook.applyBusinessDefault(defaults))
+        XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "boy")
+    }
+
+    /// 设置和引导里挑样子走 choose：存样子、记「挑过」；挑的就是女孩也不再自动换。
+    func testChooseRecordsChoice() throws {
+        let defaults = try freshDefaults()
+        MascotLook.choose(.girl, defaults)
+        XCTAssertTrue(defaults.bool(forKey: MascotLook.chosenKey))
+        XCTAssertNil(MascotLook.applyBusinessDefault(defaults))
         XCTAssertEqual(defaults.string(forKey: MascotLook.storageKey), "girl")
     }
 
