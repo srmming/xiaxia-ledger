@@ -69,13 +69,13 @@ private extension ChangeRecord {
 
 extension Ledger {
     /// 先在副本试合并，找出失败的流水和引用它们的计划。无关的行仍可正常接收。
-    func linkedConflicts(in note: SyncNote) -> (blocked: Set<SyncRowKey>, conflicts: [SyncConflict]) {
+    func linkedConflicts(in note: SyncNote, ignoring skipped: Set<SyncRowKey> = []) -> (blocked: Set<SyncRowKey>, conflicts: [SyncConflict]) {
         let planTables = ["debts", "installments", "goals"]
         guard note.debts != nil || note.installments != nil || note.goals != nil ||
                 (planTables + ["transactions"]).contains(where: { !(note.deletes?[$0] ?? []).isEmpty }) else { return ([], []) }
 
         var tx = transactions, d = debts, ins = installments, g = goals
-        var trial = NoteMerger(note: note)
+        var trial = NoteMerger(note: note, skipped: skipped)
         trial.rows(&tx, note.transactions, "transactions", key: \.id, name: \.uuidString)
         trial.rows(&d, note.debts, "debts", key: \.id, name: \.uuidString)
         trial.rows(&ins, note.installments, "installments", key: \.id, name: \.uuidString)
@@ -103,7 +103,7 @@ extension Ledger {
                 }
             }
         }
-        let seeds = graph.problems.union(trial.conflicts.map { SyncRowKey($0.table, $0.rowID) })
+        let seeds = skipped.union(graph.problems).union(trial.conflicts.map { SyncRowKey($0.table, $0.rowID) })
         var visited = Set<SyncRowKey>(), blocked = Set<SyncRowKey>(), conflicts: [SyncConflict] = []
         for seed in seeds.sorted() where !visited.contains(seed) {
             var component = Set<SyncRowKey>(), queue = [seed]

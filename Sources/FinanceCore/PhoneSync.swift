@@ -187,8 +187,31 @@ extension Ledger {
     @discardableResult
     public mutating func apply(_ note: SyncNote) -> Bool {
         guard !appliedNotes.contains(note.id) else { return false }
-        let groups = linkedConflicts(in: note)
-        var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked)
+        var awaiting = Set(pendingPhoneDeletes ?? [])
+        let suppressed = awaiting.intersection((note.transactions ?? []).map(\.id))
+        let skipped = Set(suppressed.map { SyncRowKey("transactions", $0.uuidString) })
+        let groups = linkedConflicts(in: note, ignoring: skipped)
+        var merger = NoteMerger(note: note, conflicts: groups.conflicts, skipped: groups.blocked.union(skipped))
+        for id in suppressed { merger.skipped.insert(.init("paperwork", id.uuidString)) }
+        for change in note.changes ?? [] where !suppressed.isDisjoint(with: change.transactionIDs) {
+            merger.skipped.insert(.init("changes", change.id.uuidString))
+        }
+        // 已有行的删除仍须比较旧值；关联计划被拒时也不能偷偷保留删除意图。
+        let absentDeletes = (note.deletes?["transactions"] ?? []).compactMap(UUID.init(uuidString:)).filter { id in
+            !transactions.contains { $0.id == id } && !groups.blocked.contains(.init("transactions", id.uuidString))
+        }
+        awaiting.formUnion(absentDeletes)
+        let lateAdds = suppressed.filter { note.originalRows?["transactions"]?[$0.uuidString] == nil }
+        if !lateAdds.isEmpty {
+            awaiting.subtract(lateAdds)
+            let bytes = Array(SHA256.hash(data: Data(("late-deleted:" + note.id).utf8)).prefix(16))
+            let id = bytes.withUnsafeBytes { UUID(uuid: $0.loadUnaligned(as: uuid_t.self)) }
+            changes.append(ChangeRecord(id: id, kind: .edit, summary: "手机已删除这笔流水，晚到的入账没有重复记入",
+                                        transactionIDs: [], author: note.device, createdAt: note.createdAt))
+        }
+        if !absentDeletes.isEmpty || !lateAdds.isEmpty {
+            pendingPhoneDeletes = awaiting.isEmpty ? nil : awaiting.sorted()
+        }
         merger.rows(&books, note.books, "books", key: \.id, name: { $0 })
         merger.rows(&accounts, note.accounts, "accounts", key: \.id, name: { $0 })
         merger.rows(&transactions, note.transactions, "transactions", key: \.id, name: \.uuidString)

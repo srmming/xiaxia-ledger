@@ -85,6 +85,9 @@ public struct SQLiteLedgerStore: LedgerStore {
         ledger.captures = try rows("captures", Capture.self)
         ledger.paperwork = try rows("paperwork", Paperwork.self)
         guard existing.contains("meta") else { return ledger }
+        if let v = try db.query("SELECT value FROM meta WHERE key = 'pendingPhoneDeletes'").first {
+            ledger.pendingPhoneDeletes = try dec.decode([UUID].self, from: Data(v.utf8))
+        }
         if let v = try db.query("SELECT value FROM meta WHERE key = 'appliedNotes'").first {
             ledger.appliedNotes = (try? dec.decode([String].self, from: Data(v.utf8))) ?? []
         }
@@ -209,6 +212,9 @@ public struct SQLiteLedgerStore: LedgerStore {
                 try db.run("INSERT INTO paperwork (id, seq, reimburse, files, json) VALUES (?, ?, ?, ?, ?)",
                            [x.id.uuidString, i, x.reimburse.rawValue, x.attachments.count, js(x)])
             }
+            if let deletes = ledger.pendingPhoneDeletes {
+                try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('pendingPhoneDeletes', ?)", [js(deletes)])
+            } else { try db.exec("DELETE FROM meta WHERE key='pendingPhoneDeletes'") }
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('appliedNotes', ?)", [js(ledger.appliedNotes)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('schemaVersion', ?)", [String(ledger.schemaVersion)])
             try db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('lastStatementDate', ?)", [js(ledger.lastStatementDate)])

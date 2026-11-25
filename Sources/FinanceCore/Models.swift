@@ -306,6 +306,8 @@ public struct Ledger: Codable, Sendable, Equatable {
     public var paperwork: [Paperwork] = [] { willSet { detachRevision() } }
     /// 已经收进账本的手机小纸条（见 PhoneSync.swift），免得收两次。
     public var appliedNotes: [String] = [] { willSet { detachRevision() } }
+    /// 删除先到、对应新增尚未收到的流水。与已收编号在同一事务保存。
+    var pendingPhoneDeletes: [UUID]? { willSet { detachRevision() } }
     /// 上次导入/对账截止到哪天，按账户记。
     public var lastStatementDate: [String: LocalDate] = [:] { willSet { detachRevision() } }
 
@@ -319,7 +321,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         case schemaVersion, books, accounts, transactions, changes, lastStatementDate, debts, installments, goals, insights, profile, recurring
         case currency, subscriptions
         case memories
-        case captures, paperwork, appliedNotes
+        case captures, paperwork, appliedNotes, pendingPhoneDeletes
     }
 
     /// 字段缺了就用默认值，旧版本的账本文件也能读。
@@ -345,6 +347,7 @@ public struct Ledger: Codable, Sendable, Equatable {
         memories = try c.decodeIfPresent([Memory].self, forKey: .memories) ?? []
         captures = try c.decodeIfPresent([Capture].self, forKey: .captures) ?? []
         paperwork = try c.decodeIfPresent([Paperwork].self, forKey: .paperwork) ?? []
+        pendingPhoneDeletes = try c.decodeIfPresent([UUID].self, forKey: .pendingPhoneDeletes)
         appliedNotes = try c.decodeIfPresent([String].self, forKey: .appliedNotes) ?? []
     }
 

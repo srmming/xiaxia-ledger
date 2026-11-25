@@ -373,6 +373,68 @@ extension StaleOverwriteTests {
         XCTAssertEqual(repaired.appliedNotes, queue.ids)
     }
 
+    // 模拟前两张纸条连 iCloud 占位文件都还没出现，只有最后一张删除先到。
+    private func holdReceiptAndBooking(in old: URL) throws -> [URL] {
+        let offline = try folder()
+        let files = SyncNotes.files(in: SyncNotes.inbox(old))
+        XCTAssertEqual(files.count, 3)
+        return try files.dropLast().map { source in
+            let held = offline.appendingPathComponent(source.lastPathComponent)
+            try FileManager.default.moveItem(at: source, to: held)
+            return held
+        }
+    }
+
+    func testDeleteArrivesBeforeUnseenBookingAndPhotoSuppressesBookingOnce() throws {
+        let queue = try migratedReceiptQueue()
+        let held = try holdReceiptAndBooking(in: queue.old)
+        let first = try queue.store.load()
+        XCTAssertEqual(first.appliedNotes, [queue.ids[2]])
+        XCTAssertEqual(first.pendingPhoneDeletes?.count, 1)
+
+        let reopened = InboxApplyingStore(primary: queue.store.primary, folder: queue.new, relocatedFrom: queue.old)
+        for file in held {
+            try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
+        }
+        XCTAssertEqual(try reopened.load().appliedNotes, first.appliedNotes)
+        let assets = queue.old.appendingPathComponent(LedgerFiles.attachmentsFolderName)
+        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
+        try Data("模拟迟到照片".utf8).write(to: assets.appendingPathComponent("receipt.jpg"))
+        for attempt in 0..<2 {
+            if attempt == 1 {
+                for file in held {
+                    try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
+                }
+            }
+            let result = try reopened.load()
+            XCTAssertTrue(result.transactions.isEmpty)
+            XCTAssertTrue(result.paperwork.isEmpty)
+            XCTAssertNil(result.pendingPhoneDeletes)
+            XCTAssertEqual(result.appliedNotes, [queue.ids[2], queue.ids[0], queue.ids[1]])
+            XCTAssertEqual(result.changes.filter { $0.summary.contains("晚到的入账") }.count, 1)
+        }
+    }
+
+    func testUnmatchedDeleteAllowsLaterBookingsEvenAfter72Hours() throws {
+        var now = Date()
+        let queue = try migratedReceiptQueue(now: { now })
+        _ = try holdReceiptAndBooking(in: queue.old)
+        let tombstones = try XCTUnwrap(queue.store.load().pendingPhoneDeletes)
+        for days in [0, 31] {
+            now.addTimeInterval(Double(days) * 86400)
+            var next = SyncNote(id: "later-\(days)", device: "手机", createdAt: now, summary: "无关流水")
+            next.transactions = [row("之后的另一笔")]
+            let simulated = try folder()
+            try SyncNotes.write(next, ledgerFolder: simulated)
+            let file = try XCTUnwrap(SyncNotes.files(in: SyncNotes.inbox(simulated)).first)
+            try FileManager.default.copyItem(at: file, to: SyncNotes.inbox(queue.old).appendingPathComponent(file.lastPathComponent))
+            let result = try queue.store.load()
+            XCTAssertTrue(result.transactions.contains(try XCTUnwrap(next.transactions?.first)))
+            XCTAssertEqual(result.pendingPhoneDeletes, tombstones)
+            XCTAssertEqual(SyncNotes.pendingCount(ledgerFolder: queue.old), 0)
+        }
+    }
+
     func testMovedMarkerPlaceholderRejectsPhoneAndAttachments() throws {
         let root = try folder(), old = root.appendingPathComponent("旧位置")
         try SQLiteLedgerStore(url: old.appendingPathComponent("ledger.sqlite")).save(.fresh)

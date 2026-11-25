@@ -74,6 +74,7 @@ extension Ledger {
             fresh.currency = currency
             // 收过的手机纸条编号留着，免得清空后把「已收」里的旧纸条又收回来。
             fresh.appliedNotes = appliedNotes
+            fresh.pendingPhoneDeletes = pendingPhoneDeletes
             let change = ChangeRecord(kind: .delete, summary: "清空了全部数据（\(count.text)）\(tail)", transactionIDs: [],
                                       author: author, createdAt: now)
             fresh.changes = [change]
@@ -193,6 +194,8 @@ public enum LedgerBackup {
         var seen = Set(restored.appliedNotes)
         let archived = try target.revision.ledgerFolder.map(SyncNotes.archivedIDs(in:)) ?? []
         restored.appliedNotes += (target.appliedNotes + archived).filter { seen.insert($0).inserted }
+        let deletes = Set(target.pendingPhoneDeletes ?? []).union(restored.pendingPhoneDeletes ?? [])
+        restored.pendingPhoneDeletes = deletes.isEmpty ? nil : deletes.sorted()
         return restored.replacingContents(of: target)
     }
 
