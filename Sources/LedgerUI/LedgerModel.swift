@@ -79,7 +79,22 @@ public final class LedgerModel {
     @ObservationIgnored var authorCache: (count: Int, map: [UUID: String])?
 
     /// 现在在哪一页、弹着哪个窗口。
-    public var section: AppSection? = .overview { didSet { publishView() } }
+    public var section: AppSection? = .overview {
+        didSet {
+            publishView()
+            // 记下从哪页来的，工具栏左上角「返回」用（ming 2026-11-25：页面要能返回）。
+            if goingBack { goingBack = false } else if let old = oldValue, old != section { backStack.append(old); if backStack.count > 30 { backStack.removeFirst() } }
+        }
+    }
+    /// 去过的页（最近的在最后）。
+    public var backStack: [AppSection] = []
+    private var goingBack = false
+    /// 回到上一页。
+    public func goBack() {
+        guard let last = backStack.popLast() else { return }
+        goingBack = true
+        section = last
+    }
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?

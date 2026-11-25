@@ -60,7 +60,7 @@ struct TransactionActions: View {
                             }
                         } label: { Label(tr("设成重复"), systemImage: "repeat") }
                     }
-                } label: { Label(tr("更多"), systemImage: "ellipsis.circle").frame(maxWidth: .infinity) }
+                } label: { Label(tr("复制、拆开…"), systemImage: "ellipsis.circle").frame(maxWidth: .infinity) }
                     .menuStyle(.button).buttonStyle(.soft).menuIndicator(.hidden)
                     .accessibilityIdentifier("tx-more")
             }

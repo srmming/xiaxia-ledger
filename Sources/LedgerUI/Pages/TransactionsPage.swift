@@ -370,6 +370,7 @@ struct TransactionDetail: View {
     let tx: Transaction
 
     private let editable = true
+    @State private var showMore = false
 
     /// 外币流水换成主币种：「≈ 18,40 € · 按 11 月 2 日欧洲央行汇率」。
     private func fxLine(_ code: String) -> String {
@@ -437,10 +438,6 @@ struct TransactionDetail: View {
                         Text(fxLine(code)).monospacedDigit().multilineTextAlignment(.trailing)
                     }
                 }
-                if Merchant.display(tx.description) != tx.description {
-                    Divider()
-                    row(tr("银行原文")) { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
-                }
                 if let note = tx.note {
                     Divider()
                     row(tr("备注")) { Text(note).multilineTextAlignment(.trailing).textSelection(.enabled) }
@@ -459,41 +456,55 @@ struct TransactionDetail: View {
                         }
                     }
                 }
-                if let r = model.ledger.recurring.first(where: { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }) {
-                    Divider()
-                    row(tr("重复")) { Text(r.paused ? tr("\(r.frequency.label)（暂停中）") : tr("\(r.frequency.label)，下次 \(r.nextDate.friendly)")) }
-                }
-                if let source = tx.source {
-                    Divider()
-                    row(tr("来源")) { Text(source).lineLimit(1) }
-                }
             }
             .font(.callout)
-            if let change {
-                HStack(spacing: 6) {
-                    Image(systemName: model.isMe(change.author) ? "person.fill" : "sparkles")
-                        .foregroundStyle(model.isMe(change.author) ? Color.fg2 : Color.ai)
-                    Text("\(model.isMe(change.author) ? tr("你") : change.author) \(change.createdAt.friendly)：\(change.summary)")
-                        .lineLimit(2)
-                }
-                .font(.caption)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(model.isMe(change.author) ? Color.sunken : Color.aiSoft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-            HStack {
-                if let change, change.canUndo {
-                    Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? tr("撤销这次改动（\(change.transactionIDs.count) 笔）") : tr("撤销这次改动"), systemImage: "arrow.uturn.backward") }
-                        .buttonStyle(.soft)
-                }
-                Spacer()
-                #if os(macOS)
-                Button { model.askAbout(tx) } label: { Label(tr("问夏夏"), systemImage: "sparkles") }
-                    .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
-                #endif
-            }
-            PaperworkSection(tx: tx)
+            // 常用的（改、删）在前；小票、来源、撤销、问夏夏收进「更多」，详情不挤（ming 2026-11-25）。
             TransactionActions(tx: tx)
+            DisclosureGroup(isExpanded: $showMore) {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(spacing: 0) {
+                        if Merchant.display(tx.description) != tx.description {
+                            row(tr("银行原文")) { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
+                            Divider()
+                        }
+                        if let r = model.ledger.recurring.first(where: { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }) {
+                            row(tr("重复")) { Text(r.paused ? tr("\(r.frequency.label)（暂停中）") : tr("\(r.frequency.label)，下次 \(r.nextDate.friendly)")) }
+                            Divider()
+                        }
+                        if let source = tx.source {
+                            row(tr("来源")) { Text(source).lineLimit(1) }
+                        }
+                    }
+                    .font(.callout)
+                    if let change {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.isMe(change.author) ? "person.fill" : "sparkles")
+                                .foregroundStyle(model.isMe(change.author) ? Color.fg2 : Color.ai)
+                            Text("\(model.isMe(change.author) ? tr("你") : change.author) \(change.createdAt.friendly)：\(change.summary)")
+                                .lineLimit(2)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(Color.fg2)
+                    }
+                    HStack {
+                        if let change, change.canUndo {
+                            Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? tr("撤销这次改动（\(change.transactionIDs.count) 笔）") : tr("撤销这次改动"), systemImage: "arrow.uturn.backward") }
+                                .buttonStyle(.soft)
+                        }
+                        Spacer()
+                        #if os(macOS)
+                        Button { model.askAbout(tx) } label: { Label(tr("问夏夏"), systemImage: "sparkles") }
+                            .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
+                        #endif
+                    }
+                    // 生意那边不做报销（ming 2026-11-25）。
+                    PaperworkSection(tx: tx, showReimburse: model.ledger.side(of: tx) != .business || !model.businessOn)
+                }
+                .padding(.top, 8)
+            } label: {
+                Text(tr("更多")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+            }
+            .accessibilityIdentifier("tx-detail-more")
         }
         .kitCard()
     }

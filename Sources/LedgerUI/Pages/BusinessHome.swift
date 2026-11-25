@@ -87,12 +87,21 @@ struct BusinessHome: View {
                 Text(tr("关店后记一下今天收了多少：现金、刷卡各填一个数。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             }
-            Button { model.sheet = .daily } label: {
-                Label(done ? tr("又收了一些") : tr("记今天的账"), systemImage: done ? "plus" : "square.and.pencil")
-                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 4)
+            HStack(spacing: 8) {
+                Button { model.sheet = .daily } label: {
+                    Label(done ? tr("又收了一些") : tr("记今天的账"), systemImage: done ? "plus" : "square.and.pencil")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                .accessibilityIdentifier("business.daily")
+                // 店里花了钱（进货、修东西）：直接开记一笔，已经选好生意账本、是支出。
+                Button { model.addWith(AddPreset(income: false, category: nil, bookID: model.ledger.businessBook?.id)) } label: {
+                    Label(tr("记开销"), systemImage: "minus.circle")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered).tint(Color.shop).controlSize(.large)
+                .accessibilityIdentifier("business.expense")
             }
-            .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
-            .accessibilityIdentifier("business.daily")
         }
         .kitCard()
     }

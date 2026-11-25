@@ -566,6 +566,8 @@ struct AttachmentThumb: View {
 struct PaperworkSection: View {
     @Environment(LedgerModel.self) var model
     let tx: FinanceCore.Transaction
+    /// 生意那边不放「报销」。
+    var showReimburse = true
     @State private var preview: URL?
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var importKind: Attachment.Kind?
@@ -608,7 +610,7 @@ struct PaperworkSection: View {
                     }
                 }
             }
-            VStack(alignment: .leading, spacing: 8) {
+            if showReimburse { VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(tr("报销")).font(.subheadline.weight(.semibold))
                     Spacer()
@@ -630,7 +632,7 @@ struct PaperworkSection: View {
                         Text(tr("还没挂发票：补上再交会顺利一点。")).font(.caption).foregroundStyle(Color.warn)
                     }
                 }
-            }
+            } }
         }
         .font(.callout)
         .onAppear { to = p?.reimburseTo ?? "" }

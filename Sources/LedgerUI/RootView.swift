@@ -56,9 +56,10 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
 
     /// Mac 侧栏「看」：订阅、欠款与分期各自单独一页，「计划」只放存钱目标、改叫「目标」（ming 2026-11-23）。
     /// iPhone 底栏放不下，订阅、欠款还在「计划」那个标签里分格看。
-    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans, .subscriptions, .debts, .reimburse]
+    /// 流水也放进「看」，就在总览下面（ming 2026-11-25）。
+    static let look: [AppSection] = [.overview, .transactions, .spending, .trends, .wealth, .plans, .subscriptions, .debts, .reimburse]
     /// 生意那边的侧栏：没有目标、订阅、报销，多一个固定开销（ming 2026-11-25：生活和生意完全分开）。
-    static let businessLook: [AppSection] = [.overview, .spending, .trends, .wealth, .fixed, .debts]
+    static let businessLook: [AppSection] = [.overview, .transactions, .spending, .trends, .wealth, .fixed, .debts]
     static let ai: [AppSection] = [.insights, .changes]
     static let records: [AppSection] = [.transactions]
 }
@@ -252,7 +253,6 @@ struct MacRoot: View {
             List(selection: $model.section) {
                 Section(tr("看")) { ForEach(model.side == .business ? AppSection.businessLook : AppSection.look) { row($0) } }
                 Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
-                Section(tr("记录")) { ForEach(AppSection.records) { row($0) } }
                 Section { row(.settings) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
@@ -337,6 +337,11 @@ struct MacToolbar: ToolbarContent {
     var body: some ToolbarContent {
         // 月份和账本放左边，「记一笔」「问 AI」单独一组放最右：窗口窄的时候先收起的是左边，记一笔一直看得见。
         ToolbarItemGroup(placement: .navigation) {
+            Button { withAnimation(.snappy) { model.goBack() } } label: { Image(systemName: "chevron.backward") }
+                .disabled(model.backStack.isEmpty)
+                .keyboardShortcut("[", modifiers: .command)
+                .help(tr("返回上一页（⌘[）"))
+                .accessibilityLabel(tr("返回"))
             if section.usesMonth {
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
                              latest: LocalDate.today.yearMonth, recorded: model.recordedMonths)
