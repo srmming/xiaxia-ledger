@@ -895,12 +895,20 @@ struct PhoneSyncSettings: View {
     @State private var picking = false
     @State private var message: String?
 
+    /// 正在用 app 自己的 iCloud 容器自动同步：不出「选文件夹」「断开」。
+    private var isAutoSynced: Bool { (model.store as? PhoneSyncStore).map { LedgerStores.isAppContainer($0.folder) } ?? false }
+
     var body: some View {
         Form {
             Section {
                 if let s = model.store as? PhoneSyncStore {
                     Label(tr("已经和电脑同步"), systemImage: "checkmark.icloud.fill").foregroundStyle(Color.income)
-                    LabeledContent(tr("文件夹"), value: "iCloud 云盘 › \(s.folder.lastPathComponent)")
+                    if LedgerStores.isAppContainer(s.folder) {
+                        // 带 iCloud 权限的版本：自动用 app 自己的 iCloud 位置，不用选文件夹。
+                        LabeledContent(tr("方式"), value: tr("iCloud 自动同步"))
+                    } else {
+                        LabeledContent(tr("文件夹"), value: "iCloud 云盘 › \(s.folder.lastPathComponent)")
+                    }
                     LabeledContent(tr("还没被电脑收走的改动"), value: "\(s.waitingNotes)")
                     if s.noLedgerYet {
                         Text(tr("这个文件夹里还没有账本。先在电脑上打开一次夏夏账本，或者换一个文件夹。")).foregroundStyle(Color.warn)
@@ -913,7 +921,7 @@ struct PhoneSyncSettings: View {
             } footer: {
                 Text(tr("手机上记的东西先存成一张张小纸条，放在同一个文件夹里；电脑上的夏夏账本一打开就收进账本。两边同时记也不会互相覆盖。"))
             }
-            Section {
+            if !isAutoSynced { Section {
                 Button { picking = true } label: {
                     Label(model.isPhoneLinked ? tr("换一个文件夹") : tr("选择 iCloud 云盘里的「夏夏账本」文件夹"), systemImage: "folder.badge.plus")
                 }
@@ -927,7 +935,7 @@ struct PhoneSyncSettings: View {
                 }
             } footer: {
                 Text(tr("怎么选：点上面的按钮 → 左上角「浏览」→ iCloud 云盘 → 点一下「夏夏账本」文件夹 → 右上角「打开」。"))
-            }
+            } }
             if let message { Section { Text(message) } }
         }
         .navigationTitle(tr("和电脑同步"))

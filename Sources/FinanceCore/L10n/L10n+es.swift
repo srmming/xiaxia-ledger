@@ -1611,5 +1611,7 @@ extension L10n {
         "正在用 %@ 查账": "Revisando las cuentas con %@",
         "摸摸夏夏": "Acariciar a Xiaxia",
         "夏夏会回应你一下": "Xiaxia te responderá",
+        "方式": "Modo",
+        "iCloud 自动同步": "Sincronización automática de iCloud",
     ]
 }

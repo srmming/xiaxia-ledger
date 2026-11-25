@@ -260,8 +260,13 @@ public enum LedgerStores {
     public static func appStore() -> any LedgerStore {
         if ProcessInfo.processInfo.environment["XIAXIA_LEDGER_PATH"]?.isEmpty == false { return defaultStore() }
         #if os(iOS)
-        // iPhone 选过 iCloud 云盘里的「夏夏账本」文件夹：和 Mac 看同一本账，手机上的改动写成小纸条（见 PhoneSync.swift）。
+        // 带 iCloud 权限的 iPhone 版：app 自己的 iCloud 容器里有电脑放的账本，就自动和电脑同步，不用选文件夹（ming 2026-11-25）。
+        // 手机照样不直接写账本，改动写成小纸条放在容器里，由电脑收进账本（见 PhoneSync.swift）。
+        if let docs = iCloudContainerWithLedger() { return phoneStore(docs) }
+        // 老办法：选过 iCloud 云盘里的「夏夏账本」文件夹（电脑还是不带 iCloud 权限的旧版时）。
         if let folder = PhoneFolderLink.resolve() { return phoneStore(folder) }
+        // 容器里还没有账本（电脑还没开过新版）：先用手机本机的账本，别在容器里另起一本和电脑打架。
+        if ubiquityDocuments() != nil { return defaultStore() }
         #endif
         if hasICloudEntitlement, let docs = ubiquityDocuments() {
             try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
@@ -290,6 +295,28 @@ public enum LedgerStores {
         }
         return defaultStore()
     }
+
+    /// 这个文件夹是不是 app 自己的 iCloud 容器（…/iCloud~com~srmming~xiaxia-ledger/Documents）。
+    public static func isAppContainer(_ url: URL) -> Bool {
+        url.standardizedFileURL.path.contains("/" + containerID.replacingOccurrences(of: ".", with: "~") + "/")
+    }
+
+    #if os(iOS)
+    /// iPhone：app 的 iCloud 容器里已经有账本（或者它的 iCloud 占位文件）就返回容器文件夹；
+    /// 只有占位文件时请系统下载（不等它，PhoneSyncStore 会先显示上次的副本）。没权限、没开 iCloud、没账本都返回 nil。
+    public static func iCloudContainerWithLedger() -> URL? {
+        guard let docs = ubiquityDocuments() else { return nil }
+        let fm = FileManager.default
+        let file = docs.appendingPathComponent("ledger.sqlite")
+        let placeholder = docs.appendingPathComponent(".ledger.sqlite.icloud")
+        if fm.fileExists(atPath: file.path) { return docs }
+        if fm.fileExists(atPath: placeholder.path) {
+            try? fm.startDownloadingUbiquitousItem(at: file)
+            return docs
+        }
+        return nil
+    }
+    #endif
 
     /// iPhone 接 iCloud 文件夹用的账本；本地副本放在 Application Support。
     public static func phoneStore(_ folder: URL) -> PhoneSyncStore {
