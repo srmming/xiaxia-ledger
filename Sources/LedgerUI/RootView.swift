@@ -61,6 +61,30 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     /// 生意那边的侧栏：没有目标、订阅、报销，多一个固定开销（ming 2026-11-25：生活和生意完全分开）。
     static let businessLook: [AppSection] = [.overview, .transactions, .spending, .trends, .wealth, .fixed, .debts]
     static let ai: [AppSection] = [.insights, .changes]
+
+    /// AI 写意见时带的 page（英文 id 或中文页名）→ 页面。
+    static func from(page: String?) -> AppSection? {
+        guard let page else { return nil }
+        let ids: [String: AppSection] = [
+            "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
+            "plans": .plans, "goals": .plans, "subscriptions": .subscriptions, "debts": .debts, "reimburse": .reimburse, "reimbursements": .reimburse,
+            "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes, "transactions": .transactions, "settings": .settings, "fixed": .fixed,
+        ]
+        return ids[page] ?? AppSection(rawValue: page)
+    }
+
+    /// 一条提醒该去哪一页：AI 写了 page 就去那页，没写就按标题里的字猜（订阅、欠款、目标、花销）。
+    static func forInsight(_ i: Insight) -> AppSection? {
+        if let s = from(page: i.page), s != .overview { return s }
+        let text = i.title + i.body
+        if text.contains("订阅") || text.contains("会员") { return .subscriptions }
+        if text.contains("分期") || text.contains("欠") || text.contains("借") || text.contains("还款") { return .debts }
+        if text.contains("目标") || text.contains("存钱") || text.contains("小猪") { return .plans }
+        if text.contains("报销") { return .reimburse }
+        if text.contains("信用卡") || text.contains("余额") || text.contains("家底") { return .wealth }
+        if text.contains("花") || text.contains("超支") || text.contains("分类") { return .spending }
+        return from(page: i.page)
+    }
     static let records: [AppSection] = [.transactions]
 }
 

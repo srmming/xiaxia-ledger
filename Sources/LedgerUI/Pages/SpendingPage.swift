@@ -196,13 +196,12 @@ struct SpendingPage: View {
                             HStack {
                                 Text(c.name).font(.callout)
                                 Spacer()
-                                Text("\(Int((Double(c.amount.cents) / Double(max(total.cents, 1)) * 100).rounded()))%")
-                                    .font(.caption).foregroundStyle(Color.fg2).monospacedDigit()
                             }
+                            // 默认只放图标、名字、金额、一根条；「比上月」的竖线和变化只在「按变化」那一档（审查 2026-11-26：太挤）。
                             Bar(fraction: Double(c.amount.cents) / maxAmount, color: CategoryStyle.color(c.name), height: 5)
                                 .overlay(alignment: .leading) {
                                     // 上个月（同期）花到哪：一根细竖线。
-                                    if let p = previous[c.name], p.cents > 0 {
+                                    if byChange, let p = previous[c.name], p.cents > 0 {
                                         GeometryReader { g in
                                             Capsule().fill(Color.primary.opacity(0.7)).frame(width: 2, height: 11)
                                                 .offset(x: min(g.size.width - 2, max(0, g.size.width * Double(p.cents) / maxAmount - 1)), y: -3)
@@ -212,7 +211,7 @@ struct SpendingPage: View {
                         }
                         VStack(alignment: .trailing, spacing: 1) {
                             Text(c.amount.ui).font(.kitAmount)
-                            change(c.amount, before: previous[c.name])
+                            if byChange { change(c.amount, before: previous[c.name]) }
                         }
                         .frame(minWidth: narrow ? 70 : 86, alignment: .trailing)
                     }
@@ -226,10 +225,11 @@ struct SpendingPage: View {
             let shownCount = min(rows.count, short ? 4 : 8)
             if rows.count > shownCount {
                 SectionLink(section: .transactions) {
-                    Text(tr("还有 \(rows.count - shownCount) 类，在流水里看 ›")).font(.caption).foregroundStyle(Color.brand)
+                    Text(tr("还有 \(rows.count - shownCount) 类，在流水里看 ›")).font(.caption).foregroundStyle(model.accent)
+                        .frame(minHeight: 24).contentShape(Rectangle())
                 }
             }
-            if !previous.isEmpty, !short {
+            if byChange, !previous.isEmpty, !short {
                 HStack(spacing: 6) {
                     Capsule().fill(Color.primary.opacity(0.7)).frame(width: 2, height: 11)
                     Text(sameDay.map { tr("竖线是\(month.previous.month) 月 1–\($0) 日花到哪；右边是比那时多了还是少了") }
@@ -268,6 +268,7 @@ struct SpendingPage: View {
 
 /// 每个分类上个月（灰）和这个月（橙）两根柱并排。最多 6 类，按这个月和上个月里大的那个排。
 struct CompareBars: View {
+    @Environment(LedgerModel.self) private var model
     let current: [(name: String, amount: Money)]
     let previous: [String: Money]
     let currentName: String
@@ -293,14 +294,15 @@ struct CompareBars: View {
         }
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 14) {
-                HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(Color.fg3.opacity(0.55)).frame(width: 10, height: 10); Text(previousName) }
-                HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(Color.brand).frame(width: 10, height: 10); Text(currentName) }
+                HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(Color.barExpense).frame(width: 10, height: 10); Text(previousName) }
+                HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(model.accent).frame(width: 10, height: 10); Text(currentName) }
             }
             .font(.caption).foregroundStyle(Color.fg2)
             Chart(bars) { b in
                 BarMark(x: .value(tr("分类"), b.category), y: .value(tr("金额"), b.value))
                     .position(by: .value(tr("月份"), b.period))
-                    .foregroundStyle(b.period == currentName ? Color.brand : Color.fg3.opacity(0.55))
+                    // 本月用这一边的颜色（生意青、生活橙）；上月用 barExpense，和卡片底色至少 3:1（审查实测原来 1.9:1）。
+                    .foregroundStyle(b.period == currentName ? model.accent : Color.barExpense)
                     .cornerRadius(4)
             }
             .chartLegend(.hidden)

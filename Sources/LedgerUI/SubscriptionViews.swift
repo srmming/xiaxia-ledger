@@ -177,7 +177,8 @@ struct SubscriptionsCard: View {
             SectionHeader(title: tr("订阅")) {
                 HStack(spacing: 10) {
                     if !active.isEmpty { Text(tr("按下次扣款排")).font(.caption).foregroundStyle(Color.fg2) }
-                    Button { editing = SubscriptionDraft(model: model) } label: { Image(systemName: "plus") }
+                    // 点击区放大到 28×28（审查实测原来 9×9）。
+                    Button { editing = SubscriptionDraft(model: model) } label: { Image(systemName: "plus").hitArea().hoverBubble() }
                         .buttonStyle(.borderless)
                         .help(tr("登记一个订阅"))
                         .accessibilityLabel(tr("登记订阅"))
@@ -258,7 +259,11 @@ struct SubscriptionsCard: View {
                 DisclosureGroup(isExpanded: $showCancelled) {
                     VStack(spacing: 0) { ForEach(stopped) { row($0) } }
                 } label: {
+                    // 整行都能点开（审查 2026-11-26：点了看不出展开）。
                     Text(tr("已经停了的 \(stopped.count) 个")).font(.caption).foregroundStyle(Color.fg2)
+                        .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.snappy) { showCancelled.toggle() } }
                 }
             }
         }
@@ -286,7 +291,10 @@ struct SubscriptionsCard: View {
             CategoryIcon(category: subscriptionIcon(s.name, category: s.category), size: 24)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text(s.name).font(.callout.weight(.medium)).lineLimit(1)
+                    // 窄窗口也先保名字（审查 2026-11-26：订阅名被截断）。
+                    Text(s.name).font(.callout.weight(.medium)).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
                         .foregroundStyle(stopped ? Color.fg3 : Color.primary)
                     if s.reviewReason != nil {
                         // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
@@ -314,7 +322,16 @@ struct SubscriptionsCard: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        // 点一行打开「改订阅」（审查 2026-11-26：原来点了没反应，只有 ⋯ 有菜单）。
+        .onTapGesture { open(s) }
+        .hoverHighlight()
+        .help(tr("点一下改这个订阅"))
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: tr("改")) { open(s) }
+    }
+
+    private func open(_ s: SubscriptionStatus) {
+        if let sub = model.ledger.subscriptions.first(where: { $0.id == s.id }) { editing = SubscriptionDraft(sub, model: model) }
     }
 
     /// 「每月 · 12 月 3 日」「每年 · 折合每月 8 €」「涨到 12,99 €」。

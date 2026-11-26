@@ -738,15 +738,9 @@ struct ReimbursementPage: View {
                 }
             }
         }
+        // 导出按钮不放工具栏了（审查 2026-11-26：和记一笔、问夏夏挤在一起，橙色还抢眼），挪到「待提交」那块右上角。
         Group {
             if embedded { content } else { content.kitPage() }
-        }
-        .toolbar {
-            #if os(macOS)
-            if !embedded {
-                ToolbarItem(placement: .primaryAction) { exportButton(all) }
-            }
-            #endif
         }
     }
 
@@ -810,6 +804,9 @@ struct ReimbursementPage: View {
                 Spacer()
                 Text(items.reduce(Money.zero) { $0 + $1.transaction.amount.magnitude }.formatted)
                     .font(.subheadline).foregroundStyle(Color.fg2).monospacedDigit()
+                #if os(macOS)
+                if st == .toSubmit { exportButton(model.ledger.reimbursements()) }
+                #endif
             }
             VStack(spacing: 0) {
                 ForEach(items) { item in
@@ -848,6 +845,7 @@ struct ReimbursementPage: View {
         }
         .padding(.vertical, 8).padding(.horizontal, 6)
         .contentShape(Rectangle())
+        .hoverHighlight()
     }
 
     @ViewBuilder private func statusMenu(_ item: ReimbursementItem) -> some View {
@@ -874,7 +872,8 @@ struct ReimbursementPage: View {
                 model.toast = LedgerModel.Toast(text: error.localizedDescription, changeID: nil, isError: true)
             }
         } label: { Label(tr("导出报销单"), systemImage: "square.and.arrow.up") }
-            .buttonStyle(.borderedProminent).solidTint()
+            .buttonStyle(.bordered)
+            .help(tr("把待提交的整理成报销单，连小票一起放进「下载」"))
             .disabled(items.isEmpty)
         #else
         if let r = try? LedgerFiles.exportReimbursements(items, ledger: model.ledger, attachments: model.attachmentsFolder,

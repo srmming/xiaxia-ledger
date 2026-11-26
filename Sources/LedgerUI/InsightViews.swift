@@ -121,6 +121,7 @@ struct InsightRow: View {
     let insight: Insight
 
     var body: some View {
+        let target = AppSection.forInsight(insight)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 KitTag(text: insight.kind.label, color: insight.kind.color, background: insight.kind.soft)
@@ -129,17 +130,38 @@ struct InsightRow: View {
                 if insight.dismissedAt == nil {
                     Button(tr("知道了")) { withAnimation(.snappy) { model.dismiss(insight) } }
                         .font(.caption).buttonStyle(.plain).foregroundStyle(Color.fg2)
+                        .padding(.horizontal, 6).frame(minHeight: 24).contentShape(Rectangle()).hoverBubble()
                 } else {
                     Text(tr("知道了")).font(.caption).foregroundStyle(Color.fg3)
                 }
             }
-            Text(insight.title).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
-            if !insight.body.isEmpty {
-                Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            // 点一下去相关的那一页（审查 2026-11-26：原来点了没反应）。
+            Button {
+                if let target { withAnimation(.snappy) { model.section = target } }
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(insight.title).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        if let target {
+                            Text(tr("去「\(target.title)」")).font(.caption).foregroundStyle(Color.fg2)
+                            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg3)
+                        }
+                    }
+                    if !insight.body.isEmpty {
+                        Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .disabled(target == nil)
+            .hoverHighlight()
+            .accessibilityHint(target.map { tr("打开「\($0.title)」") } ?? "")
         }
         .padding(.vertical, 8)
         .opacity(insight.dismissedAt == nil ? 1 : 0.6)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }

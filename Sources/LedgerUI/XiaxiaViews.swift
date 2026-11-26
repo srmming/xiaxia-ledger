@@ -159,18 +159,18 @@ struct AimCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            XiaxiaHeader(title: tr("你想让夏夏帮你做到什么？"), trailing: "")
             if let aim = model.ledger.profile.aim, !editing {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("你的目标")).font(.caption).foregroundStyle(Color.fg2)
-                    Text(aim).font(.title3.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                }
-                Text(model.xia(tr("夏夏每次给意见都会先看这个目标。"))).font(.caption).foregroundStyle(Color.fg2)
+                // 写好了就只留一行（审查 2026-11-26：和目标页重复、太占地方）。
                 HStack(spacing: 8) {
+                    Text(tr("你的目标：")).foregroundColor(.fg2) + Text(aim).fontWeight(.semibold)
+                    Spacer(minLength: 8)
                     Button(tr("改一下")) { text = aim; editing = true; focused = true }.buttonStyle(.soft)
                     Button(tr("清掉")) { save(nil) }.buttonStyle(.soft)
                 }
+                .font(.callout)
+                .help(model.xia(tr("夏夏每次给意见都会先看这个目标。")))
             } else {
+                XiaxiaHeader(title: tr("你想让夏夏帮你做到什么？"), trailing: "")
                 TextField(tr("比如：每个月存下 500 €"), text: $text, axis: .vertical)
                     .lineLimit(1...3)
                     .textFieldStyle(.plain)

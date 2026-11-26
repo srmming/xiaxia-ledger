@@ -10,6 +10,8 @@ struct TrendsPage: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     private var phone: Bool { sizeClass == .compact }
     private var shop: Bool { model.side == .business }
+    /// 「下个月要付」的明细：点第二张卡再展开，同一个数不在页面上出现两次（审查 2026-11-26）。
+    @State private var showDue = false
 
     var body: some View {
         let guesses = model.fixedGuessesHere()
@@ -23,9 +25,16 @@ struct TrendsPage: View {
                 if phone {
                     VStack(spacing: Kit.gap) { ForEach(cards) { OutlookCard(item: $0) } }
                 } else {
-                    HStack(alignment: .top, spacing: Kit.gap) { ForEach(cards) { OutlookCard(item: $0) } }
-                    if let due, !due.isEmpty {
+                    // 每张卡都是按钮：键盘 Tab 走得到，空格键能打开（审查实测原来 Tab 只到得了「算 / 不算」）。
+                    HStack(alignment: .top, spacing: Kit.gap) {
+                        ForEach(cards) { c in
+                            OutlookCard(item: c, action: action(for: c.id, hasDue: !(due?.isEmpty ?? true)),
+                                        expanded: c.id == "next" ? showDue : nil)
+                        }
+                    }
+                    if showDue, let due, !due.isEmpty {
                         NextMonthDueCard(due: due, shop: shop)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 Label(tr("都是按你记的账用加减乘除算的，没有用 AI。记得越全越准。"), systemImage: "function")
@@ -39,6 +48,17 @@ struct TrendsPage: View {
             }
         }
         .kitPage()
+    }
+
+    /// 点卡片做什么：「下个月要付」展开明细；「月底大概花」去花销；「还能撑」「月底账户」去家底；「这个月大概收」去流水。
+    private func action(for id: String, hasDue: Bool) -> (() -> Void)? {
+        switch id {
+        case "next": return hasDue ? { withAnimation(.snappy) { showDue.toggle() } } : nil
+        case "monthEnd": return { model.section = .spending }
+        case "runway", "end": return { model.section = .wealth }
+        case "income": return { model.showTransactions(TransactionFilter(income: true)) }
+        default: return nil
+        }
     }
 
     // MARK: 生活三张
@@ -96,9 +116,23 @@ struct OutlookItem: Identifiable {
 /// 一张预测卡：标题、一个大数字、一句话。
 struct OutlookCard: View {
     let item: OutlookItem
+    var action: (() -> Void)? = nil
+    /// 能展开的卡：现在开着没有（nil = 不能展开）。
+    var expanded: Bool? = nil
     @Environment(LedgerModel.self) var model
 
     var body: some View {
+        if let action {
+            Button(action: action) { card.contentShape(Rectangle()) }
+                .buttonStyle(.pressable)
+                .hoverHighlight()
+                .accessibilityHint(expanded == nil ? tr("打开相关的页面") : expanded == true ? tr("收起明细") : tr("展开明细"))
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(item.title, systemImage: item.symbol).font(.callout.weight(.medium)).foregroundStyle(Color.fg2)
             Text(item.value)
@@ -108,6 +142,13 @@ struct OutlookCard: View {
             Text(item.sentence).font(.callout).foregroundStyle(Color.fg2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
+            if let expanded {
+                Label(expanded ? tr("收起明细") : tr("看明细"), systemImage: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption.weight(.semibold)).foregroundStyle(model.accent)
+            } else if action != nil {
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .kitCard()
@@ -207,11 +248,11 @@ struct FixedGuessCard: View {
                     }
                     Spacer(minLength: 8)
                     Text(g.amount.rounded).font(.callout.weight(.semibold)).monospacedDigit()
+                    // 正常大小的按钮；「算」之后底部出「已加进固定开销 · 撤销」（审查 2026-11-26）。
                     Button(tr("不算")) { reject(g) }
-                        .buttonStyle(.bordered).controlSize(.small)
+                        .buttonStyle(.bordered)
                     Button(tr("算")) { accept(g) }
-                        .buttonStyle(.borderedProminent).solidTint().controlSize(.small)
-                        .tint(model.side == .business ? Color.shop : Color.brand)
+                        .buttonStyle(.borderedProminent).solidTint()
                 }
                 .accessibilityElement(children: .contain)
             }
@@ -223,10 +264,11 @@ struct FixedGuessCard: View {
     private func accept(_ g: Outlook.FixedGuess) {
         let book = g.bookID ?? model.ledger.books.first { !$0.isBusiness }?.id
         do {
-            _ = try model.edit {
+            _ = try model.edit(quiet: true) {
                 try $0.addFixedCost(name: g.name, amount: g.amount, day: g.day, accountID: g.accountID, category: g.category,
                                     bookID: book, author: model.author)
             }
+            if let c = model.ledger.changes.last { model.toast = LedgerModel.Toast(text: tr("「\(g.name)」已加进固定开销"), changeID: c.canUndo ? c.id : nil) }
         } catch { self.error = error.localizedDescription }
     }
 

@@ -69,6 +69,13 @@ struct InsightsPage: View {
             .filter { $0.kind != .monthlyReview || allMonths }
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("其它提醒")) {
+                // 一条条点「知道了」太累：一次全部收起（审查 2026-11-26）。
+                if list.contains(where: { $0.dismissedAt == nil }) {
+                    Button(tr("全部知道了")) {
+                        withAnimation(.snappy) { for i in list where i.dismissedAt == nil { model.dismiss(i) } }
+                    }
+                    .buttonStyle(.soft).font(.caption)
+                }
                 Picker(tr("范围"), selection: $allMonths) {
                     Text(tr("本月")).tag(false)
                     Text(tr("全部")).tag(true)
@@ -209,6 +216,7 @@ struct ChangeRow: View {
     @Environment(LedgerModel.self) var model
     let change: ChangeRecord
     var showUndo = true
+    @State private var hovering = false
 
     var body: some View {
         let me = model.isMe(change.author)
@@ -234,9 +242,30 @@ struct ChangeRow: View {
                 Button { model.undo(change.id) } label: { Label(tr("撤销"), systemImage: "arrow.uturn.backward") }
                     .buttonStyle(.soft)
                     .help(tr("把账本改回这次改动之前的样子"))
+                    // Mac：鼠标放到这一行上才显示，每行一个「撤销」太吵（键盘 Tab 仍然能走到）。
+                    .opacity(showsUndoAlways || hovering ? 1 : 0)
             }
         }
         .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+        // 点一行：去流水只看这次改的那几笔（审查 2026-11-26：原来 30 行点了都没反应）。
+        .onTapGesture { if canOpen { model.showTransactions(TransactionFilter(ids: Set(change.transactionIDs))) } }
+        .hoverHighlight()
+        .onHover { hovering = $0 }
+        .help(canOpen ? tr("点一下，在流水里看这次改的 \(change.transactionIDs.count) 笔") : "")
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: tr("在流水里看")) { if canOpen { model.showTransactions(TransactionFilter(ids: Set(change.transactionIDs))) } }
+    }
+
+    private var showsUndoAlways: Bool {
+        #if os(macOS)
+        false
+        #else
+        true
+        #endif
+    }
+
+    private var canOpen: Bool {
+        !change.undone && change.transactionIDs.contains { model.transaction($0) != nil }
     }
 }
