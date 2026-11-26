@@ -206,7 +206,9 @@ final class InterfaceAuditTests: XCTestCase {
             let f = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
             guard f.exists else { order.append("（看不出焦点在哪）"); continue }
             let label = f.label.isEmpty ? (f.identifier.isEmpty ? f.title : f.identifier) : f.label
-            let entry = "\(f.elementType.rawValue)|\(label)"
+            // 带上位置：同名的控件（两个「登记订阅」、几个 ⋯、每张卡的「算」）不会被当成「转了一圈回到开头」（审查第二轮发现的量法问题）。
+            let fr = f.frame
+            let entry = "\(f.elementType.rawValue)|\(label)|\(Int(fr.minX)),\(Int(fr.minY))"
             if order.first == entry { break }
             order.append(entry)
         }
@@ -238,7 +240,8 @@ final class InterfaceAuditTests: XCTestCase {
             usleep(150_000)
             let el = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
             guard el.exists else { order.append("（看不出焦点在哪）"); continue }
-            let entry = "\(el.elementType.rawValue)|\(el.label.isEmpty ? el.identifier : el.label)"
+            let fr = el.frame
+            let entry = "\(el.elementType.rawValue)|\(el.label.isEmpty ? el.identifier : el.label)|\(Int(fr.minX)),\(Int(fr.minY))"
             if order.first == entry { break }
             order.append(entry)
         }

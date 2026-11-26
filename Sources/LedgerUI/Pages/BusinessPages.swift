@@ -94,7 +94,7 @@ struct FixedCostsPage: View {
             Text(r.template.amount.magnitude.rounded).font(.kitAmount).foregroundStyle(r.paused ? Color.fg3 : .primary)
             Menu {
                 actions(r)
-            } label: { Image(systemName: "ellipsis") }
+            } label: { MoreGlyph() }
                 .actionMenuStyle()
                 .accessibilityLabel(tr("\(r.template.description) 的操作"))
         }

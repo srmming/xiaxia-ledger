@@ -196,7 +196,7 @@ struct GoalWizard: View {
                         // 删除收进每行的 ⋯，不一打开就是一排红按钮。
                         Menu {
                             Button(tr("删掉…"), role: .destructive) { confirmDelete = p }
-                        } label: { Image(systemName: "ellipsis") }
+                        } label: { MoreGlyph() }
                             .actionMenuStyle()
                             .accessibilityLabel(tr("\(p.name) 的操作"))
                     }

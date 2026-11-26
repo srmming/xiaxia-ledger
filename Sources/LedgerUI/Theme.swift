@@ -276,6 +276,7 @@ private struct HoverBubble: ViewModifier {
 extension View {
     /// 每行右边的「⋯」操作菜单：系统的带边框按钮（24 高、键盘 Tab 能走到、悬停有反应），不画下拉小三角。
     /// 审查 2026-11-26：原来是 36×17 的无边框小图标，Tab 也到不了。
+    /// 注意：⋯ 的标签用 MoreGlyph()，不然按钮只有 12 高（审查第二轮实测 38×12）。
     func actionMenuStyle() -> some View {
         self.menuStyle(.button).buttonStyle(.bordered).menuIndicator(.hidden).fixedSize()
     }
@@ -318,4 +319,11 @@ private struct CalmWhenReduceMotion: ViewModifier {
 
 extension View {
     func calmWhenReduceMotion() -> some View { modifier(CalmWhenReduceMotion()) }
+}
+
+/// ⋯ 菜单的图标：给它一个 20×18 的框，套上系统按钮后整个按钮约 32×24，好点中（审查第二轮 2026-11-26）。
+struct MoreGlyph: View {
+    var body: some View {
+        Image(systemName: "ellipsis").font(.body.weight(.semibold)).frame(width: 20, height: 18)
+    }
 }

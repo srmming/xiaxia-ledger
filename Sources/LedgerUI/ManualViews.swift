@@ -62,7 +62,7 @@ struct TransactionActions: View {
                             }
                         } label: { Label(tr("设成重复"), systemImage: "repeat") }
                     }
-                } label: { Image(systemName: "ellipsis") }
+                } label: { MoreGlyph() }
                     .actionMenuStyle()
                     .help(tr("复制、拆开、记退款、设成重复"))
                     .accessibilityLabel(tr("更多操作：复制、拆开、记退款、设成重复"))
@@ -289,7 +289,7 @@ struct RecurringManager: View {
                         Button(tr("停掉（已经记的不动）"), role: .destructive) {
                             model.perform { try $0.removeRecurring(r.id, author: model.author) }
                         }
-                    } label: { Image(systemName: "ellipsis") }
+                    } label: { MoreGlyph() }
                         .actionMenuStyle()
                         .accessibilityLabel(tr("\(r.template.description) 的操作"))
                 }

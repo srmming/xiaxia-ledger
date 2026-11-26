@@ -9,7 +9,8 @@ struct BusinessHome: View {
     @Environment(LedgerModel.self) var model
     @State private var editingCapital = false
     /// 窗口矮（最小 1000×612）：线图收矮、最近流水不放，一屏放下。
-    @State private var short = false
+    /// 由总览页按整页（滚动区外面）的高度传进来；以前在这里量的是内容自己的高度，总是不到 700，图一直是矮的（审查第二轮）。
+    var short = false
     /// 回本那天庆祝一下，点「收起」后这张卡就不再出现（按生意账本记在这台设备上）。
     @AppStorage("xiaxia.paybackCardHidden") private var paybackHidden = ""
 
@@ -29,7 +30,6 @@ struct BusinessHome: View {
                 if !short { recentCard }
             }
         }
-        .onGeometryChange(for: Bool.self) { $0.size.height < 700 } action: { short = $0 }
         #if os(macOS)
         .sheet(isPresented: $editingCapital) { CapitalEditor().environment(model) }
         #endif

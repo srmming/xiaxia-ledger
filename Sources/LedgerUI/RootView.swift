@@ -233,6 +233,8 @@ public struct RootView: View {
                 .padding(.bottom, toastInset)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task(id: toast.id) {
+                    // 读屏也念一遍，能撤销的顺带说快捷键（审查第二轮：底部小条里的撤销读屏找不到）。
+                    AccessibilityNotification.Announcement(toast.changeID == nil ? toast.text : tr("\(toast.text)。按 ⌥⌘Z 撤销")).post()
                     try? await Task.sleep(for: .seconds(toast.seconds ?? (toast.changeID == nil ? 3 : 10)))
                     if model.toast?.id == toast.id { withAnimation { model.toast = nil } }
                 }

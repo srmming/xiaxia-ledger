@@ -322,7 +322,7 @@ struct PlanRowMenu: View {
             Divider()
             Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删除…"), systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis")
+            MoreGlyph()
         }
         .actionMenuStyle()
         .accessibilityLabel(tr("\(name) 的操作"))

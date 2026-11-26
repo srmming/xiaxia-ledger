@@ -115,7 +115,7 @@ struct PiggyGoalsBoard: View {
             PiggyChallengeCard(habit: b.habit)
             PiggyMonthCard(board: b)
             #else
-            Columns(sideWidth: 320) {
+            Columns(sideWidth: 320, breakpoint: 820) {  // 窗口最窄时（1000 宽）上下排，小目标卡名字不被挤断（审查第二轮）
                 if let main = b.main { mainCard(main, b) } else { allDone(b) }
                 smallRow(b)
             } side: {
@@ -831,7 +831,7 @@ struct PiggyGoalMenu: View {
             }
             Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删掉…"), systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis")
+            MoreGlyph()
         }
         .actionMenuStyle()
         .accessibilityLabel(tr("\(goal.name) 的操作"))
