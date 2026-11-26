@@ -34,13 +34,13 @@ final class InterfaceAuditTests: XCTestCase {
         app.launchArguments = args
         app.launch()
         // 第一次启动有时窗口出来得慢（2026-11-26 在 ming 的 Mac 上第一组就找不到窗口）：再激活一次、还没有就重开。
-        if !app.windows.firstMatch.waitForExistence(timeout: 20) {
-            app.activate()
-            if !app.windows.firstMatch.waitForExistence(timeout: 10) {
-                app.terminate()
-                app.launch()
-                _ = app.windows.firstMatch.waitForExistence(timeout: 30)
-            }
+        // 2026-11-26 查到：开发版被强杀过以后，XCTest 启动它只出菜单栏、不出主窗口（app 自带的「窗口」菜单兜底也找不到那一项）；
+        // 点一下程序坞图标（= reopen）主窗口就出来了。这是 app 的毛病，记进审查报告；这里先绕开，好接着审。
+        if !app.windows.firstMatch.waitForExistence(timeout: 12) {
+            let dock = XCUIApplication(bundleIdentifier: "com.apple.dock")
+            let icon = dock.icons.matching(NSPredicate(format: "label BEGINSWITH %@", "夏夏账本")).firstMatch
+            if icon.exists { icon.click() } else { app.activate() }
+            _ = app.windows.firstMatch.waitForExistence(timeout: 15)
         }
         sleep(2)  // 等动画、图表画完
         return app
