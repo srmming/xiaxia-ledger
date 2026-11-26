@@ -136,8 +136,8 @@ struct NewPlanSheet: View {
 
     @ViewBuilder private var installmentFields: some View {
         Section {
-            TextField(tr("买的是什么"), text: $name, prompt: Text(tr("比如「手机」"))).focused($focus)
-            TextField(tr("每期多少"), text: $amountText, prompt: Text(tr("比如 45"))).decimalKeyboard()
+            LabeledField(tr("买的是什么")) { TextField(tr("买的是什么"), text: $name, prompt: Text(tr("比如「手机」"))).focused($focus) }
+            LabeledField(tr("每期多少")) { TextField(tr("每期多少"), text: $amountText, prompt: Text(tr("比如 45"))).decimalKeyboard() }
             Stepper(tr("一共 \(count) 期"), value: $count, in: 2...120)
         }
         Section {
@@ -153,8 +153,10 @@ struct NewPlanSheet: View {
                 Text(tr("我欠别人")).tag(false)
             }
             .pickerStyle(.segmented).labelsHidden()
-            TextField(theyOweMe ? tr("谁欠我") : tr("我欠谁"), text: $name, prompt: Text(tr("写对方的名字"))).focused($focus)
-            TextField(tr("多少"), text: $amountText, prompt: Text(tr("比如 300"))).decimalKeyboard()
+            LabeledField(theyOweMe ? tr("谁欠我") : tr("我欠谁")) {
+                TextField(theyOweMe ? tr("谁欠我") : tr("我欠谁"), text: $name, prompt: Text(tr("写对方的名字"))).focused($focus)
+            }
+            LabeledField(tr("多少")) { TextField(tr("多少"), text: $amountText, prompt: Text(tr("比如 300"))).decimalKeyboard() }
         }
         Section {
             DatePicker(tr("哪天"), selection: $date, displayedComponents: .date)

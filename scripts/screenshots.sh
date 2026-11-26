@@ -49,6 +49,20 @@ if [ -n "$IOS_APP" ]; then
   ios 8-dark -XiaxiaDemo
   xcrun simctl ui "$DEVICE" appearance light 2>/dev/null || true
   ios 9-empty -XiaxiaEmpty
+  # iPhone 审计（2026-11-26）：生意那边各页和弹窗、大字号
+  ios 40-shop-overview -XiaxiaDemo -XiaxiaBook shop
+  ios 41-shop-fixed -XiaxiaDemo -XiaxiaBook shop -XiaxiaSection fixed
+  ios 42-shop-debts -XiaxiaDemo -XiaxiaBook shop -XiaxiaSection debts
+  ios 43-shop-trends -XiaxiaDemo -XiaxiaBook shop -XiaxiaSection trends
+  ios 44-shop-daily -XiaxiaDemo -XiaxiaBook shop -XiaxiaSheet daily
+  ios 45-shop-fixed-add -XiaxiaDemo -XiaxiaBook shop -XiaxiaSheet fixedCost
+  ios 46-shop-transfer -XiaxiaDemo -XiaxiaBook shop -XiaxiaSheet sideTransfer
+  ios 47-new-debt -XiaxiaDemo -XiaxiaSheet newDebt
+  ios 48-new-installment -XiaxiaDemo -XiaxiaSheet newInstallment
+  ios 49-life-trends -XiaxiaDemo -XiaxiaBook personal -XiaxiaSection trends
+  ios 50-bigtext-overview -XiaxiaDemo -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+  ios 51-bigtext-add -XiaxiaDemo -XiaxiaSheet add -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+  ios 52-shop-wealth -XiaxiaDemo -XiaxiaBook shop -XiaxiaSection wealth
   ios 10-books -XiaxiaDemo -XiaxiaSheet books
   ios 11-accounts -XiaxiaDemo -XiaxiaSheet accounts
   ios 12-categories -XiaxiaDemo -XiaxiaSheet categories

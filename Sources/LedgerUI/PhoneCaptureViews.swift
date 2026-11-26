@@ -760,7 +760,7 @@ struct ReimbursementPage: View {
                     Text(s.outstanding.formatted).font(.system(size: 38, weight: .bold, design: .rounded)).monospacedDigit()
                 }
                 Spacer()
-                XiaxiaAvatar(size: 56)
+                // 非引导页不放人物（ming 2026-11-25）；iPhone 审计 2026-11-26 发现报销页右上角还留着夏夏头像。
             }
             GeometryReader { geo in
                 let total = max(1, Double((s.outstanding + s.paid).cents))

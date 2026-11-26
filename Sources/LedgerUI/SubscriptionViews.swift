@@ -102,16 +102,32 @@ struct SubscriptionTotalsStrip: View {
         let list = model.subscriptionStatus.filter { book == nil || $0.bookID == nil || $0.bookID == book }
         let t = Subscriptions.totals(list, bookID: book)
         let base = model.ledger.baseCurrency
-        HStack(alignment: .top) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 32) { figures(t, base, size: compact ? 26 : 32) }
-                HStack(alignment: .top, spacing: 18) { figures(t, base, size: 24) }
-                VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
-            }
-            Spacer(minLength: 12)
-            Button { adding = SubscriptionDraft(model: model) } label: { Label(tr("登记订阅"), systemImage: "plus") }
+        Group {
+            #if os(iOS)
+            // iPhone：四个数排成两行两列，不再竖着一个压一个占满一屏（iPhone 审计 2026-11-26）。
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12, alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
+                          alignment: .leading, spacing: 14) {
+                    figures(t, base, size: 24)
+                }
+                Button { adding = SubscriptionDraft(model: model) } label: {
+                    Label(tr("登记订阅"), systemImage: "plus").frame(maxWidth: .infinity)
+                }
                 .buttonStyle(.soft)
-                .help(tr("登记一个订阅"))
+            }
+            #else
+            HStack(alignment: .top) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 32) { figures(t, base, size: compact ? 26 : 32) }
+                    HStack(alignment: .top, spacing: 18) { figures(t, base, size: 24) }
+                    VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
+                }
+                Spacer(minLength: 12)
+                Button { adding = SubscriptionDraft(model: model) } label: { Label(tr("登记订阅"), systemImage: "plus") }
+                    .buttonStyle(.soft)
+                    .help(tr("登记一个订阅"))
+            }
+            #endif
         }
         .kitCard(padding: compact ? 14 : 18)
         .accessibilityElement(children: .contain)

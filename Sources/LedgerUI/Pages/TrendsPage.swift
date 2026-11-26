@@ -132,11 +132,20 @@ struct OutlookCard: View {
         }
     }
 
+    // iPhone 三张卡上下排，不用凑一样高：按内容来，底下不留大空白（iPhone 审计 2026-11-26：三张卡要翻两屏）。
+    #if os(iOS)
+    static let minHeight: CGFloat = 0
+    static let valueSize: CGFloat = 34
+    #else
+    static let minHeight: CGFloat = 150
+    static let valueSize: CGFloat = 40
+    #endif
+
     private var card: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(item.title, systemImage: item.symbol).font(.callout.weight(.medium)).foregroundStyle(Color.fg2)
             Text(item.value)
-                .font(.system(size: 40, weight: .bold, design: .rounded)).monospacedDigit()
+                .font(.system(size: Self.valueSize, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(item.tone == .bad ? Color.alert : (model.side == .business ? Color.shop : Color.primary))
                 .lineLimit(1).minimumScaleFactor(0.5)
             Text(item.sentence).font(.callout).foregroundStyle(Color.fg2)
@@ -150,7 +159,7 @@ struct OutlookCard: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: Self.minHeight, alignment: .topLeading)
         .kitCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.spoken + "。" + item.sentence)
