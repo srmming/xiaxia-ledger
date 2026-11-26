@@ -99,12 +99,19 @@ final class ManualEntryTests: XCTestCase {
         XCTAssertTrue(all.waitForExistence(timeout: 15), "总览没有去流水的「全部」")
         for _ in 0..<5 where !all.isHittable { app.swipeUp() }
         all.tap()
-        let firstRow = app.collectionViews.cells.element(boundBy: 2)
-        XCTAssertTrue(firstRow.waitForExistence(timeout: 10), "流水页没有内容")
-        firstRow.tap()
+        XCTAssertTrue(app.collectionViews.cells.element(boundBy: 1).waitForExistence(timeout: 10), "流水页没有内容")
+        // 示例账本最上面几笔是「存进目标」，那种不能直接改（没有「改」）：一笔笔点，找到第一笔普通的账。
         let edit = app.buttons["tx-edit"]
-        for _ in 0..<4 where !edit.isHittable { app.swipeUp() }
-        XCTAssertTrue(edit.waitForExistence(timeout: 5), "iPhone 详情里没有「改」")
+        var found = false
+        for i in 1..<10 {
+            let row = app.collectionViews.cells.element(boundBy: i)
+            guard row.exists else { break }
+            row.tap()
+            for _ in 0..<4 where edit.exists && !edit.isHittable { app.swipeUp() }
+            if edit.waitForExistence(timeout: 2) { found = true; break }
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+        XCTAssertTrue(found, "iPhone 详情里没有「改」")
         edit.tap()
         XCTAssertTrue(app.navigationBars["改这一笔"].waitForExistence(timeout: 5), "没打开「改这一笔」")
         let save = app.buttons["保存"]
