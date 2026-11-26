@@ -523,27 +523,42 @@ struct QuickAdd: View {
     // MARK: 金额下面那一行：账户、账本、日期
 
     private var contextBar: some View {
-        HStack(spacing: 6) {
-            chip { accountMenu(.from) }
-            if model.ledger.books.count > 1 {
-                chip {
-                    Menu {
-                        ForEach(model.ledger.books) { b in Button(b.name) { bookID = b.id } }
-                    } label: {
-                        Label(model.ledger.books.first { $0.id == bookID }?.name ?? tr("选账本"), systemImage: "books.vertical")
-                    }
-                    .menuStyle(.button).buttonStyle(.borderless).fixedSize()
-                    .accessibilityLabel(tr("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? tr("还没选"))"))
+        // 字放大时一行放不下：账户、账本一行，日期换到下一行（审计 2026-11-26：大字号时整张单子被撑出屏幕）。
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { accountBookChips; dateChip }
+            VStack(spacing: 6) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { accountBookChips }
+                    VStack(spacing: 6) { accountBookChips }
                 }
+                dateChip
             }
-            #if os(iOS)
-            datePicker   // iPhone 的日期按钮自己就是胶囊，不再套一层
-            #else
-            chip { datePicker }
-            #endif
         }
         .font(.callout)
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder private var accountBookChips: some View {
+        chip { accountMenu(.from) }
+        if model.ledger.books.count > 1 {
+            chip {
+                Menu {
+                    ForEach(model.ledger.books) { b in Button(b.name) { bookID = b.id } }
+                } label: {
+                    Label(model.ledger.books.first { $0.id == bookID }?.name ?? tr("选账本"), systemImage: "books.vertical")
+                }
+                .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+                .accessibilityLabel(tr("账本：\(model.ledger.books.first { $0.id == bookID }?.name ?? tr("还没选"))"))
+            }
+        }
+    }
+
+    @ViewBuilder private var dateChip: some View {
+        #if os(iOS)
+        datePicker   // iPhone 的日期按钮自己就是胶囊，不再套一层
+        #else
+        chip { datePicker }
+        #endif
     }
 
     private func chip<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

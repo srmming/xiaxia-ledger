@@ -309,34 +309,24 @@ struct SubscriptionsCard: View {
            HStack(spacing: 10) {
             CategoryIcon(category: subscriptionIcon(s.name, category: s.category), size: 24)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    // 窄窗口也先保名字（审查 2026-11-26：订阅名被截断）。
-                    Text(s.name).font(.callout.weight(.medium)).lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(1)
-                        .foregroundStyle(stopped ? Color.fg3 : Color.primary)
-                    if s.reviewReason != nil {
-                        // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
-                        Text(tr("可以考虑退")).font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.alertSoft, in: Capsule())
-                            .lineLimit(1).fixedSize()
-                    }
+                // 一行放不下名字和标签时，标签换到名字下面（审计 2026-11-26：iPhone 上订阅名被挤成「云存…」）。
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { nameText(s, stopped: stopped); reviewTag(s) }
+                    VStack(alignment: .leading, spacing: 2) { nameText(s, stopped: stopped); reviewTag(s) }
                 }
                 Text(detail(s)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
             }
             Spacer(minLength: 6)
-            if !stopped, let d = s.daysLeft {
-                Text(d == 0 ? tr("今天扣") : d <= 2 ? Nudges.dayWord(d) + tr("扣") : tr("\(d) 天后"))
-                    .font(.caption.weight(s.isDueVerySoon ? .semibold : .regular))
-                    .foregroundStyle(s.isDueVerySoon ? Color.warn : Color.fg2)
-                    .padding(.horizontal, s.isDueVerySoon ? 6 : 0).padding(.vertical, s.isDueVerySoon ? 1 : 0)
-                    .background(s.isDueVerySoon ? Color.warnSoft : Color.clear, in: Capsule())
-                    .lineLimit(1).fixedSize()
+            #if os(iOS)
+            // iPhone 窄：几天后扣放到金额下面，名字多留点地方。
+            VStack(alignment: .trailing, spacing: 2) {
+                amountText(s, stopped: stopped)
+                dueText(s, stopped: stopped)
             }
-            Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
-                .foregroundStyle(stopped ? Color.fg3 : Color.primary)
-                .frame(minWidth: 64, alignment: .trailing)
+            #else
+            dueText(s, stopped: stopped)
+            amountText(s, stopped: stopped)
+            #endif
            }
            .contentShape(Rectangle())
           }
@@ -347,6 +337,41 @@ struct SubscriptionsCard: View {
         }
         .padding(.vertical, 4)
         .hoverHighlight()
+    }
+
+    private func nameText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        // 窄窗口也先保名字（审查 2026-11-26：订阅名被截断）。
+        Text(s.name).font(.callout.weight(.medium)).lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
+            .foregroundStyle(stopped ? Color.fg3 : Color.primary)
+    }
+
+    @ViewBuilder private func reviewTag(_ s: SubscriptionStatus) -> some View {
+        if s.reviewReason != nil {
+            // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
+            Text(tr("可以考虑退")).font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
+                .padding(.horizontal, 5).padding(.vertical, 1)
+                .background(Color.alertSoft, in: Capsule())
+                .lineLimit(1).fixedSize()
+        }
+    }
+
+    @ViewBuilder private func dueText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        if !stopped, let d = s.daysLeft {
+            Text(d == 0 ? tr("今天扣") : d <= 2 ? Nudges.dayWord(d) + tr("扣") : tr("\(d) 天后"))
+                .font(.caption.weight(s.isDueVerySoon ? .semibold : .regular))
+                .foregroundStyle(s.isDueVerySoon ? Color.warn : Color.fg2)
+                .padding(.horizontal, s.isDueVerySoon ? 6 : 0).padding(.vertical, s.isDueVerySoon ? 1 : 0)
+                .background(s.isDueVerySoon ? Color.warnSoft : Color.clear, in: Capsule())
+                .lineLimit(1).fixedSize()
+        }
+    }
+
+    private func amountText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
+            .foregroundStyle(stopped ? Color.fg3 : Color.primary)
+            .frame(minWidth: 64, alignment: .trailing)
     }
 
     private func open(_ s: SubscriptionStatus) {
