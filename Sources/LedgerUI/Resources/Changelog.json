@@ -2,6 +2,44 @@
   "_说明": "更新日志唯一来源：官网 /changelog.html、Mac 更新窗口里的「新版改了什么」、app 更新后第一次打开的小卡片都从这里来。新版本放最前面。发版时 scripts/release-share.sh 会调用 scripts/changelog.py add <版本>，没有这一条就按上次发版以来合并的 PR 标题自动起草一条，再改成大白话。images 是这一版的配图（可以几张）：src 是相对官网根目录的路径，alt 写清图里是什么（zh/en/es），style=art 表示是角色小图、不是截图；只能用示例数据的截图，只截改动的那一块，宽 1200–1600 的 webp。commit 是发版时 main 的提交，下次起草从这里往后数。 en、es 是这一版的英文、西班牙语（title、summary、items，条数和中文一样）；官网 /en/、/es/ 的更新日志页用。发版时一起写，没写的那一版在英文、西语页上先显示中文。",
   "releases": [
     {
+      "version": "0.2.6",
+      "date": "2026-11-27",
+      "title": "生意模式、界面全面打磨、记账更稳",
+      "summary": "开店的人可以把生活和生意分开记；Mac 界面按苹果的标准从头到尾细修了一遍；手机和电脑同时记账不会再互相盖掉。",
+      "items": [
+        "新增生意模式：侧栏顶上切换「生活 | 生意」。生意那边能看这个月真正赚了多少，每天关店后记一下收了多少，房租工资这些固定开销到日子自动记，还能看开店本钱什么时候回本。两边的账户分开，从店里拿钱回家也能记。",
+        "Mac 界面按苹果的设计标准细修了一遍：按钮更好点、颜色跟着生活（橙）或生意（青）走、深色模式更清楚、键盘 Tab 能走到每个按钮、鼠标放上去有反应、窗口拉窄也不挤。",
+        "流水详情里「改」放在最前面，复制、拆开这些收进 ⋯，删除放最后；分期能直接记这一期还款或提前还清。",
+        "夏夏换成一个形象，有 7 种样子可以挑；各页上的 AI 提示默认收起来，页面更干净。",
+        "记账更稳：手机和 Mac 同时改不会再互相覆盖，撤销只撤自己那一步；删除数据前会再确认一次；改目标名字后存进去的钱不会丢。",
+        "iPhone 版也按同样的标准修了一遍，大字号下金额不再被拆开。"
+      ],
+      "en": {
+        "title": "Business mode, a polished interface and safer syncing",
+        "summary": "Shop owners can keep home and business apart; the Mac interface has been refined from end to end; editing on iPhone and Mac at the same time no longer overwrites changes.",
+        "items": [
+          "New business mode: switch between “Life | Business” at the top of the sidebar. See what the shop really earned this month, log each day’s takings after closing, let rent and wages be recorded automatically, and see when your start-up costs are paid back. Accounts are kept apart, and money you take home can be logged too.",
+          "The Mac interface has been refined to Apple’s design guidelines: easier-to-hit buttons, colours that follow Life (orange) or Business (teal), clearer dark mode, every button reachable with Tab, hover feedback and a layout that holds up in narrow windows.",
+          "In transaction details “Edit” comes first, copy and split live under ⋯ and delete is last; instalments can record this month’s payment or be paid off early.",
+          "Xiaxia now has one character with 7 looks to choose from; AI tips on each page are tucked away by default for a cleaner view.",
+          "Safer bookkeeping: changes made on iPhone and Mac at the same time no longer overwrite each other, undo only undoes your own step, deleting data asks once more, and renaming a goal keeps the money saved in it.",
+          "The iPhone app got the same polish; amounts no longer break apart at large text sizes."
+        ]
+      },
+      "es": {
+        "title": "Modo negocio, interfaz pulida y sincronización más segura",
+        "summary": "Quien tiene un negocio puede separar la vida personal y la tienda; la interfaz de Mac se ha pulido de principio a fin; editar a la vez en iPhone y Mac ya no pisa los cambios.",
+        "items": [
+          "Nuevo modo negocio: cambia entre «Vida | Negocio» arriba en la barra lateral. Mira cuánto ganó de verdad la tienda este mes, anota la caja de cada día al cerrar, deja que el alquiler y los sueldos se registren solos y ve cuándo recuperas la inversión inicial. Las cuentas van por separado y también puedes anotar el dinero que te llevas a casa.",
+          "La interfaz de Mac se ha pulido según las pautas de diseño de Apple: botones más fáciles de pulsar, colores que siguen a Vida (naranja) o Negocio (turquesa), modo oscuro más claro, todos los botones accesibles con Tab, respuesta al pasar el ratón y un diseño que aguanta ventanas estrechas.",
+          "En el detalle de un movimiento «Editar» va primero, copiar y dividir están en ⋯ y eliminar va al final; en los pagos a plazos puedes anotar la cuota de este mes o liquidarlos antes.",
+          "Xiaxia es ahora un solo personaje con 7 aspectos a elegir; los consejos de IA de cada página quedan recogidos por defecto para una vista más limpia.",
+          "Cuentas más seguras: los cambios hechos a la vez en iPhone y Mac ya no se pisan, deshacer solo deshace tu propio paso, borrar datos pide confirmación otra vez y cambiar el nombre de un objetivo conserva el dinero ahorrado.",
+          "La app de iPhone recibió el mismo pulido; los importes ya no se parten con tamaños de texto grandes."
+        ]
+      }
+    },
+    {
       "version": "0.2.5",
       "date": "2026-11-24",
       "commit": "b031239",
