@@ -1,0 +1,100 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1236,
+      "y" : 363.5
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1236,
+      "y" : 388
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1236,
+      "y" : 411.5
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1236,
+      "y" : 434.5
+    },
+    {
+      "enabled" : true,
+      "h" : 32,
+      "id" : "goalWizard.next",
+      "label" : "知道了",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 71,
+      "x" : 1219,
+      "y" : 768
+    }
+  ],
+  "name" : "sheet-plan",
+  "tabOrder" : [
+    "16|ellipsis"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 54.5,
+      "id" : "",
+      "label" : "已经有 1 个大目标、3 个小目标了、目标不在多，在于坚持。先把一个存够，或者删掉一个不那么想要的，再来定新的。",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 382.5,
+      "x" : 854,
+      "y" : 278.5
+    }
+  ],
+  "window" : [
+    610,
+    207,
+    700,
+    613
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "从店里拿钱回家",
+      "selected" : false,
+      "type" : "10",
+      "value" : "1",
+      "w" : 127.5,
+      "x" : 750,
+      "y" : 314.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "自己的钱垫给店里",
+      "selected" : false,
+      "type" : "10",
+      "value" : "0",
+      "w" : 127.5,
+      "x" : 877.5,
+      "y" : 314.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 380,
+      "x" : 791,
+      "y" : 358.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "店里账户",
+      "w" : 99.5,
+      "x" : 1070.5,
+      "y" : 399
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "日常卡",
+      "w" : 86.5,
+      "x" : 1083.5,
+      "y" : 437
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "51",
+      "value" : "",
+      "w" : 99.5,
+      "x" : 1071.5,
+      "y" : 473
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "79",
+      "value" : "0.5",
+      "w" : 20,
+      "x" : 1151,
+      "y" : 477
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 20,
+      "x" : 1151,
+      "y" : 477
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 20,
+      "x" : 1151,
+      "y" : 487
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 388,
+      "x" : 783,
+      "y" : 518
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1050,
+      "y" : 742
+    },
+    {
+      "enabled" : false,
+      "h" : 32,
+      "id" : "",
+      "label" : "记下",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 58,
+      "x" : 1122,
+      "y" : 738
+    }
+  ],
+  "name" : "sheet-shop-sideTransfer",
+  "tabOrder" : [
+    "49|",
+    "14|",
+    "14|",
+    "51|",
+    "51|",
+    "51|"
+  ],
+  "texts" : [
+
+  ],
+  "window" : [
+    720,
+    237,
+    480,
+    553
+  ]
+}

@@ -1,0 +1,382 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : true,
+      "label" : "生意",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 24,
+      "hoverChanged" : false,
+      "label" : "不算",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 50,
+      "x" : 1443,
+      "y" : 242.5
+    },
+    {
+      "after" : "",
+      "h" : 24,
+      "hoverChanged" : false,
+      "label" : "算",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 37,
+      "x" : 1503,
+      "y" : 242.5
+    },
+    {
+      "after" : "",
+      "h" : 182,
+      "hoverChanged" : true,
+      "label" : "这个月大概收 5612 欧元 65 分。已经收了 4.490 €，剩下的日子按过去 4 周每个星期几的平均估还能收 1.123 €。",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 316.5,
+      "x" : 574,
+      "y" : 338
+    },
+    {
+      "after" : "",
+      "h" : 182,
+      "hoverChanged" : true,
+      "label" : "下个月店里要付 4130 欧元 99 分。固定的 2.723 €（6 样），平时的吃穿用度大概 1.408 €。",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 317,
+      "x" : 906.5,
+      "y" : 338
+    },
+    {
+      "after" : "",
+      "h" : 182,
+      "hoverChanged" : true,
+      "label" : "月底店里账户大概剩 10541 欧元 7 分。现在 11.008 €，加上还会收的 1.123 €，减掉还没付的固定开销 1.360 € 和剩下几天平时的开销 230 €。",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 316.5,
+      "x" : 1239.5,
+      "y" : 338
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "上个月",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 26,
+      "x" : 606,
+      "y" : 117
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : true,
+      "label" : "2026 年 11 月，选月份",
+      "result" : "popover",
+      "type" : "9",
+      "w" : 104,
+      "x" : 632,
+      "y" : 117
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "不算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 50,
+      "x" : 1443,
+      "y" : 242.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 37,
+      "x" : 1503,
+      "y" : 242.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "不算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 50,
+      "x" : 1443,
+      "y" : 279.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 37,
+      "x" : 1503,
+      "y" : 279.5
+    },
+    {
+      "enabled" : true,
+      "h" : 182,
+      "id" : "",
+      "label" : "这个月大概收 5612 欧元 65 分。已经收了 4.490 €，剩下的日子按过去 4 周每个星期几的平均估还能收 1.123 €。",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 316.5,
+      "x" : 574,
+      "y" : 338
+    },
+    {
+      "enabled" : true,
+      "h" : 182,
+      "id" : "",
+      "label" : "下个月店里要付 4130 欧元 99 分。固定的 2.723 €（6 样），平时的吃穿用度大概 1.408 €。",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 317,
+      "x" : 906.5,
+      "y" : 338
+    },
+    {
+      "enabled" : true,
+      "h" : 182,
+      "id" : "",
+      "label" : "月底店里账户大概剩 10541 欧元 7 分。现在 11.008 €，加上还会收的 1.123 €，减掉还没付的固定开销 1.360 € 和剩下几天平时的开销 230 €。",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 316.5,
+      "x" : 1239.5,
+      "y" : 338
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "上个月",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 26,
+      "x" : 606,
+      "y" : 117
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "month.pick",
+      "label" : "2026 年 11 月，选月份",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 104,
+      "x" : 632,
+      "y" : 117
+    },
+    {
+      "enabled" : false,
+      "h" : 26,
+      "id" : "",
+      "label" : "下个月",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 26,
+      "x" : 736,
+      "y" : 117
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "shop-trends",
+  "tabOrder" : [
+    "9|不算",
+    "9|算"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 452.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "1",
+      "w" : 78,
+      "x" : 360,
+      "y" : 476
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

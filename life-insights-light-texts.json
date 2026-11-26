@@ -1,0 +1,62 @@
+[
+  {
+    "enabled" : true,
+    "h" : 14,
+    "id" : "",
+    "label" : "看",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 11,
+    "x" : 354,
+    "y" : 196.5
+  },
+  {
+    "enabled" : true,
+    "h" : 14,
+    "id" : "",
+    "label" : "夏夏",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 22,
+    "x" : 354,
+    "y" : 516.5
+  },
+  {
+    "enabled" : true,
+    "h" : 18,
+    "id" : "",
+    "label" : "夏夏建议",
+    "selected" : false,
+    "type" : "48",
+    "value" : "5",
+    "w" : 78,
+    "x" : 360,
+    "y" : 540
+  },
+  {
+    "enabled" : true,
+    "h" : 16,
+    "id" : "",
+    "label" : "其它提醒",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 52,
+    "x" : 590,
+    "y" : 535.25
+  },
+  {
+    "enabled" : true,
+    "h" : 16,
+    "id" : "",
+    "label" : "AI 最近做了什么",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 94.5,
+    "x" : 590,
+    "y" : 960
+  }
+]

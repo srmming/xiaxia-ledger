@@ -1,0 +1,382 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生意",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "登记订阅",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 86,
+      "x" : 1452,
+      "y" : 198
+    },
+    {
+      "after" : "关于本机、系统信息、、系统设置…，2项更新、App Store…，12项更新、、最近使用的项目、",
+      "h" : 12.5,
+      "hoverChanged" : true,
+      "label" : "ellipsis",
+      "result" : "menu",
+      "type" : "16",
+      "w" : 38,
+      "x" : 1146,
+      "y" : 366.5
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 20,
+      "hoverChanged" : false,
+      "label" : "把 FitBox 健身房 登记成订阅",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 355.5
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 20,
+      "hoverChanged" : false,
+      "label" : "把 Telefonia Nubemovil 登记成订阅",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 416.5
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 20,
+      "hoverChanged" : false,
+      "label" : "把 Linguapal 登记成订阅",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 471
+    },
+    {
+      "after" : "",
+      "h" : 24,
+      "hoverChanged" : false,
+      "label" : "已经停了的 1 个",
+      "result" : "changed",
+      "type" : "13",
+      "w" : 612.5,
+      "x" : 567.5,
+      "y" : 519
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "登记订阅",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1452,
+      "y" : 198
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "addSubscription",
+      "label" : "登记订阅",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 28,
+      "x" : 1156,
+      "y" : 316
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1146,
+      "y" : 366.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "把 FitBox 健身房 登记成订阅",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 355.5
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1146,
+      "y" : 404.5
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1146,
+      "y" : 442.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "把 Telefonia Nubemovil 登记成订阅",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 416.5
+    },
+    {
+      "enabled" : true,
+      "h" : 12.5,
+      "id" : "ellipsis",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 38,
+      "x" : 1146,
+      "y" : 480.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "把 Linguapal 登记成订阅",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1498,
+      "y" : 471
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "已经停了的 1 个",
+      "selected" : false,
+      "type" : "13",
+      "value" : "0",
+      "w" : 612.5,
+      "x" : 567.5,
+      "y" : 519
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "life-subscriptions",
+  "tabOrder" : [
+    "9|登记订阅"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 516.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "5",
+      "w" : 78,
+      "x" : 360,
+      "y" : 540
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "订阅",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 26,
+      "x" : 590,
+      "y" : 320.5
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

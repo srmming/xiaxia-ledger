@@ -1,0 +1,166 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 22,
+      "id" : "",
+      "label" : "哪天",
+      "selected" : false,
+      "type" : "51",
+      "value" : "",
+      "w" : 97,
+      "x" : 911.5,
+      "y" : 335
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "79",
+      "value" : "0.5",
+      "w" : 20,
+      "x" : 994.5,
+      "y" : 335.5
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 20,
+      "x" : 994.5,
+      "y" : 335.5
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 20,
+      "x" : 994.5,
+      "y" : 345.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "记到",
+      "selected" : false,
+      "type" : "14",
+      "value" : "店里现金",
+      "w" : 74,
+      "x" : 785,
+      "y" : 398
+    },
+    {
+      "enabled" : true,
+      "h" : 32,
+      "id" : "daily.cash",
+      "label" : "现金收了多少",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 162,
+      "x" : 982,
+      "y" : 382.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "记到",
+      "selected" : false,
+      "type" : "14",
+      "value" : "店里账户",
+      "w" : 74,
+      "x" : 785,
+      "y" : 452
+    },
+    {
+      "enabled" : true,
+      "h" : 32,
+      "id" : "daily.card",
+      "label" : "刷卡 \/ 转账收了多少",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 162,
+      "x" : 982,
+      "y" : 436.5
+    },
+    {
+      "enabled" : true,
+      "h" : 15,
+      "id" : "daily.addMethod",
+      "label" : "加一种收款方式",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 103,
+      "x" : 755.5,
+      "y" : 490
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 54,
+      "x" : 740,
+      "y" : 742
+    },
+    {
+      "enabled" : false,
+      "h" : 32,
+      "id" : "daily.save",
+      "label" : "记下",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 132,
+      "x" : 1048,
+      "y" : 740
+    }
+  ],
+  "name" : "sheet-shop-daily",
+  "tabOrder" : [
+    "14|记到",
+    "49|刷卡 \/ 转账收了多少",
+    "9|加一种收款方式",
+    "9|取消",
+    "51|哪天",
+    "51|哪天"
+  ],
+  "texts" : [
+
+  ],
+  "window" : [
+    720,
+    244,
+    480,
+    540
+  ]
+}

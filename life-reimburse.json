@@ -1,0 +1,267 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生意",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 25.5,
+      "hoverChanged" : false,
+      "label" : "导出报销单",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 111,
+      "x" : 1445,
+      "y" : 302
+    },
+    {
+      "after" : "",
+      "h" : 47,
+      "hoverChanged" : true,
+      "label" : "",
+      "result" : "changed",
+      "type" : "16",
+      "w" : 974,
+      "x" : 578,
+      "y" : 343.5
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 25.5,
+      "id" : "",
+      "label" : "导出报销单",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 111,
+      "x" : 1445,
+      "y" : 302
+    },
+    {
+      "enabled" : true,
+      "h" : 47,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 974,
+      "x" : 578,
+      "y" : 343.5
+    },
+    {
+      "enabled" : true,
+      "h" : 47,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 962,
+      "x" : 584,
+      "y" : 446.5
+    },
+    {
+      "enabled" : true,
+      "h" : 47,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 962,
+      "x" : 584,
+      "y" : 549.5
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "life-reimburse",
+  "tabOrder" : [
+    "9|导出报销单",
+    "16|Super Lumi、昨天、· 公司、差发票、60,27 €",
+    "3|",
+    "16|Fruteria SOL、昨天、· 公司、16,02 €",
+    "3|",
+    "16|网购 · 包裹一号、昨天、· 公司、57,02 €",
+    "3|",
+    "9|生活",
+    "9|生意",
+    "29|边栏",
+    "75|",
+    "75|",
+    "75|",
+    "75|"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 516.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "5",
+      "w" : 78,
+      "x" : 360,
+      "y" : 540
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

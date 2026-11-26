@@ -1,0 +1,114 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "每月多少",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 233,
+      "x" : 938,
+      "y" : 377.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "店租",
+      "w" : 73.5,
+      "x" : 1096.5,
+      "y" : 418
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "店租",
+      "w" : 388,
+      "x" : 783,
+      "y" : 459
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "1 号",
+      "w" : 70,
+      "x" : 1100,
+      "y" : 502
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "店里账户",
+      "w" : 99.5,
+      "x" : 1070.5,
+      "y" : 540.5
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 54,
+      "x" : 740,
+      "y" : 682
+    },
+    {
+      "enabled" : false,
+      "h" : 32,
+      "id" : "",
+      "label" : "加上",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 112,
+      "x" : 1068,
+      "y" : 680
+    }
+  ],
+  "name" : "sheet-fixedCost",
+  "tabOrder" : [
+    "14|",
+    "49|"
+  ],
+  "texts" : [
+
+  ],
+  "window" : [
+    720,
+    304,
+    480,
+    420
+  ]
+}
