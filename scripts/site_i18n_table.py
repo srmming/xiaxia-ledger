@@ -112,8 +112,9 @@ T = {
     "iPhone 总览页（示例数据）": ("iPhone Overview page (sample data)", "Página Resumen en iPhone (datos de ejemplo)"),
     # 怎么装
     "三步装好，一分钟。": ("Three steps, one minute.", "Tres pasos, un minuto."),
-    "需要 macOS 14 Sonoma 或更新的系统。看系统版本：点屏幕左上角": ("Requires macOS 14 Sonoma or later. To check your version, click", "Requiere macOS 14 Sonoma o posterior. Para ver tu versión, pulsa"),
-    "→「关于本机」。": ("in the top-left corner → About This Mac.", "en la esquina superior izquierda → Acerca de este Mac."),
+    "需要 macOS 14 Sonoma 或更新的系统。看系统版本：点屏幕左上角的苹果菜单 →「关于本机」。": (
+        "Requires macOS 14 Sonoma or later. To check your version, open the Apple menu in the top-left corner → About This Mac.",
+        "Requiere macOS 14 Sonoma o posterior. Para ver tu versión, abre el menú Apple en la esquina superior izquierda → Acerca de este Mac."),
     "下载并拖进「应用程序」": ("Download and drag to Applications", "Descarga y arrastra a Aplicaciones"),
     "点上面的下载按钮，打开下载好的 <span class=\"k\">xiaxia-ledger.dmg</span>，把「夏夏账本」图标拖到旁边的「应用程序」文件夹。": (
         "Click the download button above, open the downloaded <span class=\"k\">xiaxia-ledger.dmg</span>, and drag the 夏夏账本 icon onto the Applications folder next to it.",
@@ -195,8 +196,9 @@ T = {
         "Xiaxia Ledger: una app nativa de finanzas para Mac, ya gratis para descargar. La app de iPhone llega muy pronto: apuntes rápidos, fotos de tiques y, con iCloud Drive activado, el mismo libro que en tu Mac. Los gráficos muestran de un vistazo ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA."),
     "看一眼就知道钱去哪了。Mac 版现在就能下载，iPhone 版即将推出；记账跟 AI 说一句就行。": ("See where your money went at a glance. Download for Mac now; the iPhone app is coming soon. To log something, just tell your AI.",
         "Mira de un vistazo adónde se fue tu dinero. Descárgala ya para Mac; la app de iPhone llega muy pronto. Para apuntar algo, díselo a tu IA."),
-    "夏夏账本是 Mac 上的原生记账 app，iPhone 版即将推出，支持通过 iCloud 和 Mac 同步同一本账。图表帮你看清收支、家底和欠款；记账直接跟你的 AI 说一句，夏夏还会给你出主意。": ("Xiaxia Ledger is a native money app for Mac, with an iPhone app coming soon that can sync the same ledger with your Mac through iCloud. Charts make your income, spending, net worth and debts clear; to log something you just tell your AI, and Xiaxia gives you advice too.",
-        "Xiaxia Ledger es una app nativa de finanzas para Mac, y la de iPhone llega muy pronto y podrá sincronizar el mismo libro con tu Mac mediante iCloud. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja."),
+    "Mac 上的原生记账 app：图表一眼看清收支、家底和欠款，记账跟你的 AI 说一句就行。": (
+        "A native money app for Mac. Charts show your income, spending, net worth and debts at a glance; to log something, just tell your AI.",
+        "Una app nativa de finanzas para Mac. Los gráficos muestran de un vistazo ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA."),
     "iPhone 版即将推出 →": ("iPhone app coming soon →",
         "App de iPhone muy pronto →"),
     "账本是你自己的一个文件，放在你的 Mac 上（开了 iCloud 云盘就跟着 iCloud 走），不传到我们的服务器，也不需要银行密码。每次改动都有记录，随时能撤销。": ("The ledger is your own file on your Mac (with iCloud Drive turned on, it lives in your iCloud). It isn't uploaded to our servers and needs no bank password. Every change is recorded and can be undone.",
@@ -235,4 +237,13 @@ T = {
         "¿Estás en el móvil? La app de iPhone llega muy pronto; mira abajo lo que hace. La de Mac se descarga en el ordenador: envíate este enlace."),
     "看看 iPhone 版": ("See the iPhone app",
         "Ver la app de iPhone"),
+    # 2026-11-26 按 apple-design 审计改的
+    "左右滑动看整张截图": ("Swipe sideways to see the whole screenshot", "Desliza a los lados para ver la captura entera"),
+    "/* 动效：按下立刻有反应；展开、弹出都从按的地方长出来。系统设了「减少动态效果」就全关。 */": ("/* motion: instant press feedback; menus and answers grow from where you tapped; all off with Reduce Motion */",)*2,
+    "/* 系统设了「减少透明度」：顶栏改实色。「增强对比度」：边线和次要文字加深。 */": ("/* Reduce Transparency: solid nav. Increase Contrast: darker lines and secondary text */",)*2,
+    "// 新图叠在旧图上淡入，换完再拿掉旧图：中间不会闪一下空白": ("// cross-fade the new screenshot over the old one",)*2,
+    "// 先淡出，换图，加载好再淡入": ("// fade out, swap, fade in",)*2,
+    "// 手机菜单：点了链接、点菜单外面、按 Esc 都收起": ("// phone menu: close on link, outside tap or Esc",)*2,
+    "// 顶栏：往下滚了才出现分隔线": ("// nav: show the divider only after scrolling",)*2,
+    "// 对话：滚到这里时一条条冒出来（减少动态效果时直接全显示）": ("// chat: reveal messages one by one (all at once with Reduce Motion)",)*2,
 }

@@ -36,9 +36,10 @@
 }
 *{box-sizing:border-box;margin:0}
 html{-webkit-text-size-adjust:100%;scroll-padding-top:80px;-webkit-tap-highlight-color:transparent}
-body{background:var(--paper);color:var(--ink);font:17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+body{background:var(--paper);color:var(--ink);font:1.0625rem/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
   background-image:repeating-linear-gradient(180deg,transparent 0 31px,var(--rule) 31px 32px)}
 img{max-width:100%;height:auto;display:block}
+p,li,figcaption{text-wrap:pretty}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--sea);outline-offset:3px;border-radius:6px}
 .hand{font-family:var(--hand);font-weight:500;font-synthesis:none;letter-spacing:0}
@@ -48,34 +49,36 @@ a{color:inherit}
 .wrap{max-width:860px;margin:0 auto;padding:0 20px}
 /* nav */
 nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);
-  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid var(--line)}
+  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+nav.scrolled{border-bottom-color:var(--line);box-shadow:0 6px 18px -14px rgba(31,42,90,.35)}
 nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;white-space:nowrap}
+.logo{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700;text-decoration:none;white-space:nowrap}
 .logo img{width:30px;height:30px;border-radius:8px}
-.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:15px;color:var(--ink2)}
+.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:0.9375rem;color:var(--ink2)}
 .links a{text-decoration:none;text-underline-offset:4px}
+.links>a:not(.btn){display:inline-flex;align-items:center;min-height:44px}
 .links a:hover,.links a[aria-current=page]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px}
-.lang{display:flex;gap:4px;font-size:14px;white-space:nowrap}
-.lang a{padding:4px 6px;border-radius:6px;text-decoration:none;color:var(--ink2)}
+.lang{display:flex;gap:4px;font-size:0.875rem;white-space:nowrap}
+.lang a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 6px;border-radius:8px;text-decoration:none;color:var(--ink2)}
 .lang a[aria-current]{color:var(--ink);font-weight:700;background:var(--coin-soft)}
-.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:8px 16px;font-weight:700;text-decoration:none;
-  background:var(--coral);color:var(--on-coral);font-size:15px;border:0;cursor:pointer;touch-action:manipulation;transition:background-color .15s,transform .15s}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:0 18px;min-height:44px;font-weight:700;text-decoration:none;
+  background:var(--coral);color:var(--on-coral);font-size:0.9375rem;border:0;cursor:pointer;touch-action:manipulation;transition:background-color .15s,transform .16s ease-out}
 .btn:hover{background:var(--coral-h)}
 .menu{display:none;position:relative}
-.menu summary{white-space:nowrap;list-style:none;cursor:pointer;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:600}
+.menu summary{white-space:nowrap;list-style:none;cursor:pointer;display:flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:999px;font-size:0.875rem;font-weight:600}
 .menu summary::-webkit-details-marker{display:none}
-.menu div{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px}
-.menu div a{padding:10px 12px;border-radius:8px;text-decoration:none}
+.menu div{position:absolute;right:0;top:calc(100% + 8px);transform-origin:top right;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px}
+.menu div a{padding:11px 12px;border-radius:8px;text-decoration:none}
 .menu div a:hover{background:var(--paper2)}
-.mlang{display:flex;gap:4px;padding:8px 6px 4px;margin-top:4px;border-top:1px dashed var(--line)}
-@media (max-width:760px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
+.mlang{display:flex;gap:4px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
+@media (max-width:880px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
 .mdl{display:none}
-@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:15px}}
+@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:0.9375rem}}
 /* header */
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:56px 0 28px}
-.top h1{font-size:clamp(40px,7vw,60px);line-height:1.1;text-wrap:balance}
+.top h1{font-size:clamp(2.5rem,7vw,3.75rem);line-height:1.1;text-wrap:balance}
 .top p{color:var(--ink2);margin-top:10px;max-width:520px;text-wrap:pretty}
 .top img{width:120px;flex:none}
 /* latest: a receipt */
@@ -84,10 +87,10 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
   background:linear-gradient(-45deg,transparent 8px,var(--card) 0) 0 0/16px 12px repeat-x,linear-gradient(45deg,transparent 8px,var(--card) 0) 0 0/16px 12px repeat-x}
 .stub{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:18px;border-bottom:2px dashed var(--line)}
 .ver{font-family:var(--round);font-weight:800;font-variant-numeric:tabular-nums;text-decoration:none;letter-spacing:-.01em}
-.stub .ver{font-size:30px}
-.new{background:var(--coin);color:#1f2a5a;border-radius:999px;font-size:13px;font-weight:800;padding:2px 10px;align-self:center}
-time{font-size:14px;color:var(--ink3)}
-.latest h2{font-size:clamp(26px,4vw,34px);line-height:1.25;text-wrap:balance}
+.stub .ver{font-size:1.875rem}
+.new{background:var(--coin);color:#1f2a5a;border-radius:999px;font-size:0.8125rem;font-weight:800;padding:2px 10px;align-self:center}
+time{font-size:0.875rem;color:var(--ink3)}
+.latest h2{font-size:clamp(1.625rem,4vw,2.125rem);line-height:1.25;text-wrap:balance}
 .sum{color:var(--ink2);margin-top:8px;text-wrap:pretty}
 .latest ul,.body ul{margin-top:16px;padding-left:1.25em}
 li{margin:7px 0}
@@ -97,22 +100,42 @@ figure{border-radius:12px;overflow:hidden;border:1px solid var(--line);backgroun
 figure a{display:block;border-radius:inherit}
 figure a:focus-visible{outline:3px solid var(--sea);outline-offset:-5px}
 figure img{width:100%}
+figcaption{font-size:0.875rem;color:var(--ink2);padding:10px 14px;background:var(--card);border-top:1px solid var(--line)}
+.rest{margin-top:6px}
+.rest summary{cursor:pointer;display:inline-flex;align-items:center;min-height:44px;font-weight:600;color:var(--coral-t);list-style:none}
+.rest summary::-webkit-details-marker{display:none}
+.rest summary::after{content:"+";margin-left:8px;font-weight:400}
+.rest[open] summary::after{content:"–"}
+.rest ul{margin-top:4px}
 figure.art{border:0;background:none;border-radius:0}
 figure.art img{width:160px;margin:0 auto}
 /* older */
-.older-h{font-size:28px;margin-bottom:12px}
+.older-h{font-size:1.75rem;margin-bottom:12px}
 .older{list-style:none;padding:0;border-top:2px solid var(--ink);margin-bottom:56px}
 .older>li{margin:0;border-bottom:1px dashed var(--line)}
 .older summary{display:grid;grid-template-columns:76px 160px 1fr 24px;align-items:baseline;gap:12px;padding:16px 4px;cursor:pointer;list-style:none}
 .older summary::-webkit-details-marker{display:none}
-.older summary::after{content:"+";font-size:22px;line-height:1;color:var(--ink3);justify-self:end}
+.older summary::after{content:"+";font-size:1.375rem;line-height:1;color:var(--ink3);justify-self:end}
 .older details[open] summary::after{content:"–"}
 .older summary:hover .t{text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px;text-underline-offset:4px}
-.older .ver{font-size:20px}
+.older .ver{font-size:1.25rem}
 .older .t{font-weight:600;min-width:0}
 .body{padding:0 4px 24px 100px}
-footer{padding:28px 0 44px;font-size:14px;color:var(--ink3);border-top:1px solid var(--line)}
+footer{padding:28px 0 44px;font-size:0.875rem;color:var(--ink3);border-top:1px solid var(--line)}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:1120px}
+footer a{display:inline-block;padding:11px 0;margin:-11px 0}
+@media (prefers-reduced-motion:no-preference){
+  .btn:active,.menu summary:active{transform:scale(.97);transition-duration:.08s}
+  .menu[open] div{animation:menuIn .16s ease-out}
+  .older details[open] .body,.rest[open] ul{animation:reveal .22s ease-out}
+}
+@keyframes menuIn{from{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-transparency:reduce){nav{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--paper)}}
+@media (prefers-contrast:more){
+  :root{--line:rgba(31,42,90,.45);--ink2:#2b3463;--ink3:#3b4472}
+  @media (prefers-color-scheme:dark){:root{--line:rgba(255,248,238,.45);--ink2:#e6e9f5;--ink3:#cdd2e8}}
+}
 @media (max-width:760px){
   .top{padding:36px 0 20px}.top img{width:84px}
   .latest{padding:22px 18px 32px}
@@ -129,11 +152,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="wrap">
     <a href="/es/" class="logo"><img src="../assets/app-icon-64.png" alt="" width="30" height="30">Xiaxia Ledger</a>
     <div class="links">
+      <a href="/es/#iphone">iPhone</a>
       <a href="/es/#tour">Recorrido</a>
+      <a href="/es/#ai">Conecta tu IA</a>
+      <a href="/es/#cast">Xiaxia</a>
       <a href="/es/#install">Instalar</a>
       <a href="changelog.html" aria-current="page">Novedades</a>
       <span class="lang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span>
-      <details class="menu"><summary>Menú</summary><div><a href="/es/#tour">Recorrido</a><a href="/es/#install">Instalar</a><a href="changelog.html" aria-current="page">Novedades</a><a class="mdl" href="/download/xiaxia-ledger.dmg">Descargar</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span></div></details>
+      <details class="menu"><summary>Menú</summary><div><a href="/es/#iphone">iPhone</a><a href="/es/#tour">Recorrido</a><a href="/es/#ai">Conecta tu IA</a><a href="/es/#cast">Xiaxia</a><a href="/es/#install">Instalar</a><a href="changelog.html" aria-current="page">Novedades</a><a class="mdl" href="/download/xiaxia-ledger.dmg">Descargar</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es" aria-current="true">ES</a></span></div></details>
       <a class="btn" href="/download/xiaxia-ledger.dmg">Descargar</a>
     </div>
   </div>
@@ -150,8 +176,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="stub"><span class="new">Última</span><a class="ver" href="#v0.2.5">0.2.5</a><time datetime="2026-11-24">24 de noviembre de 2026</time></div>
   <h2 class="hand" id="t0.2.5">Hucha dorada, apuntes rápidos en el móvil y conexión con la IA en un clic</h2>
   <p class="sum">La página Objetivos es ahora una hucha dorada; en el móvil puedes apuntar algo al momento, fotografiar un tique y llevar tus gastos a reembolsar; conectar una IA es un solo clic.</p>
-  <ul><li>La página Objetivos se ha rehecho como una hucha dorada: 1 objetivo principal y hasta 3 pequeños. Xiaxia calcula cuánto ahorrar al día y cuándo lo tendrás. Meter dinero, aguantarte una compra o sacar dinero se hace tocando la hucha.</li><li>Apuntes rápidos en el móvil: abre y apunta, fotografía un tique y usa la nueva página de reembolsos para ver qué falta por presentar y qué está pendiente de cobro. iPhone y Mac se sincronizan solos con iCloud.</li><li>La página Tendencias responde ahora a «si sigo gastando así»: cuánto te quedará más o menos a fin de mes y a fin de año, y cuánto más tendrías reduciendo a la mitad algunas categorías.</li><li>Conectar una IA es más fácil: cada IA tiene un botón Conectar que después comprueba si puede leer el libro. Para otras IA, copia un texto y se configura sola.</li><li>Tras actualizar, la app te cuenta qué ha cambiado y comprueba si hay versión nueva cada vez que se abre. La web tiene una página de novedades y versiones en inglés y en español.</li><li>La interfaz empieza a estar disponible en inglés y español, en Ajustes → Privacidad y apariencia → Idioma. El chino sigue siendo el idioma por defecto y algunas partes, como los comentarios de Xiaxia, aún no están traducidas.</li></ul>
-  <div class="figs many"><figure><a href="../assets/changelog/0.2.5-piggy.webp"><img src="../assets/changelog/0.2.5-piggy.webp" alt="Página Objetivos: la hucha del objetivo principal «Portátil nuevo», con tres objetivos pequeños debajo (datos de ejemplo)" width="1600" height="772" loading="eager" decoding="async"></a></figure><figure><a href="../assets/changelog/0.2.5-trends.webp"><img src="../assets/changelog/0.2.5-trends.webp" alt="Página Tendencias: si sigues gastando así, cuánto te quedará más o menos a fin de mes y de año (datos de ejemplo)" width="1600" height="624" loading="eager" decoding="async"></a></figure><figure><a href="../assets/changelog/0.2.5-connect.webp"><img src="../assets/changelog/0.2.5-connect.webp" alt="Conecta tu IA: cada IA tiene su botón Conectar y muestra si ya está conectada (ejemplo)" width="1200" height="755" loading="eager" decoding="async"></a></figure></div>
+  <ul><li>La página Objetivos se ha rehecho como una hucha dorada: 1 objetivo principal y hasta 3 pequeños. Xiaxia calcula cuánto ahorrar al día y cuándo lo tendrás. Meter dinero, aguantarte una compra o sacar dinero se hace tocando la hucha.</li><li>Apuntes rápidos en el móvil: abre y apunta, fotografía un tique y usa la nueva página de reembolsos para ver qué falta por presentar y qué está pendiente de cobro. iPhone y Mac se sincronizan solos con iCloud.</li><li>La página Tendencias responde ahora a «si sigo gastando así»: cuánto te quedará más o menos a fin de mes y a fin de año, y cuánto más tendrías reduciendo a la mitad algunas categorías.</li><li>Conectar una IA es más fácil: cada IA tiene un botón Conectar que después comprueba si puede leer el libro. Para otras IA, copia un texto y se configura sola.</li></ul><details class="rest"><summary>2 cambios más</summary><ul><li>Tras actualizar, la app te cuenta qué ha cambiado y comprueba si hay versión nueva cada vez que se abre. La web tiene una página de novedades y versiones en inglés y en español.</li><li>La interfaz empieza a estar disponible en inglés y español, en Ajustes → Privacidad y apariencia → Idioma. El chino sigue siendo el idioma por defecto y algunas partes, como los comentarios de Xiaxia, aún no están traducidas.</li></ul></details>
+  <div class="figs many"><figure><a href="../assets/changelog/0.2.5-piggy.webp"><img src="../assets/changelog/0.2.5-piggy.webp" alt="Página Objetivos: la hucha del objetivo principal «Portátil nuevo», con tres objetivos pequeños debajo (datos de ejemplo)" width="1600" height="772" loading="eager" decoding="async"></a><figcaption>Página Objetivos: la hucha del objetivo principal «Portátil nuevo», con tres objetivos pequeños debajo (datos de ejemplo)</figcaption></figure><figure><a href="../assets/changelog/0.2.5-trends.webp"><img src="../assets/changelog/0.2.5-trends.webp" alt="Página Tendencias: si sigues gastando así, cuánto te quedará más o menos a fin de mes y de año (datos de ejemplo)" width="1600" height="624" loading="eager" decoding="async"></a><figcaption>Página Tendencias: si sigues gastando así, cuánto te quedará más o menos a fin de mes y de año (datos de ejemplo)</figcaption></figure><figure><a href="../assets/changelog/0.2.5-connect.webp"><img src="../assets/changelog/0.2.5-connect.webp" alt="Conecta tu IA: cada IA tiene su botón Conectar y muestra si ya está conectada (ejemplo)" width="1200" height="755" loading="eager" decoding="async"></a><figcaption>Conecta tu IA: cada IA tiene su botón Conectar y muestra si ya está conectada (ejemplo)</figcaption></figure></div>
 </section>
 <h2 class="older-h hand">Versiones anteriores</h2>
 <ol class="older">
@@ -160,7 +186,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="body">
     <p class="sum">Abre Patrimonio y el número más grande es el dinero que puedes gastar hoy con libertad, y para cuántos meses te llega.</p>
     <ul><li>El número más grande es «puedes gastar ahora»: el ahorro total menos lo que necesita la tienda, lo que guardas y lo que debes. El resto es tuyo.</li><li>Debajo ves para cuántos meses alcanza, según tu propio gasto mensual; si tienes un libro de negocio solo cuenta el gasto personal.</li><li>El ahorro total es ahora una barra gruesa de colores, un color por parte, con tarjetas debajo que indican qué cuentas y objetivos hay en cada una.</li></ul>
-    <div class="figs"><figure><a href="../assets/changelog/0.2.4.webp"><img src="../assets/changelog/0.2.4.webp" alt="Página Patrimonio: la cifra grande es lo que puedes gastar libremente, con una barra de colores que reparte tu dinero (datos de ejemplo)" width="1600" height="807" loading="lazy" decoding="async"></a></figure></div>
+    <div class="figs"><figure><a href="../assets/changelog/0.2.4.webp"><img src="../assets/changelog/0.2.4.webp" alt="Página Patrimonio: la cifra grande es lo que puedes gastar libremente, con una barra de colores que reparte tu dinero (datos de ejemplo)" width="1600" height="807" loading="lazy" decoding="async"></a><figcaption>Página Patrimonio: la cifra grande es lo que puedes gastar libremente, con una barra de colores que reparte tu dinero (datos de ejemplo)</figcaption></figure></div>
   </div>
 </details></li>
 <li id="v0.2.3"><details>
@@ -168,7 +194,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="body">
     <p class="sum">Mira cómo queda cada página con datos antes de apuntar nada; antes de borrar siempre se hace una copia, así que un error tiene arreglo.</p>
     <ul><li>Datos de demostración: recorre cada página con un año de apuntes inventados. Toca y cambia lo que quieras; al salir vuelve tu propio libro.</li><li>Borrar datos: puedes borrar solo una parte o todo. Antes se guarda una copia del libro.</li><li>Recuperar una copia: elige una de las copias guardadas antes de actualizar o de borrar.</li></ul>
-    <div class="figs"><figure><a href="../assets/changelog/0.2.3.webp"><img src="../assets/changelog/0.2.3.webp" alt="La sección Datos en Ajustes: ver datos de ejemplo, borrar datos (datos de ejemplo)" width="1456" height="546" loading="lazy" decoding="async"></a></figure></div>
+    <div class="figs"><figure><a href="../assets/changelog/0.2.3.webp"><img src="../assets/changelog/0.2.3.webp" alt="La sección Datos en Ajustes: ver datos de ejemplo, borrar datos (datos de ejemplo)" width="1456" height="546" loading="lazy" decoding="async"></a><figcaption>La sección Datos en Ajustes: ver datos de ejemplo, borrar datos (datos de ejemplo)</figcaption></figure></div>
   </div>
 </details></li>
 <li id="v0.2.2"><details>
@@ -176,7 +202,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="body">
     <p class="sum">Las páginas de dinero se han reorganizado para caber en una pantalla, y hay tres páginas nuevas para objetivos de ahorro, suscripciones y deudas.</p>
     <ul><li>Gastos ahora compara con el mes anterior; cambia entre tarta y barras con un clic.</li><li>Nuevo selector de meses: ves de un vistazo qué meses fueron fuertes o flojos y saltas a ellos con un clic.</li><li>Objetivos indica si ahorras al ritmo necesario, Suscripciones encuentra las que te hacen perder dinero y Deudas y plazos ordena lo que debes y lo que te deben.</li><li>Al apuntar desde la foto de un tique se usa la fecha del tique, no la de hoy.</li></ul>
-    <div class="figs"><figure><a href="../assets/tour-spending.webp"><img src="../assets/tour-spending.webp" alt="Página Gastos: este mes junto al anterior (datos de ejemplo)" width="1600" height="1000" loading="lazy" decoding="async"></a></figure></div>
+    <div class="figs"><figure><a href="../assets/tour-spending.webp"><img src="../assets/tour-spending.webp" alt="Página Gastos: este mes junto al anterior (datos de ejemplo)" width="1600" height="1000" loading="lazy" decoding="async"></a><figcaption>Página Gastos: este mes junto al anterior (datos de ejemplo)</figcaption></figure></div>
   </div>
 </details></li>
 <li id="v0.2.1"><details>
@@ -208,6 +234,12 @@ document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('cli
 // 地址里带着 #v0.2.3 这种：把那一版展开
 function openHash(){var el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));var d=el&&el.querySelector('details');if(d){d.open=true;el.scrollIntoView()}}
 openHash();window.addEventListener('hashchange',openHash);
+// 手机Menú：点了链接、点外面、按 Esc 都收起；顶栏往下滚了才出现分隔线
+var menu=document.querySelector('.menu');
+menu.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){menu.open=false})});
+document.addEventListener('click',function(e){if(menu.open&&!menu.contains(e.target))menu.open=false});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.open){menu.open=false;menu.querySelector('summary').focus()}});
+var nav=document.querySelector('nav');function edge(){nav.classList.toggle('scrolled',scrollY>8)}edge();addEventListener('scroll',edge,{passive:true});
 </script>
 </body>
 </html>
