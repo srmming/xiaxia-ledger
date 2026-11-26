@@ -149,6 +149,8 @@ struct MonthStepper: View {
             // Mac：箭头和月份是一块淡底的胶囊，看得出是一个整体，不和返回按钮混（审查 2026-11-26）。
             .padding(.horizontal, compact ? 0 : 2)
             .background(compact ? Color.clear : Color.sunken.opacity(0.7), in: Capsule())
+            // 三个按钮各自一个读屏元素（审查第三小轮：月份按钮被读成「上个月」）。
+            .accessibilityElement(children: .contain)
             if !compact && month != latest {
                 Button { month = latest } label: { Text(tr("回到本月")).font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 26).contentShape(Rectangle()) }
                     .foregroundStyle(accent)
