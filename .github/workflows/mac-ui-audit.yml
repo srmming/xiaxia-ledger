@@ -1,12 +1,10 @@
 # Mac 界面审查（2026-11-26，ming 要照官网审查的做法审 Mac app）：
 # 在 GitHub 的 Mac 机器上用示例账本（编造的，只在内存里）把每一页每个按钮点一遍、悬停、按 Tab、量控件大小、深浅色截图；
 # 另外给 iPhone 版用大字号截几页。只记录不判对错，结果推到 ci-ui-audit 分支给审查报告用。
-# 只在改到审查测试本身或手动点 Run workflow 时跑（Mac 机器按 10 倍扣额度）。
+# 只在手动点 Run workflow 时跑（Mac 机器按 10 倍扣额度）。
 name: mac-ui-audit
+# 2026-11-26 ming：长时间的跑在他 Mac 上跑，这里只留手动触发。
 on:
-  push:
-    branches: [claude/project-thread-3s8s2x]
-    paths: [App/MacUITests/**, .github/workflows/mac-ui-audit.yml]
   workflow_dispatch:
 
 permissions:
