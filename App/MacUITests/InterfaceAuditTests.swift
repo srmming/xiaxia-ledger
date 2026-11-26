@@ -38,7 +38,7 @@ final class InterfaceAuditTests: XCTestCase {
         // 点一下程序坞图标（= reopen）主窗口就出来了。这是 app 的毛病，记进审查报告；这里先绕开，好接着审。
         if !app.windows.firstMatch.waitForExistence(timeout: 12) {
             let dock = XCUIApplication(bundleIdentifier: "com.apple.dock")
-            let icon = dock.icons.matching(NSPredicate(format: "label BEGINSWITH %@", "夏夏账本")).firstMatch
+            let icon = dock.icons["夏夏账本 Debug"]  // 只点开发版，别点到正式版（正式版读真账本）
             if icon.exists { icon.click() } else { app.activate() }
             _ = app.windows.firstMatch.waitForExistence(timeout: 15)
         }
