@@ -55,20 +55,31 @@ struct InOutPair: View {
     let income: Money
     let expense: Money
     var body: some View {
-        HStack(alignment: .top, spacing: 28) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(income.display).font(.system(.title3, design: .rounded).weight(.semibold)).foregroundStyle(Color.income)
-                    .monospacedDigit().contentTransition(.numericText(value: Double(income.cents)))
-                Text(tr("进账")).font(.caption).foregroundStyle(Color.fg2)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(expense.display).font(.system(.title3, design: .rounded).weight(.semibold))
-                    .monospacedDigit().contentTransition(.numericText(value: Double(expense.cents)))
-                Text(tr("花掉")).font(.caption).foregroundStyle(Color.fg2)
-            }
+        // 大字号时两个数并排放不下：上下排，金额不拆行（审计 2026-11-26：「+」「581,47」「€」被拆成三行）。
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 28) { incomeFigure; expenseFigure }
+            VStack(alignment: .leading, spacing: 8) { incomeFigure; expenseFigure }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tr("进账 \(income.spoken)，花掉 \(expense.magnitude.spoken)"))
+    }
+
+    private var incomeFigure: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(income.display).font(.system(.title3, design: .rounded).weight(.semibold)).foregroundStyle(Color.income)
+                .monospacedDigit().contentTransition(.numericText(value: Double(income.cents)))
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(tr("进账")).font(.caption).foregroundStyle(Color.fg2)
+        }
+    }
+
+    private var expenseFigure: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(expense.display).font(.system(.title3, design: .rounded).weight(.semibold))
+                .monospacedDigit().contentTransition(.numericText(value: Double(expense.cents)))
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(tr("花掉")).font(.caption).foregroundStyle(Color.fg2)
+        }
     }
 }
 
