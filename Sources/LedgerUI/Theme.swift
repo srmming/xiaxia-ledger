@@ -1,3 +1,4 @@
+import FinanceCore
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -57,8 +58,12 @@ extension Color {
     static let aiLine = kit(0x5856D6, 0x8C89FF, alpha: 0.28, darkAlpha: 0.35)
     /// 「问 AI」实心按钮的底色（深色里稍亮一点，白字才看得清）。
     static let aiSolid = kit(0x4644C4, 0x5552D9)
-    /// 图表里「花掉」的灰柱。
-    static let barExpense = kit(0xC9C9D1, 0x4A4A52)
+    /// 实心按钮的底色：上面放白字。深色模式下比 brand 暗一档，白字才有 4.5:1（审查 2026-11-26：原来 2.5:1）。
+    static let brandSolid = kit(0xB4441F, 0xC4502A)
+    /// 店里那边的实心按钮底色（白字 4.6:1 以上）。
+    static let shopSolid = kit(0x0B6577, 0x137F93)
+    /// 图表里「花掉」「上月」的灰柱：和卡片底色至少 3:1（审查实测原来只有 1.6–2.2:1）。
+    static let barExpense = kit(0x8C8C93, 0x7A7A82)
     static let fg2 = kit(0x5A5A62, 0xB0B0B7)
     static let fg3 = kit(0x68686F, 0x8C8C93)
     /// 页面底色和卡片底色。
@@ -145,6 +150,33 @@ extension View {
     }
 }
 
+// MARK: - 当前这边的主色
+
+extension LedgerModel {
+    /// 当前这边的点缀色：生活 = 晨光橙，生意 = 青色。按钮、箭头、选中、柱子都用它，别一个个写死橙色。
+    var accent: Color { side == .business ? .shop : .brand }
+    /// 当前这边的实心按钮底色（上面放白字）。
+    var accentSolid: Color { side == .business ? .shopSolid : .brandSolid }
+    var accentSoft: Color { side == .business ? .shopSoft : .brandSoft }
+}
+
+/// 页面里的主按钮：实心底、白字。按不了的时候用淡主色（40%），字仍然看得清，不会像系统的灰按钮那样「隐形」。
+struct SolidButtonStyle: ButtonStyle {
+    var color: Color
+    var large = false
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(large ? .body.weight(.semibold) : .subheadline.weight(.semibold))
+            .foregroundStyle(.white.opacity(enabled ? 1 : 0.85))
+            .padding(.horizontal, large ? 16 : 12)
+            .frame(minHeight: large ? 32 : 26)
+            .background(color.opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4),
+                        in: RoundedRectangle(cornerRadius: Kit.buttonRadius, style: .continuous))
+            .contentShape(Rectangle())
+    }
+}
+
 /// 卡片、按钮按下缩到 97%，松手复原（不回弹）；打开「减弱动态效果」时只变淡。
 struct PressableStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
@@ -183,13 +215,15 @@ struct KitTag: View {
 struct SoftButtonStyle: ButtonStyle {
     var color: Color = .primary
     var background: Color = .sunken
+    @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.medium))
             .foregroundStyle(color)
             .padding(.horizontal, 11).padding(.vertical, 6)
+            .frame(minHeight: 24)
             .background(background, in: RoundedRectangle(cornerRadius: Kit.buttonRadius, style: .continuous))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(configuration.isPressed ? 0.7 : enabled ? 1 : 0.5)
             .contentShape(Rectangle())
     }
 }
@@ -211,4 +245,50 @@ struct AISolidButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.8 : 1)
             .contentShape(Rectangle())
     }
+}
+
+// MARK: - 点击区和悬停（审查 2026-11-26：30 多处点击区不到 20pt，188 个可点的只有 26 个悬停有反应）
+
+extension View {
+    /// 小图标按钮的点击区放到至少 size×size（默认 28），图标本身大小不变。
+    func hitArea(_ size: CGFloat = 28) -> some View {
+        frame(minWidth: size, minHeight: size).contentShape(Rectangle())
+    }
+
+    /// 小图标按钮：鼠标放上去时背后出一个淡淡的圆角底，告诉你能点。iPhone 上什么都不做。
+    func hoverBubble(cornerRadius: CGFloat = 7) -> some View { modifier(HoverBubble(cornerRadius: cornerRadius)) }
+}
+
+private struct HoverBubble: ViewModifier {
+    var cornerRadius: CGFloat
+    @State private var hovering = false
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .background(Color.primary.opacity(hovering ? 0.08 : 0), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hovering = inside } }
+        #else
+        content
+        #endif
+    }
+}
+
+extension View {
+    /// 每行右边的「⋯」操作菜单：系统的带边框按钮（24 高、键盘 Tab 能走到、悬停有反应），不画下拉小三角。
+    /// 审查 2026-11-26：原来是 36×17 的无边框小图标，Tab 也到不了。
+    func actionMenuStyle() -> some View {
+        self.menuStyle(.button).buttonStyle(.bordered).menuIndicator(.hidden).fixedSize()
+    }
+}
+
+/// 实心按钮（.borderedProminent）的底色：跟着当前这边，用暗一档的实心色，白字够清楚。
+struct SolidTint: ViewModifier {
+    @Environment(LedgerModel.self) private var model: LedgerModel?
+    func body(content: Content) -> some View {
+        content.tint(model?.accentSolid ?? .brandSolid)
+    }
+}
+
+extension View {
+    func solidTint() -> some View { modifier(SolidTint()) }
 }

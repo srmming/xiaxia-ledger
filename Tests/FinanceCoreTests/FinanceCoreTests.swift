@@ -599,6 +599,21 @@ final class ManageTests: XCTestCase {
         XCTAssertEqual(Plans.debts(l, today: day).count, 1)
     }
 
+    func testPayOffInstallment() throws {
+        var l = ledger()
+        let (inst, _) = try l.addInstallment(name: "灯", bookID: "miora", accountID: "bank", total: Money(cents: 60000), count: 6,
+                                             purchaseDate: day, firstPayment: day, author: "t")
+        try l.payInstallment(inst.id, date: day, author: "t")
+        let off = try l.payOffInstallment(inst.id, date: day, author: "t")
+        XCTAssertEqual(Plans.installments(l).first?.remaining.cents, 0)
+        XCTAssertEqual(l.transactions.last?.amount.cents, -50000)
+        // 还清了再点：不让记
+        XCTAssertThrowsError(try l.payOffInstallment(inst.id, date: day, author: "t"))
+        // 撤销：剩下的回来
+        try l.undo(changeID: off.id, author: "t")
+        XCTAssertEqual(Plans.installments(l).first?.remaining.cents, 50000)
+    }
+
     func testRemoveInstallmentAndGoal() throws {
         var l = ledger()
         let (inst, _) = try l.addInstallment(name: "灯", bookID: "miora", accountID: "bank", total: Money(cents: 60000), count: 6,

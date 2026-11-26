@@ -113,7 +113,7 @@ struct TransactionsPage: View {
                             Text(selected.isEmpty ? tr("点几笔选中，一起改") : tr("选了 \(selected.count) 笔")).font(.subheadline).foregroundStyle(Color.fg2)
                             Spacer()
                             Button(tr("一起改…")) { showBulk = true }
-                                .buttonStyle(.borderedProminent).tint(.brand)
+                                .buttonStyle(.borderedProminent).solidTint()
                                 .disabled(selected.isEmpty)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 10)

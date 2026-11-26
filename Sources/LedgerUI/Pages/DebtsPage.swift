@@ -38,10 +38,21 @@ struct DebtsPage: View {
             VStack(alignment: .leading, spacing: Kit.gap) {
                 xiaxiaCard(installments: installments, debts: debts)
                 totalsCard()
-                Columns(sideWidth: 360, breakpoint: 640, sideRatio: 0.42) {
-                    iOweCard(lines.filter { !$0.theyOweMe }, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
-                } side: {
-                    owedToMeCard(lines.filter(\.theyOweMe))
+                let mine = lines.filter { !$0.theyOweMe }, theirs = lines.filter(\.theyOweMe)
+                if theirs.isEmpty || mine.isEmpty {
+                    // 一边是空的：不再占半边，空的那边缩成一行（审查 2026-11-26）。
+                    if !mine.isEmpty {
+                        iOweCard(mine, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
+                    } else {
+                        owedToMeCard(theirs)
+                    }
+                    emptyLine(theirs.isEmpty ? tr("欠我的：没有借出去还没收回的钱。") : tr("我欠的：什么都不欠。"))
+                } else {
+                    Columns(sideWidth: 360, breakpoint: 640, sideRatio: 0.42) {
+                        iOweCard(mine, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
+                    } side: {
+                        owedToMeCard(theirs)
+                    }
                 }
             }
         }
@@ -310,6 +321,13 @@ struct DebtsPage: View {
         .kitCard()
     }
 
+    private func emptyLine(_ text: String) -> some View {
+        Text(text).font(.callout).foregroundStyle(Color.fg2)
+            .padding(.horizontal, Kit.cardPadding).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.cardBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
+    }
+
     private func header(_ title: String, _ total: Money, hint: String?) -> some View {
         HStack(alignment: .firstTextBaseline) {
             SectionHeader(title)
@@ -406,20 +424,27 @@ struct DebtLineRow: View {
                 if compact {
                     HStack(spacing: 8) {
                         if l.count > 0 {
-                            SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                            SegmentedProgress(done: l.paidCount, total: l.count, color: l.overdue ? .alert : model.accent)
                                 .frame(width: 72)
                         }
                         Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
                     }
                 } else {
                     if l.count > 0 {
-                        SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                        SegmentedProgress(done: l.paidCount, total: l.count, color: l.overdue ? .alert : model.accent)
                     }
                     Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
                 }
             }
         }
         .padding(.vertical, compact ? 4 : 6)
+        .hoverHighlight()
+        .contextMenu {
+            // 右键和「⋯」一样能记还款（键盘用户也能用 Tab 走到 ⋯）。
+            if l.kind == .installment, l.outstanding.cents > 0 {
+                Button(tr("记这一期还款")) { model.perform { try $0.payInstallment(l.id, amount: l.nextAmount, date: .today, author: model.author) } }
+            }
+        }
         .accessibilityElement(children: .contain)
     }
 

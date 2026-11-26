@@ -147,7 +147,7 @@ struct WhatsNewCard: View {
                     }
                     .buttonStyle(.soft)
                     Button(tr("知道了")) { withAnimation(.snappy) { state.dismiss() } }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.borderedProminent).solidTint()
                 }
             }
             .padding(16)

@@ -105,6 +105,8 @@ struct SpendingPaceChart: View {
                 }
             }
             .frame(height: height)
+            // 纵轴最上面那个刻度（「2.000 €」）有一半在图外面：上面留出字的高度，不被切掉（审查 2026-11-26）。
+            .padding(.top, 8)
             .revealFromLeading()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(summary)

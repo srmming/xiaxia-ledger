@@ -113,37 +113,46 @@ struct MonthStepper: View {
     /// 有记录的月份：面板里加小点。
     var recorded: Set<YearMonth> = []
     var compact = false
+    /// 当前这边的点缀色（生活橙、生意青）。
+    var accent: Color = .brand
     @State private var picking = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            if !compact {
-                Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                    .accessibilityLabel(tr("上个月"))
-            }
-            Button { picking = true } label: {
-                HStack(spacing: 3) {
-                    Text(compact ? tr("\(month.month) 月") : month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
-                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Color.fg3)
+        HStack(spacing: 6) {
+            HStack(spacing: 0) {
+                if !compact {
+                    Button { month = month.adding(months: -1) } label: { Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold)).frame(width: 26, height: 26).contentShape(Rectangle()) }
+                        .accessibilityLabel(tr("上个月"))
+                        .help(tr("上个月（⌘←）"))
                 }
-                .frame(minWidth: compact ? nil : 110, minHeight: 28).contentShape(Rectangle())
-            }
-            .foregroundStyle(.primary)
-            .accessibilityLabel(tr("\(month.label)，选月份"))
-            .accessibilityIdentifier("month.pick")
-            .popover(isPresented: $picking, arrowEdge: .bottom) {
-                MonthPanel(month: $month, latest: latest, recorded: recorded) { picking = false }
-                    .presentationCompactAdaptation(.popover)
-            }
-            if !compact {
-                Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Rectangle()) }
-                    .accessibilityLabel(tr("下个月"))
-                    .disabled(month >= latest)
-                if month != latest {
-                    Button { month = latest } label: { Text(tr("回到本月")).font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 28).contentShape(Rectangle()) }
-                        .foregroundStyle(Color.brand)
-                        .accessibilityIdentifier("month.today")
+                Button { picking = true } label: {
+                    HStack(spacing: 3) {
+                        Text(compact ? tr("\(month.month) 月") : month.label).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Color.fg3)
+                    }
+                    .frame(minWidth: compact ? nil : 104, minHeight: 26).contentShape(Rectangle())
                 }
+                .foregroundStyle(.primary)
+                .accessibilityLabel(tr("\(month.label)，选月份"))
+                .accessibilityIdentifier("month.pick")
+                .popover(isPresented: $picking, arrowEdge: .bottom) {
+                    MonthPanel(month: $month, latest: latest, recorded: recorded, accent: accent) { picking = false }
+                        .presentationCompactAdaptation(.popover)
+                }
+                if !compact {
+                    Button { month = month.adding(months: 1) } label: { Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).frame(width: 26, height: 26).contentShape(Rectangle()) }
+                        .accessibilityLabel(tr("下个月"))
+                        .help(tr("下个月（⌘→）"))
+                        .disabled(month >= latest)
+                }
+            }
+            // Mac：箭头和月份是一块淡底的胶囊，看得出是一个整体，不和返回按钮混（审查 2026-11-26）。
+            .padding(.horizontal, compact ? 0 : 2)
+            .background(compact ? Color.clear : Color.sunken.opacity(0.7), in: Capsule())
+            if !compact && month != latest {
+                Button { month = latest } label: { Text(tr("回到本月")).font(.caption.weight(.semibold)).padding(.horizontal, 6).frame(height: 26).contentShape(Rectangle()) }
+                    .foregroundStyle(accent)
+                    .accessibilityIdentifier("month.today")
             }
         }
         .buttonStyle(.borderless)
@@ -157,6 +166,7 @@ struct MonthPanel: View {
     @Binding var month: YearMonth
     let latest: YearMonth
     let recorded: Set<YearMonth>
+    var accent: Color = .brand
     var done: () -> Void
     @State private var year = 0
 
@@ -180,11 +190,11 @@ struct MonthPanel: View {
                     Button { month = ym; done() } label: {
                         VStack(spacing: 3) {
                             Text(tr("\(m) 月")).font(.callout.weight(picked ? .bold : .regular)).monospacedDigit()
-                            Circle().fill(recorded.contains(ym) ? (picked ? Color.white : Color.brand) : Color.clear).frame(width: 4, height: 4)
+                            Circle().fill(recorded.contains(ym) ? (picked ? Color.white : accent) : Color.clear).frame(width: 4, height: 4)
                         }
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .foregroundStyle(picked ? Color.white : ym > latest ? Color.fg3.opacity(0.5) : Color.primary)
-                        .background(picked ? Color.brand : ym == latest ? Color.brandSoft : Color.sunken.opacity(0.6),
+                        .background(picked ? accent : ym == latest ? accent.opacity(0.14) : Color.sunken.opacity(0.6),
                                     in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .contentShape(Rectangle())
                     }
@@ -193,11 +203,11 @@ struct MonthPanel: View {
                 }
             }
             HStack {
-                HStack(spacing: 4) { Circle().fill(Color.brand).frame(width: 4, height: 4); Text(tr("有记录")) }
+                HStack(spacing: 4) { Circle().fill(accent).frame(width: 4, height: 4); Text(tr("有记录")) }
                     .font(.caption).foregroundStyle(Color.fg2).accessibilityHidden(true)
                 Spacer()
                 Button { month = latest; done() } label: { Text(tr("回到本月")).font(.callout.weight(.semibold)) }
-                    .foregroundStyle(Color.brand)
+                    .foregroundStyle(accent)
                     .disabled(month == latest)
             }
         }
@@ -449,6 +459,8 @@ struct ToastView: View {
             Text(toast.text).font(.subheadline).lineLimit(2)
             if toast.changeID != nil {
                 Button(tr("撤销"), action: undo).font(.subheadline.weight(.semibold)).buttonStyle(.borderless)
+                    .accessibilityIdentifier("toast.undo")
+                    .accessibilityLabel(tr("撤销：\(toast.text)"))
             }
             if let label = toast.actionLabel, let url = toast.actionURL {
                 Button(label) {
@@ -465,7 +477,8 @@ struct ToastView: View {
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
         .padding(.horizontal)
-        .accessibilityElement(children: .combine)
+        // .contain：读屏和键盘都找得到里面的「撤销」按钮（原来 .combine 把按钮合进了一句话，审查 2026-11-26）。
+        .accessibilityElement(children: .contain)
     }
 }
 

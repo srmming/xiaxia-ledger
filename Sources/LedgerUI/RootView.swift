@@ -95,7 +95,8 @@ public struct RootView: View {
         .id(language)
         .environment(\.locale, (AppLanguage(rawValue: language) ?? L10n.fallbackChoice).locale)
         .animation(.smooth, value: model.showWelcome)
-        .tint(Color.brand)
+        // 当前这边的点缀色：生活橙、生意青（审查 2026-11-26：生意那边还有很多橙色）。
+        .tint(model.accent)
         #if os(macOS)
         .background(GeometryReader { geo in
             Color.clear
@@ -154,7 +155,7 @@ public struct RootView: View {
                 }
             }
                 .environment(model)
-                .tint(Color.brand)
+                .tint(model.accent)
                 #if os(macOS)
                 // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 // 记一笔多减一些：面板挂在工具栏下面（约 52），按钮那排要整个露在窗口里。
@@ -223,7 +224,7 @@ struct LoadErrorView: View {
             Text(tr("账本在 iCloud 云盘的「夏夏账本」文件夹里。先确认 iCloud 云盘开着、文件已经下载到这台设备；如果是新版本写的账本，更新一下 app。"))
                 .font(.caption).foregroundStyle(Color.fg2)
             HStack(spacing: 8) {
-                Button(tr("再试一次")) { model.reload() }.buttonStyle(.borderedProminent).tint(.brand)
+                Button(tr("再试一次")) { model.reload() }.buttonStyle(.borderedProminent).tint(.brandSolid)
                 AskAIReader { ask in
                     Button { ask(tr("夏夏账本打不开，提示：\(error)。帮我检查一下账本文件哪里有问题（只看不改）。")) } label: {
                         Label(tr("让 AI 检查"), systemImage: "sparkles")
@@ -252,8 +253,8 @@ struct MacRoot: View {
         @Bindable var model = model
         NavigationSplitView {
             List(selection: $model.section) {
-                Section(tr("看")) { ForEach(model.side == .business ? AppSection.businessLook : AppSection.look) { row($0) } }
-                Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
+                Section { ForEach(model.side == .business ? AppSection.businessLook : AppSection.look) { row($0) } } header: { sectionHeader(tr("看")) }
+                Section { ForEach(AppSection.ai) { row($0) } } header: { sectionHeader(model.xiaName) }
                 Section { row(.settings) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
@@ -289,6 +290,11 @@ struct MacRoot: View {
             // 中间这栏的最小宽度固定死，不随页面内容、对话栏开关变：分栏就不用重算最小宽度（「看看」闪退就是这么修的）。
             .frame(minWidth: 460, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
+    }
+
+    /// 侧栏分组标题：系统 Section 标题的样子（11pt 半粗、次要文字颜色），看得清（审查实测原来 2.2:1）。
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.fg2)
     }
 
     private func row(_ s: AppSection) -> some View {
@@ -344,8 +350,10 @@ struct MacToolbar: ToolbarContent {
                 .help(tr("返回上一页（⌘[）"))
                 .accessibilityLabel(tr("返回"))
             if section.usesMonth {
+                // 月份是一个整体「‹ 2026 年 11 月 ›」，和返回按钮之间隔开，不会把两个 ‹ 看混（审查 2026-11-26）。
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
-                             latest: LocalDate.today.yearMonth, recorded: model.recordedMonths)
+                             latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, accent: model.accent)
+                    .padding(.leading, 10)
             }
             if section.usesBook {
                 BookSwitch().environment(model)
@@ -354,8 +362,9 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             // 照 ming 的稿：「记一笔」是橙色实心（系统的醒目按钮样式 + 品牌橙，工具栏不会切掉它的底色）。
             Button { model.sheet = .add } label: { Label { Text(tr("记一笔")) } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.brand)
+                .buttonStyle(.borderedProminent).solidTint()
+                // 实心底用暗一档的颜色，白字在深色模式下也有 4.5:1（原来 2.5:1）；生意那边是青色。
+                .tint(model.accentSolid)
                 .help(tr("记一笔（⌘N）"))
             Button { model.toggleChat() } label: {
                 Label(model.xia(tr("问夏夏")), systemImage: "sparkles").labelStyle(.titleAndIcon)

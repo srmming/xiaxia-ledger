@@ -24,7 +24,7 @@ struct FixedCostsPage: View {
                                          : tr("到日子自动记上，不用手记。首页「真正赚了」已经扣掉了。")))
                 if rules.isEmpty {
                     Button { model.sheet = .fixedCost } label: { Label(tr("加第一项（比如房租）"), systemImage: "plus") }
-                        .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                        .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(rules) { r in
@@ -34,7 +34,7 @@ struct FixedCostsPage: View {
                     }
                     // 加一项：放在清单下面、店里的颜色，一眼看得到（ming 2026-11-25：以前太不显眼）。
                     Button { model.sheet = .fixedCost } label: { Label(tr("加一项"), systemImage: "plus") }
-                        .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                        .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
                         .keyboardShortcut("n", modifiers: [.command, .shift])
                         .help(tr("加一项固定开销（⌘⇧N）"))
                 }
@@ -87,8 +87,8 @@ struct FixedCostsPage: View {
             Text(r.template.amount.magnitude.rounded).font(.kitAmount).foregroundStyle(r.paused ? Color.fg3 : .primary)
             Menu {
                 actions(r)
-            } label: { Image(systemName: "ellipsis.circle") }
-                .menuStyle(.button).buttonStyle(.borderless).menuIndicator(.hidden).fixedSize()
+            } label: { Image(systemName: "ellipsis") }
+                .actionMenuStyle()
                 .accessibilityLabel(tr("\(r.template.description) 的操作"))
         }
         .padding(.vertical, 8)
@@ -167,7 +167,7 @@ struct FixedCostEditor: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("加上")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                    .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     .disabled(amount == nil || account.isEmpty)
             }

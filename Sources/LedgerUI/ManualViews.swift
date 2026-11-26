@@ -282,8 +282,8 @@ struct RecurringManager: View {
                         Button(tr("停掉（已经记的不动）"), role: .destructive) {
                             model.perform { try $0.removeRecurring(r.id, author: model.author) }
                         }
-                    } label: { Image(systemName: "ellipsis.circle").font(.title3) }
-                        .menuStyle(.button).buttonStyle(.borderless).menuIndicator(.hidden)
+                    } label: { Image(systemName: "ellipsis") }
+                        .actionMenuStyle()
                         .accessibilityLabel(tr("\(r.template.description) 的操作"))
                 }
                 .padding(.vertical, 4)

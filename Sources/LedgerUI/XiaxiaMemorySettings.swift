@@ -120,7 +120,7 @@ struct XiaxiaMemorySettings: View {
                         .accessibilityLabel(tr("整理记忆，有 \(tidyCount) 条可能用不上了"))
                 }
                 Button { editor = .new(kind) } label: { Label(tr("记一条"), systemImage: "plus") }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.borderedProminent).solidTint()
                     .accessibilityIdentifier("memory-add")
             }
         }
@@ -212,7 +212,7 @@ struct XiaxiaMemorySettings: View {
                     .frame(maxWidth: 420).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     Button { editor = .new(kind) } label: { Label(tr("记一条"), systemImage: "plus") }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.borderedProminent).solidTint()
                         .accessibilityIdentifier("memory-add")
                     Button(tr("让夏夏先认识我")) { ask(Self.meetPrompt, page: "夏夏的记忆") }
                         .buttonStyle(.softAI)

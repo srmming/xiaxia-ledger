@@ -92,7 +92,7 @@ struct BusinessHome: View {
                     Label(done ? tr("又收了一些") : tr("记今天的账"), systemImage: done ? "plus" : "square.and.pencil")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
                 .accessibilityIdentifier("business.daily")
                 // 店里花了钱（进货、修东西）：直接开记一笔，已经选好生意账本、是支出。
                 Button { model.addWith(AddPreset(income: false, category: nil, bookID: model.ledger.businessBook?.id)) } label: {
@@ -333,7 +333,7 @@ struct DailyTakingsSheet: View {
                 Button(action: save) {
                     Text(tr("记下")).font(.headline).padding(.vertical, 6).frame(minWidth: 100)
                 }
-                .buttonStyle(.borderedProminent).tint(Color.shop).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
                 .accessibilityIdentifier("daily.save")
@@ -542,7 +542,7 @@ struct CapitalEditor: View {
                 Button(tr("先跳过")) { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(tr("保存")) { save() }
-                    .buttonStyle(.borderedProminent).tint(Color.shop)
+                    .buttonStyle(.borderedProminent).tint(Color.shopSolid)
                     .keyboardShortcut(.defaultAction)
                     .disabled(Money.evaluate(totalText).map { $0.cents > 0 } != true)
             }

@@ -296,8 +296,9 @@ struct PendingCapturesCard: View {
                 Button { model.syncPhoneNotes() } label: { Label(tr("同步今天的"), systemImage: "sparkles") }
                     .buttonStyle(.borderedProminent).tint(Color.aiSolid)
                     .accessibilityIdentifier("syncPhoneNotes")
-                Button { withAnimation(.snappy) { hidden = true } } label: { Image(systemName: "xmark") }
+                Button { withAnimation(.snappy) { hidden = true } } label: { Image(systemName: "xmark").hitArea().hoverBubble() }
                     .buttonStyle(.borderless).foregroundStyle(Color.fg3).help(tr("先不管"))
+                    .accessibilityLabel(tr("先不管"))
                 #else
                 Button(tr("看看")) { showList = true }.buttonStyle(.soft)
                 #endif
@@ -873,7 +874,7 @@ struct ReimbursementPage: View {
                 model.toast = LedgerModel.Toast(text: error.localizedDescription, changeID: nil, isError: true)
             }
         } label: { Label(tr("导出报销单"), systemImage: "square.and.arrow.up") }
-            .buttonStyle(.borderedProminent).tint(Color.brand)
+            .buttonStyle(.borderedProminent).solidTint()
             .disabled(items.isEmpty)
         #else
         if let r = try? LedgerFiles.exportReimbursements(items, ledger: model.ledger, attachments: model.attachmentsFolder,
@@ -881,7 +882,7 @@ struct ReimbursementPage: View {
             ShareLink(items: r.files) {
                 Label(tr("导出报销单"), systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent).tint(Color.brand).controlSize(.large)
+            .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
         }
         #endif
     }

@@ -210,7 +210,7 @@ struct FixedGuessCard: View {
                     Button(tr("不算")) { reject(g) }
                         .buttonStyle(.bordered).controlSize(.small)
                     Button(tr("算")) { accept(g) }
-                        .buttonStyle(.borderedProminent).controlSize(.small)
+                        .buttonStyle(.borderedProminent).solidTint().controlSize(.small)
                         .tint(model.side == .business ? Color.shop : Color.brand)
                 }
                 .accessibilityElement(children: .contain)

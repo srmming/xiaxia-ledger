@@ -61,7 +61,7 @@ struct NewPlanSheet: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("记下")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canSave)
             }
@@ -291,6 +291,17 @@ struct PlanRowMenu: View {
                     Button { model.perform { try $0.resetGoalOrder(author: model.author) } } label: { Label(tr("顺序改回按急不急排"), systemImage: "arrow.up.arrow.down") }
                 }
             }
+            // 分期和欠款一样能记还款、提前还清（审查 2026-11-26：原来分期的菜单里只有「删除」）。
+            if case .installment(let id) = target, let st = Plans.installments(model.ledger).first(where: { $0.id == id }), st.remaining.cents > 0 {
+                let one = Money(cents: min(st.perPayment.cents, st.remaining.cents))
+                Button { model.perform { try $0.payInstallment(id, amount: one, date: .today, author: model.author) } } label: {
+                    Label(tr("记这一期还款（\(one.rounded)）"), systemImage: "arrow.uturn.backward.circle")
+                }
+                Button { model.perform { try $0.payOffInstallment(id, date: .today, author: model.author) } } label: {
+                    Label(tr("提前还清（\(st.remaining.rounded)）"), systemImage: "checkmark.circle")
+                }
+                Divider()
+            }
             if case .debt(let id) = target, let d = model.ledger.debts.first(where: { $0.id == id }), !d.closed {
                 Button { debtSheet = DebtSheet(debtID: id, kind: .repay) } label: { Label(tr("记一笔还款…"), systemImage: "arrow.uturn.backward.circle") }
                 Button { debtSheet = DebtSheet(debtID: id, kind: .plan) } label: {
@@ -308,11 +319,12 @@ struct PlanRowMenu: View {
                     Label(tr("结清（剩下的不用还了）"), systemImage: "checkmark.circle")
                 }
             }
+            Divider()
             Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删除…"), systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
+            Image(systemName: "ellipsis")
         }
-        .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+        .actionMenuStyle()
         .accessibilityLabel(tr("\(name) 的操作"))
         .confirmationDialog(tr("删除「\(name)」？"), isPresented: $confirmDelete, titleVisibility: .visible) {
             Button(tr("删除"), role: .destructive, action: remove)

@@ -67,8 +67,8 @@ struct BookManager: View {
                     deleting = b
                 }
                 .disabled(model.ledger.books.count < 2)
-            } label: { Image(systemName: "ellipsis.circle").imageScale(.large) }
-                .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+            } label: { Image(systemName: "ellipsis") }
+                .actionMenuStyle()
                 .accessibilityLabel(tr("\(b.name) 的操作"))
         }
     }

@@ -146,7 +146,7 @@ struct CategoryCreator: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("建好了")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     .disabled(trimmed.isEmpty)
             }

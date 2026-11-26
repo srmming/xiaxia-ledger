@@ -364,9 +364,9 @@ struct SubscriptionsCard: View {
                 Button(role: .destructive) { confirmDelete = sub } label: { Label(tr("删除…"), systemImage: "trash") }
             }
         } label: {
-            Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
+            Image(systemName: "ellipsis")
         }
-        .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+        .actionMenuStyle()
         .accessibilityLabel(tr("\(s.name) 的操作"))
     }
 

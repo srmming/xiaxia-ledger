@@ -69,7 +69,7 @@ struct FeedbackSheet: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(tr("用邮件发送")) { send() }
                     .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.borderedProminent).solidTint()
                     .disabled(trimmed.isEmpty)
                     .accessibilityIdentifier("feedback.send")
             }

@@ -98,7 +98,9 @@ struct MoreLink: View {
     var body: some View {
         SectionLink(section: section) {
             HStack(spacing: 2) { Text(model.xia(title)); Image(systemName: "chevron.right").font(.caption2.weight(.semibold)) }
-                .font(.subheadline).foregroundStyle(Color.brand)
+                .font(.subheadline).foregroundStyle(model.accent)
+                // 点击区至少 24 高（审查实测原来 32×14）。
+                .padding(.horizontal, 4).frame(minHeight: 24).contentShape(Rectangle())
         }
     }
 }

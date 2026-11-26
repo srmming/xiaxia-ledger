@@ -218,13 +218,14 @@ struct QuickAdd: View {
             Button(action: { save(keepOpen: false) }) {
                 Text(tr("保存")).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+            .buttonStyle(SolidButtonStyle(color: solidTint, large: true))
             .keyboardShortcut(.defaultAction)
             .disabled(!canSave)
         } else {
             HStack(spacing: 10) {
                 #if os(macOS)
-                Button(tr("取消")) { dismiss() }
+                // 取消用系统默认的灰色，不跟着橙色 / 青色（审查 2026-11-26：店里记一笔的取消是橙字）。
+                Button { dismiss() } label: { Text(tr("取消")).foregroundStyle(.primary) }
                     .keyboardShortcut(.cancelAction)
                     .controlSize(.large)
                 // Mac 上放在按钮这一排，不往上加一行：面板不会变高、把按钮挤出窗口。
@@ -234,7 +235,9 @@ struct QuickAdd: View {
                 Button(action: { save(keepOpen: true) }) {
                     Text(tr("再记一笔")).padding(.vertical, 6).padding(.horizontal, 4).lineLimit(1)
                 }
-                .buttonStyle(.bordered).controlSize(.large)
+                // 按不了时也看得清（淡一点的主色），不像系统灰按钮那样「隐形」。
+                .buttonStyle(SoftButtonStyle(color: tint, background: tint.opacity(0.14)))
+                .controlSize(.large)
                 .fixedSize()
                 .keyboardShortcut(.return, modifiers: [.command, .shift])
                 .disabled(!canSave)
@@ -247,7 +250,7 @@ struct QuickAdd: View {
                         .frame(minWidth: 100)
                     #endif
                 }
-                .buttonStyle(.borderedProminent).tint(.brand).controlSize(.large)
+                .buttonStyle(SolidButtonStyle(color: solidTint, large: true))
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
             }
@@ -276,7 +279,9 @@ struct QuickAdd: View {
                     .foregroundStyle(amountText.isEmpty ? Color.fg3 : amountColor)
                     .onTapGesture { focus = nil; withAnimation(.snappy) { keypadUp = true } }
                 #else
-                TextField("0", text: $amountText)
+                // 不给标题：放在表单里时标题会变成左边一个灰色的「0」，像又一个空框（审查 2026-11-26）。
+                TextField(tr("金额"), text: $amountText, prompt: Text(verbatim: "0"))
+                    .labelsHidden()
                     .textFieldStyle(.plain)
                     .font(.system(size: 46, weight: .bold, design: .rounded)).monospacedDigit()
                     .multilineTextAlignment(.center)
@@ -323,30 +328,36 @@ struct QuickAdd: View {
             // 同一个名字只留一个（不同金额的公交卡别排两个一模一样的）。
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("常记的，点一下就填好")).font(.caption).foregroundStyle(Color.fg3)
+                // Mac：放得下几个放几个，换行，不会把最后一个切掉一半（审查 2026-11-26）。
+                #if os(macOS)
+                FlowLayout(spacing: 6) { frequentChips(list) }
+                #else
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(list.reduce(into: [FinanceCore.Transaction]()) { out, t in
-                            if !out.contains(where: { $0.description == t.description }) { out.append(t) }
-                        }) { t in
-                            Button { apply(t) } label: {
-                                HStack(spacing: 5) {
-                                    CategoryIcon(category: t.category, size: 18)
-                                    Text(t.description).lineLimit(1).truncationMode(.tail).frame(maxWidth: 150, alignment: .leading).fixedSize(horizontal: false, vertical: true)
-                                    Text(t.amount.magnitude.formatted(in: model.ledger.currency(ofAccount: t.accountID))).foregroundStyle(Color.fg2).monospacedDigit()
-                                }
-                                .font(.caption)
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(Color.sunken, in: Capsule())
-                                .contentShape(Capsule())
-                            }
-                            .buttonStyle(.pressable)
-                            .accessibilityLabel(tr("再记一笔 \(t.description) \(t.amount.magnitude.formatted)"))
-                        }
-                    }
-                    .padding(.horizontal, 1)
+                    HStack(spacing: 6) { frequentChips(list) }.padding(.horizontal, 1)
                 }
+                #endif
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func frequentChips(_ list: [FinanceCore.Transaction]) -> some View {
+        ForEach(list.reduce(into: [FinanceCore.Transaction]()) { out, t in
+            if !out.contains(where: { $0.description == t.description }) { out.append(t) }
+        }) { t in
+            Button { apply(t) } label: {
+                HStack(spacing: 5) {
+                    CategoryIcon(category: t.category, size: 18)
+                    Text(t.description).lineLimit(1).truncationMode(.tail).frame(maxWidth: 150, alignment: .leading).fixedSize(horizontal: false, vertical: true)
+                    Text(t.amount.magnitude.formatted(in: model.ledger.currency(ofAccount: t.accountID))).foregroundStyle(Color.fg2).monospacedDigit()
+                }
+                .font(.caption)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.sunken, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel(tr("再记一笔 \(t.description) \(t.amount.magnitude.formatted)"))
         }
     }
 
@@ -703,6 +714,7 @@ struct QuickAdd: View {
     }
 
     private var tint: Color { shopMode ? .shop : .brand }
+    private var solidTint: Color { shopMode ? .shopSolid : .brandSolid }
 
     #if os(macOS)
     private var macForm: some View {
@@ -730,6 +742,17 @@ struct QuickAdd: View {
                         .font(.caption).foregroundStyle(!accountID.isEmpty && accountID == toAccountID ? Color.alert : Color.fg2)
                 }
             } else {
+                // 账户和日期挪到金额下面：一打开就看得到，不用往下滚（审查 2026-11-26）。
+                Section {
+                    accountPicker(tr("账户"), .from)
+                    // 开着生意模式时不问账本：在哪边记就是哪边的（顶上「生活 | 生意」）。
+                    if !model.businessOn && model.ledger.books.count > 1 {
+                        Picker(tr("账本"), selection: $bookID) {
+                            ForEach(model.ledger.books) { b in Text(b.name).tag(b.id) }
+                        }
+                    }
+                    macDateRow
+                }
                 Section {
                     TextField(tr("名称"), text: $name, prompt: Text(income ? tr("比如「工资」") : shopMode ? tr("比如「花材进货」") : tr("比如「超市」")))
                         .focused($focus, equals: .name)
@@ -751,14 +774,6 @@ struct QuickAdd: View {
                     }
                 }
                 Section {
-                    accountPicker(tr("账户"), .from)
-                    // 开着生意模式时不问账本：在哪边记就是哪边的（顶上「生活 | 生意」）。
-                    if !model.businessOn && model.ledger.books.count > 1 {
-                        Picker(tr("账本"), selection: $bookID) {
-                            ForEach(model.ledger.books) { b in Text(b.name).tag(b.id) }
-                        }
-                    }
-                    macDateRow
                     TextField(tr("备注"), text: $note, prompt: Text(tr("可不填")))
                         .focused($focus, equals: .note)
                     if editing == nil {
@@ -815,7 +830,7 @@ struct QuickAdd: View {
                             Text(c).font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
                                 .foregroundStyle(category == c ? .primary : Color.fg2)
                         }
-                        .frame(maxWidth: .infinity).padding(.vertical, 5)
+                        .frame(maxWidth: .infinity).frame(height: Self.macCell)
                         .background(category == c ? tint.opacity(0.14) : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(category == c ? tint.opacity(0.5) : .clear))
                         .contentShape(Rectangle())
@@ -833,7 +848,7 @@ struct QuickAdd: View {
                         Text(tr("自定义")).font(.caption2)
                     }
                     .foregroundStyle(Color.fg3)
-                    .frame(maxWidth: .infinity).padding(.vertical, 5)
+                    .frame(maxWidth: .infinity).frame(height: Self.macCell)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -841,9 +856,12 @@ struct QuickAdd: View {
             }
             .padding(2)
         }
-        // 正好三行（一格约 58 高），多了上下滚。
-        .frame(height: 182)
+        // 正好两行常用的，不切在半行；多了上下滚，底下渐隐提示还能滚（审查 2026-11-26）。
+        .frame(height: Self.macCell * 2 + 4 + 4)
+        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.9), .init(color: .black.opacity(all.count > 14 ? 0.35 : 1), location: 1)],
+                             startPoint: .top, endPoint: .bottom))
     }
+    private static let macCell: CGFloat = 54
 
     private func accountPicker(_ title: String, _ slot: AccountSlot) -> some View {
         let current = slot == .from ? accountID : toAccountID
@@ -863,14 +881,25 @@ struct QuickAdd: View {
     private var macDateRow: some View {
         LabeledContent(tr("日期")) {
             HStack(spacing: 6) {
-                Button(tr("今天")) { date = Date() }
-                    .buttonStyle(.borderless).foregroundStyle(Calendar.current.isDateInToday(date) ? tint : Color.fg2)
-                Button(tr("昨天")) { date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date() }
-                    .buttonStyle(.borderless).foregroundStyle(Calendar.current.isDateInYesterday(date) ? tint : Color.fg2)
+                // 24 高的胶囊，好点（审查实测原来 26×16）。
+                dayChip(tr("今天"), on: Calendar.current.isDateInToday(date)) { date = Date() }
+                dayChip(tr("昨天"), on: Calendar.current.isDateInYesterday(date)) { date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date() }
                 DatePicker(tr("日期"), selection: $date, displayedComponents: .date)
                     .datePickerStyle(.field).labelsHidden().fixedSize()
             }
         }
+    }
+
+    private func dayChip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.callout.weight(on ? .semibold : .regular))
+                .foregroundStyle(on ? tint : Color.fg2)
+                .padding(.horizontal, 10).frame(minHeight: 24)
+                .background(on ? tint.opacity(0.14) : Color.sunken, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
     #endif
 
