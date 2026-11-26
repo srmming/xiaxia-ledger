@@ -33,7 +33,15 @@ final class InterfaceAuditTests: XCTestCase {
         if let sheet { args += ["-XiaxiaSheet", sheet] }
         app.launchArguments = args
         app.launch()
-        _ = app.windows.firstMatch.waitForExistence(timeout: 20)
+        // 第一次启动有时窗口出来得慢（2026-11-26 在 ming 的 Mac 上第一组就找不到窗口）：再激活一次、还没有就重开。
+        if !app.windows.firstMatch.waitForExistence(timeout: 20) {
+            app.activate()
+            if !app.windows.firstMatch.waitForExistence(timeout: 10) {
+                app.terminate()
+                app.launch()
+                _ = app.windows.firstMatch.waitForExistence(timeout: 30)
+            }
+        }
         sleep(2)  // 等动画、图表画完
         return app
     }
