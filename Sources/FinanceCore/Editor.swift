@@ -193,6 +193,26 @@ extension Ledger {
         return change
     }
 
+    /// 提前还清：剩下没还的一次记一笔扣款（往来，不算支出）。已经还清的不让再记。
+    @discardableResult
+    public mutating func payOffInstallment(_ id: UUID, date: LocalDate, author: String) throws -> ChangeRecord {
+        guard let i = installments.firstIndex(where: { $0.id == id }) else { throw EditError.unknownInstallment }
+        let inst = installments[i]
+        let left = inst.total.cents - Plans.amounts(inst.paidIDs, in: transactions).cents
+        guard left > 0 else { throw EditError.amountMustBePositive }
+        let pay = Money(cents: left)
+        let tx = Transaction(date: date, amount: -pay, description: "\(inst.name) 提前还清", accountID: inst.accountID,
+                             bookID: inst.bookID, category: "分期还款", source: "手记", flow: .debt)
+        transactions.append(tx)
+        installments[i].paidIDs.append(tx.id)
+        var change = ChangeRecord(kind: .installmentPayment, summary: "分期提前还清：\(inst.name) \(pay.formatted)",
+                                  transactionIDs: [tx.id], author: author)
+        change.installmentID = id
+        captureTransactionResults(&change)
+        changes.append(change)
+        return change
+    }
+
     /// 把导入的一笔银行扣款认成某期分期还款：改成「往来」，不再算支出。
     @discardableResult
     public mutating func linkInstallmentPayment(_ id: UUID, transactionID: UUID, author: String) throws -> ChangeRecord {

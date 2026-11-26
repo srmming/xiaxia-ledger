@@ -706,13 +706,13 @@ struct DemoBuilder {
                       title: "小店这个月到今天进账 \(shopNow.income.formatted)，\(diff.cents >= 0 ? "比上个月同期多 \(diff.formatted)" : "比上个月同期少 \(diff.magnitude.formatted)")。",
                       body: "花材进货花了 \(flowers.formatted)。装修基金每个月存 200 €，按计划走。", author: "Claude"), on: end, hour: 0)
 
-        // 本月点评。
-        let now = Summaries.monthly(all, month: cur, bookID: nil, hiddenAccounts: hidden)
-        let before = Summaries.monthly(prevSame, month: prev, bookID: nil, hiddenAccounts: hidden)
+        // 本月点评（生活这边：只看个人账本，店里的在上面那条）。
+        let now = Summaries.monthly(all, month: cur, bookID: Self.P, hiddenAccounts: hidden)
+        let before = Summaries.monthly(prevSame, month: prev, bookID: Self.P, hiddenAccounts: hidden)
         let nowTop = top(now, 2).map { "「\($0.0)」\($0.1.formatted)" }.joined(separator: "和")
-        write(Insight(month: cur, kind: .monthlyReview,
+        write(Insight(month: cur, bookID: Self.P, kind: .monthlyReview,
                       title: "这个月到今天花了 \(now.expense.magnitude.formatted)，\(compare(now.expense.magnitude - before.expense.magnitude))。",
-                      body: "花得最多的是\(nowTop)。房租和店租月初已经付了，月底还有员工工资和社保，店里账户的钱够。",
+                      body: "花得最多的是\(nowTop)。房租月初已经付了，剩下的日子照平时花就够。",
                       author: "Claude"), on: end, hour: 0)
 
         // 留意：个人账本里比上个月同期涨得最多的分类。
@@ -830,10 +830,14 @@ struct DemoBuilder {
         ])
         l.business = settings
         l.minReaderVersion = 2
-        for (category, value) in [("店租", 550.0), ("员工工资", 760.0)] {
-            let date = LocalDate(year: end.year, month: end.month, day: 1)
-            let tx = Transaction(date: date, amount: eur(-value), description: category, accountID: "shop", bookID: Self.S, category: category)
-            l.recurring.append(Recurring(template: tx, frequency: .monthly, start: date))
+        // 和每个月真记的那几笔对得上（店租 1 号 1.100、店员工资 30 号 1.050）。
+        for (category, name, value, day) in [("店租", "店租", 1100.0, 1), ("员工工资", "兼职店员工资", 1050.0, 30)] {
+            let date = LocalDate(year: end.year, month: end.month, day: min(day, demoDaysIn(end.yearMonth)))
+            let tx = Transaction(date: date, amount: eur(-value), description: name, accountID: "shop", bookID: Self.S, category: category)
+            var rule = Recurring(template: tx, frequency: .monthly, start: date)
+            // 这个月还没到日子的（店员工资 30 号）：这个月那笔还没记，等到日子再自动记。
+            if date > end { rule.count = 0; rule.nextDate = date }
+            l.recurring.append(rule)
         }
     }
 

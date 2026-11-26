@@ -284,7 +284,6 @@ struct PendingCapturesCard: View {
         let list = model.ledger.pendingCaptures
         if !list.isEmpty && !hidden {
             HStack(alignment: .center, spacing: 10) {
-                XiaxiaAvatar(size: 34)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(tr("待记录 · \(list.count) 句")).font(.headline)
                     Text(preview(list)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
@@ -297,8 +296,9 @@ struct PendingCapturesCard: View {
                 Button { model.syncPhoneNotes() } label: { Label(tr("同步今天的"), systemImage: "sparkles") }
                     .buttonStyle(.borderedProminent).tint(Color.aiSolid)
                     .accessibilityIdentifier("syncPhoneNotes")
-                Button { withAnimation(.snappy) { hidden = true } } label: { Image(systemName: "xmark") }
+                Button { withAnimation(.snappy) { hidden = true } } label: { Image(systemName: "xmark").hitArea().hoverBubble() }
                     .buttonStyle(.borderless).foregroundStyle(Color.fg3).help(tr("先不管"))
+                    .accessibilityLabel(tr("先不管"))
                 #else
                 Button(tr("看看")) { showList = true }.buttonStyle(.soft)
                 #endif
@@ -486,6 +486,7 @@ struct CaptureDetail: View {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button(tr("记上")) { save() }.disabled(Money.evaluate(amountText) == nil || accountID.isEmpty)
+                    .sheetPrimary()
                     .accessibilityIdentifier("captureSave")
             }
         }
@@ -567,6 +568,8 @@ struct AttachmentThumb: View {
 struct PaperworkSection: View {
     @Environment(LedgerModel.self) var model
     let tx: FinanceCore.Transaction
+    /// 生意那边不放「报销」。
+    var showReimburse = true
     @State private var preview: URL?
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var importKind: Attachment.Kind?
@@ -609,7 +612,7 @@ struct PaperworkSection: View {
                     }
                 }
             }
-            VStack(alignment: .leading, spacing: 8) {
+            if showReimburse { VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(tr("报销")).font(.subheadline.weight(.semibold))
                     Spacer()
@@ -631,7 +634,7 @@ struct PaperworkSection: View {
                         Text(tr("还没挂发票：补上再交会顺利一点。")).font(.caption).foregroundStyle(Color.warn)
                     }
                 }
-            }
+            } }
         }
         .font(.callout)
         .onAppear { to = p?.reimburseTo ?? "" }
@@ -736,15 +739,9 @@ struct ReimbursementPage: View {
                 }
             }
         }
+        // 导出按钮不放工具栏了（审查 2026-11-26：和记一笔、问夏夏挤在一起，橙色还抢眼），挪到「待提交」那块右上角。
         Group {
             if embedded { content } else { content.kitPage() }
-        }
-        .toolbar {
-            #if os(macOS)
-            if !embedded {
-                ToolbarItem(placement: .primaryAction) { exportButton(all) }
-            }
-            #endif
         }
     }
 
@@ -808,6 +805,9 @@ struct ReimbursementPage: View {
                 Spacer()
                 Text(items.reduce(Money.zero) { $0 + $1.transaction.amount.magnitude }.formatted)
                     .font(.subheadline).foregroundStyle(Color.fg2).monospacedDigit()
+                #if os(macOS)
+                if st == .toSubmit { exportButton(model.ledger.reimbursements()) }
+                #endif
             }
             VStack(spacing: 0) {
                 ForEach(items) { item in
@@ -846,6 +846,7 @@ struct ReimbursementPage: View {
         }
         .padding(.vertical, 8).padding(.horizontal, 6)
         .contentShape(Rectangle())
+        .hoverHighlight()
     }
 
     @ViewBuilder private func statusMenu(_ item: ReimbursementItem) -> some View {
@@ -872,7 +873,8 @@ struct ReimbursementPage: View {
                 model.toast = LedgerModel.Toast(text: error.localizedDescription, changeID: nil, isError: true)
             }
         } label: { Label(tr("导出报销单"), systemImage: "square.and.arrow.up") }
-            .buttonStyle(.borderedProminent).tint(Color.brand)
+            .buttonStyle(.bordered)
+            .help(tr("把待提交的整理成报销单，连小票一起放进「下载」"))
             .disabled(items.isEmpty)
         #else
         if let r = try? LedgerFiles.exportReimbursements(items, ledger: model.ledger, attachments: model.attachmentsFolder,
@@ -880,7 +882,7 @@ struct ReimbursementPage: View {
             ShareLink(items: r.files) {
                 Label(tr("导出报销单"), systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent).tint(Color.brand).controlSize(.large)
+            .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
         }
         #endif
     }

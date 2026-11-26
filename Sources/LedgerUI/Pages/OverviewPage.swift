@@ -8,7 +8,11 @@ struct OverviewPage: View {
     @State private var short = false
 
     var body: some View {
-        if model.ledger.transactions.isEmpty {
+        if model.businessOn && model.side == .business {
+            // 生意这边的首页：这个月赚了多少、今天进出、回本、固定开销、欠款（设计稿 ④）。
+            BusinessHome(short: short).kitPage()
+                .onGeometryChange(for: Bool.self) { $0.size.height < 700 } action: { short = $0 }
+        } else if model.ledger.transactions.isEmpty {
             #if os(macOS)
             // 还没有一笔：照 ming 的稿（design/mockups/empty-overview-ming-2026-11-23.png）——「开始记账」+ 记第一笔 / 用 AI 导入旧账 + 一条问夏夏。
             StartLedgerView().kitPage()
@@ -90,7 +94,8 @@ struct OverviewPage: View {
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
-                SpendingPaceChart(status: s, height: short ? 64 : 170)
+                // 窗口矮也别压成一条扁线（审查 2026-11-26：最小窗口下几乎看不出起伏）。
+                SpendingPaceChart(status: s, height: short ? 120 : 210)
             }
         }
         .kitCard(padding: short ? 14 : 20)
@@ -131,7 +136,8 @@ struct OverviewPage: View {
 
     private var recentCard: some View {
         // 开账余额、自己账户之间互转不算收支，不占「最近流水」的位置（流水页里都还在）。
-        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` }.prefix(short ? 3 : 4))
+        // 存进目标的钱也不算（审查 2026-11-26：最近流水 4 条全是「存进换新电脑」）。
+        let recent = Array(model.visibleTransactions.filter { $0.flow != .opening && $0.flow != .`internal` && $0.flow != .saving }.prefix(short ? 4 : 6))
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("最近流水")) {
                 MoreLink(title: tr("全部"), section: .transactions)
@@ -172,7 +178,7 @@ struct OverviewPage: View {
                     .padding(.vertical, 5)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).hoverHighlight()
                 .accessibilityLabel(tr("\(book.name)：本月\(now.net.isExpense ? tr("超支") : tr("剩下")) \(now.net.magnitude.spoken)"))
                 .accessibilityHint(tr("只看这个账本"))
                 if book.id != model.ledger.books.last?.id { Divider().padding(.leading, 34) }

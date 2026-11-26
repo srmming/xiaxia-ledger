@@ -20,6 +20,10 @@ struct SettingsPage: View {
             VStack(spacing: 0) {
                 row(.books, symbol: "building.columns", title: tr("账本与账户")) { Text(booksSummary) }
                 divider
+                row(.business, symbol: "storefront", title: tr("生意模式")) {
+                    Text(model.businessOn ? tr("开着 · \(model.ledger.businessBook?.name ?? "")") : tr("关着"))
+                }
+                divider
                 row(.sync, symbol: "icloud", title: tr("同步与币种")) {
                     HStack(spacing: 6) {
                         Circle().fill(model.loadError == nil ? Color.income : Color.alert).frame(width: 7, height: 7)
@@ -40,18 +44,26 @@ struct SettingsPage: View {
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
 
-            // 帮助与反馈、版本：稿里没画，放在最下面一行小字。
-            HStack(spacing: 14) {
-                Button { open("https://xiaxia.ming95.com") } label: {  // 代码仓库是私有的，反馈走官网
-                    Label(tr("反馈问题 / 提个想法"), systemImage: "exclamationmark.bubble")
+            // 帮助与反馈：和上面一样的一行（审查 2026-11-26：以前是 13 高的小链接）；版本放在下面一行小字。
+            Button { model.sheet = .feedback } label: {  // 写好用邮件发（Feedback.swift）
+                HStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.bubble").font(.system(size: 17)).frame(width: 26)
+                    Text(tr("反馈问题 / 提个想法")).font(.body)
+                    Spacer(minLength: 12)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
                 }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("settings.feedback")
-                Spacer()
-                Text(tr("版本 \(version)")).textSelection(.enabled)
+                .padding(.vertical, 11)
+                .contentShape(Rectangle())
             }
-            .font(.caption).foregroundStyle(Color.fg2)
-            .padding(.horizontal, 6)
+            .buttonStyle(.plain)
+            .hoverHighlight()
+            .padding(.horizontal, 16)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
+            .accessibilityIdentifier("settings.feedback")
+            Text(tr("版本 \(version)")).textSelection(.enabled)
+                .font(.caption).foregroundStyle(Color.fg2)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 6)
         }
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
@@ -87,7 +99,7 @@ struct SettingsPage: View {
                 Button { model.sheet = .connectAI } label: {
                     Text(tr("连接你的 AI")).font(.body.weight(.semibold)).foregroundStyle(.white)
                         .padding(.horizontal, 18).padding(.vertical, 9)
-                        .background(Color.brand, in: Capsule())
+                        .background(model.accentSolid, in: Capsule())
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.pressable)
@@ -97,7 +109,7 @@ struct SettingsPage: View {
             #if os(macOS)
             VStack(spacing: 0) {
                 Button { pane = .ai } label: { ConnectedAISummary() }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).hoverHighlight()
                     .accessibilityIdentifier("settings.manageAI")
                 Divider()
                 Button {
@@ -114,7 +126,7 @@ struct SettingsPage: View {
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).hoverHighlight()
                 .help(tr("复制一段话，粘给任何 AI，它会自己把夏夏账本配好"))
                 .accessibilityIdentifier("settings.copySetup")
             }
@@ -154,6 +166,7 @@ struct SettingsPage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverHighlight()
         .accessibilityIdentifier("settings.\(p.rawValue)")
     }
 
@@ -187,12 +200,13 @@ struct SettingsPage: View {
 
 /// 设置的二级页。
 enum SettingsPane: String, Identifiable, Hashable {
-    case ai, books, sync, xiaxia, memory, privacy, author, data
+    case ai, books, business, sync, xiaxia, memory, privacy, author, data
     var id: String { rawValue }
     var title: String {
         switch self {
         case .ai: tr("管理 AI 连接")
         case .books: tr("账本与账户")
+        case .business: tr("生意模式")
         case .sync: tr("同步与币种")
         case .xiaxia: tr("夏夏偏好")
         case .memory: tr("夏夏的记忆")
@@ -257,7 +271,8 @@ struct SettingsPaneView: View {
 
     var body: some View {
         // 记忆页是另一个线程做的整页，自己管排版和滚动。
-        if pane == .memory { XiaxiaMemorySettings() } else if pane == .data { DataSettingsPane() } else { content }
+        if pane == .memory { XiaxiaMemorySettings() } else if pane == .data { DataSettingsPane() }
+        else if pane == .business { BusinessSettingsPane() } else { content }
     }
 
     private var content: some View {
@@ -270,7 +285,7 @@ struct SettingsPaneView: View {
                     Button { model.sheet = .connectAI } label: {
                         item(symbol: "link", color: .ai, title: tr("连接你的 AI（Claude、Codex、Hermes…）")) { chevron }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).hoverHighlight()
                 }
                 #else
                 ConnectAIPhoneNote()
@@ -351,9 +366,11 @@ struct SettingsPaneView: View {
                     NameSettingsRows()
                 }
                 group(tr("夏夏怎么跟你说话"), note: tr("夏夏在每页说的话、复制给 AI 的话、AI 写回来的意见，都按这个口吻。跟着账本同步。")) {
+                    CharacterToggle().padding(.bottom, 6)
+                    AILayerToggle().padding(.bottom, 6)
                     PersonaPicker()
                 }
-            case .memory, .data:
+            case .memory, .data, .business:
                 EmptyView()
             case .privacy:
                 group(tr("隐私")) {
@@ -423,7 +440,7 @@ struct SettingsPaneView: View {
 
     private func manageRow(_ symbol: String, _ title: String, _ sheet: AppSheet) -> some View {
         Button { manage = sheet } label: { item(symbol: symbol, color: .brand, title: title) { chevron } }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).hoverHighlight()
     }
 
     private func group<Content: View>(_ title: String, note: String? = nil, @ViewBuilder content: () -> Content) -> some View {

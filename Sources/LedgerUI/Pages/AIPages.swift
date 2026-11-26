@@ -64,11 +64,18 @@ struct InsightsPage: View {
     }
 
     private var remindersCard: some View {
-        let list = (allMonths ? model.ledger.insights(bookID: model.selectedBookID, includeDismissed: true)
-                    : model.ledger.insights(month: model.shownMonth, bookID: model.selectedBookID, includeDismissed: true))
+        let list = (allMonths ? model.insightsHere(includeDismissed: true)
+                    : model.insightsHere(month: model.shownMonth, includeDismissed: true))
             .filter { $0.kind != .monthlyReview || allMonths }
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("其它提醒")) {
+                // 一条条点「知道了」太累：一次全部收起（审查 2026-11-26）。
+                if list.contains(where: { $0.dismissedAt == nil }) {
+                    Button(tr("全部知道了")) {
+                        withAnimation(.snappy) { for i in list where i.dismissedAt == nil { model.dismiss(i) } }
+                    }
+                    .buttonStyle(.soft).font(.caption)
+                }
                 Picker(tr("范围"), selection: $allMonths) {
                     Text(tr("本月")).tag(false)
                     Text(tr("全部")).tag(true)
@@ -88,7 +95,7 @@ struct InsightsPage: View {
     }
 
     private var recentAIWork: some View {
-        let changes = model.ledger.changes.filter { !model.isMe($0.author) }.sorted { $0.createdAt > $1.createdAt }.prefix(6)
+        let changes = model.changesOnThisSide.filter { !model.isMe($0.author) }.sorted { $0.createdAt > $1.createdAt }.prefix(6)
         return VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: tr("AI 最近做了什么")) {
                 MoreLink(title: tr("改动记录"), section: .changes)
@@ -147,7 +154,7 @@ struct ChangesPage: View {
     @State var who = 0   // 0 全部、1 只看 AI、2 只看我
 
     var body: some View {
-        let all = model.ledger.changes.sorted { $0.createdAt > $1.createdAt }
+        let all = model.changesOnThisSide.sorted { $0.createdAt > $1.createdAt }
         let list = all.filter { c in who == 0 || (who == 1 ? !model.isMe(c.author) : model.isMe(c.author)) }
         let groups = Dictionary(grouping: list.prefix(200), by: { LocalDate($0.createdAt) }).sorted { $0.key > $1.key }
         Columns(sideWidth: 340, breakpoint: 760) {
@@ -209,6 +216,7 @@ struct ChangeRow: View {
     @Environment(LedgerModel.self) var model
     let change: ChangeRecord
     var showUndo = true
+    @State private var hovering = false
 
     var body: some View {
         let me = model.isMe(change.author)
@@ -234,9 +242,30 @@ struct ChangeRow: View {
                 Button { model.undo(change.id) } label: { Label(tr("撤销"), systemImage: "arrow.uturn.backward") }
                     .buttonStyle(.soft)
                     .help(tr("把账本改回这次改动之前的样子"))
+                    // Mac：鼠标放到这一行上才显示，每行一个「撤销」太吵（键盘 Tab 仍然能走到）。
+                    .opacity(showsUndoAlways || hovering ? 1 : 0)
             }
         }
         .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+        // 点一行：去流水只看这次改的那几笔（审查 2026-11-26：原来 30 行点了都没反应）。
+        .onTapGesture { if canOpen { model.showTransactions(TransactionFilter(ids: Set(change.transactionIDs))) } }
+        .hoverHighlight()
+        .onHover { hovering = $0 }
+        .help(canOpen ? tr("点一下，在流水里看这次改的 \(change.transactionIDs.count) 笔") : "")
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: tr("在流水里看")) { if canOpen { model.showTransactions(TransactionFilter(ids: Set(change.transactionIDs))) } }
+    }
+
+    private var showsUndoAlways: Bool {
+        #if os(macOS)
+        false
+        #else
+        true
+        #endif
+    }
+
+    private var canOpen: Bool {
+        !change.undone && change.transactionIDs.contains { model.transaction($0) != nil }
     }
 }

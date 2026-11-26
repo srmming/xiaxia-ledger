@@ -5,6 +5,7 @@ import SwiftUI
 /// 最上面夏夏说一句（别人欠的到期没还就俏皮催一下）；顶上三个数：我欠的、欠我的、本月要还多少，下面一条「还清时间线」；
 /// 再往下左边「我欠的」（分期 + 借来的），右边「欠我的」。本月要还的排最前，快到期的标红。这些都已经算进家底。
 struct DebtsPage: View {
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     @Environment(LedgerModel.self) var model
     /// iPhone 的「计划」标签里也用这一页，那里外面已经有滚动了。
     var embedded = false
@@ -37,10 +38,21 @@ struct DebtsPage: View {
             VStack(alignment: .leading, spacing: Kit.gap) {
                 xiaxiaCard(installments: installments, debts: debts)
                 totalsCard()
-                Columns(sideWidth: 360, breakpoint: 640, sideRatio: 0.42) {
-                    iOweCard(lines.filter { !$0.theyOweMe }, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
-                } side: {
-                    owedToMeCard(lines.filter(\.theyOweMe))
+                let mine = lines.filter { !$0.theyOweMe }, theirs = lines.filter(\.theyOweMe)
+                if theirs.isEmpty || mine.isEmpty {
+                    // 一边是空的：不再占半边，空的那边缩成一行（审查 2026-11-26）。
+                    if !mine.isEmpty {
+                        iOweCard(mine, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
+                    } else {
+                        owedToMeCard(theirs)
+                    }
+                    emptyLine(theirs.isEmpty ? tr("欠我的：没有借出去还没收回的钱。") : tr("我欠的：什么都不欠。"))
+                } else {
+                    Columns(sideWidth: 360, breakpoint: 640, sideRatio: 0.42) {
+                        iOweCard(mine, installments: installments, borrowed: debts.filter { $0.direction == .iOweThem })
+                    } side: {
+                        owedToMeCard(theirs)
+                    }
                 }
             }
         }
@@ -83,15 +95,7 @@ struct DebtsPage: View {
                 addButtons
             }
             #endif
-            if !o.payoffs.isEmpty {
-                if short {
-                    // 窗口矮：时间线只留一行字（哪个月全部还清 + 每笔哪个月清），一屏放下。
-                    PayoffTimeline(overview: o, compact: true)
-                } else {
-                    Divider()
-                    PayoffTimeline(overview: o)
-                }
-            }
+            // 还清时间线（插旗子那条）去掉了（ming 2026-11-25）：每笔哪个月还清写在下面各自那一行里。
         }
         .kitCard(padding: short ? 14 : 18)
         .accessibilityElement(children: .contain)
@@ -224,7 +228,7 @@ struct DebtsPage: View {
         let total = lines.reduce(Money.zero) { $0 + $1.outstanding }
         let maxRows = short ? 3 : 6
         return VStack(alignment: .leading, spacing: 2) {
-            header(tr("我欠的"), total, hint: lines.isEmpty ? nil : tr("本月要还的在前"))
+            header(tr("我欠的"), total, hint: nil)
             if lines.isEmpty {
                 Text(tr("什么都不欠。分期买东西点「记分期」，跟别人借钱点「记借款」。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
@@ -237,7 +241,7 @@ struct DebtsPage: View {
                 Text(tr("还有 \(lines.count - maxRows) 笔，跟夏夏说「列出我所有的欠款和分期」。")).font(.caption).foregroundStyle(Color.fg2).padding(.top, 4)
             }
             if !short, let tip = repayTip(installments: installments, borrowed: borrowed) {
-                repayFooter(tip)
+                if aiInPages { repayFooter(tip) }
             }
         }
         .kitCard()
@@ -317,13 +321,20 @@ struct DebtsPage: View {
         .kitCard()
     }
 
+    private func emptyLine(_ text: String) -> some View {
+        Text(text).font(.callout).foregroundStyle(Color.fg2)
+            .padding(.horizontal, Kit.cardPadding).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.cardBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
+    }
+
     private func header(_ title: String, _ total: Money, hint: String?) -> some View {
         HStack(alignment: .firstTextBaseline) {
             SectionHeader(title)
             if let hint { Text(hint).font(.caption).foregroundStyle(Color.fg3) }
             Spacer()
             if total.cents > 0 {
-                Text(total.rounded).font(.callout.weight(.semibold)).foregroundStyle(Color.fg2).monospacedDigit()
+                Text(tr("一共 \(total.rounded)")).font(.callout.weight(.semibold)).foregroundStyle(Color.fg2).monospacedDigit()
             }
         }
         .padding(.bottom, 4)
@@ -413,20 +424,27 @@ struct DebtLineRow: View {
                 if compact {
                     HStack(spacing: 8) {
                         if l.count > 0 {
-                            SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                            SegmentedProgress(done: l.paidCount, total: l.count, color: l.overdue ? .alert : model.accent)
                                 .frame(width: 72)
                         }
                         Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
                     }
                 } else {
                     if l.count > 0 {
-                        SegmentedProgress(done: l.paidCount, total: l.count, color: l.urgent ? .alert : .brand)
+                        SegmentedProgress(done: l.paidCount, total: l.count, color: l.overdue ? .alert : model.accent)
                     }
                     Text(note).font(.caption).foregroundStyle(l.urgent ? Color.alert : Color.fg2).lineLimit(1)
                 }
             }
         }
         .padding(.vertical, compact ? 4 : 6)
+        .hoverHighlight()
+        .contextMenu {
+            // 右键和「⋯」一样能记还款（键盘用户也能用 Tab 走到 ⋯）。
+            if l.kind == .installment, l.outstanding.cents > 0 {
+                Button(tr("记这一期还款")) { model.perform { try $0.payInstallment(l.id, amount: l.nextAmount, date: .today, author: model.author) } }
+            }
+        }
         .accessibilityElement(children: .contain)
     }
 

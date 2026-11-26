@@ -69,6 +69,10 @@ public struct Profile: Codable, Hashable, Sendable {
     public var userCallName: String?
     /// 上次整理夏夏的记忆是什么时候（一个月提醒一次）。
     public var memoryTidiedAt: Date?
+    /// 一次性开销的标记（流水 id → 是不是一次性）：AI 记账、导入、悄悄复核时标的。没标的按规则猜。见 Outlook.swift。
+    public var oneOff: [String: Bool]?
+    /// 认出来、用户说「不算固定开销」的「账户|分类」，以后不再问。
+    public var notFixed: [String]?
 
     public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = [],
                 assistantName: String? = nil, userCallName: String? = nil) {
@@ -89,7 +93,7 @@ public struct Profile: Codable, Hashable, Sendable {
             .replacingOccurrences(of: app, with: "夏夏账本")
     }
 
-    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName, memoryTidiedAt }
+    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName, memoryTidiedAt, oneOff, notFixed }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -99,6 +103,8 @@ public struct Profile: Codable, Hashable, Sendable {
         assistantName = try c.decodeIfPresent(String.self, forKey: .assistantName)
         userCallName = try c.decodeIfPresent(String.self, forKey: .userCallName)
         memoryTidiedAt = try c.decodeIfPresent(Date.self, forKey: .memoryTidiedAt)
+        oneOff = try c.decodeIfPresent([String: Bool].self, forKey: .oneOff)
+        notFixed = try c.decodeIfPresent([String].self, forKey: .notFixed)
     }
 
     /// 「你的目标」示例，点一下就填。说法通用。

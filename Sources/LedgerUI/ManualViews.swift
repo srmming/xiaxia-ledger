@@ -39,11 +39,13 @@ struct TransactionActions: View {
     @State var refundText = ""
 
     var body: some View {
-        // 最常用的两个（改、删）直接摆出来；复制、拆开、退款、设成重复放进「更多」，不让详情页一排按钮。
+        // 「改」是主按钮；复制、拆开、退款、设成重复收进「⋯」；删除放最后，做成红字的文字按钮，不再是最显眼的那个（审查 2026-11-26）。
         HStack(spacing: 8) {
             if tx.isPlainEntry {
-                Button { model.startEditing(tx.id) } label: { Label(tr("改"), systemImage: "pencil").frame(maxWidth: .infinity) }
-                    .buttonStyle(.soft)
+                Button { model.startEditing(tx.id) } label: { Label(tr("改"), systemImage: "pencil") }
+                    .buttonStyle(SolidButtonStyle(color: model.accentSolid))
+                    .keyboardShortcut("e", modifiers: .command)
+                    .help(tr("改这一笔（⌘E）"))
                     .accessibilityIdentifier("tx-edit")
                 Menu {
                     Button { model.perform { try $0.duplicateTransaction(tx.id, author: model.author) } } label: {
@@ -60,12 +62,17 @@ struct TransactionActions: View {
                             }
                         } label: { Label(tr("设成重复"), systemImage: "repeat") }
                     }
-                } label: { Label(tr("更多"), systemImage: "ellipsis.circle").frame(maxWidth: .infinity) }
-                    .menuStyle(.button).buttonStyle(.soft).menuIndicator(.hidden)
+                } label: { MoreGlyph() }
+                    .actionMenuStyle()
+                    .help(tr("复制、拆开、记退款、设成重复"))
+                    .accessibilityLabel(tr("更多操作：复制、拆开、记退款、设成重复"))
                     .accessibilityIdentifier("tx-more")
             }
-            Button { confirmDelete = true } label: { Label(tr("删除"), systemImage: "trash").frame(maxWidth: tx.isPlainEntry ? .infinity : nil) }
-                .buttonStyle(.softAlert)
+            Spacer(minLength: 8)
+            Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删除"), systemImage: "trash") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Color.alert)
+                .frame(minHeight: 24)
         }
         .font(.callout)
         .sheet(isPresented: $splitting) {
@@ -166,7 +173,7 @@ struct SplitSheet: View {
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button(tr("拆开"), action: save).disabled(!canSave) }
+            ToolbarItem(placement: .confirmationAction) { Button(tr("拆开"), action: save).disabled(!canSave).sheetPrimary() }
         }
         .onAppear {
             guard parts.isEmpty else { return }
@@ -282,8 +289,8 @@ struct RecurringManager: View {
                         Button(tr("停掉（已经记的不动）"), role: .destructive) {
                             model.perform { try $0.removeRecurring(r.id, author: model.author) }
                         }
-                    } label: { Image(systemName: "ellipsis.circle").font(.title3) }
-                        .menuStyle(.button).buttonStyle(.borderless).menuIndicator(.hidden)
+                    } label: { MoreGlyph() }
+                        .actionMenuStyle()
                         .accessibilityLabel(tr("\(r.template.description) 的操作"))
                 }
                 .padding(.vertical, 4)

@@ -32,50 +32,82 @@ struct NewPlanSheet: View {
         return m.magnitude
     }
 
+    @FocusState private var focus: Bool
+
     var body: some View {
-        Form {
-            Section {
-                // 存钱目标走一步一页的引导（GoalWizard），这里只登记分期和借款。
-                Picker(tr("要登记的是"), selection: $kind) {
-                    ForEach(Kind.allCases.filter { $0 != .goal || kind == .goal }) { Text($0.rawValue).tag($0) }
+        // 分期、借款各自一张（ming 2026-11-25 重做）：最要紧的先填（谁 / 什么、多少），下面一句话说清楚会记成什么。
+        // Mac 上按钮在底下，回车保存、Esc 取消；打开就能打字。
+        VStack(spacing: 0) {
+            Form {
+                switch kind {
+                case .goal: goalFields
+                case .installment: installmentFields
+                case .debt: debtFields
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("planKind")
-            } footer: { Text(footer) }
-
-            switch kind {
-            case .goal: goalFields
-            case .installment: installmentFields
-            case .debt: debtFields
-            }
-
-            if model.ledger.books.count > 1 {
-                Section {
-                    Picker(tr("账本"), selection: $bookID) {
-                        ForEach(model.ledger.books) { Text($0.name).tag($0.id) }
+                // 开着生意模式时不问账本：在哪边登记就算哪边的。
+                if model.ledger.books.count > 1 && !model.businessOn {
+                    Section {
+                        Picker(tr("账本"), selection: $bookID) {
+                            ForEach(model.ledger.books) { Text($0.name).tag($0.id) }
+                        }
                     }
                 }
+                Section { } footer: { Text(summary ?? footer).font(.caption).foregroundStyle(Color.fg2) }
             }
+            .formStyle(.grouped)
+            #if os(macOS)
+            Divider()
+            HStack {
+                Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
+                Spacer()
+                Button(action: save) { Text(tr("记下")).frame(minWidth: 80) }
+                    .sheetPrimary()
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            #endif
         }
-        .formStyle(.grouped)
+        .tint(model.side == .business ? Color.shop : Color.brand)
         .navigationTitle(kind == .goal ? tr("新目标") : kind == .installment ? tr("记分期") : tr("记借款"))
         .inlineTitle()
+        #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) { Button(tr("保存"), action: save).disabled(!canSave) }
         }
+        #endif
         .onAppear {
             if bookID.isEmpty { bookID = model.selectedBookID ?? model.defaultBookID }
-            if accountID.isEmpty { accountID = model.defaultAccountID }
+            if accountID.isEmpty {
+                let d = model.defaultAccountID
+                accountID = model.accountsOnThisSide.contains { $0.id == d } ? d : model.accountsOnThisSide.first?.id ?? d
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus = true }
         }
         .onChange(of: kind) { _, _ in error = nil }
         .errorAlert($error)
     }
 
+    /// 填好了就用一句话说清楚：「新手机 每月 45 €，24 期，一共 1.080 €，从 12 月 1 日起从日常卡扣。」
+    private var summary: String? {
+        guard let amount, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        let n = name.trimmingCharacters(in: .whitespaces)
+        switch kind {
+        case .goal: return nil
+        case .installment:
+            let d = LocalDate(firstPayment)
+            return tr("「\(n)」每月 \(amount.ui)，\(count) 期，一共 \(Money(cents: amount.cents * Int64(count)).ui)，\(d.month) 月 \(d.day) 日起从「\(model.accountName(accountID))」扣。买的那天按全额算一笔支出，之后每期不再算支出。")
+        case .debt:
+            let money = accountID.isEmpty ? tr("不记钱进出（旧账）") : theyOweMe ? tr("钱从「\(model.accountName(accountID))」出去") : tr("钱进了「\(model.accountName(accountID))」")
+            return theyOweMe ? tr("\(n) 欠你 \(amount.ui)，\(money)。不算收入也不算支出。") : tr("你欠 \(n) \(amount.ui)，\(money)。不算收入也不算支出。")
+        }
+    }
+
     private var footer: String {
         switch kind {
         case .goal: tr("比如「旅行」2.000 €，明年 6 月前存够。存钱时跟夏夏说「往旅行里存 100」。")
-        case .installment: tr("比如「手机」每月 45 €，分 24 期。买的那天按全额记一笔支出，之后每期扣款不再算支出。")
+        case .installment: tr("比如「手机」每月 45 €，分 12 期。买的那天按全额记一笔支出，之后每期扣款不再算支出。")
         case .debt: tr("比如「小王借我 300 €」。还钱时跟夏夏说「小王还了我 100」。")
         }
     }
@@ -104,36 +136,36 @@ struct NewPlanSheet: View {
 
     @ViewBuilder private var installmentFields: some View {
         Section {
-            FormField(tr("买的是什么"), tr("比如「手机」"), text: $name)
-            FormField(tr("每期多少"), tr("比如 45"), text: $amountText).decimalKeyboard()
+            TextField(tr("买的是什么"), text: $name, prompt: Text(tr("比如「手机」"))).focused($focus)
+            TextField(tr("每期多少"), text: $amountText, prompt: Text(tr("比如 45"))).decimalKeyboard()
             Stepper(tr("一共 \(count) 期"), value: $count, in: 2...120)
+        }
+        Section {
             DatePicker(tr("第一期哪天扣"), selection: $firstPayment, displayedComponents: .date)
             accountPicker(tr("从哪个账户扣"), allowNone: false)
-        } footer: {
-            if let amount { Text(verbatim: tr("一共 \(Money(cents: amount.cents * Int64(count)).ui)。")) }
         }
     }
 
     @ViewBuilder private var debtFields: some View {
         Section {
             Picker(tr("方向"), selection: $theyOweMe) {
-                Text(tr("我借给别人")).tag(true)
-                Text(tr("我向别人借")).tag(false)
+                Text(tr("别人欠我")).tag(true)
+                Text(tr("我欠别人")).tag(false)
             }
-            .pickerStyle(.segmented)
-            FormField(theyOweMe ? tr("借给谁") : tr("向谁借"), tr("写对方的名字"), text: $name)
-            FormField(tr("多少"), tr("比如 300"), text: $amountText).decimalKeyboard()
+            .pickerStyle(.segmented).labelsHidden()
+            TextField(theyOweMe ? tr("谁欠我") : tr("我欠谁"), text: $name, prompt: Text(tr("写对方的名字"))).focused($focus)
+            TextField(tr("多少"), text: $amountText, prompt: Text(tr("比如 300"))).decimalKeyboard()
+        }
+        Section {
             DatePicker(tr("哪天"), selection: $date, displayedComponents: .date)
             accountPicker(theyOweMe ? tr("钱从哪个账户出去") : tr("钱进了哪个账户"), allowNone: true)
-        } footer: {
-            Text(tr("选了账户会同时记一笔「往来」，不算收入也不算支出。很早以前的旧账可以选「不记进出」。"))
         }
     }
 
     private func accountPicker(_ title: String, allowNone: Bool) -> some View {
         Picker(title, selection: $accountID) {
-            if allowNone || accountID.isEmpty { Text(allowNone ? tr("不记进出") : tr("选一个")).tag("") }
-            ForEach(model.visibleAccounts) { Text($0.name).tag($0.id) }
+            if allowNone || accountID.isEmpty { Text(allowNone ? tr("不记进出（旧账）") : tr("选一个")).tag("") }
+            ForEach(model.accountsOnThisSide) { Text($0.name).tag($0.id) }
         }
     }
 
@@ -203,7 +235,7 @@ struct GoalEditor: View {
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button(tr("保存"), action: save).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
+            ToolbarItem(placement: .confirmationAction) { Button(tr("保存"), action: save).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty).sheetPrimary() }
         }
         .onAppear {
             name = goal.name
@@ -259,6 +291,17 @@ struct PlanRowMenu: View {
                     Button { model.perform { try $0.resetGoalOrder(author: model.author) } } label: { Label(tr("顺序改回按急不急排"), systemImage: "arrow.up.arrow.down") }
                 }
             }
+            // 分期和欠款一样能记还款、提前还清（审查 2026-11-26：原来分期的菜单里只有「删除」）。
+            if case .installment(let id) = target, let st = Plans.installments(model.ledger).first(where: { $0.id == id }), st.remaining.cents > 0 {
+                let one = Money(cents: min(st.perPayment.cents, st.remaining.cents))
+                Button { model.perform { try $0.payInstallment(id, amount: one, date: .today, author: model.author) } } label: {
+                    Label(tr("记这一期还款（\(one.rounded)）"), systemImage: "arrow.uturn.backward.circle")
+                }
+                Button { model.perform { try $0.payOffInstallment(id, date: .today, author: model.author) } } label: {
+                    Label(tr("提前还清（\(st.remaining.rounded)）"), systemImage: "checkmark.circle")
+                }
+                Divider()
+            }
             if case .debt(let id) = target, let d = model.ledger.debts.first(where: { $0.id == id }), !d.closed {
                 Button { debtSheet = DebtSheet(debtID: id, kind: .repay) } label: { Label(tr("记一笔还款…"), systemImage: "arrow.uturn.backward.circle") }
                 Button { debtSheet = DebtSheet(debtID: id, kind: .plan) } label: {
@@ -276,11 +319,12 @@ struct PlanRowMenu: View {
                     Label(tr("结清（剩下的不用还了）"), systemImage: "checkmark.circle")
                 }
             }
+            Divider()
             Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删除…"), systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
+            MoreGlyph()
         }
-        .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+        .actionMenuStyle()
         .accessibilityLabel(tr("\(name) 的操作"))
         .confirmationDialog(tr("删除「\(name)」？"), isPresented: $confirmDelete, titleVisibility: .visible) {
             Button(tr("删除"), role: .destructive, action: remove)

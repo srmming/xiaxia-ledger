@@ -156,6 +156,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: XiaxiaLedger-iOS
         CODE_SIGN_STYLE: Automatic
+  # Mac 界面审查（2026-11-26）：示例账本上每页截图、量控件大小、每个按钮点一遍、悬停、Tab 键。只记录不判对错，不碰真账本。
+  XiaxiaLedger-macOSUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [MacUITests]
+    dependencies:
+      - target: XiaxiaLedger-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.srmming.xiaxia-ledger.mac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: XiaxiaLedger-macOS
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
 schemes:
   XiaxiaLedger-iOS:
     build: { targets: { XiaxiaLedger-iOS: all } }
@@ -166,3 +180,6 @@ schemes:
   XiaxiaLedger-macOS:
     build: { targets: { XiaxiaLedger-macOS: all, fin-tool: all } }
     run: { config: Debug }
+    test:
+      config: Debug
+      targets: [XiaxiaLedger-macOSUITests]

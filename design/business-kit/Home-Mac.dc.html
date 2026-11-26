@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>生意首页 Mac</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#EBEBEF;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--inc:#0E6B40;--incS:rgba(19,122,74,.10);--al:#B8322A;--alS:rgba(211,63,53,.10);--side:#ECECF0;--chrome:#F7F7F9;--seg:rgba(118,118,128,.12);--on:#FFFFFF;--onfg:#0B6577}
+.dk{--bg:#0C0C0E;--card:#1C1C1F;--sunk:#2C2C30;--fg:#F5F5F7;--fg2:#B0B0B7;--fg3:#8C8C93;--sep:rgba(120,120,128,.26);--shop:#2FA4BA;--shopS:rgba(47,164,186,.15);--inc:#36C77F;--incS:rgba(54,199,127,.15);--al:#FF6A5F;--alS:rgba(255,106,95,.15);--side:#18181B;--chrome:#1A1A1D;--seg:rgba(118,118,128,.24);--on:#636366;--onfg:#FFFFFF}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1300px}
+.cap{font-size:15px;color:#55555c;margin-top:24px;text-align:center}
+.mac{width:960px;height:640px;border-radius:12px;overflow:hidden;background:var(--bg);color:var(--fg);box-shadow:0 0 0 1px rgba(0,0,0,.14),0 24px 60px rgba(0,0,0,.2);display:flex;flex-direction:column}
+.tb{height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--chrome);border-bottom:1px solid var(--sep);flex-shrink:0}
+.dots{display:flex;gap:8px}.dots i{width:12px;height:12px;border-radius:50%;background:#FF5F57}.dots i:nth-child(2){background:#FEBC2E}.dots i:nth-child(3){background:#28C840}
+.sb{width:190px;background:var(--side);padding:14px 10px;font-size:13px;color:var(--fg2);display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.sb span{padding:6px 10px;border-radius:7px}.sb .on{background:var(--shopS);color:var(--shop);font-weight:600}
+.seg{display:inline-flex;background:var(--seg);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:4px 16px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--on);color:var(--onfg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tbtn{height:30px;padding:0 14px;border-radius:8px;border:0;background:var(--shop);color:#fff;font:600 13px/30px inherit;font-family:inherit}
+.card{background:var(--card);border-radius:14px;padding:16px 18px}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:14px;font-weight:600}
+.ok{background:var(--incS);color:var(--inc)}.bad{background:var(--alS);color:var(--al)}
+.tiny{font-size:13px;color:var(--fg3)}
+.bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}.bar i{display:block;height:100%;background:var(--shop);border-radius:4px}
+</style>
+</helmet>
+<div class="kit" style="width: 2128px; height: 940px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>1 · 生意首页 · Mac</h1>
+<p>最大的数是「这个月真正赚了多少」（房租、工资已经扣掉），旁边写比上个月同一天多还是少。下面一句提醒钱够不够，再下面一行小字。新店多一张回本卡。「记今天的账」在右上角。</p>
+</div>
+<div style="display: flex; gap: 80px">
+
+<div>
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span class="on">总览</span><span>花销</span><span>趋势</span><span>家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div style="flex:1;padding:64px 72px;display:flex;flex-direction:column">
+<div style="font-size:15px;color:var(--fg2)">11 月真正赚了</div>
+<div class="num" style="font-size:72px;line-height:1.1;margin:4px 0 12px">2.340 €</div>
+<div style="display:flex;align-items:center;gap:12px"><span class="tag ok">比 10 月同期多 310 €</span><span class="tiny">已扣掉房租、工资这些固定开销</span></div>
+<div class="card" style="margin-top:48px;max-width:560px;display:flex;gap:10px;font-size:16px;line-height:1.5;background:var(--incS)"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="10" cy="10" r="8.5" fill="none" stroke="#0E6B40" stroke-width="1.6"></circle><path d="M6.2 10.3l2.5 2.4 5-5.2" fill="none" stroke="#0E6B40" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>手上 3.400 €，下周交房租 1.200，<b style="color:var(--inc)">够</b>。</span></div>
+<div style="margin-top:20px;font-size:15px;color:var(--fg2)">这个月给自己发了 <b class="num" style="color:var(--fg)">1.500 €</b> ›</div>
+</div>
+</div>
+</div>
+<div class="cap">浅色 · 老店：没有回本卡</div>
+</div>
+
+<div>
+<div class="mac dk">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span class="on">总览</span><span>花销</span><span>趋势</span><span>家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div style="flex:1;padding:64px 72px;display:flex;flex-direction:column">
+<div style="font-size:15px;color:var(--fg2)">11 月真正赚了</div>
+<div class="num" style="font-size:72px;line-height:1.1;margin:4px 0 12px">1.180 €</div>
+<div style="display:flex;align-items:center;gap:12px"><span class="tag ok">比 10 月同期多 260 €</span><span class="tiny">已扣掉房租、工资这些固定开销</span></div>
+<div class="card" style="margin-top:48px;max-width:560px;display:flex;gap:10px;font-size:16px;line-height:1.5;background:var(--incS)"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink:0;margin-top:2px"><circle cx="10" cy="10" r="8.5" fill="none" stroke="#36C77F" stroke-width="1.6"></circle><path d="M6.2 10.3l2.5 2.4 5-5.2" fill="none" stroke="#36C77F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>手上 2.150 €，下周发工资 900，<b style="color:var(--inc)">够</b>。</span></div>
+<div style="margin-top:20px;font-size:15px;color:var(--fg2)">这个月给自己发了 <b class="num" style="color:var(--fg)">800 €</b> ›</div>
+<div class="card" style="margin-top:28px;max-width:560px"><div style="display:flex;justify-content:space-between;font-size:15px;margin-bottom:10px"><b>回本 18%</b><span style="color:var(--fg2)">大约还要 26 个月</span></div><div class="bar"><i style="width:18%"></i></div><div class="tiny" style="margin-top:8px">已经赚回 12.600 € · 开店花了 70.000 €</div></div>
+</div>
+</div>
+</div>
+<div class="cap">深色 · 新店：多一张回本卡</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2128,"height":940}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

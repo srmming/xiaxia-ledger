@@ -147,11 +147,9 @@ struct ConnectAIView: View {
         .navigationTitle(tr("连接你的 AI"))
         .inlineTitle()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(anyGreen ? tr("关闭") : tr("以后再说")) { dismiss() }
-            }
+            // 只放一个按钮（审查 2026-11-26：以前「关闭」「完成」同时在）：连上了就是「完成」，还没连就是「以后再说」。
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("完成")) { dismiss() }.disabled(!anyGreen)
+                Button(anyGreen ? tr("完成") : tr("以后再说")) { dismiss() }.keyboardShortcut(.cancelAction)
             }
         }
         .task {

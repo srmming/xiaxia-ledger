@@ -8,6 +8,8 @@ import AppKit
 public enum AppSection: String, CaseIterable, Identifiable, Hashable {
     case overview = "总览", spending = "花销", trends = "趋势", wealth = "家底", plans = "目标", subscriptions = "订阅", debts = "欠款与分期", reimburse = "报销"
     case insights = "夏夏建议", changes = "改动记录", transactions = "流水", settings = "设置"
+    /// 生意那边才有：房租、工资这些每月固定要付的（2026-11-25）。
+    case fixed = "固定开销"
     public var id: String { rawValue }
     /// 显示给人看的名字（跟着界面语言）。rawValue 是中文，留给 AI 和存储用，不变。
     public var title: String { trKey(rawValue) }
@@ -26,11 +28,12 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .changes: "clock.arrow.circlepath"
         case .transactions: "list.bullet.rectangle.portrait.fill"
         case .settings: "gearshape.fill"
+        case .fixed: "calendar.badge.clock"
         }
     }
 
     /// 工具栏要不要月份和账本切换（AI、改动记录、设置不按月看）。
-    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions, .debts, .reimburse].contains(self) }
+    var usesMonth: Bool { ![.insights, .changes, .settings, .subscriptions, .debts, .reimburse, .fixed].contains(self) }
     var usesBook: Bool { ![.insights, .changes, .settings, .wealth].contains(self) }
 
     @ViewBuilder var screen: some View {
@@ -47,13 +50,41 @@ public enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .changes: ChangesPage()
         case .transactions: TransactionsPage()
         case .settings: SettingsPage()
+        case .fixed: FixedCostsPage()
         }
     }
 
     /// Mac 侧栏「看」：订阅、欠款与分期各自单独一页，「计划」只放存钱目标、改叫「目标」（ming 2026-11-23）。
     /// iPhone 底栏放不下，订阅、欠款还在「计划」那个标签里分格看。
-    static let look: [AppSection] = [.overview, .spending, .trends, .wealth, .plans, .subscriptions, .debts, .reimburse]
+    /// 流水也放进「看」，就在总览下面（ming 2026-11-25）。
+    static let look: [AppSection] = [.overview, .transactions, .spending, .trends, .wealth, .plans, .subscriptions, .debts, .reimburse]
+    /// 生意那边的侧栏：没有目标、订阅、报销，多一个固定开销（ming 2026-11-25：生活和生意完全分开）。
+    static let businessLook: [AppSection] = [.overview, .transactions, .spending, .trends, .wealth, .fixed, .debts]
     static let ai: [AppSection] = [.insights, .changes]
+
+    /// AI 写意见时带的 page（英文 id 或中文页名）→ 页面。
+    static func from(page: String?) -> AppSection? {
+        guard let page else { return nil }
+        let ids: [String: AppSection] = [
+            "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
+            "plans": .plans, "goals": .plans, "subscriptions": .subscriptions, "debts": .debts, "reimburse": .reimburse, "reimbursements": .reimburse,
+            "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes, "transactions": .transactions, "settings": .settings, "fixed": .fixed,
+        ]
+        return ids[page] ?? AppSection(rawValue: page)
+    }
+
+    /// 一条提醒该去哪一页：AI 写了 page 就去那页，没写就按标题里的字猜（订阅、欠款、目标、花销）。
+    static func forInsight(_ i: Insight) -> AppSection? {
+        if let s = from(page: i.page), s != .overview { return s }
+        let text = i.title + i.body
+        if text.contains("订阅") || text.contains("会员") { return .subscriptions }
+        if text.contains("分期") || text.contains("欠") || text.contains("借") || text.contains("还款") { return .debts }
+        if text.contains("目标") || text.contains("存钱") || text.contains("小猪") { return .plans }
+        if text.contains("报销") { return .reimburse }
+        if text.contains("信用卡") || text.contains("余额") || text.contains("家底") { return .wealth }
+        if text.contains("花") || text.contains("超支") || text.contains("分类") { return .spending }
+        return from(page: i.page)
+    }
     static let records: [AppSection] = [.transactions]
 }
 
@@ -69,6 +100,22 @@ public struct RootView: View {
     @AppStorage(L10n.defaultsKey) var language = L10n.fallbackChoice.rawValue
     /// 主窗口有多高（Mac 上弹出的面板不能比它高）。
     @State private var windowHeight: CGFloat = 900
+
+    #if os(macOS)
+    /// 弹窗多高：短表单就矮一点，主按钮紧跟在内容下面，不留一大块空（审查 2026-11-26）。
+    static func sheetHeight(_ sheet: AppSheet) -> CGFloat {
+        switch sheet {
+        case .connectAI: 720
+        case .plan: 540
+        case .newDebt, .newInstallment: 440
+        case .fixedCost: 420
+        case .sideTransfer: 480
+        case .daily: 540
+        case .feedback: 440
+        default: 580
+        }
+    }
+    #endif
 
     public var body: some View {
         @Bindable var model = model
@@ -88,7 +135,10 @@ public struct RootView: View {
         .id(language)
         .environment(\.locale, (AppLanguage(rawValue: language) ?? L10n.fallbackChoice).locale)
         .animation(.smooth, value: model.showWelcome)
-        .tint(Color.brand)
+        // 当前这边的点缀色：生活橙、生意青（审查 2026-11-26：生意那边还有很多橙色）。
+        .tint(model.accent)
+        // 开了「减少动态效果」：全 app 的弹簧、移动都换成短短的淡入淡出（审查 2026-11-26：以前 25 个有动画的文件只有 10 个判断了）。
+        .calmWhenReduceMotion()
         #if os(macOS)
         .background(GeometryReader { geo in
             Color.clear
@@ -140,16 +190,21 @@ public struct RootView: View {
                 case .plan: GoalWizard()
                 case .newInstallment: NewPlanSheet(kind: .installment)
                 case .newDebt: NewPlanSheet(kind: .debt)
+                case .daily: DailyTakingsSheet()
+                case .fixedCost: FixedCostEditor()
+                case .sideTransfer: SideTransferSheet()
+                case .feedback: FeedbackSheet()
                 }
             }
                 .environment(model)
-                .tint(Color.brand)
+                .tint(model.accent)
+                .calmWhenReduceMotion()
                 #if os(macOS)
                 // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 // 记一笔多减一些：面板挂在工具栏下面（约 52），按钮那排要整个露在窗口里。
-                .frame(width: sheet == .add ? 460 : sheet == .connectAI ? 600 : sheet == .memory ? 760 : sheet == .plan ? 700 : 520,
+                .frame(width: sheet == .add ? 520 : sheet == .connectAI ? 600 : sheet == .memory ? 760 : sheet == .plan ? 700 : sheet == .daily ? 480 : (sheet == .fixedCost || sheet == .sideTransfer) ? 480 : 520,
                        height: sheet == .add ? min(760, max(420, windowHeight - 110))
-                                              : min(sheet == .connectAI ? 720 : sheet == .plan ? 540 : 580, max(360, windowHeight - 60)))
+                                              : min(Self.sheetHeight(sheet), max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
                 #endif
@@ -178,6 +233,8 @@ public struct RootView: View {
                 .padding(.bottom, toastInset)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task(id: toast.id) {
+                    // 读屏也念一遍，能撤销的顺带说快捷键（审查第二轮：底部小条里的撤销读屏找不到）。
+                    AccessibilityNotification.Announcement(toast.changeID == nil ? toast.text : tr("\(toast.text)。按 ⌥⌘Z 撤销")).post()
                     try? await Task.sleep(for: .seconds(toast.seconds ?? (toast.changeID == nil ? 3 : 10)))
                     if model.toast?.id == toast.id { withAnimation { model.toast = nil } }
                 }
@@ -212,7 +269,7 @@ struct LoadErrorView: View {
             Text(tr("账本在 iCloud 云盘的「夏夏账本」文件夹里。先确认 iCloud 云盘开着、文件已经下载到这台设备；如果是新版本写的账本，更新一下 app。"))
                 .font(.caption).foregroundStyle(Color.fg2)
             HStack(spacing: 8) {
-                Button(tr("再试一次")) { model.reload() }.buttonStyle(.borderedProminent).tint(.brand)
+                Button(tr("再试一次")) { model.reload() }.buttonStyle(.borderedProminent).tint(.brandSolid)
                 AskAIReader { ask in
                     Button { ask(tr("夏夏账本打不开，提示：\(error)。帮我检查一下账本文件哪里有问题（只看不改）。")) } label: {
                         Label(tr("让 AI 检查"), systemImage: "sparkles")
@@ -241,12 +298,17 @@ struct MacRoot: View {
         @Bindable var model = model
         NavigationSplitView {
             List(selection: $model.section) {
-                Section(tr("看")) { ForEach(AppSection.look) { row($0) } }
-                Section(model.xiaName) { ForEach(AppSection.ai) { row($0) } }
-                Section(tr("记录")) { ForEach(AppSection.records) { row($0) } }
+                Section { ForEach(model.side == .business ? AppSection.businessLook : AppSection.look) { row($0) } } header: { sectionHeader(tr("看")) }
+                Section { ForEach(AppSection.ai) { row($0) } } header: { sectionHeader(model.xiaName) }
                 Section { row(.settings) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+            // 生活和生意是两个大空间，侧栏的页面跟着变：切换放侧栏最上面、整宽（ming 2026-11-25：放顶栏中间按着不对）。
+            .safeAreaInset(edge: .top, spacing: 4) {
+                if model.businessOn {
+                    SideSwitch(fill: true).padding(.horizontal, 12).padding(.top, 2)
+                }
+            }
             .safeAreaInset(edge: .bottom) { SidebarFooter() }
         } detail: {
             let section = model.section ?? .overview
@@ -275,9 +337,14 @@ struct MacRoot: View {
         }
     }
 
+    /// 侧栏分组标题：系统 Section 标题的样子（11pt 半粗、次要文字颜色），看得清（审查实测原来 2.2:1）。
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.fg2)
+    }
+
     private func row(_ s: AppSection) -> some View {
         Label { Text(model.xia(s.title)) } icon: { s.glyph.image(size: 18) }
-            .badge(s == .insights ? model.ledger.insights(month: LocalDate.today.yearMonth).count : 0)
+            .badge(s == .insights ? model.insightsHere(month: LocalDate.today.yearMonth).count : 0)
             .tag(s)
     }
 }
@@ -322,9 +389,16 @@ struct MacToolbar: ToolbarContent {
     var body: some ToolbarContent {
         // 月份和账本放左边，「记一笔」「问 AI」单独一组放最右：窗口窄的时候先收起的是左边，记一笔一直看得见。
         ToolbarItemGroup(placement: .navigation) {
+            Button { withAnimation(.snappy) { model.goBack() } } label: { Image(systemName: "chevron.backward") }
+                .disabled(model.backStack.isEmpty)
+                .keyboardShortcut("[", modifiers: .command)
+                .help(tr("返回上一页（⌘[）"))
+                .accessibilityLabel(tr("返回"))
             if section.usesMonth {
+                // 月份是一个整体「‹ 2026 年 11 月 ›」，和返回按钮之间隔开，不会把两个 ‹ 看混（审查 2026-11-26）。
                 MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
-                             latest: LocalDate.today.yearMonth, recorded: model.recordedMonths)
+                             latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, accent: model.accent)
+                    .padding(.leading, 10)
             }
             if section.usesBook {
                 BookSwitch().environment(model)
@@ -333,8 +407,9 @@ struct MacToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             // 照 ming 的稿：「记一笔」是橙色实心（系统的醒目按钮样式 + 品牌橙，工具栏不会切掉它的底色）。
             Button { model.sheet = .add } label: { Label { Text(tr("记一笔")) } icon: { XiaGlyph.actAdd.image(size: 17) }.labelStyle(.titleAndIcon) }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.brand)
+                .buttonStyle(.borderedProminent).solidTint()
+                // 实心底用暗一档的颜色，白字在深色模式下也有 4.5:1（原来 2.5:1）；生意那边是青色。
+                .tint(model.accentSolid)
                 .help(tr("记一笔（⌘N）"))
             Button { model.toggleChat() } label: {
                 Label(model.xia(tr("问夏夏")), systemImage: "sparkles").labelStyle(.titleAndIcon)
@@ -350,8 +425,14 @@ struct MacToolbar: ToolbarContent {
 struct BookSwitch: View {
     @Environment(LedgerModel.self) var model
     var body: some View {
+        // 开着生意模式：顶栏不放账本菜单，「生活 | 生意」在侧栏最上面（Mac）/ 标题栏正中（iPhone）。
+        // 账本管理还在 设置 → 账本与账户。
+        if !model.businessOn { bookMenu }
+    }
+
+    private var bookMenu: some View {
         let selection = Binding(get: { model.selectedBookID }, set: { id in withAnimation(.snappy) { model.selectedBookID = id } })
-        Menu {
+        return Menu {
             Picker(tr("看哪个账本"), selection: selection) {
                 if model.ledger.books.count > 1 { Text(tr("全部")).tag(String?.none) }
                 ForEach(model.ledger.books) { b in Text(b.name).tag(Optional(b.id)) }
@@ -440,9 +521,13 @@ struct PhoneRoot: View {
                                          latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, compact: true)
                         }
                     }
+                    // 开着生意模式：「生活 | 生意」放标题栏正中间，每页都在同一个位置（设计稿 ③）。
+                    if model.businessOn && section != .insights {
+                        ToolbarItem(placement: .principal) { SideSwitch() }
+                    }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         if section != .insights {
-                            BookSwitch()
+                            if !model.businessOn { BookSwitch() }
                             // 「问 AI」放进顶栏，不再浮在右下角挡住卡片上的按钮；「夏夏」页自己有问的入口，这里不重复。
                             AskAIReader { ask in
                                 Button { ask("", page: (model.section ?? section).rawValue) } label: {
@@ -503,20 +588,32 @@ public struct XiaxiaScene: Scene {
     }
 
     #if os(macOS)
-    /// 偶尔启动后没有主窗口（上次关窗口退出，系统按「恢复窗口」什么也没恢复）。
-    /// 不恢复旧窗口；启动一秒后还没有可见窗口，就点一下「窗口」菜单里的「夏夏账本」把它叫出来。
+    /// 偶尔启动后没有主窗口（上次关窗口退出、或被强制退出几次后，系统按「恢复窗口」什么也没恢复）。
+    /// 不恢复旧窗口；启动后还没有可见窗口：先把藏起来/缩到程序坞的主窗口拿出来，没有就点「窗口 → 显示主窗口」
+    /// （那一项是我们自己加的，里面直接 openWindow(id: "main")，不靠系统菜单名字找）。审查 2026-11-26。
     private static func ensureMainWindow() {
         UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
-        for delay in [1.0, 2.5] {
+        for delay in [0.8, 2.0, 4.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard NSApp != nil, !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
-                guard let menu = NSApp.windowsMenu ?? NSApp.mainMenu?.items.first(where: { $0.submenu?.title == "Window" || $0.submenu?.title == "窗口" })?.submenu,
-                      let item = menu.items.first(where: { $0.title == "夏夏账本" }),
-                      let i = menu.items.firstIndex(of: item) else { return }
-                menu.performActionForItem(at: i)
+                if let w = NSApp.windows.first(where: { $0.canBecomeMain && $0.identifier?.rawValue.contains("main") == true }) {
+                    if w.isMiniaturized { w.deminiaturize(nil) }
+                    w.makeKeyAndOrderFront(nil)
+                } else if let found = findMenuItem(tr("显示主窗口"), in: NSApp.mainMenu) {
+                    found.0.performActionForItem(at: found.1)
+                }
                 NSApp.activate(ignoringOtherApps: true)
             }
         }
+    }
+
+    private static func findMenuItem(_ title: String, in menu: NSMenu?) -> (NSMenu, Int)? {
+        guard let menu else { return nil }
+        for (i, item) in menu.items.enumerated() {
+            if item.title == title { return (menu, i) }
+            if let found = findMenuItem(title, in: item.submenu) { return found }
+        }
+        return nil
     }
     #endif
 
@@ -530,7 +627,7 @@ public struct XiaxiaScene: Scene {
         let sections: [String: AppSection] = [
             "overview": .overview, "spending": .spending, "reports": .spending, "trends": .trends, "wealth": .wealth,
             "plans": .plans, "goals": .plans, "subscriptions": .subscriptions, "debts": .debts, "reimburse": .reimburse, "reimbursements": .reimburse, "insights": .insights, "ai": .insights, "changes": .changes, "history": .changes,
-            "transactions": .transactions, "settings": .settings,
+            "transactions": .transactions, "settings": .settings, "fixed": .fixed,
         ]
         if let s = value("-XiaxiaSection"), let section = sections[s] { model.section = section }
         if let v = value("-XiaxiaSheet"), let sheet = AppSheet(rawValue: v) { model.sheet = sheet }
@@ -543,6 +640,10 @@ public struct XiaxiaScene: Scene {
         // 示例数据不连 AI：别一打开就摆个用不了的对话栏，挤窄页面。
         if XiaxiaChatState.chosenOn, model.chatReady { model.chat.open = true }
         #endif
+        // -XiaxiaBusiness off：示例账本里关掉生意模式（只在内存里，测以前那套账本菜单用）。
+        if value("-XiaxiaBusiness") == "off", model.usesSampleData, model.businessOn {
+            _ = try? model.edit(quiet: true) { $0.disableBusinessMode(author: model.author) }
+        }
         if let b = value("-XiaxiaBook") {
             if b == "all" { model.selectedBookID = nil } else if model.ledger.books.contains(where: { $0.id == b }) { model.selectedBookID = b }
         }
@@ -591,10 +692,9 @@ public struct XiaxiaScene: Scene {
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }
             }
+            CommandGroup(before: .windowList) { ShowMainWindowButton() }
             CommandGroup(replacing: .help) {
-                Button(tr("反馈问题")) {
-                    if let url = URL(string: "https://github.com/srmming/xiaxia-ledger/issues/new") { NSWorkspace.shared.open(url) }
-                }
+                Button(tr("反馈问题 / 提个想法…")) { model.sheet = .feedback }
                 .keyboardShortcut("b", modifiers: [.command, .option])
             }
         }
@@ -606,3 +706,13 @@ public struct XiaxiaScene: Scene {
         #endif
     }
 }
+
+#if os(macOS)
+/// 「窗口 → 显示主窗口」（⌘0）：主窗口被关掉或没出来时把它叫回来；启动兜底也点这一项。
+private struct ShowMainWindowButton: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button(tr("显示主窗口")) { openWindow(id: "main") }.keyboardShortcut("0", modifiers: .command)
+    }
+}
+#endif

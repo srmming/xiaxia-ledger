@@ -10,10 +10,15 @@ struct WealthPage: View {
     @State private var heroWidth: CGFloat = 560
     /// 打开页面时那根条长出来、小卡一张张出现。
     @State private var shown = false
+    /// 鼠标停在总存款粗条的哪一段（显示在粗条上面那行右边）。
+    @State private var hoveredPart: String?
 
     var body: some View {
         Group {
-            if model.ledger.accounts.isEmpty {
+            if model.businessOn && model.side == .business {
+                // 生意那边：店里一共多少、店里的账户、两边之间的钱（ming 2026-11-25：账户两边完全分开）。
+                BusinessWealth()
+            } else if model.ledger.accounts.isEmpty {
                 VStack(spacing: Kit.gap) {
                     KitEmptyState(symbol: "building.columns", title: tr("还没有账户"),
                                   message: tr("第一次导入对账单时，AI 会顺手把账户建好。也可以自己加一个。"),
@@ -26,7 +31,8 @@ struct WealthPage: View {
                 let w = model.wealthBreakdown(model.shownMonth)
                 VStack(alignment: .leading, spacing: Kit.gap) {
                     // 夏夏卡放最上面，说有用的：能随便花的钱够过几个月、欠款还不还得上、比 3 个月前多了还是少了。
-                    let nudges = Nudges.wealth(w, monthlySpend: model.personalMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
+                    let outlook = model.lifeOutlook()
+                    let nudges = Nudges.wealth(w, monthlySpend: outlook?.monthlySpend ?? model.personalMonthlySpend(), threeMonthsAgo: threeMonthsAgo,
                                                currency: model.ledger.baseCurrency)
                     let insights = [model.ledger.insight(forPage: "wealth", month: model.shownMonth, bookID: nil)].compactMap { $0 }
                     XiaxiaCards(nudges: nudges, insights: insights, page: "家底")
@@ -34,6 +40,10 @@ struct WealthPage: View {
                         heroCard(w)
                         // 窗口矮时不放这一行（侧栏里就有「欠款与分期」），一屏放下。
                         if !Viewport.isShort(viewport) { debtsCard }
+                        // 下个月要付：每一样、多少钱、合计（ming 2026-11-25）。
+                        if let due = outlook?.next, !due.isEmpty {
+                            NextMonthDueCard(due: due, maxRows: 3, compact: true)
+                        }
                     } side: {
                         accountsCard
                     }
@@ -92,7 +102,8 @@ struct WealthPage: View {
     private func heroCard(_ w: WealthBreakdown) -> some View {
         let short = Viewport.isShort(viewport)
         let list = parts(w)
-        let spend = model.personalMonthlySpend()
+        // 和预测页「钱还能撑」同一个口径：平时每月花多少（不算一次性的大开销）。
+        let spend = model.lifeOutlook()?.monthlySpend ?? model.personalMonthlySpend()
         let free = w.spendable
         let hasShop = model.ledger.books.contains(where: \.isBusiness)
         let sentence: Text = {
@@ -101,7 +112,7 @@ struct WealthPage: View {
             }
             if let months = w.months(monthlySpend: spend) {
                 return Text(tr("够花 ")) + em(tr("\(WealthBreakdown.monthsText(months)) 个月"), .good)
-                    + Text(tr("，按\(hasShop ? tr("你自己") : tr("最近"))每月花 \(spend.rounded) 算。"))
+                    + Text(tr("，按\(hasShop ? tr("你自己") : "")平时每月花 \(spend.rounded) 算。"))
             }
             return Text(tr("记满一个月的开销，就能算出够花几个月。"))
         }()
@@ -117,7 +128,18 @@ struct WealthPage: View {
                         Text(tr("总存款")).font(.callout.weight(.semibold))
                         Text(w.total.ui).font(.kitAmount)
                         Spacer(minLength: 8)
-                        Text(tr("所有账户里的钱加起来")).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        if let hp = hoveredPart {
+                            // 鼠标停在粗条某一段：这里直接写那一段叫什么、多少钱（审查第二轮：悬停只变色、没有字）。
+                            Text(hp).font(.caption.weight(.semibold)).foregroundStyle(Color.primary).lineLimit(1)
+                                .transition(.opacity)
+                        } else if model.businessOn {
+                            // 两边加起来的真家底，生意那边家底页写的是同一个数；放在总存款右边一行小字。
+                            (Text(tr("两边真家底 ")) + Text(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded).fontWeight(.semibold))
+                                .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                                .help(tr("生活和生意加起来，扣掉要还的，加上别人欠你的"))
+                        } else {
+                            Text(tr("所有账户里的钱加起来")).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(tr("总存款 \(w.total.spoken)，所有账户里的钱加起来"))
@@ -154,7 +176,7 @@ struct WealthPage: View {
             let usable = max(0, g.size.width - gap * CGFloat(max(0, segs.count - 1)))
             HStack(spacing: gap) {
                 ForEach(segs) { p in
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(p.color)
+                    BarSegment(color: p.color, label: "\(p.label) \(p.amount.balance)", hovered: $hoveredPart)
                         .frame(width: max(4, usable * CGFloat(p.bar) / sum))
                 }
             }
@@ -193,7 +215,7 @@ struct WealthPage: View {
                 Text((p.isResult ? "= " : "") + p.label).font(.caption.weight(.semibold))
                     .foregroundStyle(p.isResult ? p.color : Color.fg2).lineLimit(1)
             }
-            Text((p.isResult ? "" : "\u{2212} ") + p.amount.balance)
+            Text(p.amount.balance)
                 .font(.system(.title3, design: .rounded).weight(.bold)).monospacedDigit()
                 .foregroundStyle(p.isResult ? p.color : .primary)
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -243,7 +265,7 @@ struct WealthPage: View {
     private func compactRow(_ p: Part) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 3, style: .continuous).fill(p.color).frame(width: 10, height: 10)
-            Text((p.isResult ? "= " : "\u{2212} ") + p.label)
+            Text((p.isResult ? "= " : "") + p.label)
                 .font(p.isResult ? .callout.weight(.semibold) : .callout)
                 .foregroundStyle(p.isResult ? p.color : .primary).lineLimit(1)
             Spacer(minLength: 8)
@@ -262,7 +284,7 @@ struct WealthPage: View {
 
     /// 欠款、分期搬去了自己那一页（ming 2026-11-23），这里只留一行合计，点了过去看。
     @ViewBuilder private var debtsCard: some View {
-        let o = Plans.obligations(model.ledger, asOf: .today)
+        let o = Plans.obligations(model.lifeLedger, asOf: .today)
         if !o.isEmpty {
             Button { withAnimation(.snappy) { model.section = .debts } } label: {
                 HStack(spacing: 12) {
@@ -283,12 +305,19 @@ struct WealthPage: View {
         }
     }
 
+    /// 账户列表：开着生意模式时只列生活这边的（店里的在生意那边的家底页）。
+    private var listedAccounts: [Account] {
+        guard model.businessOn else { return model.visibleAccounts }
+        let shop = WealthBreakdown.businessAccounts(model.ledger)
+        return model.visibleAccounts.filter { !shop.contains($0.id) }
+    }
+
     private var accountsCard: some View {
         let balances = model.balances
         let kinds: [AccountKind] = [.bank, .wallet, .credit, .cash, .savings]
         let hiddenCount = model.ledger.accounts.filter(\.isPrivate).count
         // 账户多（7 个以上）也按矮窗口的排法：不分组写标题、每行收紧，一屏放下。
-        let short = Viewport.isShort(viewport) || model.visibleAccounts.count > 6
+        let short = Viewport.isShort(viewport) || listedAccounts.count > 6
         return VStack(alignment: .leading, spacing: 4) {
             SectionHeader(title: tr("账户")) {
                 Button { model.sheet = .accounts } label: { Label(tr("管理"), systemImage: "slider.horizontal.3") }
@@ -297,11 +326,11 @@ struct WealthPage: View {
             }
             .padding(.bottom, 6)
             ForEach(kinds, id: \.self) { kind in
-                let list = model.visibleAccounts.filter { $0.kind == kind }
+                let list = listedAccounts.filter { $0.kind == kind }
                 if !list.isEmpty {
                     // 窗口矮：不分组写标题（图标已经看得出是哪种），每行收紧，一屏放下。
                     if !short {
-                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in model.visibleAccounts.contains { $0.kind == k } } ? 2 : 10)
+                        Text(kind.label).font(.kitSection).padding(.top, kind == kinds.first { k in listedAccounts.contains { $0.kind == k } } ? 2 : 10)
                             .padding(.bottom, 4)
                     }
                     ForEach(list) { a in
@@ -332,11 +361,13 @@ struct WealthPage: View {
                             }
                         }
                         .padding(.vertical, short ? 2 : 6)
+                        .contentShape(Rectangle())
+                        .contextMenu { MoveSideButton(account: a) }
                         .accessibilityElement(children: .combine)
                     }
                 }
             }
-            if model.visibleAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
+            if listedAccounts.contains(where: { model.approxBaseText($0.id) != nil }) {
                 Text(tr("外币账户按今天的汇率换成\(Currencies.info(model.ledger.baseCurrency).name)，算进总存款。"))
                     .font(.caption).foregroundStyle(Color.fg2).padding(.top, 6)
             }
@@ -407,5 +438,20 @@ struct DebtRow: View {
         // 过期的只说过了几天，短一点，窄窗口也一行放得下（哪天到期在夏夏说里有）。
         if let due = debt.dueDate { parts.append(debt.overdue ? tr("过期 \(max(1, due.days(until: .today))) 天") : tr("\(due.short) 前还")) }
         return parts.isEmpty ? tr("还没还") : parts.joined(separator: " · ")
+    }
+}
+
+/// 总存款粗条上的一块：鼠标放上去变亮一点，并提示这块叫什么、多少钱。
+private struct BarSegment: View {
+    var color: Color
+    var label: String
+    @Binding var hovered: String?
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color)
+            .brightness(hovered == label ? 0.08 : 0)
+            .onHover { inside in
+                if inside { hovered = label } else if hovered == label { hovered = nil }
+            }
+            .help(label)
     }
 }

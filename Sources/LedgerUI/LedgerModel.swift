@@ -17,6 +17,12 @@ public enum AppSheet: String, Identifiable, Hashable {
     case plan
     /// 欠款与分期页：直接打开登记分期 / 借款。
     case newInstallment, newDebt
+    /// 生意首页「记今天的账」：现金、刷卡两个框。
+    case daily
+    /// 生意那边：加固定开销、两边转钱。
+    case fixedCost, sideTransfer
+    /// 提反馈（设置、帮助菜单）。
+    case feedback
     public var id: String { rawValue }
 }
 
@@ -75,10 +81,27 @@ public final class LedgerModel {
     @ObservationIgnored var authorCache: (count: Int, map: [UUID: String])?
 
     /// 现在在哪一页、弹着哪个窗口。
-    public var section: AppSection? = .overview { didSet { publishView() } }
+    public var section: AppSection? = .overview {
+        didSet {
+            publishView()
+            // 记下从哪页来的，工具栏左上角「返回」用（ming 2026-11-25：页面要能返回）。
+            if goingBack { goingBack = false } else if let old = oldValue, old != section { backStack.append(old); if backStack.count > 30 { backStack.removeFirst() } }
+        }
+    }
+    /// 去过的页（最近的在最后）。
+    public var backStack: [AppSection] = []
+    private var goingBack = false
+    /// 回到上一页。
+    public func goBack() {
+        guard let last = backStack.popLast() else { return }
+        goingBack = true
+        section = last
+    }
     public var sheet: AppSheet?
     /// 「改这一笔」：打开记一笔面板前设好，面板就按这一笔填好、按钮变「保存」。
     public var editingID: UUID?
+    /// 「记一笔」按这个预先填好（生意首页的「记今天进账」等），面板打开时用掉就清空。
+    public var addPreset: AddPreset?
     /// 第一次打开的开始引导（夏夏带着建账本、账户、连 AI）正在显示。
     public var showWelcome = false
     /// 从「问夏夏」的「去连接」进引导：跳过账本、账户，直接到连 AI 那一步。
@@ -280,7 +303,8 @@ public final class LedgerModel {
     /// 刚记的流水不在正在看的月份 / 账本里：跳过去，免得记了却「没出来」。
     func revealAdded(_ added: [FinanceCore.Transaction]) {
         guard let latest = added.map(\.date).max() else { return }
-        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = nil }
+        // 开着生意模式时不回到「全部」，跳到刚记的那一边。
+        if let b = selectedBookID, !added.contains(where: { $0.bookID == b }) { selectedBookID = businessOn ? added.last?.bookID ?? b : nil }
         if !added.contains(where: { $0.date.yearMonth == shownMonth }) { selectedMonth = latest.yearMonth }
     }
 
@@ -321,10 +345,34 @@ public final class LedgerModel {
 
     public var visibleAccounts: [Account] { ledger.accounts.filter { showPrivate || !$0.isPrivate } }
 
+    /// 当前这边的账户（流水页筛账户用）。没开生意模式就是全部。
+    public var accountsOnThisSide: [Account] {
+        guard businessOn else { return visibleAccounts }
+        return visibleAccounts.filter { ledger.side(ofAccount: $0.id) == side }
+    }
+
+    /// 改动记录：开着生意模式时只列这边的（说不上属于哪边的两边都列）。
+    public var changesOnThisSide: [ChangeRecord] {
+        guard businessOn else { return ledger.changes }
+        let side = self.side
+        // 说不上属于哪边的（写建议、改通用设置）算生活这边。
+        return ledger.changes.filter { c in let s = ledger.sides(of: c); return s.isEmpty ? side == .life : s.contains(side) }
+    }
+
+    /// 夏夏建议：开着生意模式时只看这边的。没写账本的建议算生活这边。
+    public func insightsHere(month: YearMonth? = nil, includeDismissed: Bool = false) -> [Insight] {
+        let list = ledger.insights(month: month, bookID: selectedBookID, includeDismissed: includeDismissed)
+        guard businessOn, let shop = ledger.businessBook?.id else { return list }
+        return list.filter { side == .business ? $0.bookID == shop : $0.bookID != shop }
+    }
+
     public var visibleTransactions: [FinanceCore.Transaction] {
         let hidden = hiddenAccounts
+        // 开着生意模式：只看当前这边（生活这边包括所有生活账本和还没分账本的），两边转钱各自那一笔在各自这边。
+        let split = businessOn
+        let side = self.side
         return ledger.transactions.filter { !hidden.contains($0.accountID) }
-            .filter { selectedBookID == nil || $0.bookID == selectedBookID }
+            .filter { split ? ledger.side(of: $0) == side : (selectedBookID == nil || $0.bookID == selectedBookID) }
             .sorted { ($0.date, $0.description) > ($1.date, $1.description) }
     }
 
@@ -398,7 +446,12 @@ public final class LedgerModel {
         }
         var used = count.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
         // 自己加的分类（还没用过也算），排在常用的后面、默认的前面。
-        used += ledger.profile.categories.filter { $0.income == income && !used.contains($0.name) }.map(\.name)
+        // 生意那边不拿生活那边已经在用的自建分类（「宠物」不该出现在店里记一笔里）。
+        let shopBook = ledger.books.first { $0.id == bookID }?.isBusiness == true
+        let usedElsewhere: Set<String> = shopBook
+            ? Set(ledger.transactions.filter { $0.bookID != bookID }.compactMap(\.category)) : []
+        used += ledger.profile.categories
+            .filter { $0.income == income && !used.contains($0.name) && !usedElsewhere.contains($0.name) }.map(\.name)
         let defaults = CategoryStyle.defaults(book: ledger.books.first { $0.id == bookID }, income: income)
         // 账本里已经有「交通出行」，就不再另给一个「交通」，免得同一件事记成两个分类。
         let extra = defaults.filter { d in !used.contains { $0 == d || $0.hasPrefix(d) } }

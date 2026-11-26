@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生意模式 简约版 v3</title>
+<style>
+:root{--shop:#0B6577;--shopSoft:rgba(14,124,146,.09);--income:#0E6B40;--fg:#1d1d1f;--fg2:#6e6e73;--fg3:#a1a1a6;--page:#F5F5F7;--card:#fff;--line:rgba(0,0,0,.07)}
+.dark{--shop:#2FA4BA;--shopSoft:rgba(47,164,186,.14);--income:#36C77F;--fg:#f5f5f7;--fg2:#a1a1a6;--fg3:#6e6e73;--page:#000;--card:#1C1C1E;--line:rgba(255,255,255,.09)}
+*{box-sizing:border-box}
+body{margin:0;background:#ECEAE4;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2b2b2b;line-height:1.5}
+.doc{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;margin:0 0 4px}.sub{color:#777;font-size:13px;margin-bottom:22px}
+h2{font-size:20px;margin:0 0 6px}.what{color:#555;font-size:14px;margin:0 0 16px;max-width:860px}
+section{margin:0 0 44px}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums}
+/* 流程 */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.step{background:#fff;border-radius:18px;padding:18px 18px 16px;position:relative}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--shop);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px}
+.step h3{font-size:17px;margin:12px 0 4px}.step p{font-size:13px;color:#555;margin:0}
+.step .when{font-size:12px;color:var(--shop);font-weight:600;margin-top:10px}
+.step .mini{margin-top:12px;background:#F5F5F7;border-radius:12px;padding:12px;font-size:12px;color:#333;min-height:74px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.step:not(:last-child)::after{content:"›";position:absolute;right:-12px;top:44%;font-size:26px;color:#bbb}
+.seg{display:inline-flex;background:rgba(118,118,128,.12);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:4px 14px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--card);color:var(--shop);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dark .seg{background:rgba(118,118,128,.24)}
+.sw{width:38px;height:22px;border-radius:11px;background:#34C759;position:relative;display:inline-block;vertical-align:middle}.sw::after{content:"";position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;border-radius:14px;font-weight:600;font-size:16px;padding:14px}
+.btn.p{background:var(--shop);color:#fff}.btn.s{background:var(--shopSoft);color:var(--shop)}
+.row{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.cap{text-align:center;font-size:12px;color:#888;margin-top:8px}
+/* Mac */
+.mac{width:780px;border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18);background:var(--page)}
+.tb{height:50px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.dots{display:flex;gap:7px}.dots i{width:12px;height:12px;border-radius:50%;background:#FF5F57}.dots i:nth-child(2){background:#FEBC2E}.dots i:nth-child(3){background:#28C840}
+.tb .sp{flex:1}.tb .add{background:var(--shop);color:#fff;border-radius:8px;padding:5px 12px;font-size:13px;font-weight:600}
+.macbody{display:flex;height:500px}
+.sb{width:170px;padding:14px 10px;font-size:13px;color:var(--fg2);background:rgba(0,0,0,.025);border-right:1px solid var(--line)}
+.sb div{padding:5px 10px;border-radius:7px}.sb .on{background:rgba(0,0,0,.06);color:var(--fg);font-weight:600}
+.main{flex:1;padding:56px 72px;display:flex;flex-direction:column}
+/* iPhone */
+.ph{width:300px;height:620px;border-radius:46px;background:#111;padding:10px;box-shadow:0 18px 50px rgba(0,0,0,.2)}
+.scr{height:100%;border-radius:37px;background:var(--page);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.sbar{display:flex;justify-content:space-between;padding:14px 26px 0;font-size:13px;font-weight:600;color:var(--fg)}
+.nav{display:flex;justify-content:center;padding:14px 0 0}
+.phmain{flex:1;padding:40px 24px 0;display:flex;flex-direction:column}
+.tabs{display:flex;justify-content:space-around;padding:10px 0 26px;border-top:1px solid var(--line);font-size:10px;color:var(--fg3)}
+.tabs .on{color:var(--shop);font-weight:600}
+/* 生意首页共用 */
+.lbl{font-size:13px;color:var(--fg2)}
+.big{font-size:64px;font-weight:700;letter-spacing:-1.5px;line-height:1.05;color:var(--fg)}
+.ph .big{font-size:48px}
+.delta{font-size:14px;color:var(--fg2);margin-top:6px}.delta b{color:var(--income);font-weight:600}
+.payback{margin-top:auto}
+.track{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:8px 0 6px}.track i{display:block;height:100%;width:46%;background:var(--shop);border-radius:3px}
+.quiet{display:flex;gap:22px;font-size:13px;color:var(--fg2);margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.quiet b{display:block;color:var(--fg);font-size:15px;font-weight:600}
+.note{background:#fff;border-radius:14px;padding:14px 16px;font-size:13px;color:#444;max-width:300px}
+.note b{color:#111}
+.sheet{width:300px;background:var(--card);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.18)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}.chips span{padding:6px 12px;border-radius:16px;background:#F2F2F7;font-size:13px}.chips .on{background:var(--shopSoft);color:var(--shop);font-weight:600}
+</style></head><body><div class="doc">
+<h1>生意模式 · 简约版 v3</h1>
+<div class="sub">2026-11-25 · 按 ming 的意见重画：先把流程讲清楚，界面每屏只突出一件事。金额全是编的示例。</div>
+
+<section id="flow">
+<h2>① 一步一步怎么用</h2>
+<p class="what">总共就四步。前两步只做一次，后两步是每天的事。</p>
+<div class="flow">
+  <div class="step"><div class="n">1</div><h3>打开生意模式</h3><p>设置 → 生意模式，打开开关。</p>
+    <div class="mini"><div style="display:flex;justify-content:space-between;align-items:center"><span>生意模式</span><span class="sw"></span></div></div>
+    <div class="when">只做一次</div></div>
+  <div class="step"><div class="n">2</div><h3>填开店花了多少</h3><p>填一个总数就行，用来算什么时候回本。不知道可以跳过。</p>
+    <div class="mini"><div class="lbl" style="color:#666">开店一共投了</div><div class="num" style="font-size:22px;font-weight:700">70.000 €</div></div>
+    <div class="when">只做一次</div></div>
+  <div class="step"><div class="n">3</div><h3>每天记一笔</h3><p>顶上切到「生意」，卖了钱点「记进账」，花了钱点「记开销」，输个数就好。</p>
+    <div class="mini" style="align-items:center"><span class="seg" style="--card:#fff;--fg2:#6e6e73;--shop:#0B6577"><span>生活</span><span class="on">生意</span></span><div style="display:flex;gap:6px"><span class="btn p" style="padding:5px 10px;font-size:12px;border-radius:8px;--shop:#0B6577">＋ 记进账</span><span class="btn s" style="padding:5px 10px;font-size:12px;border-radius:8px;--shop:#0B6577;--shopSoft:rgba(14,124,146,.09)">记开销</span></div></div>
+    <div class="when">每天</div></div>
+  <div class="step"><div class="n">4</div><h3>看赚了多少</h3><p>生意首页最大的那个数，就是这个月赚了多少。下面一条线是回本进度。</p>
+    <div class="mini"><div class="lbl" style="color:#666">这个月赚了</div><div class="num" style="font-size:24px;font-weight:700;color:#0B6577">2.340 €</div></div>
+    <div class="when">想看就看</div></div>
+</div>
+<p class="what" style="margin-top:14px">记错了边也没关系：在生意这边记了「书包」，夏夏会自动挪回生活，底部有「撤销」。</p>
+</section>
+
+<section id="home">
+<h2>② 生意首页</h2>
+<p class="what">只回答一个问题：<b>这个月赚了多少</b>。下面两个按钮记账，最底下一条回本进度和三个小数字。其他的（钱花在哪、每一笔流水、欠款明细）点进去看，首页不放。</p>
+<div class="row">
+  <div><div class="mac ui">
+    <div class="tb"><div class="dots"><i></i><i></i><i></i></div><span class="seg"><span>生活</span><span class="on">生意</span></span><div class="sp"></div><span class="add">＋ 记一笔</span></div>
+    <div class="macbody">
+      <div class="sb"><div class="on">总览</div><div>花销</div><div>趋势</div><div>家底</div><div>目标</div><div>欠款与分期</div><div style="margin-top:10px">流水</div><div>设置</div></div>
+      <div class="main">
+        <div class="lbl">11 月赚了</div>
+        <div class="big num">2.340 €</div>
+        <div class="delta">比上月同期 <b>多 310 €</b></div>
+        <div style="display:flex;gap:12px;margin-top:32px;max-width:420px"><div class="btn p" style="flex:1">＋ 记进账</div><div class="btn s" style="flex:1">记开销</div></div>
+        <div class="payback">
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="font-weight:600">回本 46%</span><span class="lbl">大约还要 14 个月</span></div>
+          <div class="track"><i></i></div>
+          <div class="quiet"><span>今天进账<b class="num">420 €</b></span><span>每月固定<b class="num">2.780 €</b></span><span>店里欠款<b class="num">22.160 €</b></span></div>
+        </div>
+      </div>
+    </div></div><div class="cap">Mac · 浅色</div></div>
+
+  <div><div class="ph"><div class="scr ui">
+    <div class="sbar"><span>9:41</span><span></span></div>
+    <div class="nav"><span class="seg"><span>生活</span><span class="on">生意</span></span></div>
+    <div class="phmain">
+      <div class="lbl">11 月赚了</div>
+      <div class="big num">2.340 €</div>
+      <div class="delta">比上月同期 <b>多 310 €</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px"><div class="btn p">＋ 记进账</div><div class="btn s">记开销</div></div>
+      <div class="payback" style="padding-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="font-weight:600">回本 46%</span><span class="lbl">还要约 14 个月</span></div>
+        <div class="track"><i></i></div>
+        <div class="quiet" style="gap:14px;font-size:11px"><span>今天进账<b class="num">420 €</b></span><span>每月固定<b class="num">2.780 €</b></span><span>欠款<b class="num">22.160 €</b></span></div>
+      </div>
+    </div>
+    <div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div>
+  </div></div><div class="cap">iPhone · 浅色</div></div>
+
+  <div><div class="ph"><div class="scr ui dark">
+    <div class="sbar"><span>9:41</span><span></span></div>
+    <div class="nav"><span class="seg"><span>生活</span><span class="on">生意</span></span></div>
+    <div class="phmain">
+      <div class="lbl">11 月赚了</div>
+      <div class="big num">2.340 €</div>
+      <div class="delta">比上月同期 <b>多 310 €</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px"><div class="btn p">＋ 记进账</div><div class="btn s">记开销</div></div>
+      <div class="payback" style="padding-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg)"><span style="font-weight:600">回本 46%</span><span class="lbl">还要约 14 个月</span></div>
+        <div class="track"><i></i></div>
+        <div class="quiet" style="gap:14px;font-size:11px"><span>今天进账<b class="num">420 €</b></span><span>每月固定<b class="num">2.780 €</b></span><span>欠款<b class="num">22.160 €</b></span></div>
+      </div>
+    </div>
+    <div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div>
+  </div></div><div class="cap">iPhone · 深色</div></div>
+</div>
+</section>
+
+<section id="add">
+<h2>③ 记进账 / 记开销</h2>
+<p class="what">点「记进账」弹出的就是平常的记一笔，已经替你选好「收入 · 营业收入 · 店里账本」，只要输个数按「记下」。「记开销」先给几个店里常用的分类。</p>
+<div class="row">
+  <div class="sheet ui">
+    <div class="lbl">记进账 · 店里</div>
+    <div class="num" style="font-size:44px;font-weight:700;margin:10px 0 18px">420 <span style="color:var(--fg3)">€</span></div>
+    <div class="chips"><span class="on">营业收入</span><span>退款</span><span>其他</span></div>
+    <div class="btn p" style="margin-top:22px">记下</div>
+  </div>
+  <div class="sheet ui">
+    <div class="lbl">记开销 · 店里</div>
+    <div class="num" style="font-size:44px;font-weight:700;margin:10px 0 18px">35,80 <span style="color:var(--fg3)">€</span></div>
+    <div class="chips"><span class="on">进货</span><span>耗材</span><span>店租</span><span>工资</span><span>水电</span><span>其他</span></div>
+    <div class="btn p" style="margin-top:22px">记下</div>
+  </div>
+  <div class="note"><b>记错边的提示</b>（底部一行，6 秒后消失）：<br>「书包 −24,90 €」看着像家里的开销，已放到生活。<span style="color:#0B6577;font-weight:600">撤销</span></div>
+</div>
+</section>
+
+<section id="settings">
+<h2>④ 设置里的开关</h2>
+<p class="what">一行开关，打开后多出一行「开店本钱」。关掉不丢账，再打开一样。</p>
+<div class="row"><div class="sheet ui" style="width:420px;padding:6px 18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)"><div><div style="font-weight:600">生意模式</div><div class="lbl">首页分生活、生意两边</div></div><span class="sw"></span></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0"><div><div style="font-weight:600">开店本钱</div><div class="lbl">70.000 € · 2026 年 3 月开店</div></div><span style="color:#0B6577;font-size:14px">改 ›</span></div>
+</div></div>
+</section>
+</div></body></html>

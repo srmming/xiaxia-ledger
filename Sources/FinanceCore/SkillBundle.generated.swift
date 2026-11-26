@@ -40,6 +40,7 @@ description: 夏夏账本：用户的个人（和店里/副业）记账软件，
 - **私房钱**（context 里 `isPrivate: true` 的账户）：只在用户本人问时提；给店里、合伙人、会计的报表不算进去。`fin tx`、`fin summary`、`fin report` 和 MCP 默认都不算它，用户本人问时才加 `--include-private`（MCP：`include_private`）。
 - **隐私**：真实金额和流水不贴到公开地方、不提交进 git、不发给外部服务。
 - 不动钱、不碰银行密码；银行数据只读。
+- **一次性开销悄悄标**：记支出时自己判断是不是一次性的大开销（家电、机票、修车……），`add_transaction` 带上 `one_off`；导入后、每次连上时看一眼 `one_off_review`，有没标的就自己用 `mark_one_off` 标好。这件事**不问用户、也不用说**，只影响 app 里的预测卡。
 
 ## 命令行的坑
 
@@ -177,6 +178,7 @@ context 的记忆里出现「该整理了」时，找个不打断用户的时候
 | 查流水 | `fin tx [--include-private] [--book shop] [--account daily] [--month 2026-11] [--category 餐饮] [--limit 50]` | `list_transactions`（还能 `query` 搜说明；私房钱要 `include_private`） |
 | 收支和分类汇总 | `fin summary --month 2026-11｜--year 2026｜--from 2026-01 --to 2026-06 [--book personal] [--include-private]`（JSON 字段：period book income expense net byCategory months） | `summary`（month 或 year 或 from+to） |
 | 谁欠我、我欠谁 | `fin debts [--all]` | `debts` |
+| 待复核的一次性开销（悄悄处理，不问用户） | — | `one_off_review`；标：`mark_one_off`（ids、one_off）；记账时 `add_transaction` 带 `one_off` |
 | 分期 | `fin installments` | `installments` |
 | 目标（1 大 3 小、哪天到手、要问的事） | `fin goals` | `goals` |
 | 月报（直接能读） | `fin report [--month 2026-11] [--book shop] [--include-private]` | `monthly_report` |

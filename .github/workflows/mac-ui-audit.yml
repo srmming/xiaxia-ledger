@@ -1,0 +1,72 @@
+# Mac 界面审查（2026-11-26，ming 要照官网审查的做法审 Mac app）：
+# 在 GitHub 的 Mac 机器上用示例账本（编造的，只在内存里）把每一页每个按钮点一遍、悬停、按 Tab、量控件大小、深浅色截图；
+# 另外给 iPhone 版用大字号截几页。只记录不判对错，结果推到 ci-ui-audit 分支给审查报告用。
+# 只在手动点 Run workflow 时跑（Mac 机器按 10 倍扣额度）。
+name: mac-ui-audit
+# 2026-11-26 ming：长时间的跑在他 Mac 上跑，这里只留手动触发。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-ui-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: 生成 Xcode 工程
+        run: |
+          which xcodegen || brew install xcodegen
+          cd App && xcodegen generate
+      - name: 打开键盘导航（Tab 能走到按钮），记下屏幕大小
+        run: |
+          mkdir -p ci-out/audit
+          defaults write -g AppleKeyboardUIMode -int 2
+          system_profiler SPDisplaysDataType | grep -E "Resolution|Retina" | tee ci-out/display.txt || true
+      - name: Mac 界面审查（示例账本）
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          TEST_RUNNER_AUDIT_OUT="$PWD/ci-out/audit" xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS \
+            -configuration Debug -derivedDataPath App/build -destination 'platform=macOS' CODE_SIGN_IDENTITY=- \
+            -only-testing:XiaxiaLedger-macOSUITests test 2>&1 | tee ci-out/mac-audit.log \
+            | grep -E "error|AUDIT_OUT|Test Case .*(passed|failed)|TEST (SUCCEEDED|FAILED)|Executed" || true
+          # 测试进程写不进来时（沙盒），从它打印的位置拷出来
+          ALT="$(grep -oE 'AUDIT_OUT=[^ ]+' ci-out/mac-audit.log | head -1 | cut -d= -f2)"
+          if [ -n "$ALT" ] && [ "$ALT" != "$PWD/ci-out/audit" ] && [ -d "$ALT" ]; then cp -R "$ALT"/. ci-out/audit/; fi
+          ls ci-out/audit | wc -l
+      - name: iPhone 大字号截图（示例数据）
+        continue-on-error: true
+        run: |
+          xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-iOS -configuration Debug \
+            -derivedDataPath App/build -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E "error|BUILD" || true
+          IOS_APP="$(find App/build/Build/Products -path '*iphonesimulator*' -name '*.app' -maxdepth 2 | head -1)"
+          DEVICE="$(xcrun simctl list devices available | grep -E 'iPhone 1[5-9]( Pro)? \(' | head -1 | grep -oE '[0-9A-F-]{36}')"
+          xcrun simctl boot "$DEVICE"; xcrun simctl bootstatus "$DEVICE" -b >/dev/null
+          xcrun simctl ui "$DEVICE" appearance dark
+          xcrun simctl install "$DEVICE" "$IOS_APP"
+          mkdir -p ci-out/ios-big
+          for size in L AccessibilityL; do
+            for s in overview spending wealth settings; do
+              xcrun simctl terminate "$DEVICE" com.srmming.xiaxia-ledger >/dev/null 2>&1 || true
+              xcrun simctl launch "$DEVICE" com.srmming.xiaxia-ledger -XiaxiaDemo -XiaxiaSection $s \
+                -UIPreferredContentSizeCategoryName UICTContentSizeCategory$size -AppleLanguages "(zh-Hans)" -AppleLocale es_ES >/dev/null
+              sleep 8
+              xcrun simctl io "$DEVICE" screenshot "ci-out/ios-big/$size-$s.png" >/dev/null 2>&1
+            done
+          done
+      - name: 推到 ci-ui-audit 分支
+        if: always()
+        run: |
+          cd ci-out
+          echo "${{ github.sha }}" > commit.txt
+          git init -q -b ci-ui-audit
+          git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
+          git add -A && git commit -q -m "ui audit for ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-ui-audit

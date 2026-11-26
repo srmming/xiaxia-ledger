@@ -105,6 +105,8 @@ struct SpendingPaceChart: View {
                 }
             }
             .frame(height: height)
+            // 纵轴最上面那个刻度（「2.000 €」）有一半在图外面：上面留出字的高度，不被切掉（审查 2026-11-26）。
+            .padding(.top, 8)
             .revealFromLeading()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(summary)
@@ -147,7 +149,25 @@ struct CategoryDonut: View {
     let total: Money
     var size: CGFloat = 240
     @State var shown = false
+    /// 鼠标停在哪一块上（中间换成这一块的名字和金额，ming 2026-11-25）。
+    @State private var hovered: String?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+
+    /// 鼠标位置换成落在哪一块：从 12 点钟方向顺时针量角度，按每块占的比例找。圆心附近和圆外不算。
+    private func slice(at p: CGPoint, in drawn: [CategorySlice], sum: Double) -> String? {
+        let c = CGPoint(x: size / 2, y: size / 2)
+        let dx = p.x - c.x, dy = p.y - c.y
+        let r = (dx * dx + dy * dy).squareRoot()
+        guard r <= size / 2, r >= size / 2 * 0.6, sum > 0 else { return nil }
+        var a = Double(atan2(dx, -dy)) * 180 / .pi
+        if a < 0 { a += 360 }
+        var acc = 0.0
+        for d in drawn {
+            acc += Double(d.amount.cents) / sum * 360
+            if a <= acc { return d.name }
+        }
+        return drawn.last?.name
+    }
 
     static func slices(_ totals: [(name: String, amount: Money)]) -> [CategorySlice] {
         let top = totals.prefix(6).map { CategorySlice(name: $0.name, amount: $0.amount) }
@@ -166,20 +186,33 @@ struct CategoryDonut: View {
                        innerRadius: .ratio(0.7), angularInset: roomy ? 1.2 : 0)
                 .foregroundStyle(s.name == tr("其它") ? Color.fg3 : CategoryStyle.color(s.name))
                 .cornerRadius(roomy ? 3 : 0)
+                .opacity(hovered == nil || hovered == s.name ? 1 : 0.35)
         }
         .chartLegend(.hidden)
         .frame(width: size, height: size)
+        .contentShape(Circle())
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let p): withAnimation(.snappy(duration: 0.15)) { hovered = slice(at: p, in: drawn, sum: sum) }
+            case .ended: withAnimation(.snappy(duration: 0.15)) { hovered = nil }
+            }
+        }
         // 打开时整个圆环转一下、放大出现，不去改数据本身。
         .scaleEffect(shown || reduceMotion ? 1 : 0.85)
         .rotationEffect(.degrees(shown || reduceMotion ? 0 : -40))
         .opacity(shown || reduceMotion ? 1 : 0)
         .overlay {
+            let hit = drawn.first { $0.name == hovered }
             VStack(spacing: 2) {
-                Text(centerLabel).font(.caption).foregroundStyle(Color.fg2)
+                Text(hit?.name ?? centerLabel).font(.caption).foregroundStyle(Color.fg2)
                     .lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth: size * 0.6)
-                Text(total.rounded).font(.system(size: size * 0.11, weight: .bold, design: .rounded)).monospacedDigit()
-                    .contentTransition(.numericText(value: Double(total.cents)))
+                Text((hit?.amount ?? total).rounded).font(.system(size: size * 0.11, weight: .bold, design: .rounded)).monospacedDigit()
+                    .contentTransition(.numericText(value: Double((hit?.amount ?? total).cents)))
+                if let hit, sum > 0 {
+                    Text("\(Int((Double(hit.amount.cents) / sum * 100).rounded())) %").font(.caption2).foregroundStyle(Color.fg3)
+                }
             }
+            .allowsHitTesting(false)
         }
         .onAppear { withAnimation(.smooth(duration: 0.7)) { shown = true } }
         .accessibilityElement(children: .ignore)

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>开店本钱和回本</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#E5E5EA;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--inc:#0E6B40;--incS:rgba(19,122,74,.10);--al:#B8322A;--alS:rgba(211,63,53,.10);--chrome:#F7F7F9;--seg:rgba(118,118,128,.12);--on:#FFFFFF;--onfg:#0B6577}
+.dk{--bg:#0C0C0E;--card:#1C1C1F;--sunk:#2C2C30;--fg:#F5F5F7;--fg2:#B0B0B7;--fg3:#8C8C93;--sep:rgba(120,120,128,.26);--shop:#2FA4BA;--shopS:rgba(47,164,186,.15);--inc:#36C77F;--incS:rgba(54,199,127,.15);--al:#FF6A5F;--alS:rgba(255,106,95,.15);--chrome:#161618;--seg:rgba(118,118,128,.24);--on:#636366;--onfg:#FFFFFF}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1400px}
+.cap{font-size:15px;color:#55555c;margin-top:28px;text-align:center}
+.ph{width:390px;height:844px;border-radius:54px;background:var(--bg);color:var(--fg);box-shadow:0 0 0 10px #1D1D1F,0 24px 60px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box}
+.in{flex:1;display:flex;flex-direction:column;padding:62px 20px 16px}
+.nav{display:flex;justify-content:space-between;align-items:center;font-size:17px}
+.nav a{text-decoration:none;color:var(--shop)}
+.seg{display:inline-flex;background:var(--seg);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:5px 18px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--on);color:var(--onfg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.card{background:var(--card);border-radius:16px;padding:16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:14px;font-size:17px;font-weight:600;border:0;font-family:inherit;width:100%}
+.bp{background:var(--shop);color:#fff}.bs{background:var(--shopS);color:var(--shop)}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:14px;font-weight:600}
+.ok{background:var(--incS);color:var(--inc)}
+.tiny{font-size:13px;color:var(--fg3)}
+.bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}.bar i{display:block;height:100%;background:var(--shop);border-radius:4px}
+.tabs{display:flex;justify-content:space-around;padding:12px 0 30px;border-top:1px solid var(--sep);background:var(--chrome);font-size:11px;color:var(--fg3)}
+.tabs .on{color:var(--shop);font-weight:600}
+.frow{display:flex;justify-content:space-between;align-items:center;height:54px;border-bottom:1px solid var(--sep);font-size:17px;padding:0 16px}
+.frow:last-child{border-bottom:0}
+.frow span:last-child{color:var(--fg2)}
+.panel{border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px;background:var(--bg);color:var(--fg)}
+.ptitle{font-size:13px;font-weight:600;color:var(--fg2);letter-spacing:.04em}
+.pt{display:flex;justify-content:space-between;font-size:15px;margin-bottom:10px}
+.pt span{color:var(--fg2)}
+</style>
+</helmet>
+<div class="kit" style="width: 1708px; height: 1150px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>4 · 开店本钱和回本：只给新店</h1>
+<p>填了开店本钱、还没回本，首页才有回本卡。回本那天庆祝一下，点「收起」以后就不再出现。老店不用填，首页也就没有这张卡。</p>
+</div>
+<div style="display: flex; gap: 80px; align-items: flex-start">
+
+<div>
+<div class="ph lt"><div class="in">
+<div class="nav"><a href="#">取消</a><b>开店本钱</b><a href="#" style="font-weight:600">保存</a></div>
+<div style="font-size:15px;line-height:1.55;color:var(--fg2);margin-top:28px;padding:0 4px">夏夏用它算你什么时候回本。只填一个总数就行，装修、设备、押金、第一批货都算在里面。</div>
+<div class="card" style="margin-top:20px;padding:0">
+<div class="frow"><span>一共投了多少</span><span class="num" style="color:var(--fg);font-size:20px">70.000 €</span></div>
+<div class="frow"><span>哪天开的店</span><span>2025 年 4 月 12 日 ›</span></div>
+</div>
+<div class="card" style="margin-top:20px;padding:0">
+<div class="frow"><span>开店到现在已经赚回</span><span class="num">12.600 €</span></div>
+</div>
+<div class="tiny" style="margin-top:8px;padding:0 4px">店开了一阵子才开始用夏夏的，填一下到现在赚回了多少；不知道可以不填。</div>
+<div style="flex:1"></div>
+<div style="text-align:center;font-size:15px"><a href="#" style="text-decoration:none">老店，不用算回本</a></div>
+</div><div style="height:30px"></div></div>
+<div class="cap">浅色 · 填本钱：设置里或者首页空状态进来</div>
+</div>
+
+<div>
+<div class="ph lt"><div class="in">
+<div style="text-align:center"><span class="seg"><span>生活</span><span class="on">生意</span></span></div>
+<div style="margin-top:44px;font-size:15px;color:var(--fg2)">11 月真正赚了</div>
+<div class="num" style="font-size:56px;line-height:1.1;margin:2px 0 10px">3.950 €</div>
+<div><span class="tag ok">比 10 月同期多 480 €</span></div>
+<div class="card" style="margin-top:32px;text-align:center;padding:24px 20px">
+<svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="rgba(14,124,146,.12)"></circle><path d="M17 29l7.5 7.5L40 21" fill="none" stroke="#0B6577" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="9" cy="10" r="2.5" fill="#0E6B40"></circle><circle cx="48" cy="8" r="2" fill="#F4B23E"></circle><circle cx="51" cy="44" r="2.5" fill="#0B6577"></circle><circle cx="5" cy="42" r="2" fill="#F4B23E"></circle></svg>
+<div style="font-size:22px;font-weight:700;margin-top:12px">今天回本了！</div>
+<div style="font-size:15px;line-height:1.55;color:var(--fg2);margin-top:8px">开店花的 70.000 € 全赚回来了，用了 19 个月。以后赚的都是净赚。</div>
+<button class="btn bs" style="margin-top:18px;height:44px;font-size:15px">收起这张卡</button>
+</div>
+<div style="flex:1"></div>
+<button class="btn bp">＋ 记今天的账</button>
+</div><div class="tabs"><span class="on">总览</span><span>收支</span><span>家底</span><span>计划</span><span>夏夏</span></div></div>
+<div class="cap">浅色 · 回本那天：庆祝卡代替提醒，收起后不再出现</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px;width:640px">
+<div class="panel lt">
+<div class="ptitle">回本卡 · 浅色</div>
+<div class="card"><div class="pt"><b>回本 46%</b><span>大约还要 14 个月</span></div><div class="bar"><i style="width:46%"></i></div><div class="tiny" style="margin-top:8px">已赚回 32.400 € / 共 70.000 €</div></div>
+<div class="tiny">正常：按最近 3 个月平均赚的速度估。</div>
+<div class="card"><div class="pt"><b>回本 2%</b><span>开店不满 1 个月</span></div><div class="bar"><i style="width:2%"></i></div><div class="tiny" style="margin-top:8px">再记几周，夏夏就能估出要多久</div></div>
+<div class="tiny">刚开店：还估不出来，就直说。</div>
+<div class="card"><div class="pt"><b>回本 31%</b><span>最近 3 个月没赚到钱</span></div><div class="bar"><i style="width:31%;background:var(--fg3)"></i></div><div class="tiny" style="margin-top:8px">先把每月赚的拉回正数，才能估回本</div></div>
+<div class="tiny">最近在亏：进度条变灰，不吓人也不报假日子。</div>
+</div>
+<div class="panel dk">
+<div class="ptitle">深色</div>
+<div class="card"><div class="pt"><b>回本 46%</b><span>大约还要 14 个月</span></div><div class="bar"><i style="width:46%"></i></div><div class="tiny" style="margin-top:8px">已赚回 32.400 € / 共 70.000 €</div></div>
+<div class="card" style="text-align:center;padding:20px 16px">
+<div style="font-size:18px;font-weight:700">今天回本了！</div>
+<div style="font-size:14px;line-height:1.5;color:var(--fg2);margin-top:6px">开店花的 70.000 € 全赚回来了，用了 19 个月。</div>
+<button class="btn bs" style="margin-top:14px;height:40px;font-size:15px">收起这张卡</button>
+</div>
+<div class="card" style="font-size:14px;line-height:1.55;color:var(--fg2)"><b style="color:var(--fg)">老店</b><br>没填本钱，或者点了「老店，不用算回本」：首页没有这张卡，什么都不显示。</div>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1708,"height":1150}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

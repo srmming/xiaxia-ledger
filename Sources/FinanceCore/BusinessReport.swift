@@ -63,6 +63,20 @@ extension Ledger {
                               topCosts: ranked.prefix(5).map { .init(category: $0.key, amount: $0.value) },
                               fixed: fixed, fixedTotal: fixedTotal, fixedUpcoming: upcoming)
     }
+    /// 生意首页那条「这个月累计赚了」的线：第 n 天（从 1 起）到那天为止赚了多少。
+    /// 和 businessReport 的 profit 用同一批流水（不算开店本钱、借还本金、两边转钱、私房钱），所以最后一天就等于 profit。
+    /// 本月只算到今天；以前的月份算满一个月。
+    public func businessDailyProfit(month: YearMonth, today: LocalDate) -> [Money] {
+        guard businessBook != nil else { return [] }
+        let byDay = Dictionary(grouping: businessEntries(through: today).filter { $0.date.yearMonth == month }, by: \.date.day)
+        let last = today.yearMonth == month ? today.day : (month < today.yearMonth ? LocalDate(year: month.year, month: month.month, day: 1).adding(months: 1).adding(days: -1).day : 0)
+        var running = Money.zero
+        return (0..<max(0, last)).map { i in
+            running = (byDay[i + 1] ?? []).reduce(running) { $0 + $1.amount }
+            return running
+        }
+    }
+
     public func capitalProgress(today: LocalDate) -> CapitalProgress? {
         guard let capital = business?.capital, capital.total > .zero, let book = businessBook else { return nil }
         let hidden = privateAccountIDs

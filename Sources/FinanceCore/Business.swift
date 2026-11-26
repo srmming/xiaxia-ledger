@@ -45,6 +45,10 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var businessBookID: String?
     public var capital: Capital?
     public var debtExtras: [String: DebtExtra]?
+    /// 账户算哪一边（ming 2026-11-25：在哪边加就属哪边，可以挪边）。没写的按流水猜（只在生意账本里用的算生意）。
+    public var accountSides: [String: Side]?
+    /// 每天记账的收款方式（现金、刷卡之外还能加 Bizum、外卖平台……）。没设过就用默认两种。
+    public var paymentMethods: [PaymentMethod]?
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -53,6 +57,8 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         businessBookID = try c.decodeIfPresent(String.self, forKey: .businessBookID)
         capital = try c.decodeIfPresent(Capital.self, forKey: .capital)
         debtExtras = try c.decodeIfPresent([String: DebtExtra].self, forKey: .debtExtras)
+        accountSides = try c.decodeIfPresent([String: Side].self, forKey: .accountSides)
+        paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods)
     }
 }
 public struct Receivable: Codable, Hashable, Sendable, Identifiable {
@@ -84,6 +90,10 @@ extension Ledger {
         minReaderVersion = max(minReaderVersion, 2)
         changes.append(change)
         return change
+    }
+    /// 给同一个模块里别的文件用：改生意设置并记一条能撤销的改动。
+    mutating func changeBusinessSettings(_ settings: BusinessSettings, summary: String, author: String) -> ChangeRecord {
+        changeBusiness(settings, summary: summary, author: author)
     }
     public mutating func enableBusinessMode(choose bookID: String? = nil, newBookName: String = "我的生意", author: String) throws -> EnableResult {
         var settings = business ?? BusinessSettings()

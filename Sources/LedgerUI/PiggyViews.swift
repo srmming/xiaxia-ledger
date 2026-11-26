@@ -233,15 +233,23 @@ private struct BellyWindow: View {
 }
 
 /// 金币上一闪一闪的小星光。
+/// 只在出现后闪几下就停（审查 2026-11-26：小猪一直在动、停不下来）；开了「减少动态效果」就不闪。
 private struct SparkleDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var start = Date()
+    @State private var done = false
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.1)) { ctx in
-            let t = ctx.date.timeIntervalSinceReferenceDate
-            let a = max(0, sin(t * 2.2))
+        TimelineView(.animation(minimumInterval: 0.1, paused: done || reduceMotion)) { ctx in
+            let t = ctx.date.timeIntervalSince(start)
+            let a = done || reduceMotion ? 0 : max(0, sin(t * 2.2))
             Image(systemName: "sparkle").resizable().scaledToFit()
                 .foregroundStyle(Color.white)
                 .opacity(a)
                 .scaleEffect(0.6 + 0.4 * a)
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(3))
+            done = true
         }
     }
 }

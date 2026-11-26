@@ -3,7 +3,7 @@ import SwiftUI
 
 extension LedgerModel {
     /// 正在看的月份、账本的 AI 意见（没点「知道了」的）。
-    var shownInsights: [Insight] { ledger.insights(month: shownMonth, bookID: selectedBookID) }
+    var shownInsights: [Insight] { insightsHere(month: shownMonth) }
 
     /// 最该先看的一条：本月点评，没有就最新的一条。
     var leadInsight: Insight? { shownInsights.first }
@@ -65,7 +65,7 @@ struct InsightCard: View {
                         Text(insight.kind == .monthlyReview ? tr("夏夏 · \(insight.month.month) 月点评") : tr("夏夏说 · \(insight.kind.label)"))
                     } icon: {
                         // 和右边站着的一样是夏夏（ming 2026-11-23：左上角是小橘、右边是夏夏，对不上）。谁写的看右上角的名字。
-                        MascotView(size: 20, face: true, animated: false)
+                        CharacterSlot(size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()
@@ -81,7 +81,7 @@ struct InsightCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(pose: pose, size: large ? 120 : fixedHeight == nil ? 80 : 64, interactive: true)
+                        CharacterSlot(pose: pose, size: large ? 120 : fixedHeight == nil ? 80 : 64, interactive: true)
                     }
                 }
                 if fixedHeight != nil { Spacer(minLength: 0) }
@@ -121,6 +121,7 @@ struct InsightRow: View {
     let insight: Insight
 
     var body: some View {
+        let target = AppSection.forInsight(insight)
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 KitTag(text: insight.kind.label, color: insight.kind.color, background: insight.kind.soft)
@@ -129,17 +130,38 @@ struct InsightRow: View {
                 if insight.dismissedAt == nil {
                     Button(tr("知道了")) { withAnimation(.snappy) { model.dismiss(insight) } }
                         .font(.caption).buttonStyle(.plain).foregroundStyle(Color.fg2)
+                        .padding(.horizontal, 6).frame(minHeight: 24).contentShape(Rectangle()).hoverBubble()
                 } else {
                     Text(tr("知道了")).font(.caption).foregroundStyle(Color.fg3)
                 }
             }
-            Text(insight.title).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
-            if !insight.body.isEmpty {
-                Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            // 点一下去相关的那一页（审查 2026-11-26：原来点了没反应）。
+            Button {
+                if let target { withAnimation(.snappy) { model.section = target } }
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(insight.title).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        if let target {
+                            Text(tr("去「\(target.title)」")).font(.caption).foregroundStyle(Color.fg2)
+                            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(Color.fg3)
+                        }
+                    }
+                    if !insight.body.isEmpty {
+                        Text(insight.body).font(.subheadline).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .disabled(target == nil)
+            .hoverHighlight()
+            .accessibilityHint(target.map { tr("打开「\($0.title)」") } ?? "")
         }
         .padding(.vertical, 8)
         .opacity(insight.dismissedAt == nil ? 1 : 0.6)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }

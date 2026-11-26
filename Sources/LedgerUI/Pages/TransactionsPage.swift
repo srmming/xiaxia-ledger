@@ -113,7 +113,7 @@ struct TransactionsPage: View {
                             Text(selected.isEmpty ? tr("点几笔选中，一起改") : tr("选了 \(selected.count) 笔")).font(.subheadline).foregroundStyle(Color.fg2)
                             Spacer()
                             Button(tr("一起改…")) { showBulk = true }
-                                .buttonStyle(.borderedProminent).tint(.brand)
+                                .buttonStyle(.borderedProminent).solidTint()
                                 .disabled(selected.isEmpty)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 10)
@@ -196,7 +196,8 @@ struct TransactionsPage: View {
         HStack {
             Text(g.date == .today ? tr("今天 · \(g.date.short)") : g.date.friendly)
             Spacer()
-            Text(g.total.display).monospacedDigit()
+            // 当天进出正好相抵（0,00 €）就不写数，免得看着像没记账（审查 2026-11-26）。
+            if g.total.cents != 0 { Text(g.total.display).monospacedDigit() }
         }
         .font(.caption).foregroundStyle(Color.fg2)
     }
@@ -217,9 +218,18 @@ struct TransactionsPage: View {
 
     // MARK: 筛选
 
-    private var filters: some View {
+    /// Mac：一行放不下就换行（审查 2026-11-26：窄窗口下「只看 AI 记的」被切掉一半）；iPhone 左右滑。
+    @ViewBuilder private var filters: some View {
+        #if os(macOS)
+        FlowLayout(spacing: 6) { filterChips }
+        #else
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: 6) { filterChips }
+        }
+        #endif
+    }
+
+    @ViewBuilder private var filterChips: some View {
                 if let ids = filter.ids {
                     chip(tr("刚改的 \(ids.count) 笔  ✕"), symbol: "sparkles", on: true) { filter.ids = nil; model.highlighted = [] }
                         .accessibilityLabel(tr("只看刚改的 \(ids.count) 笔，点一下看全部"))
@@ -234,7 +244,7 @@ struct TransactionsPage: View {
                 Menu {
                     Button(tr("全部账户")) { filter.accountID = nil }
                     Divider()
-                    ForEach(model.visibleAccounts) { a in Button(a.name) { filter.accountID = a.id } }
+                    ForEach(model.accountsOnThisSide) { a in Button(a.name) { filter.accountID = a.id } }
                 } label: { chipLabel((filter.accountID.map { model.accountName($0) } ?? tr("账户")) + " ▾", on: filter.accountID != nil) }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 Menu {
@@ -254,13 +264,11 @@ struct TransactionsPage: View {
                 }
                 chip(tr("只看 AI 记的"), symbol: "sparkles", on: filter.onlyAI) { filter.onlyAI.toggle() }
                 chip(model.ledger.recurring.isEmpty ? tr("重复记账") : tr("重复记账 \(model.ledger.recurring.count)"), symbol: "repeat", on: false) { showRecurring = true }
-            }
-        }
     }
 
     private func chip(_ title: String, symbol: String? = nil, on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) { chipLabel(title, symbol: symbol, on: on) }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).hoverHighlight()
             .accessibilityAddTraits(on ? .isSelected : [])
     }
 
@@ -351,7 +359,7 @@ struct SectionLink<L: View>: View {
         Button {
             if let filter { model.showTransactions(filter) } else { model.section = section }
         } label: { label() }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).hoverHighlight()
         #else
         NavigationLink {
             Group {
@@ -370,6 +378,7 @@ struct TransactionDetail: View {
     let tx: Transaction
 
     private let editable = true
+    @State private var showMore = false
 
     /// 外币流水换成主币种：「≈ 18,40 € · 按 11 月 2 日欧洲央行汇率」。
     private func fxLine(_ code: String) -> String {
@@ -427,6 +436,14 @@ struct TransactionDetail: View {
                 }
                 Divider()
                 row(tr("账户")) { Text(model.accountName(tx.accountID)) }
+                Divider()
+                row(tr("日期")) { Text(tx.date.year == LocalDate.today.year ? tx.date.short : tr("\(tx.date.year) 年 \(tx.date.short)")) }
+                if let change {
+                    Divider()
+                    row(tr("谁记的")) {
+                        Text("\(model.isMe(change.author) ? tr("你") : change.author) · \(change.createdAt.friendly)").lineLimit(1)
+                    }
+                }
                 if let o = tx.original {
                     Divider()
                     row(tr("原价")) { Text(o.amount.ui(in: o.currency)).monospacedDigit() }
@@ -436,10 +453,6 @@ struct TransactionDetail: View {
                     row(tr("约合")) {
                         Text(fxLine(code)).monospacedDigit().multilineTextAlignment(.trailing)
                     }
-                }
-                if Merchant.display(tx.description) != tx.description {
-                    Divider()
-                    row(tr("银行原文")) { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
                 }
                 if let note = tx.note {
                     Divider()
@@ -452,48 +465,66 @@ struct TransactionDetail: View {
                             ForEach(tx.tagList, id: \.self) { t in
                                 Button { model.showTransactions(TransactionFilter(tag: t)) } label: {
                                     Text("#\(t)").font(.caption).padding(.horizontal, 7).padding(.vertical, 3)
-                                        .background(Color.brandSoft, in: Capsule())
+                                        .background(model.accentSoft, in: Capsule())
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                     }
                 }
-                if let r = model.ledger.recurring.first(where: { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }) {
-                    Divider()
-                    row(tr("重复")) { Text(r.paused ? tr("\(r.frequency.label)（暂停中）") : tr("\(r.frequency.label)，下次 \(r.nextDate.friendly)")) }
-                }
-                if let source = tx.source {
-                    Divider()
-                    row(tr("来源")) { Text(source).lineLimit(1) }
-                }
             }
             .font(.callout)
-            if let change {
-                HStack(spacing: 6) {
-                    Image(systemName: model.isMe(change.author) ? "person.fill" : "sparkles")
-                        .foregroundStyle(model.isMe(change.author) ? Color.fg2 : Color.ai)
-                    Text("\(model.isMe(change.author) ? tr("你") : change.author) \(change.createdAt.friendly)：\(change.summary)")
-                        .lineLimit(2)
-                }
-                .font(.caption)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(model.isMe(change.author) ? Color.sunken : Color.aiSoft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-            HStack {
-                if let change, change.canUndo {
-                    Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? tr("撤销这次改动（\(change.transactionIDs.count) 笔）") : tr("撤销这次改动"), systemImage: "arrow.uturn.backward") }
-                        .buttonStyle(.soft)
-                }
-                Spacer()
-                #if os(macOS)
-                Button { model.askAbout(tx) } label: { Label(tr("问夏夏"), systemImage: "sparkles") }
-                    .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
-                #endif
-            }
-            PaperworkSection(tx: tx)
+            // 常用的（改、删）在前；小票、来源、撤销、问夏夏收进「更多」，详情不挤（ming 2026-11-25）。
             TransactionActions(tx: tx)
+            DisclosureGroup(isExpanded: $showMore) {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(spacing: 0) {
+                        if Merchant.display(tx.description) != tx.description {
+                            row(tr("银行原文")) { Text(tx.description).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
+                            Divider()
+                        }
+                        if let r = model.ledger.recurring.first(where: { $0.template.description == tx.description && $0.template.amount == tx.amount && $0.template.accountID == tx.accountID }) {
+                            row(tr("重复")) { Text(r.paused ? tr("\(r.frequency.label)（暂停中）") : tr("\(r.frequency.label)，下次 \(r.nextDate.friendly)")) }
+                            Divider()
+                        }
+                        if let source = tx.source {
+                            row(tr("来源")) { Text(source).lineLimit(1) }
+                        }
+                    }
+                    .font(.callout)
+                    if let change {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.isMe(change.author) ? "person.fill" : "sparkles")
+                                .foregroundStyle(model.isMe(change.author) ? Color.fg2 : Color.ai)
+                            Text("\(model.isMe(change.author) ? tr("你") : change.author) \(change.createdAt.friendly)：\(change.summary)")
+                                .lineLimit(2)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(Color.fg2)
+                    }
+                    HStack {
+                        if let change, change.canUndo {
+                            Button { model.undo(change.id) } label: { Label(change.transactionIDs.count > 1 ? tr("撤销这次改动（\(change.transactionIDs.count) 笔）") : tr("撤销这次改动"), systemImage: "arrow.uturn.backward") }
+                                .buttonStyle(.soft)
+                        }
+                        Spacer()
+                        #if os(macOS)
+                        Button { model.askAbout(tx) } label: { Label(tr("问夏夏"), systemImage: "sparkles") }
+                            .buttonStyle(.soft).help(tr("在右边的对话栏里问夏夏这一笔"))
+                        #endif
+                    }
+                    // 生意那边不做报销（ming 2026-11-25）。
+                    PaperworkSection(tx: tx, showReimburse: model.ledger.side(of: tx) != .business || !model.businessOn)
+                }
+                .padding(.top, 8)
+            } label: {
+                // 整行都能点（审查实测原来只有 56×14）。
+                Text(tr("更多")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation(.snappy) { showMore.toggle() } }
+            }
+            .accessibilityIdentifier("tx-detail-more")
         }
         .kitCard()
     }

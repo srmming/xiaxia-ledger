@@ -103,6 +103,72 @@ struct CategoryCreator: View {
     private var shown: XiaGlyph { icon ?? guess ?? .other }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    #if os(macOS)
+    /// Mac（ming 2026-11-25 重做）：先打名字（打开就能打），图标按名字自动配；想换就在下面点。回车建好，Esc 取消。
+    private var macBody: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    HStack(spacing: 12) {
+                        XiaTile(glyph: shown, size: 44).animation(.snappy, value: shown)
+                        TextField(tr("名字"), text: $name, prompt: Text(tr("比如「奶茶」「宠物」")))
+                            .font(.title3)
+                            .focused($nameFocused)
+                            .onSubmit(save)
+                            .accessibilityLabel(tr("分类名字"))
+                    }
+                    if showsDirection {
+                        Picker(tr("用在"), selection: $isIncome) {
+                            Text(tr("支出")).tag(false)
+                            Text(tr("收入")).tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                } footer: {
+                    Text(icon != nil ? tr("图标：\(icon!.label)") : guess != nil ? tr("按名字配了「\(guess!.label)」，想换就在下面点一个。") : tr("打好名字会自动配图标，也可以在下面挑。"))
+                        .font(.caption).foregroundStyle(Color.fg2)
+                }
+                Section(tr("图标")) {
+                    ScrollView { CategoryIconGrid(selection: $icon, suggestion: guess, incomeFirst: isIncome).padding(.vertical, 4) }
+                        .frame(height: 240)
+                        // 底部渐隐：最后一行不像被切了一刀，看得出还能往下滚（审查 2026-11-26）。
+                        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.86),
+                                                     .init(color: .black.opacity(0.12), location: 1)], startPoint: .top, endPoint: .bottom))
+                }
+            }
+            .formStyle(.grouped)
+            Divider()
+            HStack {
+                Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
+                Spacer()
+                Button(action: save) { Text(tr("建好了")).frame(minWidth: 80) }
+                    .sheetPrimary()
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(trimmed.isEmpty)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+        }
+        .navigationTitle(tr("新建分类"))
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { nameFocused = true } }
+        .frame(minWidth: 440, idealWidth: 520, minHeight: 460, idealHeight: 560)
+        .errorAlert($error)
+        .onAppear { name = initialName; isIncome = income }
+        .onChange(of: icon) { _, g in
+            guard let g, trimmed.isEmpty || trimmed == autoName else { return }
+            name = g.label; autoName = g.label
+        }
+        .onChange(of: name) { _, n in if n != autoName { autoName = nil } }
+    }
+    #endif
+
+    private var phoneBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 14) {
@@ -145,7 +211,7 @@ struct CategoryCreator: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("建好了"), action: save).disabled(trimmed.isEmpty)
+                Button(tr("建好了"), action: save).disabled(trimmed.isEmpty).sheetPrimary()
             }
         }
         .errorAlert($error)
@@ -215,7 +281,7 @@ struct CategoryIconEditor: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("换好了")) { set(icon?.rawValue) }.disabled(icon == nil)
+                Button(tr("换好了")) { set(icon?.rawValue) }.disabled(icon == nil).sheetPrimary()
             }
         }
         .errorAlert($error)

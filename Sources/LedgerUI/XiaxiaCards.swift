@@ -71,7 +71,13 @@ struct XiaxiaCards: View {
 
     // ming 2026-11-23：像一叠卡——后面露出下一张、再下一张的边；滑一下，上面那张飞走，下面那张补上来。
     // 卡叠的高度跟着最上面那张的内容走，不按最高那张留空白。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     var body: some View {
+        // 页面上的 AI 提示剥离成单独一层（ming 2026-11-25「所有的界面 AI 提示都剥离」），默认不显示。
+        if aiInPages { pageBody }
+    }
+
+    @ViewBuilder private var pageBody: some View {
         let list = items
         let index = min(list.firstIndex { $0.id == current } ?? 0, max(0, list.count - 1))
         let behind = max(0, min(2, list.count - 1 - index))
@@ -212,7 +218,7 @@ struct XiaxiaCards: View {
                     Label {
                         Text(tr("夏夏 · \(n.label)"))
                     } icon: {
-                        MascotView(size: 20, face: true, animated: false)
+                        CharacterSlot(size: 20, face: true, animated: false)
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ai)
                     Spacer()
@@ -224,7 +230,7 @@ struct XiaxiaCards: View {
                         Text(n.advice.keepingAmountsTogether).font(.subheadline).foregroundStyle(Color.fg2).lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    MascotView(pose: pose(n), size: 64)
+                    CharacterSlot(pose: pose(n), size: 64)
                         .accessibilityHidden(true)
                 }
                 Spacer(minLength: 0)

@@ -160,7 +160,7 @@ private struct ThinkingRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .bottom, spacing: 6) {
-                MascotView(pose: .think, size: 72, animated: false)
+                CharacterSlot(pose: .think, size: 72, animated: false)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.xia(tr("夏夏在想…"))).font(.caption.weight(.medium)).foregroundStyle(Color.fg2)
                     if let engine {
@@ -230,7 +230,7 @@ struct XiaxiaChatPanel: View {
 
     private func header(_ chat: XiaxiaChatState) -> some View {
         HStack(spacing: 8) {
-            MascotView(size: 26, face: true, animated: false)
+            CharacterSlot(size: 26, face: true, animated: false)
             Text(model.xiaName).font(.headline)
             Spacer()
             if !chat.available.isEmpty {
@@ -303,7 +303,7 @@ struct XiaxiaChatPanel: View {
     private func starter(_ chat: XiaxiaChatState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 8) {
-                MascotView(pose: .hello, size: 96, animated: false)
+                CharacterSlot(pose: .hello, size: 96, animated: false)
                 Text(tr("想记账、想问钱花哪了，直接跟我说。我看得到你现在停在哪一页。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 10)
@@ -319,7 +319,7 @@ struct XiaxiaChatPanel: View {
     private func bubble(_ m: XiaxiaChatState.Message) -> some View {
         HStack(alignment: .top, spacing: 6) {
             if m.fromUser { Spacer(minLength: 40) } else {
-                MascotView(pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
+                CharacterSlot(pose: m.isError ? .worried : model.persona.mascotPose, size: 24, face: true, animated: false)
             }
             Text(LocalizedStringKey(m.text.keepingAmountsTogether))
                 .font(.callout)

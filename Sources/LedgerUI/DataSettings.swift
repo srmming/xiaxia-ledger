@@ -73,7 +73,7 @@ struct DataSettingsPane: View {
                 Spacer(minLength: 12)
                 if model.isTryingDemo {
                     Button(tr("退出演示")) { withAnimation(.snappy) { model.exitDemo() } }
-                        .buttonStyle(.borderedProminent).tint(.brand)
+                        .buttonStyle(.borderedProminent).solidTint()
                         .accessibilityIdentifier("data.demo.exit")
                 } else {
                     Button(tr("看看")) { withAnimation(.snappy) { model.enterDemo() } }
@@ -243,7 +243,7 @@ struct DemoBanner: View {
                     .font(.callout).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 Button(tr("退出演示")) { withAnimation(.snappy) { model.exitDemo() } }
-                    .buttonStyle(.borderedProminent).tint(.brand).controlSize(.small)
+                    .buttonStyle(.borderedProminent).solidTint().controlSize(.small)
                     .accessibilityIdentifier("demo.banner.exit")
             }
             .padding(.horizontal, Kit.side).padding(.vertical, 8)

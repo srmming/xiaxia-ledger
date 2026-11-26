@@ -98,7 +98,9 @@ struct MoreLink: View {
     var body: some View {
         SectionLink(section: section) {
             HStack(spacing: 2) { Text(model.xia(title)); Image(systemName: "chevron.right").font(.caption2.weight(.semibold)) }
-                .font(.subheadline).foregroundStyle(Color.brand)
+                .font(.subheadline).foregroundStyle(model.accent)
+                // 点击区至少 24 高（审查实测原来 32×14）。
+                .padding(.horizontal, 4).frame(minHeight: 24).contentShape(Rectangle())
         }
     }
 }
@@ -179,6 +181,8 @@ struct TxRow: View {
     @Environment(LedgerModel.self) var model
     let tx: Transaction
     var showDate = false
+    /// 谁记的（「我」/「AI」小标签）也算 AI 提示层，默认不显示（ming 2026-11-25）。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
 
     var body: some View {
         let internalMove = tx.flow != nil
@@ -187,7 +191,7 @@ struct TxRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(Merchant.display(tx.description)).font(.callout.weight(.medium)).lineLimit(1)
                 HStack(spacing: 5) {
-                    if let author = model.authors[tx.id] {
+                    if aiInPages, let author = model.authors[tx.id] {
                         if model.isMe(author) { KitTag.me() } else { KitTag.ai() }
                     }
                     Text(detail).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
@@ -223,7 +227,12 @@ struct TxRow: View {
         case .opening: parts.append(tr("期初余额"))
         case nil:
             parts.append(tx.category ?? tr("未分类"))
-            if let b = tx.bookID { parts.append(model.bookName(b)) }
+            // 生活和生意之间转的钱：两边的流水里各有一笔，标成转账（ming 2026-11-25）。
+            if model.businessOn, tx.transferID != nil {
+                let shop = model.ledger.side(of: tx) == .business
+                parts.append(tx.amount.isIncome ? (shop ? tr("转账 · 生活那边转来") : tr("转账 · 生意那边转来"))
+                                                : (shop ? tr("转账 · 转给生活那边") : tr("转账 · 转给生意那边")))
+            } else if let b = tx.bookID { parts.append(model.bookName(b)) }
         }
         parts.append(model.accountName(tx.accountID))
         if let note = tx.note { parts.append(note) }
@@ -360,6 +369,8 @@ struct KitEmptyState: View {
     var prompt: String? = nil
     var page = tr("总览")
     var buttonTitle = tr("复制好去问 AI")
+    /// 页面上的 AI 提示层（见 CharacterLayer.swift）：关着时不放「问夏夏」按钮，只留说明。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
 
     var body: some View {
         AskAIReader { ask in
@@ -367,14 +378,14 @@ struct KitEmptyState: View {
                 // 道具插画 + 站在旁边的夏夏（动作跟着这页的情况：空着在打盹、出错了担心、做完了庆祝…）
                 let glyph = art ?? Self.artFor(symbol)
                 HStack(alignment: .bottom, spacing: -18) {
-                    MascotView(pose: Self.poseFor(glyph), size: 96)
+                    CharacterSlot(pose: Self.poseFor(glyph), size: 96)
                     XiaxiaIllustration(glyph, width: 132)
                 }
                 .padding(.bottom, -2)
                 Text(title).font(.headline)
                 Text(message).font(.subheadline).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                if let prompt {
+                if let prompt, aiInPages {
                     Button { ask(prompt, page: page) } label: { Label(model.chatReady ? model.xia(tr("跟夏夏说")) : buttonTitle, systemImage: model.chatReady ? "sparkles" : "doc.on.doc") }
                         .buttonStyle(AISolidButtonStyle())
                         .padding(.top, 4)

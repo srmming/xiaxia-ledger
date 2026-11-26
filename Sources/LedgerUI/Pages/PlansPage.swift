@@ -115,13 +115,19 @@ struct PiggyGoalsBoard: View {
             PiggyChallengeCard(habit: b.habit)
             PiggyMonthCard(board: b)
             #else
-            Columns(sideWidth: 320) {
+            Columns(sideWidth: 320, breakpoint: 820) {  // 窗口最窄时（1000 宽）上下排，小目标卡名字不被挤断（审查第二轮）
                 if let main = b.main { mainCard(main, b) } else { allDone(b) }
                 smallRow(b)
             } side: {
                 PiggyXiaxiaCard(board: b, showExtra: $showExtra)
-                PiggyChallengeCard(habit: b.habit, compact: short)
-                PiggyMonthCard(board: b, compact: short)
+                // 小挑战和坚持了几天合成一张「这个月的存钱习惯」（审查 2026-11-26）。
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(tr("这个月的存钱习惯")).font(.kitSection).accessibilityAddTraits(.isHeader)
+                    PiggyChallengeCard(habit: b.habit, compact: short, bare: true)
+                    Divider()
+                    PiggyMonthCard(board: b, compact: short, bare: true)
+                }
+                .kitCard(padding: short ? 12 : 14)
             }
             #endif
         }
@@ -133,7 +139,7 @@ struct PiggyGoalsBoard: View {
             Text(roomLine(b)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
             Spacer(minLength: 8)
             Button { soundOn.toggle() } label: {
-                Image(systemName: soundOn ? "speaker.wave.2" : "speaker.slash")
+                Image(systemName: soundOn ? "speaker.wave.2" : "speaker.slash").hitArea().hoverBubble()
             }
             .buttonStyle(.borderless).foregroundStyle(Color.fg2)
             .help(soundOn ? tr("小猪的声音：开（点一下关掉）") : tr("小猪的声音：关（点一下打开）"))
@@ -256,7 +262,7 @@ struct PiggyGoalsBoard: View {
                     .font(.callout).foregroundStyle(Color.fg2).multilineTextAlignment(.center)
                     .frame(maxWidth: 460)
                 Button { model.sheet = .plan } label: { Label(tr("定第一个目标"), systemImage: "plus") }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
                     .accessibilityIdentifier("goals.first")
                 if let room = b.monthlyRoom, room.cents > 0 {
                     Text(tr("你最近每月大约剩 \(room.rounded)")).font(.caption).foregroundStyle(Color.fg3)
@@ -452,8 +458,8 @@ struct PiggyMainCard: View {
 
     private var depositButton: some View {
         Button { onMoney(.deposit) } label: { Label(tr("存一笔"), systemImage: "plus.circle.fill") }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.kit(0xD9557A, 0xE86A8E))
+            .buttonStyle(.borderedProminent).solidTint()
+            .tint(Color.kit(0xC23E66, 0xC4436A))
             .accessibilityIdentifier("goals.deposit")
     }
 
@@ -493,7 +499,8 @@ struct PiggySmallTile: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: goalSymbol(p)).font(.caption).foregroundStyle(palette.dark)
-                Text(p.name).font(.callout.weight(.medium)).lineLimit(1)
+                // 窄窗口也看得到全名：最多两行（审查 2026-11-26：「店面…」「锁起…」）。
+                Text(p.name).font(.callout.weight(.medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 PiggyGoalMenu(goal: p, onMoney: onMoney)
             }
@@ -514,8 +521,9 @@ struct PiggySmallTile: View {
             HStack(spacing: 4) {
                 Text(note(p)).font(.caption2).foregroundStyle(p.needsCheck ? Color.warn : Color.fg2).lineLimit(1)
                 Spacer(minLength: 0)
-                Button { onMoney(.deposit) } label: { Image(systemName: "plus.circle.fill").font(.title3) }
-                    .buttonStyle(.borderless).foregroundStyle(palette.dark)
+                // 原来是 15×15 的 +，改成「存一笔」文字按钮（审查 2026-11-26）。
+                Button { onMoney(.deposit) } label: { Text(tr("存一笔")).font(.caption.weight(.semibold)) }
+                    .buttonStyle(SoftButtonStyle(color: palette.dark, background: palette.dark.opacity(0.14)))
                     .help(tr("往「\(p.name)」存一笔"))
                     .accessibilityLabel(tr("往\(p.name)存一笔"))
                     .disabled(f.isDone)
@@ -524,6 +532,7 @@ struct PiggySmallTile: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .hoverHighlight()
     }
 
     private func note(_ p: PiggyGoal) -> String {
@@ -541,10 +550,16 @@ struct PiggyXiaxiaCard: View {
     let board: GoalBoard
     @Binding var showExtra: Bool
     @State private var confirmDelete: PiggyGoal?
+    /// 非引导页不放夏夏的提问卡（ming 2026-11-25 的规矩；审查 2026-11-26 发现这里漏了）。设置里打开 AI 提示层才显示。
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
 
     var body: some View {
+        if aiInPages { pageBody }
+    }
+
+    private var pageBody: some View {
         HStack(alignment: .top, spacing: 10) {
-            MascotView(pose: pose, size: 44, face: true)
+            CharacterSlot(pose: pose, size: 44, face: true)
             VStack(alignment: .leading, spacing: 8) {
                 Text(sentence).font(.callout).fixedSize(horizontal: false, vertical: true)
                 if let p = board.needsCheck {
@@ -624,6 +639,8 @@ struct PiggyXiaxiaCard: View {
 struct PiggyChallengeCard: View {
     let habit: SmallHabit
     var compact = false
+    /// 放在别的卡片里：不再自己套一层卡片。
+    var bare = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -651,7 +668,7 @@ struct PiggyChallengeCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .kitCard(padding: compact ? 12 : 14)
+        .modifier(MaybeCard(on: !bare, padding: compact ? 12 : 14))
     }
 
     private func status(_ limit: Int) -> String {
@@ -671,6 +688,7 @@ struct PiggyMonthCard: View {
     }
     let board: GoalBoard
     var compact = false
+    var bare = false
 
     var body: some View {
         let today = board.today
@@ -710,7 +728,7 @@ struct PiggyMonthCard: View {
                 .font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .kitCard(padding: compact ? 12 : 14)
+        .modifier(MaybeCard(on: !bare, padding: compact ? 12 : 14))
     }
 
     private func summary(count: Int, saved: Money, earlier: Int) -> String {
@@ -725,6 +743,14 @@ struct PiggyMonthCard: View {
 
 // MARK: - 小零件
 
+struct MaybeCard: ViewModifier {
+    var on: Bool
+    var padding: CGFloat
+    func body(content: Content) -> some View {
+        if on { content.kitCard(padding: padding) } else { content }
+    }
+}
+
 /// 小猪头上冒的「+3 天」。
 struct PiggyBubble: View {
     var text: String?
@@ -734,7 +760,7 @@ struct PiggyBubble: View {
                 .font(.caption.weight(.bold)).monospacedDigit()
                 .foregroundStyle(.white)
                 .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(Color.kit(0xD9557A, 0xE86A8E), in: Capsule())
+                .background(Color.kit(0xC23E66, 0xC4436A), in: Capsule())
                 .transition(.scale(scale: 0.4, anchor: .bottom).combined(with: .opacity))
                 .offset(y: -6)
         }
@@ -805,9 +831,9 @@ struct PiggyGoalMenu: View {
             }
             Button(role: .destructive) { confirmDelete = true } label: { Label(tr("删掉…"), systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis.circle").foregroundStyle(Color.fg2)
+            MoreGlyph()
         }
-        .menuStyle(.button).buttonStyle(.borderless).fixedSize()
+        .actionMenuStyle()
         .accessibilityLabel(tr("\(goal.name) 的操作"))
         .confirmationDialog(tr("删掉目标「\(goal.name)」？"), isPresented: $confirmDelete, titleVisibility: .visible) {
             Button(tr("删掉"), role: .destructive) { model.perform { try $0.removeGoal(goal.id, author: model.author) } }

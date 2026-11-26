@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>Mac 宽屏页面</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#E5E5EA;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--inc:#0E6B40;--incS:rgba(19,122,74,.10);--al:#B8322A;--alS:rgba(211,63,53,.10);--side:#ECECF0;--chrome:#F7F7F9;--seg:rgba(118,118,128,.12);--on:#FFFFFF;--onfg:#0B6577;--sheet:#FFFFFF}
+.dk{--bg:#0C0C0E;--card:#1C1C1F;--sunk:#2C2C30;--fg:#F5F5F7;--fg2:#B0B0B7;--fg3:#8C8C93;--sep:rgba(120,120,128,.26);--shop:#2FA4BA;--shopS:rgba(47,164,186,.15);--inc:#36C77F;--incS:rgba(54,199,127,.15);--al:#FF6A5F;--alS:rgba(255,106,95,.15);--side:#18181B;--chrome:#1A1A1D;--seg:rgba(118,118,128,.24);--on:#636366;--onfg:#FFFFFF;--sheet:#26262A}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1600px}
+.cap{font-size:15px;color:#55555c;margin-top:22px;text-align:center}
+.shot{padding:0}
+.mac{width:960px;height:640px;border-radius:12px;overflow:hidden;background:var(--bg);color:var(--fg);box-shadow:0 0 0 1px rgba(0,0,0,.14),0 24px 60px rgba(0,0,0,.2);display:flex;flex-direction:column;position:relative}
+.tb{height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--chrome);border-bottom:1px solid var(--sep);flex-shrink:0}
+.dots{display:flex;gap:8px}.dots i{width:12px;height:12px;border-radius:50%;background:#FF5F57}.dots i:nth-child(2){background:#FEBC2E}.dots i:nth-child(3){background:#28C840}
+.sb{width:190px;background:var(--side);padding:14px 10px;font-size:13px;color:var(--fg2);display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.sb span{padding:6px 10px;border-radius:7px}.sb .on{background:var(--shopS);color:var(--shop);font-weight:600}
+.seg{display:inline-flex;background:var(--seg);border-radius:9px;padding:2px;font-size:13px;font-weight:600}
+.seg span{padding:4px 16px;border-radius:7px;color:var(--fg2)}.seg .on{background:var(--on);color:var(--onfg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tbtn{height:30px;padding:0 14px;border-radius:8px;border:0;background:var(--shop);color:#fff;font:600 13px/30px inherit;font-family:inherit}
+.mb{height:28px;padding:0 16px;border-radius:7px;border:0;font:500 13px inherit;font-family:inherit;background:var(--sunk);color:var(--fg)}
+.mb.p{background:var(--shop);color:#fff}
+.mb.s{background:var(--shopS);color:var(--shop);font-weight:600}
+.card{background:var(--card);border-radius:14px;padding:16px 18px}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:14px;font-weight:600}
+.ok{background:var(--incS);color:var(--inc)}
+.tiny{font-size:13px;color:var(--fg3)}
+.lbl{font-size:15px;color:var(--fg2)}
+.main{flex:1;padding:44px 48px;display:flex;flex-direction:column;min-width:0}
+.dim{position:absolute;left:0;right:0;top:52px;bottom:0;background:rgba(0,0,0,.28)}
+.sheet{position:absolute;top:52px;left:50%;transform:translateX(-50%);width:480px;background:var(--sheet);border-radius:0 0 12px 12px;box-shadow:0 20px 50px rgba(0,0,0,.3);padding:26px 28px 22px;box-sizing:border-box}
+.fld{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:10px;padding:0 14px;height:46px;font-size:15px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font-size:12px;color:var(--fg3);font-weight:500;text-align:left;padding:0 0 8px}
+.tbl td{padding:12px 0;border-top:1px solid var(--sep)}
+.tbl .r{text-align:right}
+.soon{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;font-size:11px;font-weight:600;background:var(--shopS);color:var(--shop);vertical-align:1px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--sep);font-size:14px}
+.row:last-child{border-bottom:0}
+.row small{display:block;font-size:12px;color:var(--fg3);margin-top:2px}
+.pick{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:var(--bg);border:2px solid transparent;font-size:14px}
+.pick.sel{border-color:var(--shop)}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--fg3);box-sizing:border-box;flex-shrink:0;margin-top:1px}
+.sel .dot{border:5px solid var(--shop)}
+</style>
+</helmet>
+<div class="kit" style="width: 3168px; height: 1760px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>8 · Mac 宽屏：其余几页</h1>
+<p>Mac 用左边栏切页面，宽窗口里排成两栏：左边一个大数字，右边是明细。记账、填本钱、两边转钱都是从窗口顶上落下来的小窗口（回车确定，Esc 取消）。首页、设置、第一次打开的 Mac 版在 1、6、7 号画板。</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 60px 80px">
+
+<div class="shot" id="m-daily">
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span class="on">总览</span><span>花销</span><span>趋势</span><span>家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div class="main" style="padding:64px 72px"><div class="lbl">11 月真正赚了</div><div class="num" style="font-size:72px;line-height:1.1">2.340 €</div></div>
+</div>
+<div class="dim"></div>
+<div class="sheet">
+<div style="font-size:18px;font-weight:700">记今天的账</div>
+<div class="tiny">11 月 25 日 · 周二</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:18px"><span class="lbl">今天收了多少</span><span class="num" style="font-size:38px">420 €</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px">
+<div class="fld"><span>现金</span><span class="num" style="font-size:20px">120</span></div>
+<div class="fld"><span>刷卡/转账</span><span class="num" style="font-size:20px">300</span></div>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:14px;color:var(--fg2);margin-top:16px"><span>今天花了（已经记的 2 笔）</span><b class="num" style="color:var(--fg)">36 €</b></div>
+<div style="display:flex;justify-content:space-between;align-items:center;border-radius:10px;padding:10px 14px;margin-top:10px;background:var(--incS);color:var(--inc);font-weight:600;font-size:15px"><span>今天赚了</span><span class="num" style="font-size:20px">384 €</span></div>
+<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px"><button class="mb">取消</button><button class="mb p">记好了</button></div>
+</div>
+</div>
+<div class="cap">每天记账：从首页顶上落下来，记完自动收起</div>
+</div>
+
+<div class="shot" id="m-fixed">
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span>总览</span><span>花销</span><span>趋势</span><span>家底</span><span class="on">固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div class="main" style="flex-direction:row;gap:40px">
+<div style="width:230px;flex-shrink:0;display:flex;flex-direction:column">
+<div class="lbl">每个月固定要付</div>
+<div class="num" style="font-size:48px;line-height:1.15">2.720 €</div>
+<div class="tiny" style="margin-top:4px">到日子自动记上，不用手记</div>
+<div class="card" style="margin-top:28px;padding:14px 16px"><div class="tiny">下周要付</div><div class="num" style="font-size:24px;margin-top:2px">2.600 €</div><div class="tiny" style="margin-top:4px">30 号工资 1.400 · 1 号房租 1.200</div></div>
+<div style="flex:1"></div>
+<button class="mb s" style="align-self:flex-start;height:32px">＋ 加一项</button>
+</div>
+<div class="card" style="flex:1;align-self:flex-start">
+<table class="tbl"><thead><tr><th>名字</th><th>每月几号</th><th>从哪付</th><th class="r">多少</th></tr></thead>
+<tbody>
+<tr><td><b>房租</b><span class="soon">下周</span></td><td>1 号</td><td>公司卡</td><td class="r num">1.200 €</td></tr>
+<tr><td><b>员工工资</b><span class="soon">下周</span></td><td>30 号</td><td>公司卡</td><td class="r num">1.400 €</td></tr>
+<tr><td><b>会计</b></td><td>5 号</td><td>公司卡</td><td class="r num">80 €</td></tr>
+<tr><td><b>网费</b></td><td>12 号</td><td>公司卡</td><td class="r num">40 €</td></tr>
+</tbody></table>
+<div class="tiny" style="margin-top:12px">双击一行改，右键可以删。首页「真正赚了」会扣掉这些。</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cap">固定开销：左边总数和下周要付，右边一张表</div>
+</div>
+
+<div class="shot" id="m-capital">
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span style="flex:1;text-align:center;margin-right:60px;font-size:14px;font-weight:600">设置</span></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span>通用</span><span>账本与账户</span><span class="on">生意模式</span><span>夏夏的记忆</span><span>连接 AI</span><span>数据</span></div>
+<div class="main" style="padding:36px 56px"><div class="card" style="height:40px"></div><div class="card" style="height:200px;margin-top:18px"></div></div>
+</div>
+<div class="dim"></div>
+<div class="sheet" style="width:500px">
+<div style="font-size:18px;font-weight:700">开店本钱</div>
+<div style="font-size:14px;color:var(--fg2);margin-top:6px;line-height:1.5">夏夏用它算你什么时候回本。只填一个总数，装修、设备、押金、第一批货都算在里面。</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+<div class="fld"><span>一共投了多少</span><span class="num" style="font-size:18px">70.000 €</span></div>
+<div class="fld"><span>哪天开的店</span><span style="color:var(--fg2)">2025 年 4 月 12 日</span></div>
+<div class="fld"><span>开店到现在已经赚回（可以不填）</span><span class="num" style="font-size:18px;color:var(--fg2)">12.600 €</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:20px"><a href="#" style="font-size:13px;text-decoration:none">老店，不用算回本</a><span style="flex:1"></span><button class="mb">先跳过</button><button class="mb p">保存</button></div>
+</div>
+</div>
+<div class="cap">开店本钱：在 设置 → 生意模式 里点「改…」</div>
+</div>
+
+<div class="shot" id="m-payback">
+<div class="mac dk">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span class="on">总览</span><span>花销</span><span>趋势</span><span>家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div class="main" style="flex-direction:row;gap:40px;padding:64px 56px">
+<div style="flex:1">
+<div class="lbl">11 月真正赚了</div>
+<div class="num" style="font-size:64px;line-height:1.1;margin:4px 0 12px">3.950 €</div>
+<span class="tag ok">比 10 月同期多 480 €</span>
+<div style="margin-top:28px;font-size:15px;color:var(--fg2)">这个月给自己发了 <b class="num" style="color:var(--fg)">1.800 €</b> ›</div>
+</div>
+<div class="card" style="width:300px;flex-shrink:0;align-self:flex-start;text-align:center;padding:26px 22px">
+<svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="rgba(47,164,186,.18)"></circle><path d="M17 29l7.5 7.5L40 21" fill="none" stroke="#2FA4BA" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="9" cy="10" r="2.5" fill="#36C77F"></circle><circle cx="48" cy="8" r="2" fill="#FFC352"></circle><circle cx="51" cy="44" r="2.5" fill="#2FA4BA"></circle><circle cx="5" cy="42" r="2" fill="#FFC352"></circle></svg>
+<div style="font-size:20px;font-weight:700;margin-top:10px">今天回本了！</div>
+<div style="font-size:14px;line-height:1.55;color:var(--fg2);margin-top:6px">开店花的 70.000 € 全赚回来了，用了 19 个月。以后赚的都是净赚。</div>
+<button class="mb s" style="margin-top:16px;height:32px;width:100%">收起这张卡</button>
+</div>
+</div>
+</div>
+</div>
+<div class="cap">回本那天（深色）：庆祝卡放在右边，收起后不再出现</div>
+</div>
+
+<div class="shot" id="m-accounts">
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span>总览</span><span>花销</span><span>趋势</span><span class="on">家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div class="main" style="flex-direction:row;gap:36px">
+<div style="flex:1;display:flex;flex-direction:column">
+<div class="lbl">店里一共</div>
+<div class="num" style="font-size:56px;line-height:1.15">6.280 €</div>
+<div class="tiny" style="margin-top:4px">生活和生意加起来一共 14.430 €</div>
+<div class="card" style="margin-top:24px;padding:4px 18px">
+<div class="row"><span><b>公司卡</b><small>CaixaBank · 银行卡</small></span><span class="num" style="font-size:16px">5.420 €</span></div>
+<div class="row"><span><b>店里现金</b><small>现金</small></span><span class="num" style="font-size:16px">860 €</span></div>
+</div>
+<div class="tiny" style="margin-top:10px">这两个账户只在生意这边出现。</div>
+</div>
+<div style="width:300px;flex-shrink:0;display:flex;flex-direction:column">
+<div style="font-size:13px;font-weight:600;color:var(--fg2);margin-top:6px">两边之间的钱</div>
+<div class="card" style="margin-top:10px;padding:4px 18px">
+<div class="row"><span>⇄ 拿钱回家<small>11 月 20 日 · 到日常卡</small></span><span class="num" style="font-size:16px">−500 €</span></div>
+<div class="row"><span>⇄ 日常卡帮店里付进货<small>11 月 18 日</small></span><span class="num" style="font-size:16px;color:var(--inc)">+120 €</span></div>
+</div>
+<div class="tiny" style="margin-top:10px;line-height:1.5">不算开销也不算收入。拿回家的钱算进「这个月给自己发了」。</div>
+<button class="mb s" style="margin-top:16px;height:32px;align-self:flex-start">⇄ 两边转钱</button>
+</div>
+</div>
+</div>
+</div>
+<div class="cap">账户（生意这边的家底）：左边店里的钱，右边两边来回的钱</div>
+</div>
+
+<div class="shot" id="m-transfer">
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="seg"><span>生活</span><span class="on">生意</span></span><span style="flex:1"></span><button class="tbtn">＋ 记今天的账</button></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span>总览</span><span>花销</span><span>趋势</span><span class="on">家底</span><span>固定开销</span><span>欠款与分期</span><span style="margin-top:12px">流水</span><span>设置</span></div>
+<div class="main"><div class="lbl">店里一共</div><div class="num" style="font-size:56px;line-height:1.15">6.280 €</div></div>
+</div>
+<div class="dim"></div>
+<div class="sheet">
+<div style="font-size:18px;font-weight:700">两边转钱</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px">
+<div class="pick sel"><span class="dot"></span><span><b>从店里拿钱回家</b><span class="tiny" style="display:block;margin-top:2px">算「给自己发了」</span></span></div>
+<div class="pick"><span class="dot"></span><span><b>自己的钱垫给店里</b><span class="tiny" style="display:block;margin-top:2px">比如日常卡付了进货</span></span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px">
+<div class="fld"><span>多少</span><span class="num" style="font-size:18px">500 €</span></div>
+<div class="fld"><span>从</span><span style="color:var(--fg2)">公司卡 ⌄</span></div>
+<div class="fld"><span>到</span><span style="color:var(--fg2)">日常卡 ⌄</span></div>
+</div>
+<div class="tiny" style="margin-top:12px">只是钱换了个地方，不算店里的开销，也不算家里的收入。</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px"><button class="mb">取消</button><button class="mb p">好</button></div>
+</div>
+</div>
+<div class="cap">两边转钱：先选是哪种，再填多少和账户</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":3168,"height":1760}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

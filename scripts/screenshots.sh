@@ -26,6 +26,9 @@ if [ -n "$IOS_APP" ]; then
   }
   ios 1-overview -XiaxiaDemo
   ios 2-spending -XiaxiaDemo -XiaxiaSection spending
+  # 生意模式（2026-11-25）：生意首页、设置里的开关
+  ios 1b-business -XiaxiaDemo -XiaxiaBook shop
+  ios 1c-business-settings -XiaxiaDemo -XiaxiaSection settings -XiaxiaSettingsPage business
   ios 3-trends -XiaxiaDemo -XiaxiaSection trends
   ios 4-wealth -XiaxiaDemo -XiaxiaSection wealth
   ios 5-plans -XiaxiaDemo -XiaxiaSection plans
@@ -73,6 +76,8 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
   BIN="$MAC_APP/Contents/MacOS/$(basename "$MAC_APP" .app)"
   snap() {
     local name="$1"; shift
+    # 快速模式：SHOTS 是一个正则，只截名字对得上的（见 .github/workflows/build.yml）。
+    if [ -n "${SHOTS:-}" ] && ! [[ "$name" =~ $SHOTS ]]; then return; fi
     # 用 open 启动，让 app 被激活。系统参数（-AppleLanguages 这种成对的）放前面：
     # 开关都带上值（-XiaxiaDemo 1）：参数凑不成「-键 值」对时，多出来的那个词会被 macOS 当成要打开的文件，
     # app 就不开主窗口了（只有个数凑成双数的那次截到了）。
@@ -85,6 +90,23 @@ if [ -n "$MAC_APP" ] && [ -n "${CI:-}" ]; then
     else echo "mac-$name 没截到"; tail -5 "$OUT/mac-$name.log" 2>/dev/null; fi
   }
   snap 1-overview -XiaxiaDemo 1
+  # 生意模式（2026-11-25）：生意首页（大窗口、最小窗口、深色）、设置里的开关、关掉时和以前一样
+  snap 1b-business -XiaxiaDemo 1 -XiaxiaBook shop
+  snap 1c-business-small -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaWindowSize 1000x612
+  snap 1d-business-dark -XiaxiaDemo 1 -XiaxiaBook shop -xiaxia.appearance dark
+  snap 1e-business-settings -XiaxiaDemo 1 -XiaxiaSection settings -XiaxiaSettingsPage business
+  snap 1f-business-off -XiaxiaDemo 1 -XiaxiaBusiness off
+  snap 1g-business-daily -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily
+  snap 1h-business-daily-dark -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSheet daily -xiaxia.appearance dark
+  snap 1i-business-fixed -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection fixed
+  snap 1j-business-wealth -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection wealth
+  snap 1k-business-transfer -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection wealth -XiaxiaSheet sideTransfer
+  snap 1l-business-fixed-add -XiaxiaDemo 1 -XiaxiaBook shop -XiaxiaSection fixed -XiaxiaSheet fixedCost
+  snap 1m-life-wealth -XiaxiaDemo 1 -XiaxiaBook personal -XiaxiaSection wealth
+  snap 1n-life-overview -XiaxiaDemo 1 -XiaxiaBook personal
+  snap 1o-welcome-side -XiaxiaEmpty 1 -XiaxiaWelcome 1 -XiaxiaWelcomeStep books
+  snap 1p-overview-no-character -XiaxiaDemo 1 -XiaxiaBook personal -xiaxia.showCharacter '<false/>'
+  snap 1q-business-no-character -XiaxiaDemo 1 -XiaxiaBook shop -xiaxia.showCharacter '<false/>'
   snap 6-ai -XiaxiaDemo 1 -XiaxiaSection insights
   snap 9-settings -XiaxiaDemo 1 -XiaxiaSection settings
   snap 11-empty-ai -XiaxiaEmpty 1 -XiaxiaSection insights

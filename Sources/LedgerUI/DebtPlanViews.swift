@@ -79,7 +79,7 @@ struct DebtPlanSheet: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("保存"), action: save).disabled(draft.isEmpty).keyboardShortcut(.defaultAction)
+                Button(tr("保存"), action: save).disabled(draft.isEmpty).keyboardShortcut(.defaultAction).sheetPrimary()
             }
         }
         .onAppear(perform: load)
@@ -234,7 +234,7 @@ struct DebtRepaySheet: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("记上"), action: save).disabled(amount == nil || accountID.isEmpty).keyboardShortcut(.defaultAction)
+                Button(tr("记上"), action: save).disabled(amount == nil || accountID.isEmpty).keyboardShortcut(.defaultAction).sheetPrimary()
             }
         }
         .onAppear {

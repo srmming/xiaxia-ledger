@@ -53,12 +53,14 @@ struct GoalWizard: View {
             .navigationTitle(step == .done ? tr("建好了") : tr("定一个存钱目标"))
             .inlineTitle()
             .toolbar {
-                if step != .done {
+                // 满了只留「知道了」（审查 2026-11-26）。
+                if step != .done && !(step == .intro && full) {
                     ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(primaryTitle, action: next)
                         .disabled(!canGoOn)
+                        .sheetPrimary()
                         .accessibilityIdentifier("goalWizard.next")
                 }
             }
@@ -111,7 +113,7 @@ struct GoalWizard: View {
                     .id(step)
                     .transition(.scale(scale: 0.85, anchor: .bottom).combined(with: .opacity))
                 HStack(alignment: .bottom, spacing: -8) {
-                    MascotView(pose: step == .done ? .celebrate : .idle, size: pig * 0.62)
+                    CharacterSlot(pose: step == .done ? .celebrate : .idle, size: pig * 0.62)
                     PiggyBankView(fraction: step == .done ? 0.12 : 0, palette: main ? .main : PiggyPalette.small[0],
                                   size: pig * 0.72, dropTrigger: drop, sparkle: false)
                 }
@@ -191,7 +193,12 @@ struct GoalWizard: View {
                         if p.isMain { KitTag(text: tr("大目标")) }
                         Spacer(minLength: 8)
                         Text("\(p.forecast.percent)%").font(.caption).foregroundStyle(Color.fg3).monospacedDigit()
-                        Button(tr("删掉")) { confirmDelete = p }.buttonStyle(.softAlert)
+                        // 删除收进每行的 ⋯，不一打开就是一排红按钮。
+                        Menu {
+                            Button(tr("删掉…"), role: .destructive) { confirmDelete = p }
+                        } label: { MoreGlyph() }
+                            .actionMenuStyle()
+                            .accessibilityLabel(tr("\(p.name) 的操作"))
                     }
                 }
             }
@@ -548,6 +555,7 @@ struct PiggyMoneySheet: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(deposit ? tr("存进去") : tr("取出来"), action: save)
                     .disabled(amount == nil || accountID.isEmpty)
+                    .sheetPrimary()
                     .accessibilityIdentifier("piggy.save")
             }
         }

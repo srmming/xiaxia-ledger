@@ -154,7 +154,13 @@ struct AskAICard: View {
     let prompts: [AIPrompt]
 
     @Environment(LedgerModel.self) var model
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     var body: some View {
+        // 页面上的 AI 提示剥离成单独一层（ming 2026-11-25「所有的界面 AI 提示都剥离」），默认不显示。
+        if aiInPages { pageBody }
+    }
+
+    @ViewBuilder private var pageBody: some View {
         AskAIReader { ask in
             VStack(alignment: .leading, spacing: 10) {
                 Label { Text(title).font(.kitSection) } icon: { Image(systemName: "sparkles").foregroundStyle(Color.ai) }

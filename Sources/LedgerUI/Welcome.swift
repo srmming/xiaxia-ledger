@@ -131,6 +131,11 @@ struct WelcomeView: View {
         Choice(name: tr("旅行"), symbol: "airplane"),
     ]
     @State private var pickedBooks: Set<String> = []
+    /// 第一次打开二选一：nil = 还没选，false = 只记生活，true = 生活和生意都记。
+    @State private var withShop: Bool?
+    /// 选了生意：店是不是新开的（新开的才算回本）、开店投了多少。
+    @State private var newShop: Bool?
+    @State private var capitalText = ""
     /// 第一步选的目标（现成的 id，或 "custom"）。
     @State private var pickedAim: String?
     /// 每个月想存多少：用户自己填。
@@ -224,7 +229,7 @@ struct WelcomeView: View {
                 speechBubble
                 ZStack(alignment: .bottom) {
                     HStack(alignment: .bottom, spacing: 0) {
-                        MascotView(pose: pose, size: size, talking: thinking)
+                        CharacterSlot(pose: pose, size: size, talking: thinking)
                             .id(pose)
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
@@ -341,14 +346,14 @@ struct WelcomeView: View {
                 let done = step.rawValue > number
                 let current = step.rawValue == number
                 if i > 0 {
-                    Capsule().fill(step.rawValue >= number ? Color.ai.opacity(0.45) : Color.fg3.opacity(0.22))
+                    Capsule().fill(step.rawValue >= number ? Color.brand.opacity(0.45) : Color.fg3.opacity(0.22))
                         .frame(height: 2).frame(minWidth: 16, maxWidth: .infinity)
                 }
                 HStack(spacing: 7) {
                     ZStack {
-                        Circle().fill(current ? Color.aiSolid : done ? Color.ai.opacity(0.18) : Color.fg3.opacity(0.15))
+                        Circle().fill(current ? Color.brandSolid : done ? Color.brand.opacity(0.18) : Color.fg3.opacity(0.15))
                         if done {
-                            Image(systemName: "checkmark").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(Color.ai)
+                            Image(systemName: "checkmark").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(Color.brand)
                         } else {
                             Text("\(number)").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(current ? Color.white : Color.fg2)
                         }
@@ -356,7 +361,7 @@ struct WelcomeView: View {
                     .frame(width: dot, height: dot)
                     if allLabels || current {
                         Text(name).font((big ? Font.title3 : .subheadline).weight(current ? .semibold : .regular))
-                            .foregroundStyle(current ? Color.ai : Color.fg2)
+                            .foregroundStyle(current ? Color.brand : Color.fg2)
                             .lineLimit(1).fixedSize()
                     }
                 }
@@ -434,20 +439,43 @@ struct WelcomeView: View {
                 primary(aimText == nil ? tr("先不定，下一步") : tr("就定这个"), id: "welcome.aim.next") { Task { await toBooks() } }
             }
         case .books:
-            pageBody(tr("你需要几个账本？"), tr("一个账本就是一摊分开算的钱。生活和开店的钱不想混在一起，就开两个。")) {
-                FlowLayout(spacing: 8) {
-                    chip(tr("个人"), symbol: "person", on: true, locked: true) {}
-                    ForEach(bookChoices) { c in
-                        let made = model.ledger.books.contains { $0.name == c.name }
-                        chip(c.name, symbol: c.symbol, on: made || pickedBooks.contains(c.name), locked: made) { toggle(&pickedBooks, c.name) }
+            // ming 2026-11-25：第一次打开二选一——只记生活 / 生活和生意都记；选生意再问店是不是新开的。
+            pageBody(tr("你想记哪些钱？"), tr("生活和店里的钱分开算，账户也分两边。以后在 设置 → 生意模式 随时能改。")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        sideCard(tr("只记生活"), detail: tr("家里的吃穿住行、存钱、还款"), symbol: "house.fill", on: withShop == false) {
+                            withShop = false
+                        }
+                        .accessibilityIdentifier("welcome.side.life")
+                        sideCard(tr("生活和生意都记"), detail: tr("再加一边，算店里真正赚了多少"), symbol: "storefront.fill", on: withShop == true) {
+                            withShop = true
+                        }
+                        .accessibilityIdentifier("welcome.side.both")
                     }
-                }
-                customField(tr("自己加一个账本，比如「副业」")) { name in
-                    if !bookChoices.contains(where: { $0.name == name }) { bookChoices.append(Choice(name: name, symbol: "book.closed")) }
-                    pickedBooks.insert(name)
+                    if withShop == true {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(tr("店是新开的吗？")).font(.headline)
+                            HStack(spacing: 8) {
+                                chip(tr("新开的，想知道什么时候回本"), symbol: "sparkles", on: newShop == true) { newShop = true }
+                                chip(tr("开了一阵了"), symbol: "clock", on: newShop == false) { newShop = false }
+                            }
+                            if newShop == true {
+                                HStack(spacing: 8) {
+                                    Text(tr("开店一共投了多少")).foregroundStyle(Color.fg2)
+                                    TextField(tr("可以先不填"), text: $capitalText)
+                                        .textFieldStyle(.roundedBorder).frame(width: 140)
+                                        .accessibilityIdentifier("welcome.capital")
+                                    Text(model.ledger.baseCurrency).foregroundStyle(Color.fg3)
+                                }
+                                .font(.callout)
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
             } buttons: {
                 primary(tr("下一步"), id: "welcome.books.next") { Task { await toAccounts() } }
+                    .disabled(withShop == nil)
             }
         case .accounts:
             pageBody(tr("钱平时放在哪？"), tr("有的就点一下，没有的可以自己加。余额以后随时能填。")) {
@@ -476,6 +504,19 @@ struct WelcomeView: View {
                         }
                     }
                     .allowsHitTesting(checking == nil)
+                    if checking == nil {
+                        // 连上以后能说什么：三句例子，让人知道连 AI 是干嘛的（审查 2026-11-26：这一页以前右边大半空着）。
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(tr("连上以后，在 AI 里这样说就行：")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                            exampleLine("square.and.pencil", tr("「午饭 12 欧，刷卡」"), tr("记一笔"))
+                            exampleLine("magnifyingglass", tr("「这个月吃饭花了多少？」"), tr("查账"))
+                            exampleLine("doc.text.viewfinder", tr("「帮我把这张小票记上」"), tr("拍小票导入"))
+                        }
+                        .padding(16)
+                        .frame(maxWidth: 520, alignment: .leading)
+                        .background(Color.cardBackground.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .padding(.top, 6)
+                    }
                     if let checking {
                         // 点下去马上有回应：选中的那个变色，下面转圈说在干什么。
                         HStack(spacing: 8) {
@@ -852,7 +893,7 @@ struct WelcomeView: View {
             }
             .foregroundStyle(on ? Color.white : Color.primary)
             .padding(.horizontal, tight ? 14 : 18).padding(.vertical, tight ? 8 : 11)
-            .background(on ? Color.aiSolid : Color.pageBackground, in: Capsule())
+            .background(on ? Color.brandSolid : Color.pageBackground, in: Capsule())
             .overlay(Capsule().strokeBorder(on ? Color.clear : Color.fg3.opacity(0.22), lineWidth: 1))
             .scaleEffect(on ? 1.03 : 1)
             .contentShape(Capsule())
@@ -882,7 +923,7 @@ struct WelcomeView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.fg3.opacity(0.22), lineWidth: 1))
                 .accessibilityIdentifier("welcome.custom")
             Button(action: submit) { Label(tr("加上"), systemImage: "plus") }
-                .buttonStyle(.softAI)
+                .buttonStyle(.soft)
                 .disabled(custom.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .frame(maxWidth: 480)
@@ -897,12 +938,23 @@ struct WelcomeView: View {
             .font(.title3.weight(.semibold)).foregroundStyle(.white)
             .padding(.horizontal, 30).padding(.vertical, 15)
             .frame(minWidth: 170)
-            .background(Color.aiSolid, in: Capsule())
+            // 引导里的按钮用 app 的主色橙（审查 2026-11-26：以前靛蓝，进了 app 变橙，像两个 app）。靛蓝只留给夏夏的背景。
+            .background(Color.brandSolid, in: Capsule())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .accessibilityIdentifier(id)
+    }
+
+    private func exampleLine(_ symbol: String, _ sentence: String, _ what: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).font(.subheadline).foregroundStyle(Color.brand).frame(width: 22)
+            Text(sentence).font(.body)
+            Spacer(minLength: 8)
+            Text(what).font(.caption).foregroundStyle(Color.fg2)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
@@ -918,7 +970,7 @@ struct WelcomeView: View {
 
     private func link(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol).font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
+            Label(title, systemImage: symbol).font(.subheadline.weight(.medium)).foregroundStyle(Color.brand)
         }
         .buttonStyle(.plain)
     }
@@ -927,10 +979,10 @@ struct WelcomeView: View {
 
     /// 夏夏说一句：先冒三个点，再出字。
     private func say(_ text: String, pose newPose: MascotPose? = nil) async {
-        if let newPose { withAnimation(.bouncy) { pose = newPose } }
+        if let newPose { withAnimation(.snappy) { pose = newPose } }
         withAnimation(.snappy) { thinking = true }
         try? await Task.sleep(for: .seconds(reduceMotion ? 0.1 : 0.55))
-        withAnimation(.bouncy(duration: 0.4)) {
+        withAnimation(.snappy(duration: 0.4)) {
             speech = text
             thinking = false
         }
@@ -984,7 +1036,6 @@ struct WelcomeView: View {
         if let name = UserDefaults.standard.string(forKey: "XiaxiaWelcomeStep"), let target = jump[name] {
             if target == .aim { pickedAim = "save" }
             step = target
-            await say(tr("（检查用：直接到这一页）"), pose: .idle)
             return
         }
         await say(tr("嗨，我是\(model.xiaName)！"), pose: .hello)
@@ -1043,22 +1094,65 @@ struct WelcomeView: View {
 
     private func toAccounts() async {
         go(.accounts)
-        await say(pickedBooks.isEmpty ? tr("好，一个账本最清爽。") : tr("好，\(pickedBooks.count + 1) 个账本。"), pose: .write)
+        if withShop == true {
+            for c in [Choice(name: tr("店里的卡"), bookKind: .business, accountKind: .bank), Choice(name: tr("店里现金"), bookKind: .business, accountKind: .cash)]
+            where !accountChoices.contains(where: { $0.name == c.name }) {
+                accountChoices.insert(Choice(name: c.name, glyph: c.accountKind.glyph, bookKind: .business, accountKind: c.accountKind), at: 0)
+            }
+        }
+        await say(withShop == true ? tr("好，生活和生意分两边算。店里的账户我放在前面了。") : tr("好，只记生活，最清爽。"), pose: .write)
     }
 
     /// 把选好的账本、账户写进账本（已经有的不重复建）。
     private func commitSetup() {
-        let haveBooks = Set(model.ledger.books.map(\.name))
-        for c in bookChoices where pickedBooks.contains(c.name) && !haveBooks.contains(c.name) {
-            _ = try? model.edit(quiet: true) { try $0.addBook(name: c.name, kind: c.bookKind, author: model.author) }
+        // 选了「生活和生意都记」：打开生意模式（没有生意账本就建一个「我的小店」）；新店填了本钱就记上，用来算回本。
+        if withShop == true, model.ledger.business?.enabled != true {
+            if !model.ledger.books.contains(where: \.isBusiness) {
+                _ = try? model.edit(quiet: true) { try $0.addBook(name: tr("我的小店"), kind: .business, author: model.author) }
+            }
+            _ = try? model.edit(quiet: true) { ledger in
+                guard case .enabled(let change) = try ledger.enableBusinessMode(author: model.author) else { throw CancellationError() }
+                return change
+            }
+            if newShop == true, let total = Self.parseAmount(capitalText) {
+                _ = try? model.edit(quiet: true) { try $0.setCapital(Capital(total: total, openedOn: .today), author: model.author) }
+            }
         }
         let haveAccounts = Set(model.ledger.accounts.map(\.name))
         for c in accountChoices where pickedAccounts.contains(c.name) && !haveAccounts.contains(c.name) {
+            var made: String?
             _ = try? model.edit(quiet: true) { ledger in
                 let id = ledger.newAccountID(for: c.name)
+                made = id
                 return try ledger.createAccount(Account(id: id, name: c.name, kind: c.accountKind), author: model.author)
             }
+            if c.bookKind == .business, let id = made, model.businessOn {
+                _ = try? model.edit(quiet: true) { try $0.setAccountSide(id, side: .business, author: model.author) }
+            }
         }
+    }
+
+    /// 第一次打开二选一的大卡片。
+    private func sideCard(_ title: String, detail: String, symbol: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.2)) { action() }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: symbol).font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(on ? Color.white : Color.brand)
+                    .frame(width: 44, height: 44)
+                    .background(on ? Color.brand : Color.brand.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(detail).font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Color.brand : Color.fg3.opacity(0.3), lineWidth: on ? 2 : 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func toAI() async {
@@ -1164,7 +1258,7 @@ struct WelcomeView: View {
             if linked.isEmpty, toConnect.isEmpty {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
-                    withAnimation(.bouncy) { toConnect = found }
+                    withAnimation(.snappy) { toConnect = found }
                     await say(tr("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。"), pose: .cheer)
                     continue
                 }
@@ -1172,7 +1266,7 @@ struct WelcomeView: View {
             let nowLinked = f.apps.filter { c.isConnected($0) }
             if nowLinked.count > linked.count {
                 // AI 照着指令自己连好了。
-                withAnimation(.bouncy) {
+                withAnimation(.snappy) {
                     linked = nowLinked
                     toConnect.removeAll { nowLinked.contains($0) }
                 }
@@ -1375,7 +1469,7 @@ struct ChatDemo: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                MascotView(size: 24, face: true, animated: false)
+                CharacterSlot(size: 24, face: true, animated: false)
                 Text(tr("夏夏")).font(.headline)
                 Spacer()
                 Text(engineName).font(.caption).foregroundStyle(Color.brand)
@@ -1390,7 +1484,7 @@ struct ChatDemo: View {
                 }
                 if typing {
                     HStack(spacing: 6) {
-                        MascotView(size: 22, face: true, animated: false)
+                        CharacterSlot(size: 22, face: true, animated: false)
                         Text(tr("夏夏在想…")).font(.caption).foregroundStyle(Color.fg3)
                     }
                     .transition(.opacity)
@@ -1417,7 +1511,7 @@ struct ChatDemo: View {
 
     private func bubble(_ text: String, mine: Bool) -> some View {
         HStack(alignment: .bottom, spacing: 6) {
-            if mine { Spacer(minLength: 40) } else { MascotView(size: 22, face: true, animated: false) }
+            if mine { Spacer(minLength: 40) } else { CharacterSlot(size: 22, face: true, animated: false) }
             Text(text).font(.callout)
                 .foregroundStyle(mine ? Color.white : Color.primary)
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -1439,7 +1533,7 @@ struct ChatDemo: View {
                     withAnimation(.smooth) { typing = false }
                 }
                 guard !Task.isCancelled else { return }
-                withAnimation(.bouncy(duration: 0.45)) { shown = i + 1 }
+                withAnimation(.snappy(duration: 0.45)) { shown = i + 1 }
                 try? await Task.sleep(for: .seconds(line.mine ? 0.9 : 1.6))
             }
             try? await Task.sleep(for: .seconds(3))

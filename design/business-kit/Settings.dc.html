@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>设置 生意模式</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#E9E8E4}
+a{color:#0B6577}a:hover{color:#084C5A}
+.kit{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:#1D1D1F}
+.lt{--bg:#F2F2F5;--card:#FFFFFF;--sunk:#E5E5EA;--fg:#1D1D1F;--fg2:#5A5A62;--fg3:#68686F;--sep:rgba(60,60,67,.13);--shop:#0B6577;--shopS:rgba(14,124,146,.10);--side:#ECECF0;--chrome:#F7F7F9;--off:#E9E9EA}
+.dk{--bg:#0C0C0E;--card:#1C1C1F;--sunk:#2C2C30;--fg:#F5F5F7;--fg2:#B0B0B7;--fg3:#8C8C93;--sep:rgba(120,120,128,.26);--shop:#2FA4BA;--shopS:rgba(47,164,186,.15);--side:#18181B;--chrome:#1A1A1D;--off:#39393D}
+.num{font-family:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:-.02em}
+.head{margin-bottom:44px}.head h1{font-size:34px;margin:0 0 8px}.head p{font-size:17px;color:#55555c;margin:0;max-width:1500px}
+.cap{font-size:15px;color:#55555c;margin-top:28px;text-align:center}
+.ph{width:390px;height:844px;border-radius:54px;background:var(--bg);color:var(--fg);box-shadow:0 0 0 10px #1D1D1F,0 24px 60px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;padding:62px 20px 34px}
+.nav{display:flex;justify-content:space-between;align-items:center;font-size:17px}
+.nav a{text-decoration:none;color:var(--shop)}
+.mac{width:960px;height:640px;border-radius:12px;overflow:hidden;background:var(--bg);color:var(--fg);box-shadow:0 0 0 1px rgba(0,0,0,.14),0 24px 60px rgba(0,0,0,.2);display:flex;flex-direction:column}
+.tb{height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--chrome);border-bottom:1px solid var(--sep);flex-shrink:0;font-size:14px;font-weight:600}
+.dots{display:flex;gap:8px}.dots i{width:12px;height:12px;border-radius:50%;background:#FF5F57}.dots i:nth-child(2){background:#FEBC2E}.dots i:nth-child(3){background:#28C840}
+.sb{width:190px;background:var(--side);padding:14px 10px;font-size:13px;color:var(--fg2);display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.sb span{padding:6px 10px;border-radius:7px}.sb .on{background:var(--shopS);color:var(--shop);font-weight:600}
+.card{background:var(--card);border-radius:14px;padding:0 16px}
+.r{display:flex;justify-content:space-between;align-items:center;min-height:52px;border-bottom:1px solid var(--sep);font-size:16px;gap:12px}
+.r:last-child{border-bottom:0}
+.r .v{color:var(--fg2)}
+.r small{display:block;font-size:13px;color:var(--fg3);margin-top:2px;line-height:1.4}
+.sw{width:51px;height:31px;border-radius:16px;background:#34C759;position:relative;display:inline-block;flex-shrink:0}
+.sw::after{content:"";position:absolute;right:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.sw.off{background:var(--off)}.sw.off::after{right:auto;left:2px}
+.pill{display:inline-flex;align-items:center;gap:4px;background:var(--sunk);border-radius:8px;padding:4px 10px;font-weight:600;color:var(--fg)}
+.mb{height:26px;padding:0 12px;border-radius:7px;border:0;background:var(--sunk);color:var(--fg);font:500 13px inherit;font-family:inherit}
+.tiny{font-size:13px;color:var(--fg3);line-height:1.5}
+</style>
+</helmet>
+<div class="kit" style="width: 2028px; height: 1150px; box-sizing: border-box; padding: 64px; background: #E9E8E4">
+<div class="head">
+<h1>6 · 设置 → 生意模式</h1>
+<p>一个开关，加三项：店名、开店本钱、固定开销。Mac 和 iPhone 都能改。</p>
+</div>
+<div style="display: flex; gap: 80px">
+
+<div>
+<div class="mac lt">
+<div class="tb"><span class="dots"><i></i><i></i><i></i></span><span style="flex:1;text-align:center;margin-right:60px">设置</span></div>
+<div style="display:flex;flex:1">
+<div class="sb"><span>通用</span><span>账本与账户</span><span class="on">生意模式</span><span>夏夏的记忆</span><span>连接 AI</span><span>数据</span></div>
+<div style="flex:1;padding:36px 56px;display:flex;flex-direction:column;gap:18px">
+<div class="card"><div class="r"><span><b>生意模式</b><small>首页分生活、生意两边，店里的钱单独算</small></span><span class="sw"></span></div></div>
+<div class="card">
+<div class="r"><span>店名</span><span class="v">我的小店</span></div>
+<div class="r"><span>开店本钱<small>2025 年 4 月开店 · 只给新店算回本</small></span><span style="display:flex;align-items:center;gap:12px"><span class="v num">70.000 €</span><button class="mb">改…</button></span></div>
+<div class="r"><span>固定开销</span><span class="v">4 项 · 每月 <span class="num">2.720 €</span> ›</span></div>
+</div>
+<div class="tiny" style="padding:0 4px">关掉生意模式不会丢账：店里的账户和流水都还在，再打开一样。</div>
+</div>
+</div>
+</div>
+<div class="cap">Mac · 浅色 · 打开着</div>
+</div>
+
+<div>
+<div class="ph lt">
+<div class="nav"><a href="#">‹ 设置</a><span></span><span></span></div>
+<div style="font-size:28px;font-weight:700;margin:14px 0 22px">生意模式</div>
+<div class="card"><div class="r"><span><b>生意模式</b><small>店里的钱单独算</small></span><span class="sw"></span></div></div>
+<div class="card" style="margin-top:20px">
+<div class="r"><span>店名</span><span class="v">我的小店 ›</span></div>
+<div class="r"><span>开店本钱</span><span class="v"><span class="num">70.000 €</span> ›</span></div>
+<div class="r"><span>固定开销</span><span class="v">4 项 ›</span></div>
+</div>
+<div style="flex:1"></div>
+<div class="tiny" style="text-align:center">关掉不会丢账，再打开一样。</div>
+</div>
+<div class="cap">iPhone · 浅色 · 打开着</div>
+</div>
+
+<div>
+<div class="ph dk">
+<div class="nav"><a href="#">‹ 设置</a><span></span><span></span></div>
+<div style="font-size:28px;font-weight:700;margin:14px 0 22px">生意模式</div>
+<div class="card"><div class="r"><span><b>生意模式</b><small>店里的钱单独算</small></span><span class="sw off"></span></div></div>
+<div style="font-size:15px;line-height:1.6;color:var(--fg2);margin-top:20px;padding:0 4px">开了店就打开它。首页顶上会出现「生活｜生意」，店里的钱单独算：这个月真正赚了多少，下周房租、工资够不够。<br><br>生活那边的样子不变。</div>
+<div style="flex:1"></div>
+</div>
+<div class="cap">iPhone · 深色 · 关着：只说打开后会怎样</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2028,"height":1150}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

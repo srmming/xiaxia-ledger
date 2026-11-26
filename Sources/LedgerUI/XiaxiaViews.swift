@@ -41,7 +41,13 @@ struct XiaxiaSays: View {
     /// 问完要不要让 AI 顺手给这一页写条意见（帮忙写提醒消息时不用）。
     var asksInsight = true
 
+    @AppStorage(AILayer.storageKey) private var aiInPages = false
     var body: some View {
+        // 页面上的 AI 提示剥离成单独一层（ming 2026-11-25「所有的界面 AI 提示都剥离」），默认不显示。
+        if aiInPages { pageBody }
+    }
+
+    @ViewBuilder private var pageBody: some View {
         if let insight = model.ledger.insight(forPage: page, month: model.shownMonth, bookID: model.selectedBookID) {
             InsightCard(insight: insight)
         } else {
@@ -63,7 +69,7 @@ struct XiaxiaSays: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // 夏夏本人站在卡片右边，按性格摆动作；大字号时让出位置给文字。
                     if !dynamicTypeSize.isAccessibilitySize {
-                        MascotView(pose: model.persona.mascotPose, size: 92, interactive: true)
+                        CharacterSlot(pose: model.persona.mascotPose, size: 92, interactive: true)
                             .padding(.bottom, -6)
                             .animation(.spring(duration: 0.45, bounce: 0.35), value: model.persona)
                     }
@@ -153,18 +159,18 @@ struct AimCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            XiaxiaHeader(title: tr("你想让夏夏帮你做到什么？"), trailing: "")
             if let aim = model.ledger.profile.aim, !editing {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("你的目标")).font(.caption).foregroundStyle(Color.fg2)
-                    Text(aim).font(.title3.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                }
-                Text(model.xia(tr("夏夏每次给意见都会先看这个目标。"))).font(.caption).foregroundStyle(Color.fg2)
+                // 写好了就只留一行（审查 2026-11-26：和目标页重复、太占地方）。
                 HStack(spacing: 8) {
+                    Text(tr("你的目标：")).foregroundColor(.fg2) + Text(aim).fontWeight(.semibold)
+                    Spacer(minLength: 8)
                     Button(tr("改一下")) { text = aim; editing = true; focused = true }.buttonStyle(.soft)
                     Button(tr("清掉")) { save(nil) }.buttonStyle(.soft)
                 }
+                .font(.callout)
+                .help(model.xia(tr("夏夏每次给意见都会先看这个目标。")))
             } else {
+                XiaxiaHeader(title: tr("你想让夏夏帮你做到什么？"), trailing: "")
                 TextField(tr("比如：每个月存下 500 €"), text: $text, axis: .vertical)
                     .lineLimit(1...3)
                     .textFieldStyle(.plain)
