@@ -1,0 +1,32 @@
+# 生活 · 趋势：起点 AXButton|生活||355,161 89x26
+1 AXButton|生意||446,161 89x26
+2 AXOutline|边栏||340,194 210x662
+3 AXButton|隐藏边栏||506,112 36x36
+4 AXButton|返回|chevron.backward|562,116 30x28
+5 AXButton|上个月||606,117 26x26
+6 AXButton|上个月|month.pick|632,117 104x26
+7 AXButton|记一笔||1410,112 76x36
+8 AXButton|问夏夏||1494,112 77x36
+9 AXButton|不算||1443,242 50x24
+10 AXButton|算||1503,242 37x24
+11 AXButton|不算||1443,279 50x24
+12 AXButton|算||1503,279 37x24
+13 AXButton|不算||1443,316 50x24
+14 AXButton|算||1503,316 37x24
+15 AXButton|11 月底大概一共花 1794 欧元 31 分。已经花了 1.602 €，还有 ||574,375 316x182
+16 AXButton|下个月要付 1745 欧元 15 分。固定的 1.090 €（10 样），平时的||906,375 317x182
+17 AXButton|现在的钱还能撑 5,5 个月。现在能随便花 8.749 €，平时每月花 1.59||1239,375 316x182
+18 AXButton|生活||355,161 89x26
+19 AXButton|生意||446,161 89x26
+20 AXOutline|边栏||340,194 210x662
+21 AXButton|隐藏边栏||506,112 36x36
+22 AXButton|返回|chevron.backward|562,116 30x28
+23 AXButton|上个月||606,117 26x26
+24 AXButton|上个月|month.pick|632,117 104x26
+25 AXButton|记一笔||1410,112 76x36
+26 AXButton|问夏夏||1494,112 77x36
+27 AXButton|不算||1443,242 50x24
+28 AXButton|算||1503,242 37x24
+29 AXButton|不算||1443,279 50x24
+30 AXButton|算||1503,279 37x24
+# 30 次 Tab 共到过 18 个不同控件

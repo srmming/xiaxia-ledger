@@ -1,0 +1,32 @@
+# 生活 · 订阅：起点 AXButton|把 FitBox 健身房 登记成订阅||1498,355 42x20
+1 AXButton|把 FitBox 健身房 登记成订阅||1498,355 42x20
+2 AXMenuButton|StreamBox 视频会员 的操作|ellipsis|1140,397 44x26
+3 AXMenuButton|FontHub 字体会员 的操作|ellipsis|1140,435 44x26
+4 AXButton|把 Telefonia Nubemovil 登记成订阅||1498,416 42x20
+5 AXMenuButton|Tuneo 音乐会员 的操作|ellipsis|1140,473 44x26
+6 AXButton|把 Linguapal 登记成订阅||1498,471 42x20
+7 AXDisclosureTriangle|已经停了的 1 个||567,519 612x24
+8 AXButton|生活||355,161 89x26
+9 AXButton|生意||446,161 89x26
+10 AXOutline|边栏||340,194 210x662
+11 AXButton|隐藏边栏||506,112 36x36
+12 AXButton|返回|chevron.backward|558,112 36x36
+13 AXButton|记一笔||1410,112 76x36
+14 AXButton|问夏夏||1494,112 77x36
+15 AXButton|登记订阅||1452,198 86x26
+16 AXButton|登记订阅|addSubscription|1156,316 28x28
+17 AXMenuButton|云存储 50GB 的操作|ellipsis|1140,359 44x26
+18 AXButton|把 FitBox 健身房 登记成订阅||1498,355 42x20
+19 AXMenuButton|StreamBox 视频会员 的操作|ellipsis|1140,397 44x26
+20 AXMenuButton|FontHub 字体会员 的操作|ellipsis|1140,435 44x26
+21 AXButton|把 Telefonia Nubemovil 登记成订阅||1498,416 42x20
+22 AXMenuButton|Tuneo 音乐会员 的操作|ellipsis|1140,473 44x26
+23 AXButton|把 Linguapal 登记成订阅||1498,471 42x20
+24 AXDisclosureTriangle|已经停了的 1 个||567,519 612x24
+25 AXButton|生活||355,161 89x26
+26 AXButton|生意||446,161 89x26
+27 AXOutline|边栏||340,194 210x662
+28 AXButton|隐藏边栏||506,112 36x36
+29 AXButton|返回|chevron.backward|558,112 36x36
+30 AXButton|记一笔||1410,112 76x36
+# 30 次 Tab 共到过 17 个不同控件

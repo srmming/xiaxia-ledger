@@ -1,0 +1,32 @@
+# 生意 · 固定开销：起点 AXButton|隐藏边栏||506,112 36x36
+1 AXButton|返回|chevron.backward|558,112 36x36
+2 AXButton|记一笔||1410,112 76x36
+3 AXButton|问夏夏||1494,112 77x36
+4 AXMenuButton|店租 的操作|ellipsis|1136,338 44x26
+5 AXMenuButton|兼职店员工资 的操作|ellipsis|1136,387 44x26
+6 AXButton|加一项||594,440 88x28
+7 AXButton|收银系统月费、12 月 5 日、29 €||594,541 586x21
+8 AXButton|咖啡机、12 月 10 日、150 €||594,591 586x21
+9 AXButton|Pack&Co 包装耗材、12 月 12 日、84 €||594,641 586x21
+10 AXButton|Pack&Co 包装耗材、12 月 12 日、84 €||594,641 586x21
+11 AXButton|自雇社保、12 月 28 日、310 €||594,666 586x21
+12 AXButton|生活||355,161 89x26
+13 AXButton|生意||446,161 89x26
+14 AXOutline|边栏||340,194 210x662
+15 AXButton|隐藏边栏||506,112 36x36
+16 AXButton|返回|chevron.backward|558,112 36x36
+17 AXButton|记一笔||1410,112 76x36
+18 AXButton|问夏夏||1494,112 77x36
+19 AXMenuButton|店租 的操作|ellipsis|1136,338 44x26
+20 AXMenuButton|兼职店员工资 的操作|ellipsis|1136,387 44x26
+21 AXButton|加一项||594,440 88x28
+22 AXButton|收银系统月费、12 月 5 日、29 €||594,541 586x21
+23 AXButton|咖啡机、12 月 10 日、150 €||594,591 586x21
+24 AXButton|Pack&Co 包装耗材、12 月 12 日、84 €||594,641 586x21
+25 AXButton|自雇社保、12 月 28 日、310 €||594,666 586x21
+26 AXButton|生活||355,161 89x26
+27 AXButton|生意||446,161 89x26
+28 AXOutline|边栏||340,194 210x662
+29 AXButton|隐藏边栏||506,112 36x36
+30 AXButton|返回|chevron.backward|558,112 36x36
+# 30 次 Tab 共到过 14 个不同控件
