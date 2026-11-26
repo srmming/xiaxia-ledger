@@ -1,0 +1,32 @@
+# 生活 · 订阅：起点 AXWindow|订阅|main|340,104 1240x820
+1 AXButton|登记订阅||1452,198 86x26
+2 AXButton|登记订阅|addSubscription|1156,316 28x28
+3 AXButton|云存储 50GB、可以考虑退、你说最近很少用 · 每月 · 12 月 3 日 ·||590,358 540x29
+4 AXMenuButton|云存储 50GB 的操作|ellipsis|1140,359 44x26
+5 AXButton|把 FitBox 健身房 登记成订阅||1498,355 42x20
+6 AXButton|StreamBox 视频会员、可以考虑退、刚涨价 · 每月 · 12 月 7 日||590,396 540x29
+7 AXMenuButton|StreamBox 视频会员 的操作|ellipsis|1140,397 44x26
+8 AXButton|FontHub 字体会员、每月 · 12 月 11 日 · ≈ 14,17 € ||590,434 540x29
+9 AXMenuButton|FontHub 字体会员 的操作|ellipsis|1140,435 44x26
+10 AXButton|把 Telefonia Nubemovil 登记成订阅||1498,416 42x20
+11 AXButton|Tuneo 音乐会员、每月 · 12 月 15 日 · 信用卡、19 天后、10||590,472 540x29
+12 AXMenuButton|Tuneo 音乐会员 的操作|ellipsis|1140,473 44x26
+13 AXButton|把 Linguapal 登记成订阅||1498,471 42x20
+14 AXDisclosureTriangle|已经停了的 1 个||567,519 612x24
+15 AXButton|生活||355,161 89x26
+16 AXButton|生意||446,161 89x26
+17 AXOutline|边栏||340,194 210x662
+18 AXButton|隐藏边栏||506,112 36x36
+19 AXButton|返回|chevron.backward|558,112 36x36
+20 AXButton|记一笔||1410,112 76x36
+21 AXButton|问夏夏||1494,112 77x36
+22 AXButton|登记订阅||1452,198 86x26
+23 AXButton|登记订阅|addSubscription|1156,316 28x28
+24 AXButton|云存储 50GB、可以考虑退、你说最近很少用 · 每月 · 12 月 3 日 ·||590,358 540x29
+25 AXMenuButton|云存储 50GB 的操作|ellipsis|1140,359 44x26
+26 AXButton|把 FitBox 健身房 登记成订阅||1498,355 42x20
+27 AXButton|StreamBox 视频会员、可以考虑退、刚涨价 · 每月 · 12 月 7 日||590,396 540x29
+28 AXMenuButton|StreamBox 视频会员 的操作|ellipsis|1140,397 44x26
+29 AXButton|FontHub 字体会员、每月 · 12 月 11 日 · ≈ 14,17 € ||590,434 540x29
+30 AXMenuButton|FontHub 字体会员 的操作|ellipsis|1140,435 44x26
+# 30 次 Tab 共到过 21 个不同控件
