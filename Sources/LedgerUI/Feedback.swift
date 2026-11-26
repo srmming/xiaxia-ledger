@@ -10,7 +10,7 @@ import UIKit
 /// 最简单、不用服务器也不用密钥：写好以后打开用户自己的邮件 app，内容都填好，按发送就行；没设邮箱可以复制。
 /// 只带版本和系统信息，不带账本里的任何东西。
 struct FeedbackSheet: View {
-    static let address = "feedback@ming95.com"
+    static let address = "ming@ming95.com"
 
     enum Kind: String, CaseIterable, Identifiable {
         case bug, idea, other
