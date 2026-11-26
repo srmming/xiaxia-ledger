@@ -281,7 +281,9 @@ final class ManageFlowTests: XCTestCase {
         XCTAssertTrue(example.waitForExistence(timeout: 5), "没有目标示例")
         example.tap()
         app.buttons["就这个"].tap()
-        XCTAssertTrue(app.staticTexts["你的目标"].waitForExistence(timeout: 5), "目标没存下")
+        // 写好后只留一行「你的目标：…」+「改一下」（2026-11-26 审查改的样子）。
+        XCTAssertTrue(app.buttons["改一下"].waitForExistence(timeout: 5), "目标没存下")
+        XCTAssertTrue(find(app, "你的目标：").exists, "没显示写下的目标")
     }
 
     /// 示例账本：5 个标签都能点开，设置里三个管理入口都在。

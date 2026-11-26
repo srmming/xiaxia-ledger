@@ -80,22 +80,37 @@ struct OverviewPage: View {
 
     // MARK: 结论大数字
 
+    /// iPhone 上速度图矮一些，最近流水能进第一屏。
+    private var paceHeight: CGFloat {
+        #if os(iOS)
+        140
+        #else
+        short ? 120 : 210
+        #endif
+    }
+
     private func heroCard(_ s: MonthStatus) -> some View {
         let m = s.month.month
         let over = s.net.isExpense
-        let label = s.isCurrent ? tr("\(m) 月\(over ? tr("超支") : tr("还剩")) · 截至 \(s.dayOfMonth) 日") : tr("\(m) 月\(over ? tr("超支了") : tr("剩了"))")
+        // 这个月还没过完：到今天花的比进的多，但照速度月底能剩（工资还没到）——不说「超支」、不标红，
+        // 免得大红字和下面「月底约剩」打架（iPhone 审计 2026-11-26）。
+        let endsOver = s.isCurrent ? (s.projectedEnd?.isExpense ?? over) : over
+        let label = s.isCurrent
+            ? (over && !endsOver ? tr("\(m) 月到今天多花了 · 截至 \(s.dayOfMonth) 日")
+               : tr("\(m) 月\(over ? tr("超支") : tr("还剩")) · 截至 \(s.dayOfMonth) 日"))
+            : tr("\(m) 月\(over ? tr("超支了") : tr("剩了"))")
         return VStack(alignment: .leading, spacing: short ? 8 : 14) {
             if s.summary.income.cents == 0 && s.summary.expense.cents == 0 {
                 KitEmptyState(symbol: "calendar", title: tr("\(m) 月还没有流水"),
                               message: tr("新的流水导进来后，这里会画出花钱速度。跟 AI 说一句就能导。"),
                               prompt: "这是我 \(m) 月的银行对账单，帮我整理好导进夏夏账本", page: "总览")
             } else {
-                KeyFigure(label: label, money: s.net.magnitude, color: over ? .alert : .primary,
+                KeyFigure(label: label, money: s.net.magnitude, color: endsOver ? .alert : .primary,
                           sentence: sentence(s), spoken: spoken(s, label: label)) {
                     InOutPair(income: s.summary.income, expense: s.summary.expense).padding(.top, 4)
                 }
                 // 窗口矮也别压成一条扁线（审查 2026-11-26：最小窗口下几乎看不出起伏）。
-                SpendingPaceChart(status: s, height: short ? 120 : 210)
+                SpendingPaceChart(status: s, height: paceHeight)
             }
         }
         .kitCard(padding: short ? 14 : 20)

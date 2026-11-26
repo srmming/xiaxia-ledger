@@ -1611,5 +1611,8 @@ extension L10n {
         "正在用 %@ 查账": "Revisando las cuentas con %@",
         "摸摸夏夏": "Acariciar a Xiaxia",
         "夏夏会回应你一下": "Xiaxia te responderá",
+        "%@ 月到今天多花了 · 截至 %@ 日": "%1$N: gastado más de lo que entró · hasta el día %2$@",
+        "固定开销": "Gastos fijos",
+        "开销": "Gastos",
     ]
 }
