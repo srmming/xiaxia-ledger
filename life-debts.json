@@ -1,0 +1,312 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生意",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "记分期",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 75,
+      "x" : 1380,
+      "y" : 198
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "记借款",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 75,
+      "x" : 1463,
+      "y" : 198
+    },
+    {
+      "after" : "关于本机、系统信息、、系统设置…，2项更新、App Store…，12项更新、、最近使用的项目、",
+      "h" : 17,
+      "hoverChanged" : false,
+      "label" : "更多",
+      "result" : "menu",
+      "type" : "16",
+      "w" : 36,
+      "x" : 1076.5,
+      "y" : 343
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "记分期",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 75,
+      "x" : 1380,
+      "y" : 198
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "记借款",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 75,
+      "x" : 1463,
+      "y" : 198
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 36,
+      "x" : 1076.5,
+      "y" : 343
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 36,
+      "x" : 1505,
+      "y" : 343
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 36,
+      "x" : 1076.5,
+      "y" : 404
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "life-debts",
+  "tabOrder" : [
+    "9|记分期",
+    "9|记借款",
+    "3|",
+    "3|",
+    "3|",
+    "9|生活",
+    "9|生意",
+    "29|边栏",
+    "75|",
+    "75|",
+    "75|",
+    "75|"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 516.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "5",
+      "w" : 78,
+      "x" : 360,
+      "y" : 540
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "我欠的",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 39,
+      "x" : 590,
+      "y" : 316
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "欠我的",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 39,
+      "x" : 1159.56,
+      "y" : 316
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

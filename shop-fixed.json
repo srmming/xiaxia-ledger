@@ -1,0 +1,254 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : true,
+      "label" : "生意",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : "关于本机、系统信息、、系统设置…，2项更新、App Store…，12项更新、、最近使用的项目、",
+      "h" : 17,
+      "hoverChanged" : false,
+      "label" : "更多",
+      "result" : "menu",
+      "type" : "16",
+      "w" : 23,
+      "x" : 1158,
+      "y" : 342.5
+    },
+    {
+      "after" : " · Esc 能关",
+      "h" : 28,
+      "hoverChanged" : false,
+      "label" : "加一项",
+      "result" : "sheet",
+      "type" : "9",
+      "w" : 88.5,
+      "x" : 594,
+      "y" : 440
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 23,
+      "x" : 1158,
+      "y" : 342.5
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 23,
+      "x" : 1158,
+      "y" : 391.5
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "",
+      "label" : "加一项",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 88.5,
+      "x" : 594,
+      "y" : 440
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "shop-fixed",
+  "tabOrder" : [
+    "16|更多"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 452.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "1",
+      "w" : 78,
+      "x" : 360,
+      "y" : 476
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "这个月还没扣的",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 90.5,
+      "x" : 1232,
+      "y" : 196
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

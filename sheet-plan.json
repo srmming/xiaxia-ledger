@@ -1,0 +1,112 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "删掉",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 1230,
+      "y" : 365
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "删掉",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 1230,
+      "y" : 399
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "删掉",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 1230,
+      "y" : 433
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "删掉",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 44,
+      "x" : 1230,
+      "y" : 467
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1154,
+      "y" : 772
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "goalWizard.next",
+      "label" : "知道了",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1226,
+      "y" : 772
+    }
+  ],
+  "name" : "sheet-plan",
+  "tabOrder" : [
+    "9|删掉"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 54.5,
+      "id" : "",
+      "label" : "已经有 1 个大目标、3 个小目标了、目标不在多，在于坚持。先把一个存够，或者删掉一个不那么想要的，再来定新的。",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 382.5,
+      "x" : 854,
+      "y" : 282.5
+    }
+  ],
+  "window" : [
+    610,
+    211,
+    700,
+    605
+  ]
+}

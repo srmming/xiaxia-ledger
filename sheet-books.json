@@ -1,0 +1,140 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 36,
+      "x" : 1155,
+      "y" : 301.5
+    },
+    {
+      "enabled" : true,
+      "h" : 17,
+      "id" : "",
+      "label" : "更多",
+      "selected" : false,
+      "type" : "16",
+      "value" : "",
+      "w" : 36,
+      "x" : 1155,
+      "y" : 353.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 428,
+      "x" : 763,
+      "y" : 490.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "生活",
+      "selected" : false,
+      "type" : "10",
+      "value" : "1",
+      "w" : 50,
+      "x" : 1090,
+      "y" : 524.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "生意",
+      "selected" : false,
+      "type" : "10",
+      "value" : "0",
+      "w" : 50,
+      "x" : 1140,
+      "y" : 524.5
+    },
+    {
+      "enabled" : false,
+      "h" : 24,
+      "id" : "",
+      "label" : "新建",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 50,
+      "x" : 730,
+      "y" : 569.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "完成",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1136,
+      "y" : 792
+    }
+  ],
+  "name" : "sheet-books",
+  "tabOrder" : [
+    "16|更多",
+    "3|",
+    "10|生活",
+    "9|完成",
+    "3|"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "账本",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 26,
+      "x" : 730,
+      "y" : 258.5
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "新建账本",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 52,
+      "x" : 730,
+      "y" : 455.5
+    }
+  ],
+  "window" : [
+    700,
+    191,
+    520,
+    645
+  ]
+}

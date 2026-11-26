@@ -1,0 +1,259 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 43,
+      "id" : "connect.claude-desktop",
+      "label" : "Claude 桌面版、装了，还没连、点「连接」，夏夏账本帮你写好、连接",
+      "selected" : false,
+      "type" : "9",
+      "value" : "还没连",
+      "w" : 540,
+      "x" : 690,
+      "y" : 451
+    },
+    {
+      "enabled" : true,
+      "h" : 43,
+      "id" : "connect.codex",
+      "label" : "Codex、装了，还没连、点「连接」，夏夏账本帮你写好、连接",
+      "selected" : false,
+      "type" : "9",
+      "value" : "还没连",
+      "w" : 540,
+      "x" : 690,
+      "y" : 508
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "一键复制配置提示词",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 146.5,
+      "x" : 1083.5,
+      "y" : 691
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "下载 Claude 桌面版、最省事，装好登录就能用",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 540,
+      "x" : 690,
+      "y" : 813
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "用 DeepSeek？装 Hermes Agent、开源的 AI 助手，能接 DeepSeek，也能用 ChatGPT、Claude 的订阅登录；装好后回来点「连上」",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 540,
+      "x" : 690,
+      "y" : 865
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "用通义千问、Kimi、豆包？装 Cherry Studio、在它的「MCP 服务器」设置里粘贴下面复制的配置",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 540,
+      "x" : 690,
+      "y" : 917
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "复制配置",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 92,
+      "x" : 1138,
+      "y" : 971.5
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "复制这句话",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 103,
+      "x" : 1127,
+      "y" : 1076
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 0,
+      "x" : 1243,
+      "y" : 203.5
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 0,
+      "x" : 1243,
+      "y" : 203.5
+    },
+    {
+      "enabled" : false,
+      "h" : 213.5,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 11,
+      "x" : 1246,
+      "y" : 647.5
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 11,
+      "x" : 1246,
+      "y" : 206.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "关闭",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1104,
+      "y" : 885
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "完成",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1176,
+      "y" : 885
+    }
+  ],
+  "name" : "sheet-connectAI",
+  "tabOrder" : [
+    "9|Codex、装了，还没连、点「连接」，夏夏账本帮你写好、连接",
+    "9|一键复制配置提示词",
+    "9|下载 Claude 桌面版、最省事，装好登录就能用",
+    "9|用 DeepSeek？装 Hermes Agent、开源的 AI 助手，能接 DeepSeek，也能用 ChatGPT、Claude 的订阅登录；装好后回来点「连上」",
+    "9|关闭",
+    "9|完成",
+    "9|用通义千问、Kimi、豆包？装 Cherry Studio、在它的「MCP 服务器」设置里粘贴下面复制的配置",
+    "9|关闭",
+    "9|复制配置",
+    "9|关闭",
+    "9|完成",
+    "9|复制这句话",
+    "9|关闭",
+    "9|完成",
+    "3|",
+    "9|Claude 桌面版、装了，还没连、点「连接」，夏夏账本帮你写好、连接"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "① 点「连接」，夏夏账本帮你配好",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 188.5,
+      "x" : 690,
+      "y" : 408
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "或者：让 AI 自己配",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 110.5,
+      "x" : 690,
+      "y" : 655
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "② 没有这些 AI，或者用别的",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 161.5,
+      "x" : 690,
+      "y" : 777
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "③ 试一句",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 54.5,
+      "x" : 690,
+      "y" : 1040
+    }
+  ],
+  "window" : [
+    660,
+    156,
+    600,
+    773
+  ]
+}

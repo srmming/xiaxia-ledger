@@ -1,0 +1,180 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 389.5,
+      "x" : 801.5,
+      "y" : 300.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "49",
+      "value" : "",
+      "w" : 402,
+      "x" : 789,
+      "y" : 337.5
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "79",
+      "value" : "12",
+      "w" : 22,
+      "x" : 1169,
+      "y" : 371
+    },
+    {
+      "enabled" : false,
+      "h" : 12,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 20,
+      "x" : 1170,
+      "y" : 372
+    },
+    {
+      "enabled" : false,
+      "h" : 12,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 20,
+      "x" : 1170,
+      "y" : 384
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "51",
+      "value" : "",
+      "w" : 99.5,
+      "x" : 1091.5,
+      "y" : 420
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "79",
+      "value" : "0.5",
+      "w" : 20,
+      "x" : 1171,
+      "y" : 424
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 20,
+      "x" : 1171,
+      "y" : 424
+    },
+    {
+      "enabled" : false,
+      "h" : 10,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 20,
+      "x" : 1171,
+      "y" : 434
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "14",
+      "value" : "日常卡",
+      "w" : 86.5,
+      "x" : 1103.5,
+      "y" : 462.5
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 54,
+      "x" : 720,
+      "y" : 764
+    },
+    {
+      "enabled" : false,
+      "h" : 28,
+      "id" : "",
+      "label" : "记下",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 108,
+      "x" : 1092,
+      "y" : 764
+    }
+  ],
+  "name" : "sheet-newInstallment",
+  "tabOrder" : [
+    "49|",
+    "79|",
+    "3|",
+    "3|",
+    "3|",
+    "14|",
+    "9|取消",
+    "3|"
+  ],
+  "texts" : [
+
+  ],
+  "window" : [
+    700,
+    224,
+    520,
+    580
+  ]
+}

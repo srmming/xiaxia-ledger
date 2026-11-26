@@ -1,0 +1,313 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project App/XiaxiaLedger.xcodeproj -scheme XiaxiaLedger-macOS -configuration Debug -derivedDataPath App/build-audit -destination platform=macOS CODE_SIGN_IDENTITY=- "-only-testing:XiaxiaLedger-macOSUITests" test
+
+Build settings from command line:
+    CODE_SIGN_IDENTITY = -
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  XiaxiaLedger: /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build
+  Sparkle: https://github.com/sparkle-project/Sparkle @ 2.10.1
+  swift-argument-parser: https://github.com/apple/swift-argument-parser @ 1.8.2
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64, id:00006040-001C70D43EEA801C, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00006040-001C70D43EEA801C, name:My Mac }
+note: Using codesigning identity override: -
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (12 targets)
+    Target 'XiaxiaLedger-macOSUITests' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'XiaxiaLedger-macOS' in project 'XiaxiaLedger'
+    Target 'XiaxiaLedger-macOS' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'fin-tool' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'LedgerUI-product' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'Sparkle-product' in project 'Sparkle'
+    Target 'Sparkle-product' in project 'Sparkle' (no dependencies)
+    Target 'LedgerUI-product' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'LedgerUI' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'XiaxiaLedger_LedgerUI' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'FinanceCore' in project 'XiaxiaLedger'
+    Target 'LedgerUI' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'XiaxiaLedger_LedgerUI' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'FinanceCore' in project 'XiaxiaLedger'
+    Target 'XiaxiaLedger_LedgerUI' in project 'XiaxiaLedger' (no dependencies)
+    Target 'fin-tool' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'FinanceCore-product' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'ArgumentParser-product' in project 'swift-argument-parser'
+    Target 'ArgumentParser-product' in project 'swift-argument-parser'
+        ➜ Explicit dependency on target 'ArgumentParser' in project 'swift-argument-parser'
+        ➜ Explicit dependency on target 'ArgumentParserToolInfo' in project 'swift-argument-parser'
+    Target 'ArgumentParser' in project 'swift-argument-parser'
+        ➜ Explicit dependency on target 'ArgumentParserToolInfo' in project 'swift-argument-parser'
+    Target 'ArgumentParserToolInfo' in project 'swift-argument-parser' (no dependencies)
+    Target 'FinanceCore-product' in project 'XiaxiaLedger'
+        ➜ Explicit dependency on target 'FinanceCore' in project 'XiaxiaLedger'
+    Target 'FinanceCore' in project 'XiaxiaLedger' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+    cd /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/XiaxiaLedger.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk -o /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/SDKStatCaches.noindex/macosx27.0-26A425-7231f6df4def33e022ae2eb8f782df1a.sdkstatcache
+
+note: Disabling hardened runtime with ad-hoc codesigning. (in target 'XiaxiaLedger-macOS' from project 'XiaxiaLedger' at path '/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/XiaxiaLedger.xcodeproj')
+Copy /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Resources/XiaxiaLedger_LedgerUI.bundle /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/XiaxiaLedger_LedgerUI.bundle (in target 'XiaxiaLedger-macOS' from project 'XiaxiaLedger' at path '/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/XiaxiaLedger.xcodeproj')
+    cd /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/XiaxiaLedger_LedgerUI.bundle /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Resources
+
+ProcessInfoPlistFile /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Info.plist /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/Generated/macOS-Info.plist (in target 'XiaxiaLedger-macOS' from project 'XiaxiaLedger' at path '/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/XiaxiaLedger.xcodeproj')
+    cd /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App
+    builtin-infoPlistUtility /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/Generated/macOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/PkgInfo -expandbuildsettings -platform macosx -additionalcontentfile /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Intermediates.noindex/XiaxiaLedger.build/Debug/XiaxiaLedger-macOS.build/assetcatalog_generated_info.plist -scanforprivacyfile /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Frameworks/Sparkle.framework -scanforprivacyfile /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Resources/XiaxiaLedger_LedgerUI.bundle -o /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Products/Debug/夏夏账本\ Debug.app/Contents/Info.plist
+
+PruneExplicitPrecompiledModules /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/SDKExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/build-audit/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+note: Disabling hardened runtime with ad-hoc codesigning. (in target 'fin-tool' from project 'XiaxiaLedger' at path '/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/XiaxiaLedger.xcodeproj')
+2026-11-26 01:55:20.573903+0100 XiaxiaLedger-macOSUITests-Runner[47062:436156] [Default] Running tests...
+Test Suite 'All tests' started at 2026-11-26 01:55:20.969.
+Test Suite 'XiaxiaLedger-macOSUITests.xctest' started at 2026-11-26 01:55:20.970.
+Test Suite 'InterfaceAuditTests' started at 2026-11-26 01:55:20.971.
+Test Case '-[XiaxiaLedger_macOSUITests.InterfaceAuditTests test1LifePages]' started.
+    t =     0.00s Start Test at 2026-11-26 01:55:20.971
+    t =     0.56s Set Up
+    t =     0.65s Open com.srmming.xiaxia-ledger.mac.debug
+    t =     0.65s     Launch com.srmming.xiaxia-ledger.mac.debug
+2026-11-26 01:55:22.010 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-11-26 01:55:22.010 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     2.12s         Wait for accessibility to load
+    t =     2.39s         Setting up automation session
+    t =     2.41s         Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =     2.93s Waiting 20.0s for Window (First Match) to exist
+    t =     3.97s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     3.97s         Checking existence of `Window (First Match)`
+    t =     4.16s         Capturing element debug description
+    t =     4.99s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     4.99s         Checking existence of `Window (First Match)`
+    t =     5.02s         Capturing element debug description
+    t =     5.94s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     5.94s         Checking existence of `Window (First Match)`
+    t =     5.99s         Capturing element debug description
+    t =     7.03s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     7.03s         Checking existence of `Window (First Match)`
+    t =     7.06s         Capturing element debug description
+    t =     8.00s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     8.00s         Checking existence of `Window (First Match)`
+    t =     8.03s         Capturing element debug description
+    t =     8.97s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     8.97s         Checking existence of `Window (First Match)`
+    t =    11.02s Find the Window (First Match)
+    t =    11.03s Checking existence of `"main" Window`
+    t =    11.03s Find the "main" Window
+2026-11-26 01:55:32.007187+0100 XiaxiaLedger-macOSUITests-Runner[47062:436156] [DisplayManager] Found 1 displays containing rect (54.0, 112.0, 1000.0, 823.0): [1]
+AUDIT_OUT=/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T//xiaxia-ui-audit
+    t =    11.12s Find the "main" Window
+    t =    11.16s Hover over "main" Window[0.00, 0.00] -> (500.0, 12.0)
+    t =    11.16s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    11.17s     Find the "main" Window
+    t =    11.17s     Check for interrupting elements affecting "main" Window
+    t =    11.19s     Synthesize event
+    t =    11.19s         Find the "main" Window
+    t =    11.19s         Find the "main" Window
+    t =    11.33s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    11.62s Checking existence of `"main" Window`
+    t =    11.62s Find the "main" Window
+2026-11-26 01:55:32.595123+0100 XiaxiaLedger-macOSUITests-Runner[47062:436156] [DisplayManager] Found 1 displays containing rect (54.0, 112.0, 1000.0, 823.0): [1]
+    t =    11.70s Hover over "main" Window[0.00, 0.00] -> (57.0, 70.0)
+    t =    11.70s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    11.70s     Find the "main" Window
+    t =    11.70s     Check for interrupting elements affecting "main" Window
+    t =    11.71s     Synthesize event
+    t =    11.71s         Find the "main" Window
+    t =    11.72s         Find the "main" Window
+    t =    11.84s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    12.32s Checking existence of `"main" Window`
+    t =    12.33s Find the "main" Window
+2026-11-26 01:55:33.300065+0100 XiaxiaLedger-macOSUITests-Runner[47062:436156] [DisplayManager] Found 1 displays containing rect (54.0, 112.0, 1000.0, 823.0): [1]
+    t =    12.40s Get number of matches for: Descendants matching type Sheet
+    t =    12.43s Get number of matches for: Descendants matching type Menu
+    t =    12.49s Get number of matches for: Descendants matching type Popover
+    t =    12.53s Get number of matches for: Descendants matching type Alert
+    t =    12.57s Get number of matches for: Descendants matching type Dialog
+    t =    12.62s Get number of matches for: Descendants matching type Window
+    t =    12.66s Find the "main" Window
+    t =    12.71s Click "main" Window[0.00, 0.00] -> (57.0, 70.0)
+    t =    12.71s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    12.72s     Find the "main" Window
+    t =    12.72s     Check for interrupting elements affecting "main" Window
+    t =    12.73s     Synthesize event
+    t =    12.73s         Find the "main" Window
+    t =    12.74s         Find the "main" Window
+    t =    13.22s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    14.03s Get number of matches for: Descendants matching type Sheet
+    t =    14.09s Get number of matches for: Descendants matching type Sheet
+    t =    14.15s Get number of matches for: Descendants matching type Menu
+    t =    14.20s Get number of matches for: Descendants matching type Popover
+    t =    14.25s Get number of matches for: Descendants matching type Alert
+    t =    14.28s Get number of matches for: Descendants matching type Dialog
+    t =    14.32s Get number of matches for: Descendants matching type Window
+    t =    14.37s Find the "main" Window
+    t =    14.42s Hover over "main" Window[0.00, 0.00] -> (500.0, 12.0)
+    t =    14.42s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    14.42s     Find the "main" Window
+    t =    14.43s     Check for interrupting elements affecting "main" Window
+    t =    14.44s     Synthesize event
+    t =    14.44s         Find the "main" Window
+    t =    14.44s         Find the "main" Window
+    t =    14.56s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    14.85s Checking existence of `"main" Window`
+    t =    14.86s Find the "main" Window
+2026-11-26 01:55:35.832999+0100 XiaxiaLedger-macOSUITests-Runner[47062:436156] [DisplayManager] Found 1 displays containing rect (54.0, 112.0, 1000.0, 823.0): [1]
+    t =    14.95s Hover over "main" Window[0.00, 0.00] -> (143.0, 70.0)
+    t =    14.95s     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =    14.97s     Find the "main" Window
+    t =    14.99s     Check for interrupting elements affecting "main" Window
+    t =    15.06s     Synthesize event
+    t =    15.08s         Find the "main" Window
+    t =    16.28s             Find the "main" Window (retry 1)
+    t =    16.28s             Collecting debug information to assist test failure triage
+/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/MacUITests/InterfaceAuditTests.swift:142: error: -[XiaxiaLedger_macOSUITests.InterfaceAuditTests test1LifePages] : Failed to get matching snapshot: No matches found for first query match sequence: `Descendants matching type Window`, given input App element pid: 47093
+    t =    16.39s Tear Down
+Test Case '-[XiaxiaLedger_macOSUITests.InterfaceAuditTests test1LifePages]' failed (16.486 seconds).
+Test Case '-[XiaxiaLedger_macOSUITests.InterfaceAuditTests test2ShopPages]' started.
+    t =     0.00s Start Test at 2026-11-26 01:55:37.458
+    t =     0.12s Set Up
+    t =     0.12s             Open com.srmming.xiaxia-ledger.mac.debug
+    t =     0.14s                 Launch com.srmming.xiaxia-ledger.mac.debug
+2026-11-26 01:55:37.595 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-11-26 01:55:37.595 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     0.72s                     Wait for accessibility to load
+    t =     0.84s                     Setting up automation session
+    t =     0.85s                     Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =     1.26s             Waiting 20.0s for Window (First Match) to exist
+    t =     2.30s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     2.30s                     Checking existence of `Window (First Match)`
+    t =     2.40s                     Capturing element debug description
+    t =     3.34s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     3.34s                     Checking existence of `Window (First Match)`
+    t =     3.37s                     Capturing element debug description
+    t =     4.27s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     4.27s                     Checking existence of `Window (First Match)`
+    t =     4.30s                     Capturing element debug description
+    t =     5.36s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     5.36s                     Checking existence of `Window (First Match)`
+    t =     5.38s                     Capturing element debug description
+    t =     6.32s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     6.32s                     Checking existence of `Window (First Match)`
+    t =     6.34s                     Capturing element debug description
+    t =     7.27s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     7.27s                     Checking existence of `Window (First Match)`
+    t =     7.30s                     Capturing element debug description
+    t =     8.34s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     8.34s                     Checking existence of `Window (First Match)`
+    t =     8.37s                     Capturing element debug description
+    t =     9.31s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     9.31s                     Checking existence of `Window (First Match)`
+    t =     9.36s                     Capturing element debug description
+    t =    10.36s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    10.36s                     Checking existence of `Window (First Match)`
+    t =    10.42s                     Capturing element debug description
+    t =    11.35s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    11.35s                     Checking existence of `Window (First Match)`
+    t =    11.39s                     Capturing element debug description
+    t =    12.33s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    12.33s                     Checking existence of `Window (First Match)`
+    t =    12.37s                     Capturing element debug description
+    t =    13.31s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    13.31s                     Checking existence of `Window (First Match)`
+    t =    13.36s                     Capturing element debug description
+    t =    14.29s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    14.29s                     Checking existence of `Window (First Match)`
+    t =    14.41s                     Capturing element debug description
+    t =    15.27s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    15.27s                     Checking existence of `Window (First Match)`
+    t =    15.31s                     Capturing element debug description
+    t =    16.34s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    16.34s                     Checking existence of `Window (First Match)`
+    t =    16.39s                     Capturing element debug description
+    t =    17.33s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    17.33s                     Checking existence of `Window (First Match)`
+    t =    17.38s                     Capturing element debug description
+    t =    18.31s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    18.31s                     Checking existence of `Window (First Match)`
+    t =    18.36s                     Capturing element debug description
+    t =    19.29s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    19.29s                     Checking existence of `Window (First Match)`
+    t =    19.34s                     Capturing element debug description
+    t =    20.27s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    20.27s                     Checking existence of `Window (First Match)`
+    t =    20.33s                     Capturing element debug description
+    t =    21.27s                 Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    21.27s                     Checking existence of `Window (First Match)`
+    t =    21.31s                     Capturing element debug description
+    t =    21.32s                 Checking existence of `Window (First Match)`
+    t =    21.34s             Collecting debug information to assist test failure triage
+    t =    21.34s                 Requesting snapshot of accessibility hierarchy for app with pid 47220
+    t =    23.43s             Find the Window (First Match)
+    t =    24.48s                 Find the Window (First Match) (retry 1)
+    t =    25.54s                 Find the Window (First Match) (retry 2)
+    t =    25.60s                 Collecting debug information to assist test failure triage
+    t =    25.60s                     Requesting snapshot of accessibility hierarchy for app with pid 47220
+    t =    25.66s                 Requesting snapshot of accessibility hierarchy for app with pid 47220
+    t =    25.66s Using snapshot previously cached by application
+    t =    25.66s                 Requesting snapshot of accessibility hierarchy for app with pid 47220
+/var/folders/s5/4wmyq3vs05b8z2mzh6g90gxw0000gn/T/xiaxia-ledger-build/App/MacUITests/InterfaceAuditTests.swift:119: error: -[XiaxiaLedger_macOSUITests.InterfaceAuditTests test2ShopPages] : Failed to get matching snapshot: No matches found for first query match sequence: `Descendants matching type Window`, given input App element pid: 47220
+    t =    25.71s Tear Down
+Test Case '-[XiaxiaLedger_macOSUITests.InterfaceAuditTests test2ShopPages]' failed (25.830 seconds).
+Test Case '-[XiaxiaLedger_macOSUITests.InterfaceAuditTests test3Sheets]' started.
+    t =     0.00s Start Test at 2026-11-26 01:56:03.288
+    t =     0.12s Set Up
+    t =     0.12s                 Open com.srmming.xiaxia-ledger.mac.debug
+    t =     0.13s                     Launch com.srmming.xiaxia-ledger.mac.debug
+    t =     0.13s                         Terminate com.srmming.xiaxia-ledger.mac.debug:47220
+2026-11-26 01:56:04.469 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-11-26 01:56:04.469 xcodebuild[47020:435701] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.93s                         Wait for accessibility to load
+    t =     2.44s                         Setting up automation session
+    t =     2.45s                         Wait for com.srmming.xiaxia-ledger.mac.debug to idle
+    t =     2.46s                 Waiting 20.0s for Window (First Match) to exist
+    t =     3.49s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     3.49s                         Checking existence of `Window (First Match)`
+    t =     3.59s                         Capturing element debug description
+    t =     4.52s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     4.52s                         Checking existence of `Window (First Match)`
+    t =     4.54s                         Capturing element debug description
+    t =     5.48s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     5.48s                         Checking existence of `Window (First Match)`
+    t =     5.51s                         Capturing element debug description
+    t =     6.54s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     6.54s                         Checking existence of `Window (First Match)`
+    t =     6.57s                         Capturing element debug description
+    t =     7.48s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     7.48s                         Checking existence of `Window (First Match)`
+    t =     7.54s                         Capturing element debug description
+    t =     8.54s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     8.54s                         Checking existence of `Window (First Match)`
+    t =     8.60s                         Capturing element debug description
+    t =     9.53s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     9.53s                         Checking existence of `Window (First Match)`
+    t =     9.58s                         Capturing element debug description
+    t =    10.49s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    10.49s                         Checking existence of `Window (First Match)`
+    t =    10.54s                         Capturing element debug description
+    t =    11.46s                     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =    11.47s                         Checking existence of `Window (First Match)`
+    t =    11.54s                         Capturing element debug description
+** BUILD INTERRUPTED **

@@ -1,0 +1,338 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生活",
+      "result" : "nothing",
+      "type" : "9",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 26,
+      "hoverChanged" : false,
+      "label" : "生意",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "after" : "",
+      "h" : 20,
+      "hoverChanged" : false,
+      "label" : "不算",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 42,
+      "x" : 1457,
+      "y" : 244.5
+    },
+    {
+      "after" : "",
+      "h" : 20,
+      "hoverChanged" : false,
+      "label" : "算",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 31,
+      "x" : 1509,
+      "y" : 244.5
+    },
+    {
+      "after" : "",
+      "h" : 28,
+      "hoverChanged" : false,
+      "label" : "上个月",
+      "result" : "changed",
+      "type" : "9",
+      "w" : 28,
+      "x" : 594,
+      "y" : 116
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生活",
+      "selected" : true,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 355,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 26,
+      "id" : "",
+      "label" : "生意",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 89,
+      "x" : 446,
+      "y" : 161
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "不算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1457,
+      "y" : 244.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 31,
+      "x" : 1509,
+      "y" : 244.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "不算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1457,
+      "y" : 281.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 31,
+      "x" : 1509,
+      "y" : 281.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "不算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 42,
+      "x" : 1457,
+      "y" : 318.5
+    },
+    {
+      "enabled" : true,
+      "h" : 20,
+      "id" : "",
+      "label" : "算",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 31,
+      "x" : 1509,
+      "y" : 318.5
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "隐藏边栏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 506,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "chevron.backward",
+      "label" : "返回",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 40,
+      "x" : 554,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "",
+      "label" : "上个月",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 28,
+      "x" : 594,
+      "y" : 116
+    },
+    {
+      "enabled" : true,
+      "h" : 28,
+      "id" : "month.pick",
+      "label" : "上个月",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 110,
+      "x" : 622,
+      "y" : 116
+    },
+    {
+      "enabled" : false,
+      "h" : 28,
+      "id" : "",
+      "label" : "上个月",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 28,
+      "x" : 732,
+      "y" : 116
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "记一笔",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 84,
+      "x" : 1406,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 52,
+      "id" : "",
+      "label" : "问夏夏",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 86,
+      "x" : 1490,
+      "y" : 104
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:CloseWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 358,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:FullScreenWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 404,
+      "y" : 122
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "_XCUI:MinimizeWindow",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 16,
+      "x" : 381,
+      "y" : 122
+    }
+  ],
+  "name" : "life-trends",
+  "tabOrder" : [
+    "9|不算",
+    "9|算"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "看",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 11,
+      "x" : 354,
+      "y" : 196.5
+    },
+    {
+      "enabled" : true,
+      "h" : 14,
+      "id" : "",
+      "label" : "夏夏",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 22,
+      "x" : 354,
+      "y" : 516.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "夏夏建议",
+      "selected" : false,
+      "type" : "48",
+      "value" : "5",
+      "w" : 78,
+      "x" : 360,
+      "y" : 540
+    },
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "下个月要付",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 64.5,
+      "x" : 590,
+      "y" : 589
+    }
+  ],
+  "window" : [
+    340,
+    104,
+    1240,
+    820
+  ]
+}

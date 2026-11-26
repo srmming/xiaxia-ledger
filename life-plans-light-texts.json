@@ -1,0 +1,50 @@
+[
+  {
+    "enabled" : true,
+    "h" : 14,
+    "id" : "",
+    "label" : "看",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 11,
+    "x" : 354,
+    "y" : 196.5
+  },
+  {
+    "enabled" : true,
+    "h" : 14,
+    "id" : "",
+    "label" : "夏夏",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 22,
+    "x" : 354,
+    "y" : 516.5
+  },
+  {
+    "enabled" : true,
+    "h" : 18,
+    "id" : "",
+    "label" : "夏夏建议",
+    "selected" : false,
+    "type" : "48",
+    "value" : "5",
+    "w" : 78,
+    "x" : 360,
+    "y" : 540
+  },
+  {
+    "enabled" : true,
+    "h" : 16,
+    "id" : "",
+    "label" : "存钱目标",
+    "selected" : false,
+    "type" : "48",
+    "value" : "",
+    "w" : 52,
+    "x" : 574,
+    "y" : 184.05999999999995
+  }
+]

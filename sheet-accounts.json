@@ -1,0 +1,230 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "日常卡、银行卡 · 晴空银行、7.794,09 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 294.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "信用卡、信用卡 · 晴空银行、−546,76 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 346.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "电子钱包、电子钱包 · 云付、998,24 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 398.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "现金、现金、283,15 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 450.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "应急金储蓄罐、储蓄 · 云付、3.250,00 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 502.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "店里账户、银行卡 · 晴空银行、10.335,34 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 554.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "店里现金、现金、673,00 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 606.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "私房钱、现金 · 私房钱、557,00 €",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 658.5
+    },
+    {
+      "enabled" : true,
+      "h" : 31,
+      "id" : "",
+      "label" : "美元账户、电子钱包 · 云付、1.935,34 US$",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 460,
+      "x" : 730,
+      "y" : 710.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "加一个账户",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 114.5,
+      "x" : 730,
+      "y" : 815.5
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "59",
+      "value" : "",
+      "w" : 0,
+      "x" : 1203,
+      "y" : 238.5
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "60",
+      "value" : "",
+      "w" : 0,
+      "x" : 1203,
+      "y" : 238.5
+    },
+    {
+      "enabled" : false,
+      "h" : 76,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 11,
+      "x" : 1206,
+      "y" : 692
+    },
+    {
+      "enabled" : false,
+      "h" : 0,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 11,
+      "x" : 1206,
+      "y" : 241.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "完成",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 64,
+      "x" : 1136,
+      "y" : 792
+    }
+  ],
+  "name" : "sheet-accounts",
+  "tabOrder" : [
+    "9|信用卡、信用卡 · 晴空银行、−546,76 €",
+    "9|现金、现金、283,15 €",
+    "9|应急金储蓄罐、储蓄 · 云付、3.250,00 €",
+    "9|店里账户、银行卡 · 晴空银行、10.335,34 €",
+    "9|店里现金、现金、673,00 €",
+    "9|私房钱、现金 · 私房钱、557,00 €",
+    "9|美元账户、电子钱包 · 云付、1.935,34 US$",
+    "9|加一个账户",
+    "9|完成",
+    "3|",
+    "9|日常卡、银行卡 · 晴空银行、7.794,09 €"
+  ],
+  "texts" : [
+    {
+      "enabled" : true,
+      "h" : 16,
+      "id" : "",
+      "label" : "账户",
+      "selected" : false,
+      "type" : "48",
+      "value" : "",
+      "w" : 26,
+      "x" : 730,
+      "y" : 258.5
+    }
+  ],
+  "window" : [
+    700,
+    191,
+    520,
+    645
+  ]
+}

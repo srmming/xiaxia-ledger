@@ -1,0 +1,113 @@
+{
+  "clicks" : [
+    {
+      "after" : "",
+      "h" : 0,
+      "label" : "Esc",
+      "result" : "closed",
+      "type" : "key",
+      "w" : 0,
+      "x" : 0,
+      "y" : 0
+    }
+  ],
+  "controls" : [
+    {
+      "enabled" : false,
+      "h" : 24,
+      "id" : "",
+      "label" : "复制",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 50,
+      "x" : 716,
+      "y" : 764
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "取消",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 50,
+      "x" : 1057.5,
+      "y" : 764
+    },
+    {
+      "enabled" : false,
+      "h" : 24,
+      "id" : "feedback.send",
+      "label" : "用邮件发送",
+      "selected" : false,
+      "type" : "9",
+      "value" : "",
+      "w" : 88.5,
+      "x" : 1115.5,
+      "y" : 764
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "遇到问题",
+      "selected" : false,
+      "type" : "10",
+      "value" : "1",
+      "w" : 76,
+      "x" : 730,
+      "y" : 301.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "提个想法",
+      "selected" : false,
+      "type" : "10",
+      "value" : "0",
+      "w" : 76,
+      "x" : 806,
+      "y" : 301.5
+    },
+    {
+      "enabled" : true,
+      "h" : 24,
+      "id" : "",
+      "label" : "别的",
+      "selected" : false,
+      "type" : "10",
+      "value" : "0",
+      "w" : 76,
+      "x" : 882,
+      "y" : 301.5
+    },
+    {
+      "enabled" : true,
+      "h" : 18,
+      "id" : "",
+      "label" : "",
+      "selected" : false,
+      "type" : "40",
+      "value" : "1",
+      "w" : 38,
+      "x" : 1153,
+      "y" : 507
+    }
+  ],
+  "name" : "sheet-feedback",
+  "tabOrder" : [
+    "52|想说的话"
+  ],
+  "texts" : [
+
+  ],
+  "window" : [
+    700,
+    224,
+    520,
+    580
+  ]
+}
