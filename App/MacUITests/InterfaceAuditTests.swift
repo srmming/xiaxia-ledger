@@ -37,9 +37,18 @@ final class InterfaceAuditTests: XCTestCase {
         // 2026-11-26 查到：开发版被强杀过以后，XCTest 启动它只出菜单栏、不出主窗口（app 自带的「窗口」菜单兜底也找不到那一项）；
         // 点一下程序坞图标（= reopen）主窗口就出来了。这是 app 的毛病，记进审查报告；这里先绕开，好接着审。
         if !app.windows.firstMatch.waitForExistence(timeout: 12) {
+            // 程序坞的项目在辅助功能里是 AXDockItem，不算 .icon，按名字在所有子元素里找。只点开发版。
             let dock = XCUIApplication(bundleIdentifier: "com.apple.dock")
-            let icon = dock.icons["夏夏账本 Debug"]  // 只点开发版，别点到正式版（正式版读真账本）
-            if icon.exists { icon.click() } else { app.activate() }
+            let icon = dock.descendants(matching: .any)
+                .matching(NSPredicate(format: "label == %@ OR title == %@", "夏夏账本 Debug", "夏夏账本 Debug")).firstMatch
+            if icon.exists { icon.click() }
+            if !app.windows.firstMatch.waitForExistence(timeout: 6) {
+                // 还不行：发 reopen（等于点程序坞图标），只认开发版的 bundle id。
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                p.arguments = ["-e", "tell application id \"com.srmming.xiaxia-ledger.mac.debug\" to reopen"]
+                try? p.run(); p.waitUntilExit()
+            }
             _ = app.windows.firstMatch.waitForExistence(timeout: 15)
         }
         sleep(2)  // 等动画、图表画完
