@@ -41,8 +41,9 @@
 }
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth;scroll-padding-top:76px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-body{background:var(--paper);color:var(--ink);font:17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--paper);color:var(--ink);font:1.0625rem/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 img{max-width:100%;height:auto;display:block}
+p,li,figcaption{text-wrap:pretty}
 a{color:inherit}
 button{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--sea);outline-offset:3px;border-radius:6px}
@@ -55,36 +56,38 @@ button{font:inherit;color:inherit}
 
 /* nav */
 nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);
-  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid var(--line)}
+  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+nav.scrolled{border-bottom-color:var(--line);box-shadow:0 6px 18px -14px rgba(31,42,90,.35)}
 nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;white-space:nowrap}
+.logo{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700;text-decoration:none;white-space:nowrap}
 .logo img{width:30px;height:30px;border-radius:8px}
-.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:15px;color:var(--ink2)}
+.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:0.9375rem;color:var(--ink2)}
 .links a{text-decoration:none;text-underline-offset:4px}
+.links>a:not(.btn){display:inline-flex;align-items:center;min-height:44px}
 .links>a:not(.btn):hover{color:var(--ink);text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px}
-.lang{display:flex;gap:4px;font-size:14px;white-space:nowrap}
-.lang a{padding:4px 6px;border-radius:6px;color:var(--ink2)}
+.lang{display:flex;gap:4px;font-size:0.875rem;white-space:nowrap}
+.lang a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 6px;border-radius:8px;color:var(--ink2);text-decoration:none}
 .lang a:hover{color:var(--ink)}
 .lang a[aria-current]{color:var(--ink);font-weight:700;background:var(--coin-soft)}
 .menu{display:none;position:relative}
-.menu summary{white-space:nowrap;list-style:none;cursor:pointer;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:600;color:var(--ink)}
+.menu summary{white-space:nowrap;list-style:none;cursor:pointer;display:flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:999px;font-size:0.875rem;font-weight:600;color:var(--ink)}
 .menu summary::-webkit-details-marker{display:none}
-.menu div{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px;color:var(--ink)}
-.menu div a{padding:10px 12px;border-radius:8px}
+.menu div{position:absolute;right:0;top:calc(100% + 8px);transform-origin:top right;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px;color:var(--ink)}
+.menu div a{padding:11px 12px;border-radius:8px;text-decoration:none}
 .menu div a:hover{background:var(--paper2)}
-.mlang{display:flex;gap:4px;padding:8px 6px 4px;margin-top:4px;border-top:1px dashed var(--line)}
+.mlang{display:flex;gap:4px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
 @media (max-width:880px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
 .mdl{display:none}
-@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:15px}}
+@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:0.9375rem}}
 
 /* buttons */
 .btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:13px 24px;font-weight:700;text-decoration:none;
-  background:var(--coral);color:var(--on-coral);border:0;cursor:pointer;font-size:17px;touch-action:manipulation;
-  box-shadow:0 2px 0 rgba(0,0,0,.12);transition:background-color .15s,transform .15s}
+  background:var(--coral);color:var(--on-coral);border:0;cursor:pointer;font-size:1.0625rem;touch-action:manipulation;
+  box-shadow:0 2px 0 rgba(0,0,0,.12);transition:background-color .15s,transform .16s ease-out}
 .btn:hover{background:var(--coral-h)}
-.btn.small{padding:8px 16px;font-size:15px}
+.btn.small{padding:0 18px;min-height:44px;font-size:0.9375rem}
 .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);box-shadow:none}
 .btn.ghost:hover{background:var(--paper2);border-color:var(--ink3)}
 .btn svg{width:18px;height:18px}
@@ -92,33 +95,34 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
 /* hero */
 .hero{padding:64px 0 0;overflow:hidden;position:relative}
 .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}
-.pill{display:inline-flex;gap:8px;align-items:center;font-size:14px;font-weight:600;text-decoration:none;padding:5px 12px 5px 6px;border-radius:999px;
+.pill{display:inline-flex;gap:8px;align-items:center;min-height:44px;font-size:0.875rem;font-weight:600;text-decoration:none;padding:5px 12px 5px 6px;border-radius:999px;
   background:var(--card);border:1px solid var(--line);margin-bottom:22px}
-.pill b{background:var(--coin);color:#1f2a5a;border-radius:999px;padding:1px 9px;font-size:12px}
+.pill b{background:var(--coin);color:#1f2a5a;border-radius:999px;padding:1px 9px;font-size:0.75rem}
 .pill:hover{border-color:var(--ink3)}
-.hero h1{font-size:clamp(38px,5.4vw,70px);line-height:1.12;letter-spacing:-.01em}
+.hero h1{font-size:clamp(2.375rem,5.4vw,4.375rem);line-height:1.12;letter-spacing:-.01em}
+:lang(en) .hero h1,:lang(es) .hero h1{font-size:clamp(2.25rem,4.6vw,3.625rem);line-height:1.05}
 .hero h1 .nw{white-space:nowrap}
 .hero h1 em{font-style:normal;-webkit-box-decoration-break:clone;box-decoration-break:clone;background:linear-gradient(transparent 64%,var(--mark) 64% 90%,transparent 90%);padding:0 .06em}
-.intro{font-size:20px;color:var(--ink2);margin:22px 0 30px;max-width:540px;text-wrap:pretty}
+.intro{font-size:1.25rem;color:var(--ink2);margin:22px 0 30px;max-width:540px;text-wrap:pretty}
 .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.meta{margin-top:14px;font-size:14px;color:var(--ink3)}
+.meta{margin-top:14px;font-size:0.875rem;color:var(--ink3)}
 .ver{font-variant-numeric:tabular-nums}
-.phone-note{display:none;margin-top:20px;padding:14px 16px;border:1.5px dashed var(--line);border-radius:14px;font-size:15px;color:var(--ink2)}
+.phone-note{display:none;margin-top:20px;padding:14px 16px;border:1.5px dashed var(--line);border-radius:14px;font-size:0.9375rem;color:var(--ink2)}
 .phone-note .note-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.meta a{color:var(--sea);font-weight:600;text-underline-offset:3px}
-.phone-note output{display:block;margin-top:8px;font-size:14px;color:var(--sea);min-height:1.2em}
+.meta a{color:var(--sea);font-weight:600;text-underline-offset:3px;display:inline-block;padding:11px 0;margin:-11px 0}
+.phone-note output{display:block;margin-top:8px;font-size:0.875rem;color:var(--sea);min-height:1.2em}
 @media (max-width:760px){.phone-note{display:block}.ilink{display:none}}
 .mwrap{position:relative;display:grid;place-items:center}
 .mascot{width:min(400px,92%);filter:drop-shadow(0 22px 26px rgba(31,42,90,.22))}
 .bubble{position:absolute;top:6%;left:-2%;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:18px 18px 18px 6px;
-  padding:10px 14px;font-size:15px;font-weight:600;box-shadow:var(--shadow);max-width:min(320px,70vw);z-index:2}
+  padding:10px 14px;font-size:0.9375rem;font-weight:600;box-shadow:var(--shadow);max-width:min(320px,70vw);z-index:2}
 .bubble b{color:var(--coral-t);font-family:var(--round);font-variant-numeric:tabular-nums}
 .stage{position:relative;margin-top:56px;padding-bottom:0}
 .shot-mac{max-width:1000px;margin:0 auto;border-radius:12px 12px 0 0;overflow:hidden;border:1px solid var(--line);border-bottom:0;background:#1c1c1e;
   box-shadow:0 -1px 0 var(--line),0 30px 70px -30px rgba(31,42,90,.55)}
 .shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a}
 .shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
-.shot-mac img{width:100%;aspect-ratio:16/9.4;object-fit:cover;object-position:top left}
+.shot-mac img{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--card)}
 .phone-float{position:absolute;right:max(0px,calc(50% - 560px));bottom:-1px;width:200px;border-radius:34px 34px 0 0;padding:8px 8px 0;background:#10142c;
   box-shadow:0 30px 60px -20px rgba(31,42,90,.6)}
 .phone-float img{border-radius:27px 27px 0 0;aspect-ratio:700/1100;object-fit:cover;object-position:top}
@@ -127,17 +131,19 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
   .hero{padding-top:36px}
   .hero-grid{grid-template-columns:1fr;gap:8px}
   .mwrap{order:-1;justify-items:end;margin-bottom:-36px}
-  .mascot{width:170px}
-  .bubble{top:auto;bottom:62%;left:0;right:150px;max-width:none;font-size:14px}
+  .mascot{width:150px}
+  .bubble{top:auto;bottom:58%;left:0;right:158px;max-width:none;font-size:0.875rem}
+  .shot-mac{max-height:340px}
+  .shot-mac img{width:190%;max-width:none;aspect-ratio:auto}
   .phone-float{display:none}
   .stage{margin-top:40px}
 }
 
 /* sections */
 section{padding:96px 0}
-.eyebrow{font-size:15px;font-weight:700;color:var(--coral-t);letter-spacing:.02em}
-h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap:balance}
-.sub{color:var(--ink2);font-size:19px;max-width:640px;text-wrap:pretty}
+.eyebrow{font-size:0.9375rem;font-weight:700;color:var(--coral-t);letter-spacing:.02em}
+h2{font-size:clamp(2.125rem,4.6vw,3.25rem);line-height:1.15;margin:6px 0 14px;text-wrap:balance}
+.sub{color:var(--ink2);font-size:1.1875rem;max-width:640px;text-wrap:pretty}
 .center{text-align:center}.center .sub{margin:0 auto}
 .alt{background-color:var(--paper2)}
 
@@ -145,52 +151,68 @@ h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap
 .why{display:grid;grid-template-columns:.8fr 1.2fr;gap:56px;align-items:start}
 .ledger{list-style:none;padding:0;border-top:2px solid var(--ink);counter-reset:n}
 .ledger li{display:grid;grid-template-columns:56px 1fr;column-gap:16px;padding:20px 0 20px;border-bottom:1px dashed var(--line)}
-.ledger li::before{counter-increment:n;content:"0" counter(n);grid-row:1/3;font-family:var(--round);font-weight:800;font-size:28px;line-height:1.1;color:var(--sea);font-variant-numeric:tabular-nums}
-.ledger h3{font-size:21px;line-height:1.3}
-.ledger p{color:var(--ink2);font-size:16px;margin-top:4px}
+.ledger li::before{counter-increment:n;content:"0" counter(n);grid-row:1/3;font-family:var(--round);font-weight:800;font-size:1.75rem;line-height:1.1;color:var(--sea);font-variant-numeric:tabular-nums}
+.ledger h3{font-size:1.3125rem;line-height:1.3}
+.ledger p{color:var(--ink2);font-size:1rem;margin-top:4px}
+@media (min-width:861px){.why>div:first-child{position:sticky;top:110px}}
 @media (max-width:860px){.why{grid-template-columns:1fr;gap:24px}}
 
 /* tour */
 .tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin:30px 0 26px;gap:2px;flex-wrap:wrap;justify-content:center}
-.tabs button{border:0;background:transparent;color:var(--ink2);font-size:15px;font-weight:600;padding:8px 18px;border-radius:999px;cursor:pointer;touch-action:manipulation}
+.tabs button{border:0;background:transparent;color:var(--ink2);font-size:0.9375rem;font-weight:600;padding:0 18px;min-height:44px;flex:none;border-radius:999px;cursor:pointer;touch-action:manipulation}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected=true],.tabs button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
-.frame{max-width:1000px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:var(--card)}
-.frame img{width:100%;aspect-ratio:16/10;object-fit:cover;transition:opacity .2s}
+.frame{position:relative;max-width:1000px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);background:var(--card)}
+.frame img{width:100%;aspect-ratio:16/10;object-fit:cover}
+.frame img.next{position:absolute;inset:0;opacity:0;transition:opacity .24s ease-out}
+.frame img.next.on{opacity:1}
+.pan{display:none}
+@media (max-width:600px){
+  .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;max-width:100%;width:max-content;margin-inline:auto;justify-content:flex-start;scrollbar-width:none;overscroll-behavior-x:contain}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{padding:0 14px}
+  .frame{overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .frame img{width:820px;max-width:none}
+  .frame img.next{inset:0 auto auto 0}
+  .pan{display:block;font-size:0.8125rem;color:var(--ink3);margin-top:8px}
+}
 #tourPanel:focus-visible{outline-offset:2px;border-radius:16px}
-.cap{margin:18px auto 0;color:var(--ink2);font-size:16px;min-height:52px;max-width:760px}
-.more{font-size:16px;margin-top:6px}
+.cap{margin:18px auto 0;color:var(--ink2);font-size:1rem;min-height:52px;max-width:760px}
+.more{font-size:1rem;margin-top:6px}
 
 /* AI */
 .ai{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
 .receipt{position:relative;background:var(--card);padding:18px 22px 26px;margin-top:26px;max-width:420px;box-shadow:var(--shadow);border-radius:12px 12px 0 0}
 .receipt::after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;
   background:linear-gradient(-45deg,transparent 7px,var(--card) 0) 0 0/14px 10px repeat-x,linear-gradient(45deg,transparent 7px,var(--card) 0) 0 0/14px 10px repeat-x}
-.receipt h3{font-size:14px;font-weight:700;color:var(--ink3);letter-spacing:.04em;padding-bottom:10px;border-bottom:2px dashed var(--line)}
+.receipt h3{font-size:0.875rem;font-weight:700;color:var(--ink3);letter-spacing:.04em;padding-bottom:10px;border-bottom:2px dashed var(--line)}
 .receipt ul{list-style:none;padding:6px 0}
 .receipt li{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-weight:600}
 .receipt li::after{content:"✓";order:3;color:var(--sea);font-weight:800}
 .receipt li i{flex:1;border-bottom:2px dotted var(--line);transform:translateY(-4px)}
-.receipt p{font-size:14px;color:var(--ink2);padding-top:10px;border-top:2px dashed var(--line)}
-.other{margin-top:28px;color:var(--ink3);font-size:15px}
+.receipt p{font-size:0.875rem;color:var(--ink2);padding-top:10px;border-top:2px dashed var(--line)}
+.other{margin-top:28px;color:var(--ink3);font-size:0.9375rem}
 .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
-.chat .who{font-size:12px;color:var(--ink3);margin-bottom:2px}
-.msg{max-width:86%;padding:10px 14px;border-radius:18px;font-size:15px}
+.chat .who{font-size:0.75rem;color:var(--ink3);margin-bottom:2px}
+.msg{max-width:86%;padding:10px 14px;border-radius:18px;font-size:0.9375rem}
 .msg.me{align-self:flex-end;background:var(--ink);color:var(--paper);border-bottom-right-radius:6px}
 .msg.bot{align-self:flex-start;background:var(--paper2);border-bottom-left-radius:6px}
 .msg.bot b{color:var(--coral-t);font-variant-numeric:tabular-nums}
+.chat.stage .msg{opacity:0;transform:translateY(8px) scale(.98)}
+.chat.stage.in .msg{animation:msgIn .36s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:calc(var(--i)*.5s)}
 @media (max-width:860px){.ai{grid-template-columns:1fr;gap:36px}}
 
 /* cast: polaroids */
 .cast{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:40px}
-.who-card{background:var(--card);padding:14px 14px 20px;text-align:center;box-shadow:var(--shadow);border-radius:6px;transform:rotate(var(--tilt,0deg))}
+.who-card{background:var(--card);padding:14px 14px 20px;text-align:center;box-shadow:var(--shadow);border-radius:6px}
 .who-card:nth-child(1){--tilt:-1.6deg}.who-card:nth-child(2){--tilt:1.2deg}.who-card:nth-child(3){--tilt:-.8deg}.who-card:nth-child(4){--tilt:1.6deg}
-.who-card .ph{background:var(--paper2);border-radius:3px;margin-bottom:12px}
-.who-card img{width:100%;aspect-ratio:1;object-fit:contain}
-.who-card h3{font-family:var(--hand);font-weight:500;font-size:24px;line-height:1.2}
-.who-card .tag{font-size:12px;color:var(--tag-sea);background:var(--sea-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px;font-weight:600}
+.who-card .ph{background:var(--paper2);border-radius:3px;margin-bottom:12px;transform:rotate(var(--tilt,0deg));box-shadow:0 6px 14px -8px rgba(31,42,90,.35)}
+.who-card img{width:100%;aspect-ratio:1;object-fit:contain;transition:opacity .2s ease-out}
+.who-card img.out{opacity:0;transition-duration:.12s}
+.who-card h3{font-family:var(--hand);font-weight:500;font-size:1.5rem;line-height:1.2}
+.who-card .tag{font-size:0.75rem;color:var(--tag-sea);background:var(--sea-soft);display:inline-block;padding:2px 10px;border-radius:999px;margin:6px 0 8px;font-weight:600}
 .who-card.lead .tag{color:var(--tag-coral);background:var(--coin-soft)}
-.who-card p{font-size:14px;color:var(--ink2)}
+.who-card p{font-size:0.875rem;color:var(--ink2)}
 @media (max-width:860px){.cast{grid-template-columns:1fr 1fr}}
 
 /* iphone */
@@ -200,11 +222,11 @@ h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap
 .iph .phone{width:auto;flex:1 1 0;max-width:200px;border-radius:30px;padding:6px}
 .iph .phone img{border-radius:24px}
 .iph .phone:nth-child(2){transform:translateY(-22px)}
-.soon{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:var(--coin);color:#1f2a5a;font-size:13px;letter-spacing:0;vertical-align:1px}
+.soon{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:var(--coin);color:#1f2a5a;font-size:0.8125rem;letter-spacing:0;vertical-align:1px}
 .feats{list-style:none;padding:0;margin:26px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:18px 26px}
 .feats li{border-top:2px dashed var(--line);padding-top:12px}
-.feats h3{font-size:19px;margin:0 0 4px}
-.feats p{margin:0;font-size:15px;color:var(--ink2)}
+.feats h3{font-size:1.1875rem;margin:0 0 4px}
+.feats p{margin:0;font-size:0.9375rem;color:var(--ink2)}
 @media (max-width:900px){.iph{grid-template-columns:1fr;gap:36px}.iph .phones{justify-content:center}}
 @media (max-width:520px){.feats{grid-template-columns:1fr}.iph .phone:nth-child(2){transform:none}}
 .phone{width:220px;border-radius:36px;padding:8px;background:#10142c;box-shadow:var(--shadow)}
@@ -214,20 +236,21 @@ h2{font-size:clamp(34px,4.6vw,52px);line-height:1.15;margin:6px 0 14px;text-wrap
 /* install */
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px;counter-reset:s}
 .step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px 26px;box-shadow:var(--shadow)}
-.step::before{counter-increment:s;content:counter(s);display:block;font-family:var(--hand);font-size:52px;line-height:1;color:var(--coral-t);margin-bottom:10px}
-.step h3{font-size:19px;margin-bottom:6px}
-.step p{font-size:15px;color:var(--ink2)}
-.k{font-family:inherit;font-size:13px;background:var(--paper2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
-.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:4px 22px}
-details.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.step::before{counter-increment:s;content:counter(s);display:block;font-family:var(--hand);font-size:3.25rem;line-height:1;color:var(--coral-t);margin-bottom:10px}
+.step h3{font-size:1.1875rem;margin-bottom:6px}
+.step p{font-size:0.9375rem;color:var(--ink2)}
+.k{font-family:inherit;font-size:0.8125rem;background:var(--paper2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.help{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:2px 22px}
+details.q{border-bottom:1px dashed var(--line)}
+details.q[open]{padding-bottom:16px}
 details.q:last-child{border-bottom:0}
-details.q summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:16px}
+details.q summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;padding:12px 0}
 details.q summary::-webkit-details-marker{display:none}
-details.q summary::after{content:"+";color:var(--ink3);font-weight:400;font-size:22px;line-height:1}
-details.q[open] summary::after{content:"–"}
-details.q p,details.q ol{color:var(--ink2);font-size:15px;margin-top:8px}
+details.q summary::after{content:"+";flex:none;color:var(--ink3);font-weight:400;font-size:1.375rem;line-height:1}
+details.q[open] summary::after{content:"+";transform:rotate(45deg)}
+details.q p,details.q ol{color:var(--ink2);font-size:0.9375rem;margin-top:4px}
 details.q ol{padding-left:20px}
-details.q a{color:var(--coral-t)}
+details.q a{color:var(--coral-t);display:inline-block;padding:11px 0;margin:-11px 0}
 @media (max-width:860px){.steps{grid-template-columns:1fr}}
 
 /* closing band */
@@ -239,21 +262,37 @@ details.q a{color:var(--coral-t)}
 .band .sub{color:#c9cee6;margin:0 auto 30px}
 .band .btn{background:#ff9a5c;color:#141a3a}
 .band .btn:hover{background:#ffb27a}
-.band .req{margin-top:16px;font-size:14px;color:#c9cee6}
+.band .req{margin-top:16px;font-size:0.875rem;color:#c9cee6}
 .band :focus-visible{outline-color:#8fdde3}
-footer{padding:28px 0 44px;font-size:14px;color:var(--ink3)}
+footer{padding:28px 0 44px;font-size:0.875rem;color:var(--ink3)}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{display:inline-block;padding:11px 0;margin:-11px 0}
 
+/* motion: instant press feedback; menus and answers grow from where you tapped; all off with Reduce Motion */
 @media (prefers-reduced-motion:no-preference){
-  .mascot,.band img{animation:bob 5s ease-in-out 3}
-  .btn:active{transform:translateY(1px)}
-  .bubble{animation:pop .6s ease-out both .3s}
-  .who-card{transition:transform .2s}
-  .who-card:hover{transform:rotate(0) translateY(-4px)}
+  .mascot,.band img{animation:bob 3.2s ease-in-out 3}
+  .btn:active,.tabs button:active,.menu summary:active{transform:scale(.97);transition-duration:.08s}
+  .bubble{animation:pop .5s cubic-bezier(.2,.9,.3,1.2) both .3s}
+  .who-card{transition:transform .2s ease-out}
+  .who-card .ph{transition:transform .2s ease-out}
+  .who-card:hover{transform:translateY(-4px)}
+  .who-card:hover .ph{transform:rotate(0)}
+  .menu[open] div{animation:menuIn .16s ease-out}
+  details.q[open]>:not(summary){animation:reveal .22s ease-out}
+  details.q summary::after{transition:transform .2s ease-out}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.frame img{transition:none}}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.frame img.next,.who-card img{transition:none}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes menuIn{from{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+/* Reduce Transparency: solid nav. Increase Contrast: darker lines and secondary text */
+@media (prefers-reduced-transparency:reduce){nav{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--paper)}}
+@media (prefers-contrast:more){
+  :root{--line:rgba(31,42,90,.45);--ink2:#2b3463;--ink3:#3b4472}
+  @media (prefers-color-scheme:dark){:root{--line:rgba(255,248,238,.45);--ink2:#e6e9f5;--ink3:#cdd2e8}}
+}
 </style>
 </head>
 <body>
@@ -280,7 +319,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div>
       <a class="pill" href="changelog.html"><b>Nuevo</b>Mira las novedades →</a>
       <h1>Un vistazo,<br>y sabes <em>adónde se fue el dinero</em>.</h1>
-      <p class="intro">Xiaxia Ledger es una app nativa de finanzas para Mac, y la de iPhone llega muy pronto y podrá sincronizar el mismo libro con tu Mac mediante iCloud. Los gráficos te aclaran ingresos, gastos, patrimonio y deudas; para apuntar algo se lo dices a tu IA, y Xiaxia además te aconseja.</p>
+      <p class="intro">Una app nativa de finanzas para Mac. Los gráficos muestran de un vistazo ingresos, gastos, patrimonio y deudas; para apuntar algo, díselo a tu IA.</p>
       <div class="cta">
         <a class="btn dl" href="/download/xiaxia-ledger.dmg">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.3zM13.9 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
@@ -302,8 +341,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
   <div class="wrap stage" aria-hidden="true">
     <div class="shot-mac">
-      <div class="bar"><i></i><i></i><i></i></div>
-      <img src="../assets/mac-overview.webp" alt="" width="1600" height="1196">
+      <picture><source srcset="../assets/tour-overview-dark.webp" media="(prefers-color-scheme: dark)"><img src="../assets/tour-overview.webp" alt="" width="1600" height="1000" fetchpriority="high"></picture>
     </div>
     <div class="phone-float">
       <picture>
@@ -358,14 +396,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <h2>En el Mac, cada página en una pantalla, bonita en claro y en oscuro.</h2>
     <p class="sub">La app de Mac está hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino.</p>
     <div class="tabs" role="tablist" aria-label="Elige una página">
-      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
-      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
-      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-trends.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
-      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-wealth.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
-      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-debts.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
+      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-dark="../assets/tour-overview-dark.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
+      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-dark="../assets/tour-spending-dark.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
+      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-trends.webp" data-dark="../assets/tour-trends-dark.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
+      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-wealth.webp" data-dark="../assets/tour-wealth-dark.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
+      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-debts.webp" data-dark="../assets/tour-debts-dark.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
     </div>
     <div id="tourPanel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
       <div class="frame"><img id="tourImg" src="../assets/tour-overview.webp" alt="Captura de la página Resumen de Xiaxia Ledger (datos de ejemplo)" width="1600" height="1000" loading="lazy"></div>
+      <p class="pan" aria-hidden="true">Desliza a los lados para ver la captura entera</p>
       <p class="cap" id="tourCap" aria-live="polite">Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.</p>
     </div>
     <p class="sub more">También hay objetivos de ahorro, suscripciones, movimientos e historial de cambios. Pulsa el mes de arriba para elegir mes y año. Admite varios libros (por ejemplo «Personal» y «Mi tienda») y varias monedas.</p>
@@ -385,11 +424,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       </div>
       <p class="other">Otras IA también valen: en Ajustes, copia el texto de configuración, pégaselo a tu IA y se conecta sola. Si usas DeepSeek, Qwen o Kimi, conéctalas con Hermes Agent o Cherry Studio.</p>
     </div>
-    <div class="chat" role="img" aria-label="Conversación de ejemplo: el usuario dice que la comida costó 12,50; la IA responde que está apuntado y da el total de comida del mes">
-      <div class="msg me">Ramen con un compañero al mediodía, 12,50, con tarjeta de crédito</div>
-      <div class="msg bot"><div class="who">Claude · conectado a Xiaxia Ledger</div>Apuntado: <b>Comida −12,50 €</b> (tarjeta de crédito, hoy). En comida llevas 186,40 € este mes, 23 € menos que a estas alturas del mes pasado. ¡Sigue así!</div>
-      <div class="msg me">¿Cuánto puedo gastar todavía este mes?</div>
-      <div class="msg bot">Con tu objetivo de ahorro, puedes gastar <b>813,56 €</b> hasta fin de mes, unos 116 € al día. El alquiler ya está pagado, tranquilo.</div>
+    <div class="chat" id="chat" role="img" aria-label="Conversación de ejemplo: el usuario dice que la comida costó 12,50; la IA responde que está apuntado y da el total de comida del mes">
+      <div class="msg me" style="--i:0">Ramen con un compañero al mediodía, 12,50, con tarjeta de crédito</div>
+      <div class="msg bot" style="--i:1"><div class="who">Claude · conectado a Xiaxia Ledger</div>Apuntado: <b>Comida −12,50 €</b> (tarjeta de crédito, hoy). En comida llevas 186,40 € este mes, 23 € menos que a estas alturas del mes pasado. ¡Sigue así!</div>
+      <div class="msg me" style="--i:2">¿Cuánto puedo gastar todavía este mes?</div>
+      <div class="msg bot" style="--i:3">Con tu objetivo de ahorro, puedes gastar <b>813,56 €</b> hasta fin de mes, unos 116 € al día. El alquiler ya está pagado, tranquilo.</div>
     </div>
   </div>
 </section>
@@ -417,7 +456,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div class="center">
       <p class="eyebrow">Instalar</p>
       <h2>Tres pasos, un minuto.</h2>
-      <p class="sub">Requiere macOS 14 Sonoma o posterior. Para ver tu versión, pulsa  en la esquina superior izquierda → Acerca de este Mac.</p>
+      <p class="sub">Requiere macOS 14 Sonoma o posterior. Para ver tu versión, abre el menú Apple en la esquina superior izquierda → Acerca de este Mac.</p>
     </div>
     <div class="steps">
       <div class="step"><h3>Descarga y arrastra a Aplicaciones</h3><p>Pulsa el botón de descarga de arriba, abre el <span class="k">xiaxia-ledger.dmg</span> descargado y arrastra el icono 夏夏账本 a la carpeta Aplicaciones que aparece al lado.</p></div>
@@ -477,13 +516,25 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
 // tour tabs: click or arrow keys
 const tabs=[...document.querySelectorAll('#tour [role=tab]')];
+// dark screenshots in dark mode
+const darkQ=matchMedia('(prefers-color-scheme: dark)');
+const shot=b=>darkQ.matches&&b.dataset.dark?b.dataset.dark:b.dataset.img;
+const sync=()=>{const b=tabs.find(x=>x.getAttribute('aria-selected')==='true');if(b)document.getElementById('tourImg').src=shot(b)};
+sync();darkQ.addEventListener&&darkQ.addEventListener('change',sync);
 function pick(b,focus){
   tabs.forEach(x=>{const on=x===b;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1});
   document.getElementById('tourPanel').setAttribute('aria-labelledby',b.id);
-  const img=document.getElementById('tourImg');
-  img.style.opacity=.25;
-  const n=new Image();n.onload=()=>{img.src=b.dataset.img;img.alt='Captura de Xiaxia Ledger: '+b.textContent+' (datos de ejemplo)';img.style.opacity=1};n.src=b.dataset.img;
+  // cross-fade the new screenshot over the old one
+  const old=document.getElementById('tourImg'), frame=old.parentNode;
+  frame.querySelectorAll('img.next').forEach(x=>x.remove());
+  const n=old.cloneNode();n.removeAttribute('id');n.className='next';n.loading='eager';
+  n.alt='Captura de Xiaxia Ledger: '+b.textContent+' (datos de ejemplo)';
+  n.onload=()=>requestAnimationFrame(()=>{n.classList.add('on');
+    const done=()=>{if(!n.isConnected)return;old.src=n.src;old.alt=n.alt;n.remove()};
+    if(matchMedia('(prefers-reduced-motion:reduce)').matches)done();else n.addEventListener('transitionend',done,{once:true})});
+  n.src=shot(b);frame.appendChild(n);
   document.getElementById('tourCap').textContent=b.dataset.cap;
+  b.scrollIntoView({block:'nearest',inline:'nearest'});
   if(focus)b.focus();
 }
 tabs.forEach((b,i)=>{
@@ -500,12 +551,30 @@ document.querySelectorAll('.look button').forEach(b=>b.addEventListener('click',
   const look=b.dataset.look;
   document.querySelectorAll('.look button').forEach(x=>x.setAttribute('aria-pressed',x===b));
   document.querySelectorAll('#cast [data-'+look+']').forEach(el=>{
-    if(el.tagName==='IMG'){el.src=el.dataset[look];el.alt=el.alt.replace(/ \(versión chico\)$/,'')+(look==='boy'?' (versión chico)':'')}
+    if(el.tagName==='IMG'){
+      // fade out, swap, fade in
+      el.classList.add('out');
+      setTimeout(()=>{el.onload=()=>el.classList.remove('out');el.src=el.dataset[look];if(el.complete)el.classList.remove('out')},matchMedia('(prefers-reduced-motion:reduce)').matches?0:120);
+      el.alt=el.alt.replace(/ \(versión chico\)$/,'')+(look==='boy'?' (versión chico)':'')}
     else el.textContent=el.dataset[look];
   });
 }));
 // preload
 window.addEventListener('load',()=>document.querySelectorAll('#cast img[data-boy]').forEach(i=>{new Image().src=i.dataset.boy}));
+// phone menu: close on link, outside tap or Esc
+const menu=document.querySelector('.menu');
+menu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>menu.open=false));
+document.addEventListener('click',e=>{if(menu.open&&!menu.contains(e.target))menu.open=false});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu.open){menu.open=false;menu.querySelector('summary').focus()}});
+// nav: show the divider only after scrolling
+const nav=document.querySelector('nav');
+const edge=()=>nav.classList.toggle('scrolled',scrollY>8);edge();addEventListener('scroll',edge,{passive:true});
+// chat: reveal messages one by one (all at once with Reduce Motion)
+const chat=document.getElementById('chat');
+if('IntersectionObserver' in window&&matchMedia('(prefers-reduced-motion:no-preference)').matches){
+  chat.classList.add('stage');
+  new IntersectionObserver((es,o)=>{if(es[0].isIntersecting){chat.classList.add('in');o.disconnect()}},{threshold:.4}).observe(chat);
+}
 // phone: send yourself the link
 document.getElementById('shareLink').addEventListener('click',async()=>{
   const url=location.origin+location.pathname, msg=document.getElementById('shareMsg');

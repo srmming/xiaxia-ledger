@@ -1611,5 +1611,8 @@ extension L10n {
         "正在用 %@ 查账": "Checking the books with %@",
         "摸摸夏夏": "Pet Xiaxia",
         "夏夏会回应你一下": "Xiaxia will react",
+        "%@ 月到今天多花了 · 截至 %@ 日": "%1$N: spent more than came in · through day %2$@",
+        "固定开销": "Fixed costs",
+        "开销": "Costs",
     ]
 }

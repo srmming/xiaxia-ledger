@@ -207,6 +207,8 @@ public struct RootView: View {
                                               : min(Self.sheetHeight(sheet), max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
+                // 记一笔、记今天的账有计算器键盘，特大字号会把整页挤出屏幕（iPhone 审计 2026-11-26）：这两个到 xxxLarge 为止。
+                .dynamicTypeSize(sheet == .add || sheet == .daily ? ...DynamicTypeSize.xxxLarge : ...DynamicTypeSize.accessibility2)
                 #endif
         }
         .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
@@ -468,7 +470,7 @@ struct PhoneRoot: View {
             switch model.section ?? .overview {
             case .trends: return .spending
             case .changes, .settings: return .insights
-            case .subscriptions, .debts, .reimburse: return .plans
+            case .subscriptions, .debts, .reimburse, .fixed: return .plans
             case .transactions: return .overview
             default: return model.section ?? .overview
             }
@@ -491,9 +493,12 @@ struct PhoneRoot: View {
                 .background(Color.pageBackground)
             }
             page(.wealth, title: tr("家底")) { WealthPage() }
-            page(.plans, title: tr("计划")) { PlansPage() }
+            // 生意那边「计划」这格放固定开销和欠款（以前 iPhone 上根本进不去固定开销，iPhone 审计 2026-11-26）。
+            page(.plans, title: model.side == .business ? tr("开销") : tr("计划")) { PlansPage() }
             page(.insights, title: tr("夏夏")) { InsightsPage() }
         }
+        // 特大字号时版面撑不下：最大到「辅助功能 2」，再大字号也不会把卡片挤出屏幕（iPhone 审计 2026-11-26）。
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SettingsPage()
@@ -518,7 +523,9 @@ struct PhoneRoot: View {
                     if section.usesMonth {
                         ToolbarItem(placement: .topBarLeading) {
                             MonthStepper(month: Binding(get: { model.shownMonth }, set: { m in withAnimation(.snappy) { model.selectedMonth = m } }),
-                                         latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, compact: true)
+                                         latest: LocalDate.today.yearMonth, recorded: model.recordedMonths, compact: true, accent: model.accent)
+                                // 顶栏挤时「11 月」被压成「…」，看不出是几月（iPhone 审计 2026-11-26）：按字的宽度来，不压缩。
+                                .fixedSize()
                         }
                     }
                     // 开着生意模式：「生活 | 生意」放标题栏正中间，每页都在同一个位置（设计稿 ③）。
@@ -526,25 +533,17 @@ struct PhoneRoot: View {
                         ToolbarItem(placement: .principal) { SideSwitch() }
                     }
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        if section != .insights {
-                            if !model.businessOn { BookSwitch() }
-                            // 「问 AI」放进顶栏，不再浮在右下角挡住卡片上的按钮；「夏夏」页自己有问的入口，这里不重复。
-                            AskAIReader { ask in
-                                Button { ask("", page: (model.section ?? section).rawValue) } label: {
-                                    Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.ai)
-                                }
-                                .accessibilityLabel(tr("问 AI"))
-                                .accessibilityHint(tr("复制当前页面、月份和账本，打开 Claude"))
-                            }
-                        }
+                        // 顶栏只留两件事：记一笔、设置（iPhone 审计 2026-11-26：以前右上三个圆挤在一起）。
+                        // 每页的「问 AI」星星拿掉了：非引导页不放 AI 提示（ming 2026-11-25），问夏夏走底栏「夏夏」。
+                        if section != .insights, !model.businessOn { BookSwitch() }
                         Button { model.sheet = .add } label: {
                             Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
-                                .frame(width: 30, height: 30).background(Color.brand, in: Circle())
+                                .frame(width: 30, height: 30).background(model.accentSolid, in: Circle())
                         }
                         .accessibilityLabel(tr("记一笔"))
                         Button { showSettings = true } label: {
-                            Text(String(model.author.prefix(1))).font(.system(size: 13, weight: .bold))
-                                .frame(width: 30, height: 30).background(Color.sunken, in: Circle())
+                            Image(systemName: "gearshape").font(.system(size: 15, weight: .semibold))
+                                .frame(width: 30, height: 30)
                         }
                         .accessibilityLabel(tr("设置"))
                     }

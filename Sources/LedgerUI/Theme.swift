@@ -324,6 +324,12 @@ extension View {
 /// ⋯ 菜单的图标：给它一个 20×18 的框，套上系统按钮后整个按钮约 32×24，好点中（审查第二轮 2026-11-26）。
 struct MoreGlyph: View {
     var body: some View {
+        #if os(iOS)
+        // iPhone 用手指点：圆点外面留出 32×32 都算点中（iPhone 审计 2026-11-26：以前只有 19×19）。
+        Image(systemName: "ellipsis").font(.body.weight(.semibold)).frame(width: 32, height: 32).contentShape(Rectangle())
+            .accessibilityLabel(tr("更多"))
+        #else
         Image(systemName: "ellipsis").font(.body.weight(.semibold)).frame(width: 20, height: 18)
+        #endif
     }
 }

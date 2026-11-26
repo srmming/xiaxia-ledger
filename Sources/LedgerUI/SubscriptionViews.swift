@@ -102,16 +102,32 @@ struct SubscriptionTotalsStrip: View {
         let list = model.subscriptionStatus.filter { book == nil || $0.bookID == nil || $0.bookID == book }
         let t = Subscriptions.totals(list, bookID: book)
         let base = model.ledger.baseCurrency
-        HStack(alignment: .top) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 32) { figures(t, base, size: compact ? 26 : 32) }
-                HStack(alignment: .top, spacing: 18) { figures(t, base, size: 24) }
-                VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
-            }
-            Spacer(minLength: 12)
-            Button { adding = SubscriptionDraft(model: model) } label: { Label(tr("登记订阅"), systemImage: "plus") }
+        Group {
+            #if os(iOS)
+            // iPhone：四个数排成两行两列，不再竖着一个压一个占满一屏（iPhone 审计 2026-11-26）。
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12, alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
+                          alignment: .leading, spacing: 14) {
+                    figures(t, base, size: 24)
+                }
+                Button { adding = SubscriptionDraft(model: model) } label: {
+                    Label(tr("登记订阅"), systemImage: "plus").frame(maxWidth: .infinity)
+                }
                 .buttonStyle(.soft)
-                .help(tr("登记一个订阅"))
+            }
+            #else
+            HStack(alignment: .top) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 32) { figures(t, base, size: compact ? 26 : 32) }
+                    HStack(alignment: .top, spacing: 18) { figures(t, base, size: 24) }
+                    VStack(alignment: .leading, spacing: 8) { figures(t, base, size: 24) }
+                }
+                Spacer(minLength: 12)
+                Button { adding = SubscriptionDraft(model: model) } label: { Label(tr("登记订阅"), systemImage: "plus") }
+                    .buttonStyle(.soft)
+                    .help(tr("登记一个订阅"))
+            }
+            #endif
         }
         .kitCard(padding: compact ? 14 : 18)
         .accessibilityElement(children: .contain)
@@ -293,34 +309,24 @@ struct SubscriptionsCard: View {
            HStack(spacing: 10) {
             CategoryIcon(category: subscriptionIcon(s.name, category: s.category), size: 24)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    // 窄窗口也先保名字（审查 2026-11-26：订阅名被截断）。
-                    Text(s.name).font(.callout.weight(.medium)).lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(1)
-                        .foregroundStyle(stopped ? Color.fg3 : Color.primary)
-                    if s.reviewReason != nil {
-                        // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
-                        Text(tr("可以考虑退")).font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.alertSoft, in: Capsule())
-                            .lineLimit(1).fixedSize()
-                    }
+                // 一行放不下名字和标签时，标签换到名字下面（审计 2026-11-26：iPhone 上订阅名被挤成「云存…」）。
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { nameText(s, stopped: stopped); reviewTag(s) }
+                    VStack(alignment: .leading, spacing: 2) { nameText(s, stopped: stopped); reviewTag(s) }
                 }
                 Text(detail(s)).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
             }
             Spacer(minLength: 6)
-            if !stopped, let d = s.daysLeft {
-                Text(d == 0 ? tr("今天扣") : d <= 2 ? Nudges.dayWord(d) + tr("扣") : tr("\(d) 天后"))
-                    .font(.caption.weight(s.isDueVerySoon ? .semibold : .regular))
-                    .foregroundStyle(s.isDueVerySoon ? Color.warn : Color.fg2)
-                    .padding(.horizontal, s.isDueVerySoon ? 6 : 0).padding(.vertical, s.isDueVerySoon ? 1 : 0)
-                    .background(s.isDueVerySoon ? Color.warnSoft : Color.clear, in: Capsule())
-                    .lineLimit(1).fixedSize()
+            #if os(iOS)
+            // iPhone 窄：几天后扣放到金额下面，名字多留点地方。
+            VStack(alignment: .trailing, spacing: 2) {
+                amountText(s, stopped: stopped)
+                dueText(s, stopped: stopped)
             }
-            Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
-                .foregroundStyle(stopped ? Color.fg3 : Color.primary)
-                .frame(minWidth: 64, alignment: .trailing)
+            #else
+            dueText(s, stopped: stopped)
+            amountText(s, stopped: stopped)
+            #endif
            }
            .contentShape(Rectangle())
           }
@@ -331,6 +337,41 @@ struct SubscriptionsCard: View {
         }
         .padding(.vertical, 4)
         .hoverHighlight()
+    }
+
+    private func nameText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        // 窄窗口也先保名字（审查 2026-11-26：订阅名被截断）。
+        Text(s.name).font(.callout.weight(.medium)).lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
+            .foregroundStyle(stopped ? Color.fg3 : Color.primary)
+    }
+
+    @ViewBuilder private func reviewTag(_ s: SubscriptionStatus) -> some View {
+        if s.reviewReason != nil {
+            // 标签只写「可以考虑退」，为什么写在下面那行小字里（窄窗口也不会被截断）。
+            Text(tr("可以考虑退")).font(.caption2.weight(.semibold)).foregroundStyle(Color.alert)
+                .padding(.horizontal, 5).padding(.vertical, 1)
+                .background(Color.alertSoft, in: Capsule())
+                .lineLimit(1).fixedSize()
+        }
+    }
+
+    @ViewBuilder private func dueText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        if !stopped, let d = s.daysLeft {
+            Text(d == 0 ? tr("今天扣") : d <= 2 ? Nudges.dayWord(d) + tr("扣") : tr("\(d) 天后"))
+                .font(.caption.weight(s.isDueVerySoon ? .semibold : .regular))
+                .foregroundStyle(s.isDueVerySoon ? Color.warn : Color.fg2)
+                .padding(.horizontal, s.isDueVerySoon ? 6 : 0).padding(.vertical, s.isDueVerySoon ? 1 : 0)
+                .background(s.isDueVerySoon ? Color.warnSoft : Color.clear, in: Capsule())
+                .lineLimit(1).fixedSize()
+        }
+    }
+
+    private func amountText(_ s: SubscriptionStatus, stopped: Bool) -> some View {
+        Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
+            .foregroundStyle(stopped ? Color.fg3 : Color.primary)
+            .frame(minWidth: 64, alignment: .trailing)
     }
 
     private func open(_ s: SubscriptionStatus) {

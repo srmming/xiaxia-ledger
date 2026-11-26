@@ -21,6 +21,14 @@ struct BusinessHome: View {
         let progress = model.ledger.capitalProgress(today: today)
         // ming 2026-11-25：生意首页不要最上面那叠夏夏点评卡，大数字就是整页的重心。
         VStack(alignment: .leading, spacing: Kit.gap) {
+            #if os(iOS)
+            // iPhone 一列：每天要按的「记今天的账」放最上面，不用翻到第二屏找（iPhone 审计 2026-11-26）。
+            if month == today.yearMonth { todayCard(today) }
+            heroCard(report, month: month, today: today)
+            if let p = progress, paybackHidden != (model.ledger.businessBook?.id ?? "") { paybackCard(p) }
+            homeCard(report)
+            recentCard
+            #else
             Columns {
                 heroCard(report, month: month, today: today)
             } side: {
@@ -29,6 +37,7 @@ struct BusinessHome: View {
                 homeCard(report)
                 if !short { recentCard }
             }
+            #endif
         }
         #if os(macOS)
         .sheet(isPresented: $editingCapital) { CapitalEditor().environment(model) }
@@ -36,6 +45,15 @@ struct BusinessHome: View {
     }
 
     // MARK: 这个月真正赚了
+
+    /// iPhone 上图表矮一些，大数字和下面的卡一屏看得到（以前 330 高，占满第一屏）。
+    private var chartHeight: CGFloat {
+        #if os(iOS)
+        150
+        #else
+        short ? 130 : 330
+        #endif
+    }
 
     private func heroCard(_ r: BusinessReport?, month: YearMonth, today: LocalDate) -> some View {
         let current = month == today.yearMonth
@@ -54,7 +72,7 @@ struct BusinessHome: View {
                 Text(tr("这个月还没有店里的账。每天关店后点「记今天的账」，这里就会画出这个月赚钱的线。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             } else {
-                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: short ? 130 : 330)
+                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: chartHeight)
             }
         }
         .kitCard(padding: short ? 14 : 20)
@@ -324,6 +342,22 @@ struct DailyTakingsSheet: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        // iPhone：和别的弹窗一样，取消在左上、记下在右上（以前是 Mac 那套底部按钮，iPhone 审计 2026-11-26）。
+        ScrollView { content.padding(20) }
+            .background(Color.pageBackground)
+            .navigationTitle(tr("记今天的账"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(tr("记下"), action: save).fontWeight(.semibold)
+                        .disabled(!canSave)
+                        .accessibilityIdentifier("daily.save")
+                }
+            }
+            .onAppear { focus = methods.first?.id }
+        #else
         VStack(spacing: 0) {
             ScrollView { content.padding(20) }
             Divider()
@@ -340,11 +374,10 @@ struct DailyTakingsSheet: View {
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
-        #if os(macOS)
         .frame(width: 480)
-        #endif
         .navigationTitle(tr("记今天的账"))
         .onAppear { focus = methods.first?.id }
+        #endif
     }
 
     private var content: some View {

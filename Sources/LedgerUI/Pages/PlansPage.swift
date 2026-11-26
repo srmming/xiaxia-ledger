@@ -15,6 +15,32 @@ struct PlansPage: View {
 
     var body: some View {
         #if os(iOS)
+        if model.businessOn && model.side == .business {
+            // 生意那边：固定开销 / 欠款（店里没有存钱目标、订阅、报销这几格；以前 iPhone 上找不到固定开销，iPhone 审计 2026-11-26）。
+            VStack(spacing: Kit.gap) {
+                Picker(tr("看哪个"), selection: $shopTab) {
+                    Text(tr("固定开销")).tag(0)
+                    Text(tr("欠款")).tag(1)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("shopPlansTab")
+                if shopTab == 1 { DebtsPage(embedded: true) } else { FixedCostsPage() }
+            }
+            .kitPage()
+            .onAppear { if model.section == .debts { shopTab = 1 } }
+        } else {
+            lifeTabs
+        }
+        #else
+        PiggyGoalsBoard(short: short).kitPage()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
+        #endif
+    }
+
+    #if os(iOS)
+    @State private var shopTab = 0
+
+    private var lifeTabs: some View {
         VStack(spacing: Kit.gap) {
             Picker(tr("看哪个"), selection: $tab) {
                 Text(tr("目标")).tag(0)
@@ -29,8 +55,6 @@ struct PlansPage: View {
                 SubscriptionsXiaxia()
                 if model.subscriptionStatus.contains(where: { $0.cancelledOn == nil }) { SubscriptionTotalsStrip() }
                 SubscriptionsCard()
-                AskAICard(title: tr("让夏夏帮你找订阅"), note: nil, page: "订阅",
-                          prompts: [AIPrompt(kind: tr("订阅"), text: tr("帮我从流水里找出所有订阅，问我哪些是，再写进夏夏账本"))])
             case 2:
                 DebtsPage(embedded: true)
             case 3:
@@ -48,11 +72,8 @@ struct PlansPage: View {
             default: break
             }
         }
-        #else
-        PiggyGoalsBoard(short: short).kitPage()
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
-        #endif
     }
+    #endif
 }
 
 /// 存一笔 / 取出 的面板要哪个目标、哪一种。
@@ -191,18 +212,44 @@ struct PiggyGoalsBoard: View {
                 Text(tr("最多 3 个 · 目标不在多，在于坚持")).font(.caption).foregroundStyle(Color.fg3).lineLimit(1)
                 Spacer(minLength: 0)
             }
-            HStack(alignment: .top, spacing: 10) {
+            // iPhone 一行一个（三格并排太窄，名字和「还差」全被截断，iPhone 审计 2026-11-26）；Mac 三格并排。
+            tilesLayout {
                 ForEach(Array(b.small.enumerated()), id: \.element.id) { i, p in
                     PiggySmallTile(goal: p, palette: PiggyPalette.small[i % PiggyPalette.small.count], compact: short,
                                    drop: drops[p.id, default: 0], shakeCount: shakes[p.id, default: 0], bubble: bubbles[p.id],
                                    onShake: { shake(p) }, onMoney: { money = PiggyMoney(goalID: p.id, kind: $0) })
                 }
                 if b.small.count < slots {
-                    ForEach(0..<(slots - b.small.count), id: \.self) { _ in emptySlot(enabled: b.slotsLeft > 0) }
+                    ForEach(0..<emptySlots(slots - b.small.count), id: \.self) { _ in emptySlot(enabled: b.slotsLeft > 0) }
                 }
             }
         }
         .kitCard(padding: 14)
+    }
+
+    private var tilesLayout: AnyLayout {
+        #if os(iOS)
+        AnyLayout(VStackLayout(spacing: 8))
+        #else
+        AnyLayout(HStackLayout(alignment: .top, spacing: 10))
+        #endif
+    }
+
+    /// iPhone 上空位只放一个「加一个小目标」，不画三个大虚线框。
+    private func emptySlots(_ n: Int) -> Int {
+        #if os(iOS)
+        min(n, 1)
+        #else
+        n
+        #endif
+    }
+
+    private var emptyHeight: CGFloat {
+        #if os(iOS)
+        52
+        #else
+        short ? 96 : 140
+        #endif
     }
 
     private func emptySlot(enabled: Bool) -> some View {
@@ -211,7 +258,7 @@ struct PiggyGoalsBoard: View {
                 Image(systemName: "plus.circle").font(.title2).foregroundStyle(Color.fg3)
                 Text(tr("加一个小目标")).font(.caption).foregroundStyle(Color.fg2)
             }
-            .frame(maxWidth: .infinity, minHeight: short ? 96 : 140)
+            .frame(maxWidth: .infinity, minHeight: emptyHeight)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.fg3.opacity(0.5), style: StrokeStyle(lineWidth: 1.2, dash: [5, 4])))
             .contentShape(Rectangle())
@@ -494,9 +541,49 @@ struct PiggySmallTile: View {
     var onMoney: (PiggyMoney.Kind) -> Void
 
     var body: some View {
+        #if os(iOS)
+        phoneRow
+        #else
+        tile
+        #endif
+    }
+
+    #if os(iOS)
+    /// iPhone：一行一个小目标——小猪、名字和还差多少、存一笔、⋯（iPhone 审计 2026-11-26）。
+    private var phoneRow: some View {
         let p = goal
         let f = p.forecast
-        VStack(alignment: .leading, spacing: 6) {
+        return HStack(spacing: 12) {
+            Button(action: onShake) {
+                PiggyBankView(fraction: Double(f.percent) / 100, palette: palette, size: 52,
+                              dropTrigger: drop, shakeTrigger: shakeCount, sparkle: false)
+                    .overlay(alignment: .topTrailing) { PiggyBubble(text: bubble) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(tr("\(p.name)的小猪，已经存了 \(f.percent)%"))
+            .accessibilityHint(tr("摇一摇"))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(p.name).font(.callout.weight(.medium)).lineLimit(1)
+                Text(f.left.cents > 0 ? tr("还差 \(f.left.rounded)") : tr("存够了")).font(.kitAmount).lineLimit(1)
+                Text("\(note(p)) · \(f.percent)%").font(.caption2).foregroundStyle(p.needsCheck ? Color.warn : Color.fg2).lineLimit(1)
+            }
+            Spacer(minLength: 6)
+            Button { onMoney(.deposit) } label: { Text(tr("存一笔")).font(.subheadline.weight(.semibold)) }
+                .buttonStyle(SoftButtonStyle(color: palette.dark, background: palette.dark.opacity(0.14)))
+                .accessibilityLabel(tr("往\(p.name)存一笔"))
+                .disabled(f.isDone)
+            PiggyGoalMenu(goal: p, onMoney: onMoney)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.sunken.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+    #endif
+
+    private var tile: some View {
+        let p = goal
+        let f = p.forecast
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: goalSymbol(p)).font(.caption).foregroundStyle(palette.dark)
                 // 窄窗口也看得到全名：最多两行（审查 2026-11-26：「店面…」「锁起…」）。

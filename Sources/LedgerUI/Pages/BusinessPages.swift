@@ -185,7 +185,7 @@ struct FixedCostEditor: View {
                     Picker(tr("是什么"), selection: $category) {
                         ForEach(Self.kinds, id: \.self) { Text(trKey($0)).tag($0) }
                     }
-                    TextField(tr("名字"), text: $name, prompt: Text(tr("比如 店面房租")))
+                    LabeledField(tr("名字")) { TextField(tr("名字"), text: $name, prompt: Text(tr("比如 店面房租"))) }
                 }
                 Section {
                     Picker(tr("每月几号"), selection: $day) {
@@ -386,11 +386,13 @@ struct SideTransferSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                TextField(tr("多少"), text: $amountText, prompt: Text("500"))
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                    .font(.system(.title2, design: .rounded).weight(.bold))
+                LabeledField(tr("多少")) {
+                    TextField(tr("多少"), text: $amountText, prompt: Text("500"))
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                }
                 Picker(tr("从"), selection: $from) {
                     ForEach(home ? shop : life) { a in Text(a.name).tag(a.id) }
                 }
@@ -398,7 +400,7 @@ struct SideTransferSheet: View {
                     ForEach(home ? life : shop) { a in Text(a.name).tag(a.id) }
                 }
                 DatePicker(tr("哪天"), selection: $date, in: ...Date(), displayedComponents: .date)
-                TextField(tr("备注"), text: $note, prompt: Text(tr("可以不写")))
+                LabeledField(tr("备注")) { TextField(tr("备注"), text: $note, prompt: Text(tr("可以不写"))) }
             } footer: {
                 Text(home ? tr("算进「这个月给自己发了」，不算店里的开销。") : tr("只是钱换了地方，不算店里的收入。"))
             }

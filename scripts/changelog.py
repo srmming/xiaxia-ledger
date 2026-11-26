@@ -106,21 +106,23 @@ a{{color:#ff7a3d}}
 
 # 更新日志页上除了每一版内容以外的文字。
 CHROME = {
-    "zh": {"lang": "zh-CN", "date": lambda d: f"{d.year} 年 {d.month} 月 {d.day} 日", "shot": "{v} 版截图（示例数据）", "new": "最新"},
+    "zh": {"lang": "zh-CN", "date": lambda d: f"{d.year} 年 {d.month} 月 {d.day} 日", "shot": "{v} 版截图（示例数据）", "new": "最新", "more": "还有 {n} 条改动"},
     "en": {"lang": "en", "date": lambda d: f"{d.day} {EN_MONTHS[d.month - 1]} {d.year}", "shot": "Screenshot of version {v} (sample data)", "new": "Latest",
            "text": {"主导航": "Main navigation", "更新日志 · 夏夏账本": "Changelog · Xiaxia Ledger", "夏夏账本每个版本改了什么，用大白话写。": "What changed in each version of Xiaxia Ledger, in plain words.",
                     "夏夏账本 · 更新日志": "Xiaxia Ledger · Changelog", "夏夏账本更新": "Xiaxia Ledger updates", "看看界面": "Tour", "怎么装": "Install", "更新日志": "Changelog", "下载": "Download",
                     "每一版改了什么，大白话写在这里。装好的 app 有新版会在左下角提醒，点一下就更新。": "What changed in each version, in plain words. The installed app shows a reminder in the bottom-left corner when a new version is out; one click updates it.",
                     "截图里的金额和人名都是示例数据。": "Amounts and names in the screenshots are sample data; screenshots show the Chinese interface.", "夏夏账本": "Xiaxia Ledger",
                     "跳到正文": "Skip to content", "菜单": "Menu", "更早的版本": "Earlier versions", "点开看这一版改了什么": "Open to see what changed",
-                    "点图片看大图": "Click a picture to see it full size", "回首页": "Back to home", "夏夏在欢呼": "Xiaxia cheering"}},
+                    "点图片看大图": "Click a picture to see it full size", "回首页": "Back to home", "夏夏在欢呼": "Xiaxia cheering",
+                    "iPhone 版": "iPhone", "连上 AI": "Connect your AI", "夏夏": "Xiaxia"}, "more": "{n} more changes"},
     "es": {"lang": "es", "date": lambda d: f"{d.day} de {ES_MONTHS[d.month - 1]} de {d.year}", "shot": "Captura de la versión {v} (datos de ejemplo)", "new": "Última",
            "text": {"主导航": "Navegación principal", "更新日志 · 夏夏账本": "Novedades · Xiaxia Ledger", "夏夏账本每个版本改了什么，用大白话写。": "Qué ha cambiado en cada versión de Xiaxia Ledger, explicado con claridad.",
                     "夏夏账本 · 更新日志": "Xiaxia Ledger · Novedades", "夏夏账本更新": "Novedades de Xiaxia Ledger", "看看界面": "Recorrido", "怎么装": "Instalar", "更新日志": "Novedades", "下载": "Descargar",
                     "每一版改了什么，大白话写在这里。装好的 app 有新版会在左下角提醒，点一下就更新。": "Qué ha cambiado en cada versión, explicado con claridad. La app instalada avisa abajo a la izquierda cuando hay versión nueva; un clic la actualiza.",
                     "截图里的金额和人名都是示例数据。": "Los importes y nombres de las capturas son datos de ejemplo; las capturas muestran la interfaz en chino.", "夏夏账本": "Xiaxia Ledger",
                     "跳到正文": "Saltar al contenido", "菜单": "Menú", "更早的版本": "Versiones anteriores", "点开看这一版改了什么": "Ábrelo para ver qué cambió",
-                    "点图片看大图": "Pulsa una imagen para verla en grande", "回首页": "Volver al inicio", "夏夏在欢呼": "Xiaxia celebrando"}},
+                    "点图片看大图": "Pulsa una imagen para verla en grande", "回首页": "Volver al inicio", "夏夏在欢呼": "Xiaxia celebrando",
+                    "iPhone 版": "iPhone", "连上 AI": "Conecta tu IA", "夏夏": "Xiaxia"}, "more": "{n} cambios más"},
 }
 EN_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 ES_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -181,7 +183,8 @@ def figures(r, lang, up, eager):
         if im.get("style") == "art":
             out.append(f'<figure class="art"><img src="{src}" alt="{e(alt)}"{wh} loading="lazy"></figure>')
         else:
-            out.append(f'<figure><a href="{src}"><img src="{src}" alt="{e(alt)}"{wh} loading="{"eager" if eager else "lazy"}" decoding="async"></a></figure>')
+            cap = f'<figcaption>{e(alt)}</figcaption>' if im.get("alt") else ""
+            out.append(f'<figure><a href="{src}"><img src="{src}" alt="{e(alt)}"{wh} loading="{"eager" if eager else "lazy"}" decoding="async"></a>{cap}</figure>')
     if not out: return ""
     many = " many" if len(out) > 1 else ""
     return f'<div class="figs{many}">' + "".join(out) + "</div>"
@@ -199,11 +202,18 @@ def render(d, lang):
         date = c["date"](datetime.date.fromisoformat(r["date"]))
         lis = "".join(f"<li>{e(x)}</li>" for x in t["items"])
         if i == 0:
+            # 最新一版超过 5 条时只先列 4 条，其余收起来，不然一长串读不完
+            n = 4 if len(t["items"]) > 5 else 5
+            head, rest = t["items"][:n], t["items"][n:]
+            block = "<ul>" + "".join(f"<li>{e(x)}</li>" for x in head) + "</ul>"
+            if rest:
+                more = e(c["more"].format(n=len(rest)))
+                block += f'<details class="rest"><summary>{more}</summary><ul>' + "".join(f"<li>{e(x)}</li>" for x in rest) + "</ul></details>"
             parts.append(f"""<section class="latest" id="v{v}" aria-labelledby="t{v}">
   <div class="stub"><span class="new">{c["new"]}</span><a class="ver" href="#v{v}">{v}</a><time datetime="{e(r['date'])}">{date}</time></div>
   <h2 class="hand" id="t{v}">{e(t['title'])}</h2>
   <p class="sum">{e(t['summary'])}</p>
-  <ul>{lis}</ul>
+  {block}
   {figures(r, lang, up, True)}
 </section>
 <h2 class="older-h hand">更早的版本</h2>
@@ -287,9 +297,10 @@ if(l==='en'||l==='es')location.replace('/'+l+'/changelog.html'+location.hash)}ca
 }
 *{box-sizing:border-box;margin:0}
 html{-webkit-text-size-adjust:100%;scroll-padding-top:80px;-webkit-tap-highlight-color:transparent}
-body{background:var(--paper);color:var(--ink);font:17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+body{background:var(--paper);color:var(--ink);font:1.0625rem/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
   background-image:repeating-linear-gradient(180deg,transparent 0 31px,var(--rule) 31px 32px)}
 img{max-width:100%;height:auto;display:block}
+p,li,figcaption{text-wrap:pretty}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--sea);outline-offset:3px;border-radius:6px}
 .hand{font-family:var(--hand);font-weight:500;font-synthesis:none;letter-spacing:0}
@@ -299,34 +310,36 @@ a{color:inherit}
 .wrap{max-width:860px;margin:0 auto;padding:0 20px}
 /* nav */
 nav{position:sticky;top:0;z-index:20;backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);
-  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid var(--line)}
+  background:color-mix(in srgb,var(--paper) 82%,transparent);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+nav.scrolled{border-bottom-color:var(--line);box-shadow:0 6px 18px -14px rgba(31,42,90,.35)}
 nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;white-space:nowrap}
+.logo{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:700;text-decoration:none;white-space:nowrap}
 .logo img{width:30px;height:30px;border-radius:8px}
-.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:15px;color:var(--ink2)}
+.links{margin-left:auto;display:flex;gap:22px;align-items:center;font-size:0.9375rem;color:var(--ink2)}
 .links a{text-decoration:none;text-underline-offset:4px}
+.links>a:not(.btn){display:inline-flex;align-items:center;min-height:44px}
 .links a:hover,.links a[aria-current=page]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px}
-.lang{display:flex;gap:4px;font-size:14px;white-space:nowrap}
-.lang a{padding:4px 6px;border-radius:6px;text-decoration:none;color:var(--ink2)}
+.lang{display:flex;gap:4px;font-size:0.875rem;white-space:nowrap}
+.lang a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 6px;border-radius:8px;text-decoration:none;color:var(--ink2)}
 .lang a[aria-current]{color:var(--ink);font-weight:700;background:var(--coin-soft)}
-.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:8px 16px;font-weight:700;text-decoration:none;
-  background:var(--coral);color:var(--on-coral);font-size:15px;border:0;cursor:pointer;touch-action:manipulation;transition:background-color .15s,transform .15s}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;padding:0 18px;min-height:44px;font-weight:700;text-decoration:none;
+  background:var(--coral);color:var(--on-coral);font-size:0.9375rem;border:0;cursor:pointer;touch-action:manipulation;transition:background-color .15s,transform .16s ease-out}
 .btn:hover{background:var(--coral-h)}
 .menu{display:none;position:relative}
-.menu summary{white-space:nowrap;list-style:none;cursor:pointer;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:600}
+.menu summary{white-space:nowrap;list-style:none;cursor:pointer;display:flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:999px;font-size:0.875rem;font-weight:600}
 .menu summary::-webkit-details-marker{display:none}
-.menu div{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px}
-.menu div a{padding:10px 12px;border-radius:8px;text-decoration:none}
+.menu div{position:absolute;right:0;top:calc(100% + 8px);transform-origin:top right;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:grid;min-width:170px}
+.menu div a{padding:11px 12px;border-radius:8px;text-decoration:none}
 .menu div a:hover{background:var(--paper2)}
-.mlang{display:flex;gap:4px;padding:8px 6px 4px;margin-top:4px;border-top:1px dashed var(--line)}
-@media (max-width:760px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
+.mlang{display:flex;gap:4px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
+@media (max-width:880px){.links>a:not(.btn){display:none}.menu{display:block}.links{gap:10px}}
 @media (max-width:520px){.links>.lang{display:none}}
 @media (min-width:521px){.mlang{display:none}}
 .mdl{display:none}
-@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:15px}}
+@media (max-width:400px){nav .wrap{gap:8px;padding:0 14px}.links>.btn{display:none}.mdl{display:block;font-weight:700;color:var(--coral-t)}.logo{gap:8px;font-size:0.9375rem}}
 /* header */
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:56px 0 28px}
-.top h1{font-size:clamp(40px,7vw,60px);line-height:1.1;text-wrap:balance}
+.top h1{font-size:clamp(2.5rem,7vw,3.75rem);line-height:1.1;text-wrap:balance}
 .top p{color:var(--ink2);margin-top:10px;max-width:520px;text-wrap:pretty}
 .top img{width:120px;flex:none}
 /* latest: a receipt */
@@ -335,10 +348,10 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px;max-width:1120px}
   background:linear-gradient(-45deg,transparent 8px,var(--card) 0) 0 0/16px 12px repeat-x,linear-gradient(45deg,transparent 8px,var(--card) 0) 0 0/16px 12px repeat-x}
 .stub{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:18px;border-bottom:2px dashed var(--line)}
 .ver{font-family:var(--round);font-weight:800;font-variant-numeric:tabular-nums;text-decoration:none;letter-spacing:-.01em}
-.stub .ver{font-size:30px}
-.new{background:var(--coin);color:#1f2a5a;border-radius:999px;font-size:13px;font-weight:800;padding:2px 10px;align-self:center}
-time{font-size:14px;color:var(--ink3)}
-.latest h2{font-size:clamp(26px,4vw,34px);line-height:1.25;text-wrap:balance}
+.stub .ver{font-size:1.875rem}
+.new{background:var(--coin);color:#1f2a5a;border-radius:999px;font-size:0.8125rem;font-weight:800;padding:2px 10px;align-self:center}
+time{font-size:0.875rem;color:var(--ink3)}
+.latest h2{font-size:clamp(1.625rem,4vw,2.125rem);line-height:1.25;text-wrap:balance}
 .sum{color:var(--ink2);margin-top:8px;text-wrap:pretty}
 .latest ul,.body ul{margin-top:16px;padding-left:1.25em}
 li{margin:7px 0}
@@ -348,22 +361,42 @@ figure{border-radius:12px;overflow:hidden;border:1px solid var(--line);backgroun
 figure a{display:block;border-radius:inherit}
 figure a:focus-visible{outline:3px solid var(--sea);outline-offset:-5px}
 figure img{width:100%}
+figcaption{font-size:0.875rem;color:var(--ink2);padding:10px 14px;background:var(--card);border-top:1px solid var(--line)}
+.rest{margin-top:6px}
+.rest summary{cursor:pointer;display:inline-flex;align-items:center;min-height:44px;font-weight:600;color:var(--coral-t);list-style:none}
+.rest summary::-webkit-details-marker{display:none}
+.rest summary::after{content:"+";margin-left:8px;font-weight:400}
+.rest[open] summary::after{content:"–"}
+.rest ul{margin-top:4px}
 figure.art{border:0;background:none;border-radius:0}
 figure.art img{width:160px;margin:0 auto}
 /* older */
-.older-h{font-size:28px;margin-bottom:12px}
+.older-h{font-size:1.75rem;margin-bottom:12px}
 .older{list-style:none;padding:0;border-top:2px solid var(--ink);margin-bottom:56px}
 .older>li{margin:0;border-bottom:1px dashed var(--line)}
 .older summary{display:grid;grid-template-columns:76px 160px 1fr 24px;align-items:baseline;gap:12px;padding:16px 4px;cursor:pointer;list-style:none}
 .older summary::-webkit-details-marker{display:none}
-.older summary::after{content:"+";font-size:22px;line-height:1;color:var(--ink3);justify-self:end}
+.older summary::after{content:"+";font-size:1.375rem;line-height:1;color:var(--ink3);justify-self:end}
 .older details[open] summary::after{content:"–"}
 .older summary:hover .t{text-decoration:underline;text-decoration-color:var(--coin);text-decoration-thickness:3px;text-underline-offset:4px}
-.older .ver{font-size:20px}
+.older .ver{font-size:1.25rem}
 .older .t{font-weight:600;min-width:0}
 .body{padding:0 4px 24px 100px}
-footer{padding:28px 0 44px;font-size:14px;color:var(--ink3);border-top:1px solid var(--line)}
+footer{padding:28px 0 44px;font-size:0.875rem;color:var(--ink3);border-top:1px solid var(--line)}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:1120px}
+footer a{display:inline-block;padding:11px 0;margin:-11px 0}
+@media (prefers-reduced-motion:no-preference){
+  .btn:active,.menu summary:active{transform:scale(.97);transition-duration:.08s}
+  .menu[open] div{animation:menuIn .16s ease-out}
+  .older details[open] .body,.rest[open] ul{animation:reveal .22s ease-out}
+}
+@keyframes menuIn{from{opacity:0;transform:scale(.96) translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-transparency:reduce){nav{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--paper)}}
+@media (prefers-contrast:more){
+  :root{--line:rgba(31,42,90,.45);--ink2:#2b3463;--ink3:#3b4472}
+  @media (prefers-color-scheme:dark){:root{--line:rgba(255,248,238,.45);--ink2:#e6e9f5;--ink3:#cdd2e8}}
+}
 @media (max-width:760px){
   .top{padding:36px 0 20px}.top img{width:84px}
   .latest{padding:22px 18px 32px}
@@ -380,11 +413,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
   <div class="wrap">
     <a href="/" class="logo"><img src="assets/app-icon-64.png" alt="" width="30" height="30">夏夏账本</a>
     <div class="links">
+      <a href="/#iphone">iPhone 版</a>
       <a href="/#tour">看看界面</a>
+      <a href="/#ai">连上 AI</a>
+      <a href="/#cast">夏夏</a>
       <a href="/#install">怎么装</a>
       <a href="changelog.html" aria-current="page">更新日志</a>
       <span class="lang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span>
-      <details class="menu"><summary>菜单</summary><div><a href="/#tour">看看界面</a><a href="/#install">怎么装</a><a href="changelog.html" aria-current="page">更新日志</a><a class="mdl" href="/download/xiaxia-ledger.dmg">下载</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
+      <details class="menu"><summary>菜单</summary><div><a href="/#iphone">iPhone 版</a><a href="/#tour">看看界面</a><a href="/#ai">连上 AI</a><a href="/#cast">夏夏</a><a href="/#install">怎么装</a><a href="changelog.html" aria-current="page">更新日志</a><a class="mdl" href="/download/xiaxia-ledger.dmg">下载</a><span class="lang mlang" aria-label="Language"><a href="/changelog.html" hreflang="zh" lang="zh" data-lang="zh" aria-current="true">中文</a><a href="/en/changelog.html" hreflang="en" lang="en" data-lang="en">EN</a><a href="/es/changelog.html" hreflang="es" lang="es" data-lang="es">ES</a></span></div></details>
       <a class="btn" href="/download/xiaxia-ledger.dmg">下载</a>
     </div>
   </div>
@@ -410,6 +446,12 @@ document.querySelectorAll('.lang a').forEach(function(a){a.addEventListener('cli
 // 地址里带着 #v0.2.3 这种：把那一版展开
 function openHash(){var el=location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)));var d=el&&el.querySelector('details');if(d){d.open=true;el.scrollIntoView()}}
 openHash();window.addEventListener('hashchange',openHash);
+// 手机菜单：点了链接、点外面、按 Esc 都收起；顶栏往下滚了才出现分隔线
+var menu=document.querySelector('.menu');
+menu.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){menu.open=false})});
+document.addEventListener('click',function(e){if(menu.open&&!menu.contains(e.target))menu.open=false});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&menu.open){menu.open=false;menu.querySelector('summary').focus()}});
+var nav=document.querySelector('nav');function edge(){nav.classList.toggle('scrolled',scrollY>8)}edge();addEventListener('scroll',edge,{passive:true});
 </script>
 </body>
 </html>
