@@ -31,7 +31,7 @@ def localize(page, lang, table):
     page = rx.sub(lambda m: table[m.group(0)][i], page)
     page = page.replace('<html lang="zh-CN">', f'<html lang="{HTML_LANG[lang]}">')
     # 子目录里的页面，图片这些要往上找一层
-    page = re.sub(r'((?:src|srcset|href|data-img|data-girl|data-boy)=")assets/', r"\1../assets/", page)
+    page = re.sub(r'((?:src|srcset|href|data-img|data-dark|data-girl|data-boy)=")assets/', r"\1../assets/", page)
     page = page.replace("url(assets/", "url(../assets/")
     # 站内链接留在同一种语言里
     page = page.replace('href="/#', f'href="/{lang}/#').replace('class="logo" href="/"', f'class="logo" href="/{lang}/"')

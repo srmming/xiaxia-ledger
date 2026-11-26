@@ -122,7 +122,7 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
   box-shadow:0 -1px 0 var(--line),0 30px 70px -30px rgba(31,42,90,.55)}
 .shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a}
 .shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
-.shot-mac img{width:100%;aspect-ratio:16/9.4;object-fit:cover;object-position:top left;background:var(--card)}
+.shot-mac img{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--card)}
 .phone-float{position:absolute;right:max(0px,calc(50% - 560px));bottom:-1px;width:200px;border-radius:34px 34px 0 0;padding:8px 8px 0;background:#10142c;
   box-shadow:0 30px 60px -20px rgba(31,42,90,.6)}
 .phone-float img{border-radius:27px 27px 0 0;aspect-ratio:700/1100;object-fit:cover;object-position:top}
@@ -341,8 +341,7 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
   </div>
   <div class="wrap stage" aria-hidden="true">
     <div class="shot-mac">
-      <div class="bar"><i></i><i></i><i></i></div>
-      <img src="../assets/tour-overview.webp" alt="" width="1600" height="1000" fetchpriority="high">
+      <picture><source srcset="../assets/tour-overview-dark.webp" media="(prefers-color-scheme: dark)"><img src="../assets/tour-overview.webp" alt="" width="1600" height="1000" fetchpriority="high"></picture>
     </div>
     <div class="phone-float">
       <picture>
@@ -397,11 +396,11 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
     <h2>En el Mac, cada página en una pantalla, bonita en claro y en oscuro.</h2>
     <p class="sub">La app de Mac está hecha con componentes nativos de Apple; cambia el tamaño de la ventana y cada página sigue cabiendo en una pantalla. Las cifras son datos de ejemplo y las capturas muestran la interfaz en chino.</p>
     <div class="tabs" role="tablist" aria-label="Elige una página">
-      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
-      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
-      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-trends.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
-      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-wealth.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
-      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-debts.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
+      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="../assets/tour-overview.webp" data-dark="../assets/tour-overview-dark.webp" data-cap="Resumen: cuánto queda este mes, si gastas más rápido o más lento que el mes pasado, y los comentarios de Xiaxia para deslizar.">Resumen</button>
+      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-spending.webp" data-dark="../assets/tour-spending-dark.webp" data-cap="Gastos: este mes junto al anterior, en tarta o en barras; Xiaxia te dice qué categoría ha subido, en qué se fue más y cómo ahorrar.">Gastos</button>
+      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-trends.webp" data-dark="../assets/tour-trends-dark.webp" data-cap="Tendencias: cuánto ahorraste cada mes, para ver si vas a mejor o a peor; los gastos que suben poco a poco salen a la luz.">Tendencias</button>
+      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-wealth.webp" data-dark="../assets/tour-wealth-dark.webp" data-cap="Patrimonio: cuánto es realmente tuyo y dónde está: disponible, ahorrado, en la tienda o debido.">Patrimonio</button>
+      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="../assets/tour-debts.webp" data-dark="../assets/tour-debts-dark.webp" data-cap="Deudas y plazos: a quién debes, quién te debe, cuántos plazos quedan; Xiaxia te organiza los pagos y da un toque a quien te debe.">Deudas y plazos</button>
     </div>
     <div id="tourPanel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
       <div class="frame"><img id="tourImg" src="../assets/tour-overview.webp" alt="Captura de la página Resumen de Xiaxia Ledger (datos de ejemplo)" width="1600" height="1000" loading="lazy"></div>
@@ -517,6 +516,11 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
 document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
 // tour tabs: click or arrow keys
 const tabs=[...document.querySelectorAll('#tour [role=tab]')];
+// dark screenshots in dark mode
+const darkQ=matchMedia('(prefers-color-scheme: dark)');
+const shot=b=>darkQ.matches&&b.dataset.dark?b.dataset.dark:b.dataset.img;
+const sync=()=>{const b=tabs.find(x=>x.getAttribute('aria-selected')==='true');if(b)document.getElementById('tourImg').src=shot(b)};
+sync();darkQ.addEventListener&&darkQ.addEventListener('change',sync);
 function pick(b,focus){
   tabs.forEach(x=>{const on=x===b;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1});
   document.getElementById('tourPanel').setAttribute('aria-labelledby',b.id);
@@ -528,7 +532,7 @@ function pick(b,focus){
   n.onload=()=>requestAnimationFrame(()=>{n.classList.add('on');
     const done=()=>{if(!n.isConnected)return;old.src=n.src;old.alt=n.alt;n.remove()};
     if(matchMedia('(prefers-reduced-motion:reduce)').matches)done();else n.addEventListener('transitionend',done,{once:true})});
-  n.src=b.dataset.img;frame.appendChild(n);
+  n.src=shot(b);frame.appendChild(n);
   document.getElementById('tourCap').textContent=b.dataset.cap;
   b.scrollIntoView({block:'nearest',inline:'nearest'});
   if(focus)b.focus();
