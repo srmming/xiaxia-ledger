@@ -129,7 +129,7 @@ nav .wrap{display:flex;align-items:center;gap:14px;height:60px}
   box-shadow:0 -1px 0 var(--line),0 30px 70px -30px rgba(31,42,90,.55)}
 .shot-mac .bar{height:30px;display:flex;align-items:center;gap:7px;padding:0 12px;background:#26262a}
 .shot-mac .bar i{width:11px;height:11px;border-radius:50%;background:#ff5f57}.shot-mac .bar i:nth-child(2){background:#febc2e}.shot-mac .bar i:nth-child(3){background:#28c840}
-.shot-mac img{width:100%;aspect-ratio:16/9.4;object-fit:cover;object-position:top left;background:var(--card)}
+.shot-mac img{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;background:var(--card)}
 .phone-float{position:absolute;right:max(0px,calc(50% - 560px));bottom:-1px;width:200px;border-radius:34px 34px 0 0;padding:8px 8px 0;background:#10142c;
   box-shadow:0 30px 60px -20px rgba(31,42,90,.6)}
 .phone-float img{border-radius:27px 27px 0 0;aspect-ratio:700/1100;object-fit:cover;object-position:top}
@@ -348,8 +348,7 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
   </div>
   <div class="wrap stage" aria-hidden="true">
     <div class="shot-mac">
-      <div class="bar"><i></i><i></i><i></i></div>
-      <img src="assets/tour-overview.webp" alt="" width="1600" height="1000" fetchpriority="high">
+      <picture><source srcset="assets/tour-overview-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/tour-overview.webp" alt="" width="1600" height="1000" fetchpriority="high"></picture>
     </div>
     <div class="phone-float">
       <picture>
@@ -404,11 +403,11 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
     <h2>Mac 上一屏看完，深浅色都好看。</h2>
     <p class="sub">Mac 版用苹果原生组件做的，窗口拉大拉小都是一屏看完。下面的数字全是示例数据。</p>
     <div class="tabs" role="tablist" aria-label="选择页面">
-      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="assets/tour-overview.webp" data-cap="总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。">总览</button>
-      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-spending.webp" data-cap="花销：这个月和上个月并排对比，圆饼、柱状随你切；夏夏告诉你哪类花多了、主要花在哪、怎么省。">花销</button>
-      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-trends.webp" data-cap="趋势：每个月存下多少，一眼看出是越过越好还是越差；连着几个月悄悄变多的开销会被揪出来。">趋势</button>
-      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-wealth.webp" data-cap="家底：真正属于你的有多少，钱分别在哪：能随时用的、存着的、店里的、欠着的。">家底</button>
-      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-debts.webp" data-cap="欠款与分期：我欠谁、谁欠我、分期还剩几期，夏夏帮你排还钱计划，也会俏皮地帮你催款。">欠款与分期</button>
+      <button role="tab" id="tab-overview" aria-controls="tourPanel" aria-selected="true" tabindex="0" data-img="assets/tour-overview.webp" data-dark="assets/tour-overview-dark.webp" data-cap="总览：这个月还剩多少、花钱速度和上个月比快还是慢，夏夏的点评可以左右滑着看。">总览</button>
+      <button role="tab" id="tab-spending" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-spending.webp" data-dark="assets/tour-spending-dark.webp" data-cap="花销：这个月和上个月并排对比，圆饼、柱状随你切；夏夏告诉你哪类花多了、主要花在哪、怎么省。">花销</button>
+      <button role="tab" id="tab-trends" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-trends.webp" data-dark="assets/tour-trends-dark.webp" data-cap="趋势：每个月存下多少，一眼看出是越过越好还是越差；连着几个月悄悄变多的开销会被揪出来。">趋势</button>
+      <button role="tab" id="tab-wealth" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-wealth.webp" data-dark="assets/tour-wealth-dark.webp" data-cap="家底：真正属于你的有多少，钱分别在哪：能随时用的、存着的、店里的、欠着的。">家底</button>
+      <button role="tab" id="tab-debts" aria-controls="tourPanel" aria-selected="false" tabindex="-1" data-img="assets/tour-debts.webp" data-dark="assets/tour-debts-dark.webp" data-cap="欠款与分期：我欠谁、谁欠我、分期还剩几期，夏夏帮你排还钱计划，也会俏皮地帮你催款。">欠款与分期</button>
     </div>
     <div id="tourPanel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
       <div class="frame"><img id="tourImg" src="assets/tour-overview.webp" alt="夏夏账本「总览」页截图（示例数据）" width="1600" height="1000" loading="lazy"></div>
@@ -524,6 +523,11 @@ footer a{display:inline-block;padding:11px 0;margin:-11px 0}
 document.querySelectorAll('.lang a').forEach(a=>a.addEventListener('click',()=>{try{localStorage.setItem('xiaxia.lang',a.dataset.lang)}catch(e){}}));
 // 截图切换：点一下或用左右方向键
 const tabs=[...document.querySelectorAll('#tour [role=tab]')];
+// 深色模式看深色截图
+const darkQ=matchMedia('(prefers-color-scheme: dark)');
+const shot=b=>darkQ.matches&&b.dataset.dark?b.dataset.dark:b.dataset.img;
+const sync=()=>{const b=tabs.find(x=>x.getAttribute('aria-selected')==='true');if(b)document.getElementById('tourImg').src=shot(b)};
+sync();darkQ.addEventListener&&darkQ.addEventListener('change',sync);
 function pick(b,focus){
   tabs.forEach(x=>{const on=x===b;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1});
   document.getElementById('tourPanel').setAttribute('aria-labelledby',b.id);
@@ -535,7 +539,7 @@ function pick(b,focus){
   n.onload=()=>requestAnimationFrame(()=>{n.classList.add('on');
     const done=()=>{if(!n.isConnected)return;old.src=n.src;old.alt=n.alt;n.remove()};
     if(matchMedia('(prefers-reduced-motion:reduce)').matches)done();else n.addEventListener('transitionend',done,{once:true})});
-  n.src=b.dataset.img;frame.appendChild(n);
+  n.src=shot(b);frame.appendChild(n);
   document.getElementById('tourCap').textContent=b.dataset.cap;
   b.scrollIntoView({block:'nearest',inline:'nearest'});
   if(focus)b.focus();

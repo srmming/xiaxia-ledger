@@ -246,4 +246,5 @@ T = {
     "// 手机菜单：点了链接、点菜单外面、按 Esc 都收起": ("// phone menu: close on link, outside tap or Esc",)*2,
     "// 顶栏：往下滚了才出现分隔线": ("// nav: show the divider only after scrolling",)*2,
     "// 对话：滚到这里时一条条冒出来（减少动态效果时直接全显示）": ("// chat: reveal messages one by one (all at once with Reduce Motion)",)*2,
+    "// 深色模式看深色截图": ("// dark screenshots in dark mode",)*2,
 }
