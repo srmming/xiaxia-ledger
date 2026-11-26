@@ -10,6 +10,8 @@ struct WealthPage: View {
     @State private var heroWidth: CGFloat = 560
     /// 打开页面时那根条长出来、小卡一张张出现。
     @State private var shown = false
+    /// 鼠标停在总存款粗条的哪一段（显示在粗条上面那行右边）。
+    @State private var hoveredPart: String?
 
     var body: some View {
         Group {
@@ -126,7 +128,11 @@ struct WealthPage: View {
                         Text(tr("总存款")).font(.callout.weight(.semibold))
                         Text(w.total.ui).font(.kitAmount)
                         Spacer(minLength: 8)
-                        if model.businessOn {
+                        if let hp = hoveredPart {
+                            // 鼠标停在粗条某一段：这里直接写那一段叫什么、多少钱（审查第二轮：悬停只变色、没有字）。
+                            Text(hp).font(.caption.weight(.semibold)).foregroundStyle(Color.primary).lineLimit(1)
+                                .transition(.opacity)
+                        } else if model.businessOn {
                             // 两边加起来的真家底，生意那边家底页写的是同一个数；放在总存款右边一行小字。
                             (Text(tr("两边真家底 ")) + Text(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded).fontWeight(.semibold))
                                 .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
@@ -170,7 +176,7 @@ struct WealthPage: View {
             let usable = max(0, g.size.width - gap * CGFloat(max(0, segs.count - 1)))
             HStack(spacing: gap) {
                 ForEach(segs) { p in
-                    BarSegment(color: p.color, label: "\(p.label) \(p.amount.balance)")
+                    BarSegment(color: p.color, label: "\(p.label) \(p.amount.balance)", hovered: $hoveredPart)
                         .frame(width: max(4, usable * CGFloat(p.bar) / sum))
                 }
             }
@@ -439,11 +445,13 @@ struct DebtRow: View {
 private struct BarSegment: View {
     var color: Color
     var label: String
-    @State private var hover = false
+    @Binding var hovered: String?
     var body: some View {
         RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color)
-            .brightness(hover ? 0.08 : 0)
-            .onHover { hover = $0 }
+            .brightness(hovered == label ? 0.08 : 0)
+            .onHover { inside in
+                if inside { hovered = label } else if hovered == label { hovered = nil }
+            }
             .help(label)
     }
 }

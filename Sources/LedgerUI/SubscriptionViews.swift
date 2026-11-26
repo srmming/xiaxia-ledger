@@ -288,6 +288,9 @@ struct SubscriptionsCard: View {
     private func row(_ s: SubscriptionStatus) -> some View {
         let stopped = s.cancelledOn != nil
         return HStack(spacing: 10) {
+          // 整行（除了 ⋯）是一个按钮：鼠标点、Tab 走到按空格都能打开「改订阅」（审查第三小轮：行本身 Tab 走不到）。
+          Button { open(s) } label: {
+           HStack(spacing: 10) {
             CategoryIcon(category: subscriptionIcon(s.name, category: s.category), size: 24)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
@@ -318,16 +321,16 @@ struct SubscriptionsCard: View {
             Text(s.amount.ui(in: s.currency)).font(.kitAmount).lineLimit(1)
                 .foregroundStyle(stopped ? Color.fg3 : Color.primary)
                 .frame(minWidth: 64, alignment: .trailing)
+           }
+           .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .help(tr("点一下改这个订阅"))
+          .accessibilityHint(tr("点一下改这个订阅"))
             menu(s)
         }
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        // 点一行打开「改订阅」（审查 2026-11-26：原来点了没反应，只有 ⋯ 有菜单）。
-        .onTapGesture { open(s) }
         .hoverHighlight()
-        .help(tr("点一下改这个订阅"))
-        .accessibilityElement(children: .contain)
-        .accessibilityAction(named: tr("改")) { open(s) }
     }
 
     private func open(_ s: SubscriptionStatus) {

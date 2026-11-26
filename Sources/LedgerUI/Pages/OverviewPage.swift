@@ -178,7 +178,7 @@ struct OverviewPage: View {
                     .padding(.vertical, 5)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).hoverHighlight()
                 .accessibilityLabel(tr("\(book.name)：本月\(now.net.isExpense ? tr("超支") : tr("剩下")) \(now.net.magnitude.spoken)"))
                 .accessibilityHint(tr("只看这个账本"))
                 if book.id != model.ledger.books.last?.id { Divider().padding(.leading, 34) }

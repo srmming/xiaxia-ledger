@@ -56,6 +56,7 @@ struct SettingsPage: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .hoverHighlight()
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
             .accessibilityIdentifier("settings.feedback")
@@ -108,7 +109,7 @@ struct SettingsPage: View {
             #if os(macOS)
             VStack(spacing: 0) {
                 Button { pane = .ai } label: { ConnectedAISummary() }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).hoverHighlight()
                     .accessibilityIdentifier("settings.manageAI")
                 Divider()
                 Button {
@@ -125,7 +126,7 @@ struct SettingsPage: View {
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plain).hoverHighlight()
                 .help(tr("复制一段话，粘给任何 AI，它会自己把夏夏账本配好"))
                 .accessibilityIdentifier("settings.copySetup")
             }
@@ -165,6 +166,7 @@ struct SettingsPage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverHighlight()
         .accessibilityIdentifier("settings.\(p.rawValue)")
     }
 
@@ -283,7 +285,7 @@ struct SettingsPaneView: View {
                     Button { model.sheet = .connectAI } label: {
                         item(symbol: "link", color: .ai, title: tr("连接你的 AI（Claude、Codex、Hermes…）")) { chevron }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).hoverHighlight()
                 }
                 #else
                 ConnectAIPhoneNote()
@@ -438,7 +440,7 @@ struct SettingsPaneView: View {
 
     private func manageRow(_ symbol: String, _ title: String, _ sheet: AppSheet) -> some View {
         Button { manage = sheet } label: { item(symbol: symbol, color: .brand, title: title) { chevron } }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).hoverHighlight()
     }
 
     private func group<Content: View>(_ title: String, note: String? = nil, @ViewBuilder content: () -> Content) -> some View {

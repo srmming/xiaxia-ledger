@@ -268,7 +268,7 @@ struct TransactionsPage: View {
 
     private func chip(_ title: String, symbol: String? = nil, on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) { chipLabel(title, symbol: symbol, on: on) }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).hoverHighlight()
             .accessibilityAddTraits(on ? .isSelected : [])
     }
 
@@ -359,7 +359,7 @@ struct SectionLink<L: View>: View {
         Button {
             if let filter { model.showTransactions(filter) } else { model.section = section }
         } label: { label() }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).hoverHighlight()
         #else
         NavigationLink {
             Group {
