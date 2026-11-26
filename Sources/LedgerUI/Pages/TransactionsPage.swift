@@ -196,7 +196,8 @@ struct TransactionsPage: View {
         HStack {
             Text(g.date == .today ? tr("今天 · \(g.date.short)") : g.date.friendly)
             Spacer()
-            Text(g.total.display).monospacedDigit()
+            // 当天进出正好相抵（0,00 €）就不写数，免得看着像没记账（审查 2026-11-26）。
+            if g.total.cents != 0 { Text(g.total.display).monospacedDigit() }
         }
         .font(.caption).foregroundStyle(Color.fg2)
     }
@@ -217,9 +218,18 @@ struct TransactionsPage: View {
 
     // MARK: 筛选
 
-    private var filters: some View {
+    /// Mac：一行放不下就换行（审查 2026-11-26：窄窗口下「只看 AI 记的」被切掉一半）；iPhone 左右滑。
+    @ViewBuilder private var filters: some View {
+        #if os(macOS)
+        FlowLayout(spacing: 6) { filterChips }
+        #else
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: 6) { filterChips }
+        }
+        #endif
+    }
+
+    @ViewBuilder private var filterChips: some View {
                 if let ids = filter.ids {
                     chip(tr("刚改的 \(ids.count) 笔  ✕"), symbol: "sparkles", on: true) { filter.ids = nil; model.highlighted = [] }
                         .accessibilityLabel(tr("只看刚改的 \(ids.count) 笔，点一下看全部"))
@@ -254,8 +264,6 @@ struct TransactionsPage: View {
                 }
                 chip(tr("只看 AI 记的"), symbol: "sparkles", on: filter.onlyAI) { filter.onlyAI.toggle() }
                 chip(model.ledger.recurring.isEmpty ? tr("重复记账") : tr("重复记账 \(model.ledger.recurring.count)"), symbol: "repeat", on: false) { showRecurring = true }
-            }
-        }
     }
 
     private func chip(_ title: String, symbol: String? = nil, on: Bool, action: @escaping () -> Void) -> some View {
@@ -428,6 +436,14 @@ struct TransactionDetail: View {
                 }
                 Divider()
                 row(tr("账户")) { Text(model.accountName(tx.accountID)) }
+                Divider()
+                row(tr("日期")) { Text(tx.date.year == LocalDate.today.year ? tx.date.short : tr("\(tx.date.year) 年 \(tx.date.short)")) }
+                if let change {
+                    Divider()
+                    row(tr("谁记的")) {
+                        Text("\(model.isMe(change.author) ? tr("你") : change.author) · \(change.createdAt.friendly)").lineLimit(1)
+                    }
+                }
                 if let o = tx.original {
                     Divider()
                     row(tr("原价")) { Text(o.amount.ui(in: o.currency)).monospacedDigit() }
@@ -449,7 +465,7 @@ struct TransactionDetail: View {
                             ForEach(tx.tagList, id: \.self) { t in
                                 Button { model.showTransactions(TransactionFilter(tag: t)) } label: {
                                     Text("#\(t)").font(.caption).padding(.horizontal, 7).padding(.vertical, 3)
-                                        .background(Color.brandSoft, in: Capsule())
+                                        .background(model.accentSoft, in: Capsule())
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -502,7 +518,11 @@ struct TransactionDetail: View {
                 }
                 .padding(.top, 8)
             } label: {
+                // 整行都能点（审查实测原来只有 56×14）。
                 Text(tr("更多")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation(.snappy) { showMore.toggle() } }
             }
             .accessibilityIdentifier("tx-detail-more")
         }
