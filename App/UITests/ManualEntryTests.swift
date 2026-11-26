@@ -109,7 +109,8 @@ final class ManualEntryTests: XCTestCase {
             row.tap()
             for _ in 0..<4 where edit.exists && !edit.isHittable { app.swipeUp() }
             if edit.waitForExistence(timeout: 2) { found = true; break }
-            app.navigationBars.buttons.element(boundBy: 0).tap()
+            // 点到的是日期标题（不跳转）就还在流水页，别按返回退回总览；进了详情才返回。
+            if !app.navigationBars["流水"].exists { app.navigationBars.buttons.element(boundBy: 0).tap() }
         }
         XCTAssertTrue(found, "iPhone 详情里没有「改」")
         edit.tap()
