@@ -346,14 +346,14 @@ struct WelcomeView: View {
                 let done = step.rawValue > number
                 let current = step.rawValue == number
                 if i > 0 {
-                    Capsule().fill(step.rawValue >= number ? Color.ai.opacity(0.45) : Color.fg3.opacity(0.22))
+                    Capsule().fill(step.rawValue >= number ? Color.brand.opacity(0.45) : Color.fg3.opacity(0.22))
                         .frame(height: 2).frame(minWidth: 16, maxWidth: .infinity)
                 }
                 HStack(spacing: 7) {
                     ZStack {
-                        Circle().fill(current ? Color.aiSolid : done ? Color.ai.opacity(0.18) : Color.fg3.opacity(0.15))
+                        Circle().fill(current ? Color.brandSolid : done ? Color.brand.opacity(0.18) : Color.fg3.opacity(0.15))
                         if done {
-                            Image(systemName: "checkmark").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(Color.ai)
+                            Image(systemName: "checkmark").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(Color.brand)
                         } else {
                             Text("\(number)").font((big ? Font.subheadline : .caption).weight(.bold)).foregroundStyle(current ? Color.white : Color.fg2)
                         }
@@ -361,7 +361,7 @@ struct WelcomeView: View {
                     .frame(width: dot, height: dot)
                     if allLabels || current {
                         Text(name).font((big ? Font.title3 : .subheadline).weight(current ? .semibold : .regular))
-                            .foregroundStyle(current ? Color.ai : Color.fg2)
+                            .foregroundStyle(current ? Color.brand : Color.fg2)
                             .lineLimit(1).fixedSize()
                     }
                 }
@@ -504,6 +504,19 @@ struct WelcomeView: View {
                         }
                     }
                     .allowsHitTesting(checking == nil)
+                    if checking == nil {
+                        // 连上以后能说什么：三句例子，让人知道连 AI 是干嘛的（审查 2026-11-26：这一页以前右边大半空着）。
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(tr("连上以后，在 AI 里这样说就行：")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.fg2)
+                            exampleLine("square.and.pencil", tr("「午饭 12 欧，刷卡」"), tr("记一笔"))
+                            exampleLine("magnifyingglass", tr("「这个月吃饭花了多少？」"), tr("查账"))
+                            exampleLine("doc.text.viewfinder", tr("「帮我把这张小票记上」"), tr("拍小票导入"))
+                        }
+                        .padding(16)
+                        .frame(maxWidth: 520, alignment: .leading)
+                        .background(Color.cardBackground.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .padding(.top, 6)
+                    }
                     if let checking {
                         // 点下去马上有回应：选中的那个变色，下面转圈说在干什么。
                         HStack(spacing: 8) {
@@ -880,7 +893,7 @@ struct WelcomeView: View {
             }
             .foregroundStyle(on ? Color.white : Color.primary)
             .padding(.horizontal, tight ? 14 : 18).padding(.vertical, tight ? 8 : 11)
-            .background(on ? Color.aiSolid : Color.pageBackground, in: Capsule())
+            .background(on ? Color.brandSolid : Color.pageBackground, in: Capsule())
             .overlay(Capsule().strokeBorder(on ? Color.clear : Color.fg3.opacity(0.22), lineWidth: 1))
             .scaleEffect(on ? 1.03 : 1)
             .contentShape(Capsule())
@@ -910,7 +923,7 @@ struct WelcomeView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.fg3.opacity(0.22), lineWidth: 1))
                 .accessibilityIdentifier("welcome.custom")
             Button(action: submit) { Label(tr("加上"), systemImage: "plus") }
-                .buttonStyle(.softAI)
+                .buttonStyle(.soft)
                 .disabled(custom.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .frame(maxWidth: 480)
@@ -925,12 +938,23 @@ struct WelcomeView: View {
             .font(.title3.weight(.semibold)).foregroundStyle(.white)
             .padding(.horizontal, 30).padding(.vertical, 15)
             .frame(minWidth: 170)
-            .background(Color.aiSolid, in: Capsule())
+            // 引导里的按钮用 app 的主色橙（审查 2026-11-26：以前靛蓝，进了 app 变橙，像两个 app）。靛蓝只留给夏夏的背景。
+            .background(Color.brandSolid, in: Capsule())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
         .accessibilityIdentifier(id)
+    }
+
+    private func exampleLine(_ symbol: String, _ sentence: String, _ what: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).font(.subheadline).foregroundStyle(Color.brand).frame(width: 22)
+            Text(sentence).font(.body)
+            Spacer(minLength: 8)
+            Text(what).font(.caption).foregroundStyle(Color.fg2)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
@@ -946,7 +970,7 @@ struct WelcomeView: View {
 
     private func link(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol).font(.subheadline.weight(.medium)).foregroundStyle(Color.ai)
+            Label(title, systemImage: symbol).font(.subheadline.weight(.medium)).foregroundStyle(Color.brand)
         }
         .buttonStyle(.plain)
     }
@@ -955,10 +979,10 @@ struct WelcomeView: View {
 
     /// 夏夏说一句：先冒三个点，再出字。
     private func say(_ text: String, pose newPose: MascotPose? = nil) async {
-        if let newPose { withAnimation(.bouncy) { pose = newPose } }
+        if let newPose { withAnimation(.snappy) { pose = newPose } }
         withAnimation(.snappy) { thinking = true }
         try? await Task.sleep(for: .seconds(reduceMotion ? 0.1 : 0.55))
-        withAnimation(.bouncy(duration: 0.4)) {
+        withAnimation(.snappy(duration: 0.4)) {
             speech = text
             thinking = false
         }
@@ -1012,7 +1036,6 @@ struct WelcomeView: View {
         if let name = UserDefaults.standard.string(forKey: "XiaxiaWelcomeStep"), let target = jump[name] {
             if target == .aim { pickedAim = "save" }
             step = target
-            await say(tr("（检查用：直接到这一页）"), pose: .idle)
             return
         }
         await say(tr("嗨，我是\(model.xiaName)！"), pose: .hello)
@@ -1235,7 +1258,7 @@ struct WelcomeView: View {
             if linked.isEmpty, toConnect.isEmpty {
                 let found = f.apps.filter { c.isInstalled($0) && !c.isConnected($0) }
                 if !found.isEmpty {
-                    withAnimation(.bouncy) { toConnect = found }
+                    withAnimation(.snappy) { toConnect = found }
                     await say(tr("认出来了！你装好了 \(found[0].name)，点一下我帮你连上。"), pose: .cheer)
                     continue
                 }
@@ -1243,7 +1266,7 @@ struct WelcomeView: View {
             let nowLinked = f.apps.filter { c.isConnected($0) }
             if nowLinked.count > linked.count {
                 // AI 照着指令自己连好了。
-                withAnimation(.bouncy) {
+                withAnimation(.snappy) {
                     linked = nowLinked
                     toConnect.removeAll { nowLinked.contains($0) }
                 }
@@ -1510,7 +1533,7 @@ struct ChatDemo: View {
                     withAnimation(.smooth) { typing = false }
                 }
                 guard !Task.isCancelled else { return }
-                withAnimation(.bouncy(duration: 0.45)) { shown = i + 1 }
+                withAnimation(.snappy(duration: 0.45)) { shown = i + 1 }
                 try? await Task.sleep(for: .seconds(line.mine ? 0.9 : 1.6))
             }
             try? await Task.sleep(for: .seconds(3))

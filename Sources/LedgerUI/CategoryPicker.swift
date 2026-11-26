@@ -138,6 +138,9 @@ struct CategoryCreator: View {
                 Section(tr("图标")) {
                     ScrollView { CategoryIconGrid(selection: $icon, suggestion: guess, incomeFirst: isIncome).padding(.vertical, 4) }
                         .frame(height: 240)
+                        // 底部渐隐：最后一行不像被切了一刀，看得出还能往下滚（审查 2026-11-26）。
+                        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.86),
+                                                     .init(color: .black.opacity(0.12), location: 1)], startPoint: .top, endPoint: .bottom))
                 }
             }
             .formStyle(.grouped)
@@ -146,7 +149,7 @@ struct CategoryCreator: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("建好了")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
+                    .sheetPrimary()
                     .keyboardShortcut(.defaultAction)
                     .disabled(trimmed.isEmpty)
             }
@@ -208,7 +211,7 @@ struct CategoryCreator: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("建好了"), action: save).disabled(trimmed.isEmpty)
+                Button(tr("建好了"), action: save).disabled(trimmed.isEmpty).sheetPrimary()
             }
         }
         .errorAlert($error)
@@ -278,7 +281,7 @@ struct CategoryIconEditor: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("换好了")) { set(icon?.rawValue) }.disabled(icon == nil)
+                Button(tr("换好了")) { set(icon?.rawValue) }.disabled(icon == nil).sheetPrimary()
             }
         }
         .errorAlert($error)

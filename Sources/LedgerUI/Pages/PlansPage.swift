@@ -459,7 +459,7 @@ struct PiggyMainCard: View {
     private var depositButton: some View {
         Button { onMoney(.deposit) } label: { Label(tr("存一笔"), systemImage: "plus.circle.fill") }
             .buttonStyle(.borderedProminent).solidTint()
-            .tint(Color.kit(0xD9557A, 0xE86A8E))
+            .tint(Color.kit(0xC23E66, 0xC4436A))
             .accessibilityIdentifier("goals.deposit")
     }
 
@@ -760,7 +760,7 @@ struct PiggyBubble: View {
                 .font(.caption.weight(.bold)).monospacedDigit()
                 .foregroundStyle(.white)
                 .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(Color.kit(0xD9557A, 0xE86A8E), in: Capsule())
+                .background(Color.kit(0xC23E66, 0xC4436A), in: Capsule())
                 .transition(.scale(scale: 0.4, anchor: .bottom).combined(with: .opacity))
                 .offset(y: -6)
         }

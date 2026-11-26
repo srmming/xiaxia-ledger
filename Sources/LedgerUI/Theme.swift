@@ -291,4 +291,31 @@ struct SolidTint: ViewModifier {
 
 extension View {
     func solidTint() -> some View { modifier(SolidTint()) }
+    /// 弹窗底部的主按钮（记下、加上、建好了、保存……）：这一边的实心色；按不了时 40% 淡色，看得到在哪（审查 2026-11-26）。
+    func sheetPrimary() -> some View { modifier(SheetPrimary()) }
+}
+
+struct SheetPrimary: ViewModifier {
+    @Environment(LedgerModel.self) private var model: LedgerModel?
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.buttonStyle(SolidButtonStyle(color: model?.accentSolid ?? .brandSolid, large: true))
+        #else
+        content
+        #endif
+    }
+}
+
+/// 开了「减少动态效果」：这一层以下所有动画都换成 0.15 秒的淡入淡出，不弹、不循环。
+private struct CalmWhenReduceMotion: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func body(content: Content) -> some View {
+        content.transaction { t in
+            if reduceMotion, t.animation != nil { t.animation = .easeInOut(duration: 0.15) }
+        }
+    }
+}
+
+extension View {
+    func calmWhenReduceMotion() -> some View { modifier(CalmWhenReduceMotion()) }
 }

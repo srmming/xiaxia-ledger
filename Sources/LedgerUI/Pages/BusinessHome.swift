@@ -54,7 +54,7 @@ struct BusinessHome: View {
                 Text(tr("这个月还没有店里的账。每天关店后点「记今天的账」，这里就会画出这个月赚钱的线。"))
                     .font(.callout).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
             } else {
-                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: short ? 90 : 240)
+                ProfitPaceChart(points: line, lastMonth: last, days: month.dayCount, current: current, height: short ? 130 : 330)
             }
         }
         .kitCard(padding: short ? 14 : 20)
@@ -134,7 +134,7 @@ struct BusinessHome: View {
                     Text(tr("还差 ")) + Text(p.remaining.rounded).fontWeight(.semibold)
                     Text(estimate(p)).font(.caption).foregroundStyle(Color.fg2).fixedSize(horizontal: false, vertical: true)
                     #if os(macOS)
-                    Button(tr("改本钱")) { editingCapital = true }.buttonStyle(.link).font(.caption).padding(.top, 2)
+                    Button(tr("改本钱")) { editingCapital = true }.buttonStyle(.bordered).controlSize(.small).padding(.top, 4)
                     #endif
                 }
                 Spacer(minLength: 0)
@@ -333,7 +333,7 @@ struct DailyTakingsSheet: View {
                 Button(action: save) {
                     Text(tr("记下")).font(.headline).padding(.vertical, 6).frame(minWidth: 100)
                 }
-                .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
+                .sheetPrimary()
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
                 .accessibilityIdentifier("daily.save")
@@ -382,11 +382,12 @@ struct DailyTakingsSheet: View {
                 // 还没填收入时不下「亏了」的结论，免得一打开就吓人。
                 let undecided = received == .zero && already.total == .zero
                 HStack {
-                    Text(undecided ? tr("填了收入就算赚没赚") : earned.isExpense ? tr("这天亏了") : tr("这天赚了")).font(.headline)
-                        .foregroundStyle(undecided ? Color.fg2 : Color.primary)
+                    Text(undecided ? tr("这天赚了") : earned.isExpense ? tr("这天亏了") : tr("这天赚了")).font(.headline)
                     Spacer()
-                    Text(undecided ? "—" : earned.magnitude.rounded).font(.system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
-                        .foregroundStyle(undecided ? Color.fg3 : earned.isExpense ? Color.alert : Color.income)
+                    // 还没填收入：右边写「等你填收入」，不放一个孤零零的横线（审查 2026-11-26）。
+                    Text(undecided ? tr("等你填收入") : earned.magnitude.rounded)
+                        .font(undecided ? .callout : .system(.title2, design: .rounded).weight(.bold)).monospacedDigit()
+                        .foregroundStyle(undecided ? Color.fg2 : earned.isExpense ? Color.alert : Color.income)
                         .contentTransition(.numericText(value: Double(earned.cents)))
                         .animation(.snappy, value: earned)
                 }

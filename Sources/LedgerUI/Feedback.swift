@@ -64,12 +64,14 @@ struct FeedbackSheet: View {
         #if os(macOS)
         .safeAreaInset(edge: .bottom) {
             HStack {
-                Button(copied ? tr("复制好了") : tr("复制")) { copy() }.disabled(trimmed.isEmpty)
+                // 和别的弹窗一样：取消在左，主按钮在右（审查 2026-11-26）。⌘↩ 直接发送。
+                Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
-                Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(copied ? tr("复制好了") : tr("复制")) { copy() }.disabled(trimmed.isEmpty).controlSize(.large)
                 Button(tr("用邮件发送")) { send() }
                     .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent).solidTint()
+                    .sheetPrimary()
+                    .help(tr("⌘↩ 发送"))
                     .disabled(trimmed.isEmpty)
                     .accessibilityIdentifier("feedback.send")
             }
@@ -79,7 +81,7 @@ struct FeedbackSheet: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("发送")) { send() }.disabled(trimmed.isEmpty).accessibilityIdentifier("feedback.send")
+                Button(tr("发送")) { send() }.disabled(trimmed.isEmpty).keyboardShortcut(.return, modifiers: .command).accessibilityIdentifier("feedback.send")
             }
             ToolbarItem(placement: .bottomBar) {
                 Button(copied ? tr("复制好了") : tr("复制下来")) { copy() }.disabled(trimmed.isEmpty)

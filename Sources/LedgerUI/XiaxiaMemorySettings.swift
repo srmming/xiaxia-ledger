@@ -475,6 +475,7 @@ struct MemoryEditor: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(editingNote == nil ? tr("记下") : tr("保存")) { save(allowNew: false) }
                     .disabled(!canSave)
+                    .sheetPrimary()
                     .accessibilityIdentifier("memory-save")
             }
         }

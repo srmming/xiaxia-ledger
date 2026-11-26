@@ -17,11 +17,17 @@ struct FixedCostsPage: View {
         let monthly = active.reduce(Money.zero) { $0 + $1.template.amount.magnitude }
         let thisMonth = active.filter { $0.nextDate.yearMonth == today.yearMonth && $0.nextDate > today }
         let left = thisMonth.reduce(Money.zero) { $0 + $1.template.amount.magnitude }
+        // 和预测页、家底页「下个月店里要付 · 固定的」同一个数：自动记的 + 订阅、分期、欠款计划、认出来的（审查 2026-11-26）。
+        let due = model.shopOutlook()?.next
+        let others = (due?.fixed ?? []).filter { $0.kind != .recurring }
+        let othersTotal = others.reduce(Money.zero) { $0 + $1.amount }
         Columns(sideWidth: 340) {
             VStack(alignment: .leading, spacing: 16) {
-                KeyFigure(label: tr("每个月固定要付"), money: monthly,
-                          sentence: Text(rules.isEmpty ? tr("房租、工资这些每个月都要付的，加一次就行，到日子自动记上。")
-                                         : tr("到日子自动记上，不用手记。首页「真正赚了」已经扣掉了。")))
+                KeyFigure(label: others.isEmpty ? tr("每个月固定要付") : tr("下个月固定要付"),
+                          money: due.map { others.isEmpty ? monthly : $0.fixedTotal } ?? monthly,
+                          sentence: Text(rules.isEmpty && others.isEmpty ? tr("房租、工资这些每个月都要付的，加一次就行，到日子自动记上。")
+                                         : others.isEmpty ? tr("到日子自动记上，不用手记。首页「真正赚了」已经扣掉了。")
+                                         : tr("自动记的 \(monthly.rounded)，加上订阅、分期这些 \(othersTotal.rounded)。和预测页对得上。")))
                 if rules.isEmpty {
                     Button { model.sheet = .fixedCost } label: { Label(tr("加第一项（比如房租）"), systemImage: "plus") }
                         .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
@@ -38,6 +44,7 @@ struct FixedCostsPage: View {
                         .keyboardShortcut("n", modifiers: [.command, .shift])
                         .help(tr("加一项固定开销（⌘⇧N）"))
                 }
+                if !others.isEmpty { otherGroups(others) }
             }
             .kitCard(padding: 20)
         } side: {
@@ -94,6 +101,40 @@ struct FixedCostsPage: View {
         .padding(.vertical, 8)
         .contentShape(Rectangle())
         .contextMenu { actions(r) }
+    }
+
+    /// 不是在这里加的、但下个月也固定要付的：订阅、分期、欠款计划、认出来的。按种类分组，点了去各自那一页。
+    private func otherGroups(_ lines: [Outlook.Line]) -> some View {
+        let groups: [(Outlook.Line.Kind, String, AppSection?)] = [
+            (.subscription, tr("订阅"), .subscriptions), (.installment, tr("分期"), .debts),
+            (.debt, tr("欠款计划"), .debts), (.detected, tr("认出来的（去预测页点「算」就会自动记）"), .trends),
+        ]
+        return VStack(alignment: .leading, spacing: 12) {
+            Divider()
+            Text(tr("下个月也固定要付")).font(.callout.weight(.semibold))
+            ForEach(groups.indices, id: \.self) { i in
+                let (kind, title, section) = groups[i]
+                let items = lines.filter { $0.kind == kind }
+                if !items.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title).font(.caption.weight(.semibold)).foregroundStyle(Color.fg2)
+                        ForEach(items) { l in
+                            Button { if let section { model.section = section } } label: {
+                                HStack {
+                                    Text(trKey(l.name)).font(.callout).lineLimit(1)
+                                    if let d = l.date { Text(d.short).font(.caption).foregroundStyle(Color.fg2) }
+                                    Spacer()
+                                    Text(l.amount.rounded).font(.kitAmount)
+                                }
+                                .padding(.vertical, 3).contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .hoverHighlight()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder private func actions(_ r: Recurring) -> some View {
@@ -167,7 +208,7 @@ struct FixedCostEditor: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("加上")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).tint(Color.shopSolid).controlSize(.large)
+                    .sheetPrimary()
                     .keyboardShortcut(.defaultAction)
                     .disabled(amount == nil || account.isEmpty)
             }
@@ -248,6 +289,10 @@ struct BusinessWealth: View {
                 }
             }
             .kitCard(padding: 20)
+            // 下个月店里要付的放在左边主栏，左边不空着（审查 2026-11-26）。
+            if let due = model.shopOutlook()?.next, !due.isEmpty {
+                NextMonthDueCard(due: due, shop: true, maxRows: 4)
+            }
         } side: {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHeader(title: tr("两边之间的钱")) {
@@ -279,9 +324,6 @@ struct BusinessWealth: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .kitCard()
-            if let due = model.shopOutlook()?.next, !due.isEmpty {
-                NextMonthDueCard(due: due, shop: true, maxRows: 4)
-            }
         }
     }
 
@@ -373,6 +415,7 @@ struct SideTransferSheet: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(tr("记下"), action: save)
                     .disabled(Money.evaluate(amountText).map { $0 > .zero } != true || from.isEmpty || to.isEmpty)
+                    .sheetPrimary()
             }
         }
         .onAppear { pick() }

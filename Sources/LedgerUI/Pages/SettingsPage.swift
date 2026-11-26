@@ -44,18 +44,25 @@ struct SettingsPage: View {
             .padding(.horizontal, 16)
             .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
 
-            // 帮助与反馈、版本：稿里没画，放在最下面一行小字。
-            HStack(spacing: 14) {
-                Button { model.sheet = .feedback } label: {  // 写好用邮件发（Feedback.swift）
-                    Label(tr("反馈问题 / 提个想法"), systemImage: "exclamationmark.bubble")
+            // 帮助与反馈：和上面一样的一行（审查 2026-11-26：以前是 13 高的小链接）；版本放在下面一行小字。
+            Button { model.sheet = .feedback } label: {  // 写好用邮件发（Feedback.swift）
+                HStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.bubble").font(.system(size: 17)).frame(width: 26)
+                    Text(tr("反馈问题 / 提个想法")).font(.body)
+                    Spacer(minLength: 12)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.fg3)
                 }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("settings.feedback")
-                Spacer()
-                Text(tr("版本 \(version)")).textSelection(.enabled)
+                .padding(.vertical, 11)
+                .contentShape(Rectangle())
             }
-            .font(.caption).foregroundStyle(Color.fg2)
-            .padding(.horizontal, 6)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Kit.cardRadius, style: .continuous))
+            .accessibilityIdentifier("settings.feedback")
+            Text(tr("版本 \(version)")).textSelection(.enabled)
+                .font(.caption).foregroundStyle(Color.fg2)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 6)
         }
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
@@ -91,7 +98,7 @@ struct SettingsPage: View {
                 Button { model.sheet = .connectAI } label: {
                     Text(tr("连接你的 AI")).font(.body.weight(.semibold)).foregroundStyle(.white)
                         .padding(.horizontal, 18).padding(.vertical, 9)
-                        .background(Color.brand, in: Capsule())
+                        .background(model.accentSolid, in: Capsule())
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.pressable)

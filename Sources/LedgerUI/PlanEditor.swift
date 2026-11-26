@@ -61,7 +61,7 @@ struct NewPlanSheet: View {
                 Button(tr("取消")) { dismiss() }.keyboardShortcut(.cancelAction).controlSize(.large)
                 Spacer()
                 Button(action: save) { Text(tr("记下")).frame(minWidth: 80) }
-                    .buttonStyle(.borderedProminent).solidTint().controlSize(.large)
+                    .sheetPrimary()
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canSave)
             }
@@ -235,7 +235,7 @@ struct GoalEditor: View {
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button(tr("保存"), action: save).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
+            ToolbarItem(placement: .confirmationAction) { Button(tr("保存"), action: save).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty).sheetPrimary() }
         }
         .onAppear {
             name = goal.name

@@ -101,6 +101,22 @@ public struct RootView: View {
     /// 主窗口有多高（Mac 上弹出的面板不能比它高）。
     @State private var windowHeight: CGFloat = 900
 
+    #if os(macOS)
+    /// 弹窗多高：短表单就矮一点，主按钮紧跟在内容下面，不留一大块空（审查 2026-11-26）。
+    static func sheetHeight(_ sheet: AppSheet) -> CGFloat {
+        switch sheet {
+        case .connectAI: 720
+        case .plan: 540
+        case .newDebt, .newInstallment: 440
+        case .fixedCost: 420
+        case .sideTransfer: 480
+        case .daily: 540
+        case .feedback: 440
+        default: 580
+        }
+    }
+    #endif
+
     public var body: some View {
         @Bindable var model = model
         // 先把语言用上，下面的界面才按新语言画（放在 onChange 里会晚一拍）。
@@ -121,6 +137,8 @@ public struct RootView: View {
         .animation(.smooth, value: model.showWelcome)
         // 当前这边的点缀色：生活橙、生意青（审查 2026-11-26：生意那边还有很多橙色）。
         .tint(model.accent)
+        // 开了「减少动态效果」：全 app 的弹簧、移动都换成短短的淡入淡出（审查 2026-11-26：以前 25 个有动画的文件只有 10 个判断了）。
+        .calmWhenReduceMotion()
         #if os(macOS)
         .background(GeometryReader { geo in
             Color.clear
@@ -180,12 +198,13 @@ public struct RootView: View {
             }
                 .environment(model)
                 .tint(model.accent)
+                .calmWhenReduceMotion()
                 #if os(macOS)
                 // 面板不比窗口高：窗口缩小了也能看到底部的「取消 / 建好了」，里面自己滚动。
                 // 记一笔多减一些：面板挂在工具栏下面（约 52），按钮那排要整个露在窗口里。
                 .frame(width: sheet == .add ? 520 : sheet == .connectAI ? 600 : sheet == .memory ? 760 : sheet == .plan ? 700 : sheet == .daily ? 480 : (sheet == .fixedCost || sheet == .sideTransfer) ? 480 : 520,
                        height: sheet == .add ? min(760, max(420, windowHeight - 110))
-                                              : min(sheet == .connectAI ? 720 : sheet == .plan ? 540 : 580, max(360, windowHeight - 60)))
+                                              : min(Self.sheetHeight(sheet), max(360, windowHeight - 60)))
                 #else
                 .presentationDetents([.large])
                 #endif
@@ -567,20 +586,32 @@ public struct XiaxiaScene: Scene {
     }
 
     #if os(macOS)
-    /// 偶尔启动后没有主窗口（上次关窗口退出，系统按「恢复窗口」什么也没恢复）。
-    /// 不恢复旧窗口；启动一秒后还没有可见窗口，就点一下「窗口」菜单里的「夏夏账本」把它叫出来。
+    /// 偶尔启动后没有主窗口（上次关窗口退出、或被强制退出几次后，系统按「恢复窗口」什么也没恢复）。
+    /// 不恢复旧窗口；启动后还没有可见窗口：先把藏起来/缩到程序坞的主窗口拿出来，没有就点「窗口 → 显示主窗口」
+    /// （那一项是我们自己加的，里面直接 openWindow(id: "main")，不靠系统菜单名字找）。审查 2026-11-26。
     private static func ensureMainWindow() {
         UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": false])
-        for delay in [1.0, 2.5] {
+        for delay in [0.8, 2.0, 4.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard NSApp != nil, !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
-                guard let menu = NSApp.windowsMenu ?? NSApp.mainMenu?.items.first(where: { $0.submenu?.title == "Window" || $0.submenu?.title == "窗口" })?.submenu,
-                      let item = menu.items.first(where: { $0.title == "夏夏账本" }),
-                      let i = menu.items.firstIndex(of: item) else { return }
-                menu.performActionForItem(at: i)
+                if let w = NSApp.windows.first(where: { $0.canBecomeMain && $0.identifier?.rawValue.contains("main") == true }) {
+                    if w.isMiniaturized { w.deminiaturize(nil) }
+                    w.makeKeyAndOrderFront(nil)
+                } else if let found = findMenuItem(tr("显示主窗口"), in: NSApp.mainMenu) {
+                    found.0.performActionForItem(at: found.1)
+                }
                 NSApp.activate(ignoringOtherApps: true)
             }
         }
+    }
+
+    private static func findMenuItem(_ title: String, in menu: NSMenu?) -> (NSMenu, Int)? {
+        guard let menu else { return nil }
+        for (i, item) in menu.items.enumerated() {
+            if item.title == title { return (menu, i) }
+            if let found = findMenuItem(title, in: item.submenu) { return found }
+        }
+        return nil
     }
     #endif
 
@@ -659,6 +690,7 @@ public struct XiaxiaScene: Scene {
                         .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
                 }
             }
+            CommandGroup(before: .windowList) { ShowMainWindowButton() }
             CommandGroup(replacing: .help) {
                 Button(tr("反馈问题 / 提个想法…")) { model.sheet = .feedback }
                 .keyboardShortcut("b", modifiers: [.command, .option])
@@ -672,3 +704,13 @@ public struct XiaxiaScene: Scene {
         #endif
     }
 }
+
+#if os(macOS)
+/// 「窗口 → 显示主窗口」（⌘0）：主窗口被关掉或没出来时把它叫回来；启动兜底也点这一项。
+private struct ShowMainWindowButton: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button(tr("显示主窗口")) { openWindow(id: "main") }.keyboardShortcut("0", modifiers: .command)
+    }
+}
+#endif

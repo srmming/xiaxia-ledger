@@ -126,8 +126,14 @@ struct WealthPage: View {
                         Text(tr("总存款")).font(.callout.weight(.semibold))
                         Text(w.total.ui).font(.kitAmount)
                         Spacer(minLength: 8)
-                        Text(model.businessOn ? tr("生活这边的账户加起来") : tr("所有账户里的钱加起来"))
-                            .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        if model.businessOn {
+                            // 两边加起来的真家底，生意那边家底页写的是同一个数；放在总存款右边一行小字。
+                            (Text(tr("两边真家底 ")) + Text(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded).fontWeight(.semibold))
+                                .font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                                .help(tr("生活和生意加起来，扣掉要还的，加上别人欠你的"))
+                        } else {
+                            Text(tr("所有账户里的钱加起来")).font(.caption).foregroundStyle(Color.fg2).lineLimit(1)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(tr("总存款 \(w.total.spoken)，所有账户里的钱加起来"))
@@ -141,11 +147,6 @@ struct WealthPage: View {
                     VStack(spacing: 4) { ForEach(list) { compactRow($0) } }
                 } else {
                     tiles(list)
-                }
-                if model.businessOn {
-                    // 两边加起来的总数，生意那边家底页写的是同一个数。
-                    (Text(tr("生活和生意加起来的真家底 ")) + em(model.wealthBreakdown(model.shownMonth, bothSides: true).net.rounded) + Text(tr("（扣掉要还的，加上别人欠你的）。")))
-                        .font(.caption).foregroundStyle(Color.fg2)
                 }
                 if w.owedToMe.cents > 0 {
                     Text(tr("另外别人还欠你 \(w.owedToMe.rounded)，收回来再算进能花的。"))
@@ -169,7 +170,7 @@ struct WealthPage: View {
             let usable = max(0, g.size.width - gap * CGFloat(max(0, segs.count - 1)))
             HStack(spacing: gap) {
                 ForEach(segs) { p in
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(p.color)
+                    BarSegment(color: p.color, label: "\(p.label) \(p.amount.balance)")
                         .frame(width: max(4, usable * CGFloat(p.bar) / sum))
                 }
             }
@@ -208,7 +209,7 @@ struct WealthPage: View {
                 Text((p.isResult ? "= " : "") + p.label).font(.caption.weight(.semibold))
                     .foregroundStyle(p.isResult ? p.color : Color.fg2).lineLimit(1)
             }
-            Text((p.isResult ? "" : "\u{2212} ") + p.amount.balance)
+            Text(p.amount.balance)
                 .font(.system(.title3, design: .rounded).weight(.bold)).monospacedDigit()
                 .foregroundStyle(p.isResult ? p.color : .primary)
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -258,7 +259,7 @@ struct WealthPage: View {
     private func compactRow(_ p: Part) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 3, style: .continuous).fill(p.color).frame(width: 10, height: 10)
-            Text((p.isResult ? "= " : "\u{2212} ") + p.label)
+            Text((p.isResult ? "= " : "") + p.label)
                 .font(p.isResult ? .callout.weight(.semibold) : .callout)
                 .foregroundStyle(p.isResult ? p.color : .primary).lineLimit(1)
             Spacer(minLength: 8)
@@ -431,5 +432,18 @@ struct DebtRow: View {
         // 过期的只说过了几天，短一点，窄窗口也一行放得下（哪天到期在夏夏说里有）。
         if let due = debt.dueDate { parts.append(debt.overdue ? tr("过期 \(max(1, due.days(until: .today))) 天") : tr("\(due.short) 前还")) }
         return parts.isEmpty ? tr("还没还") : parts.joined(separator: " · ")
+    }
+}
+
+/// 总存款粗条上的一块：鼠标放上去变亮一点，并提示这块叫什么、多少钱。
+private struct BarSegment: View {
+    var color: Color
+    var label: String
+    @State private var hover = false
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color)
+            .brightness(hover ? 0.08 : 0)
+            .onHover { hover = $0 }
+            .help(label)
     }
 }

@@ -513,6 +513,7 @@ struct SubscriptionEditor: View {
                 Button(tr("保存"), action: save)
                     .disabled(amount == nil || draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
                     .keyboardShortcut(.defaultAction)
+                    .sheetPrimary()
             }
         }
         .onChange(of: draft.accountID) { _, id in

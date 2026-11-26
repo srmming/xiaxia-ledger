@@ -173,7 +173,7 @@ struct SplitSheet: View {
         .inlineTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button(tr("拆开"), action: save).disabled(!canSave) }
+            ToolbarItem(placement: .confirmationAction) { Button(tr("拆开"), action: save).disabled(!canSave).sheetPrimary() }
         }
         .onAppear {
             guard parts.isEmpty else { return }

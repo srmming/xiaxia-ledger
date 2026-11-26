@@ -486,6 +486,7 @@ struct CaptureDetail: View {
             ToolbarItem(placement: .cancellationAction) { Button(tr("取消")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button(tr("记上")) { save() }.disabled(Money.evaluate(amountText) == nil || accountID.isEmpty)
+                    .sheetPrimary()
                     .accessibilityIdentifier("captureSave")
             }
         }
