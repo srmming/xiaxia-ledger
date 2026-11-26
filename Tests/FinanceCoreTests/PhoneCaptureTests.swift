@@ -53,7 +53,7 @@ final class PhoneCaptureTests: XCTestCase {
     func testResolveLinkDismissUndo() throws {
         var l = sample()
         let c1 = Capture(kind: .text, text: "午饭 10 欧", guess: CaptureGuess(amount: Money(cents: -1000), date: today), device: "iPhone")
-        let c2 = Capture(kind: .photo, text: "", photo: "p1.jpg", guess: CaptureGuess(amount: Money(cents: -550)), device: "iPhone")
+        let c2 = Capture(kind: .photo, text: "", photo: "p1.jpg", guess: CaptureGuess(amount: Money(cents: -550), date: today), device: "iPhone")
         let c3 = Capture(kind: .text, text: "记错了", device: "iPhone")
         for c in [c1, c2, c3] { l.addCapture(c, author: "ming") }
         XCTAssertEqual(l.pendingCaptures.count, 3)
