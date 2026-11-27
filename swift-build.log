@@ -1,0 +1,561 @@
+Fetching https://github.com/apple/swift-argument-parser
+Fetching https://github.com/sparkle-project/Sparkle
+[1/19459] Fetching swift-argument-parser
+[2/64030] Fetching swift-argument-parser, sparkle
+Fetched https://github.com/apple/swift-argument-parser from cache (1.48s)
+Computing version for https://github.com/apple/swift-argument-parser
+[6686/44571] Fetching sparkle
+Computed https://github.com/apple/swift-argument-parser at 1.8.2 (2.08s)
+Creating working copy for https://github.com/apple/swift-argument-parser
+Working copy of https://github.com/apple/swift-argument-parser resolved at 1.8.2
+Fetched https://github.com/sparkle-project/Sparkle from cache (3.24s)
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/20] Write sources
+[2/20] Copying Info.plist
+[2/20] Copying Changelog.json
+[2/20] Write sources
+[2/20] Write fin-entitlement.plist
+[7/20] Write XiaxiaLedgerApp-entitlement.plist
+[8/20] Write sources
+[12/20] Copying Mascot
+[13/20] Write swift-version--79AA4F9932D1E87A.txt
+[15/61] Emitting module ArgumentParserToolInfo
+[16/61] Compiling ArgumentParserToolInfo ToolInfo.swift
+[17/97] Emitting module ArgumentParser
+[18/114] Compiling ArgumentParser BashCompletionsGenerator.swift
+[19/114] Compiling ArgumentParser CompletionsGenerator.swift
+[20/114] Compiling ArgumentParser FishCompletionsGenerator.swift
+[21/114] Compiling ArgumentParser ZshCompletionsGenerator.swift
+[22/114] Compiling ArgumentParser Argument.swift
+[23/114] Compiling ArgumentParser ArgumentDiscussion.swift
+[24/114] Compiling ArgumentParser ArgumentHelp.swift
+[25/114] Compiling ArgumentParser ArgumentVisibility.swift
+[26/114] Compiling ArgumentParser CompletionKind.swift
+[27/114] Compiling ArgumentParser Errors.swift
+[28/114] Compiling ArgumentParser Flag.swift
+[29/114] Compiling ArgumentParser NameSpecification.swift
+[30/114] Compiling ArgumentParser Option.swift
+[31/114] Compiling ArgumentParser OptionGroup.swift
+[32/114] Compiling ArgumentParser ParentCommand.swift
+[33/114] Compiling ArgumentParser AsyncParsableCommand.swift
+[34/114] Compiling ArgumentParser CommandConfiguration.swift
+[35/114] Compiling ArgumentParser CommandGroup.swift
+[36/114] Compiling ArgumentParser EnumerableFlag.swift
+[37/114] Compiling ArgumentParser ExpressibleByArgument.swift
+[38/114] Compiling ArgumentParser ParsableArguments.swift
+[39/114] Compiling ArgumentParser ParsableCommand.swift
+[40/114] Compiling ArgumentParser ArgumentDecoder.swift
+[41/114] Compiling ArgumentParser ArgumentDefinition.swift
+[42/114] Compiling ArgumentParser ArgumentSet.swift
+[43/114] Compiling ArgumentParser CommandParser.swift
+[44/114] Compiling ArgumentParser InputKey.swift
+[45/114] Compiling ArgumentParser InputOrigin.swift
+[46/114] Compiling ArgumentParser Name.swift
+[47/114] Compiling ArgumentParser Parsed.swift
+[48/114] Compiling ArgumentParser ParsedValues.swift
+[49/114] Compiling ArgumentParser ParserError.swift
+[50/114] Compiling ArgumentParser SplitArguments.swift
+[51/114] Compiling ArgumentParser DumpHelpGenerator.swift
+[52/114] Compiling ArgumentParser HelpCommand.swift
+[53/114] Emitting module FinanceCore
+[54/133] Compiling ArgumentParser HelpGenerator.swift
+[55/133] Compiling ArgumentParser MessageInfo.swift
+[56/133] Compiling ArgumentParser UsageGenerator.swift
+[57/133] Compiling FinanceCore Outlook.swift
+[58/133] Compiling FinanceCore PendingPhonePhoto.swift
+[59/133] Compiling FinanceCore PhoneCapture.swift
+[60/133] Compiling FinanceCore PhoneDeletionReceipts.swift
+[61/133] Compiling FinanceCore PhoneSync.swift
+[62/133] Compiling FinanceCore PiggyBank.swift
+[63/133] Compiling FinanceCore PlanUndo.swift
+[64/133] Compiling FinanceCore Plans.swift
+[65/133] Compiling FinanceCore Profile.swift
+[66/133] Compiling FinanceCore Reconcile.swift
+[67/133] Compiling FinanceCore Regulars.swift
+[68/133] Compiling FinanceCore Reports.swift
+[69/133] Compiling FinanceCore SQLiteLedgerStore.swift
+[70/133] Compiling FinanceCore SideGuess.swift
+[104/133] Compiling FinanceCore SkillBundle.generated.swift
+[105/133] Compiling FinanceCore Subscriptions.swift
+[106/133] Compiling FinanceCore Suggest.swift
+[107/133] Compiling FinanceCore Summary.swift
+[108/133] Compiling FinanceCore Trends.swift
+[128/182] Compiling LedgerUI CharacterLayer.swift
+[129/182] Compiling LedgerUI Components.swift
+[130/182] Compiling LedgerUI ConnectAI.swift
+[131/182] Compiling LedgerUI CurrencyViews.swift
+[132/182] Compiling LedgerUI Dashboard.swift
+[133/182] Emitting module fin
+[134/182] Compiling LedgerUI AppUpdateSupport.swift
+[135/182] Compiling LedgerUI AskAI.swift
+[136/182] Compiling LedgerUI BusinessMode.swift
+[137/182] Compiling LedgerUI BusinessSettingsPane.swift
+[138/182] Compiling LedgerUI CategoryPicker.swift
+[139/186] Compiling fin Memory.swift
+[140/186] Compiling fin More.swift
+[141/186] Compiling fin Phone.swift
+[142/186] Compiling fin Setup.swift
+[142/186] Write Objects.LinkFileList
+[143/186] Linking fin
+[144/186] Applying fin
+[146/186] Compiling LedgerUI ManageViews.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[147/186] Compiling LedgerUI ManualViews.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[148/186] Compiling LedgerUI Mascot.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[149/186] Compiling LedgerUI MascotData.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[150/186] Compiling LedgerUI MascotMood.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[151/186] Compiling LedgerUI AIPages.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[152/186] Compiling LedgerUI BusinessHome.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[153/186] Compiling LedgerUI BusinessPages.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[154/186] Compiling LedgerUI DebtsPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[155/186] Compiling LedgerUI Layout.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[156/186] Compiling LedgerUI OverviewPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[157/186] Compiling LedgerUI PlansPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[158/186] Compiling LedgerUI QuickAdd.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[159/186] Compiling LedgerUI SettingsPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[160/186] Compiling LedgerUI SpendingPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[161/186] Compiling LedgerUI TransactionsPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[162/186] Compiling LedgerUI TrendsPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[163/186] Compiling LedgerUI WealthPage.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ManageViews.swift:142:13: warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+140 | 
+141 |     var body: some View {
+142 |         let balances = model.balances
+    |             `- warning: initialization of immutable value 'balances' was never used; consider replacing with assignment to '_' or removing it
+143 |         Form {
+144 |             Section {
+[164/186] Emitting module LedgerUI
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[179/186] Compiling LedgerUI ImportGuide.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[180/186] Compiling LedgerUI InsightViews.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[181/186] Compiling LedgerUI KitCharts.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[182/186] Compiling LedgerUI KitViews.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[183/186] Compiling LedgerUI LedgerModel.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:57:13: warning: result of 'try?' is unused
+ 55 |                 try? FileManager.default.createDirectory(at: fake.appendingPathComponent(dir), withIntermediateDirectories: true)
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+    |             `- warning: result of 'try?' is unused
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+ 59 |         }
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Sources/LedgerUI/ConnectAI.swift:58:13: warning: result of 'try?' is unused
+ 56 |             }
+ 57 |             try? c.connect(.claudeDesktop)
+ 58 |             try? AIConnector(home: fake, fin: "/Volumes/旧位置/夏夏账本.app/Contents/MacOS/fin", appFolders: c.appFolders).connect(.hermes)
+    |             `- warning: result of 'try?' is unused
+ 59 |         }
+ 60 |         return c
+[184/204] Compiling LedgerUI PhoneCaptureViews.swift
+[185/204] Compiling LedgerUI PhoneFormField.swift
+[186/204] Compiling LedgerUI PiggyViews.swift
+[187/204] Compiling LedgerUI PlanEditor.swift
+[188/204] Compiling LedgerUI RootView.swift
+[189/204] Compiling LedgerUI Snapshot.swift
+[190/204] Compiling LedgerUI SubscriptionViews.swift
+[191/204] Compiling LedgerUI Theme.swift
+[192/204] Compiling LedgerUI Welcome.swift
+[193/204] Compiling LedgerUI WhatsNew.swift
+[194/204] Compiling LedgerUI XiaGlyphData.swift
+[195/204] Compiling LedgerUI XiaIcons.swift
+[196/204] Compiling LedgerUI XiaPaletteData.swift
+[197/204] Compiling LedgerUI XiaxiaCards.swift
+[198/204] Compiling LedgerUI XiaxiaChat.swift
+[199/204] Compiling LedgerUI XiaxiaMemorySettings.swift
+[200/204] Compiling LedgerUI XiaxiaViews.swift
+[201/204] Compiling LedgerUI resource_bundle_accessor.swift
+[202/206] Emitting module XiaxiaLedgerApp
+[203/206] Compiling XiaxiaLedgerApp Main.swift
+[203/206] Write Objects.LinkFileList
+[204/206] Linking XiaxiaLedgerApp
+[205/206] Applying XiaxiaLedgerApp
+Build complete! (110.62s)

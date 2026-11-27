@@ -1,0 +1,1074 @@
+[0/1] Planning build
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/8] Write sources
+[2/8] /Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/XiaxiaLedgerPackageTests.derived/runner.swift
+[5/13] Write sources
+[6/13] Write swift-version--79AA4F9932D1E87A.txt
+[8/31] Compiling FinanceCoreTests AppBridgeTests.swift
+[9/31] Compiling FinanceCoreTests BusinessTests.swift
+[10/31] Emitting module LedgerUITests
+[11/31] Compiling FinanceCoreTests AIConnectTests.swift
+[12/31] Compiling FinanceCoreTests ActivityTests.swift
+[13/33] Compiling LedgerUITests MascotMoodTests.swift
+[14/33] Compiling LedgerUITests WipeConfirmationTests.swift
+[15/33] Emitting module FinanceCoreTests
+[22/41] Compiling FinanceCoreTests DataResetTests.swift
+[23/41] Compiling FinanceCoreTests DemoDataTests.swift
+[24/41] Compiling FinanceCoreTests FinanceCoreTests.swift
+[25/41] Compiling FinanceCoreTests ForecastTests.swift
+[26/41] Compiling FinanceCoreTests GoalLinkTests.swift
+[27/41] Compiling FinanceCoreTests ICloudContainerTests.swift
+[28/41] Compiling FinanceCoreTests L10nTests.swift
+[29/41] Compiling FinanceCoreTests LedgerRevisionTests.swift
+[30/41] Compiling FinanceCoreTests ManualEntryTests.swift
+[31/41] Compiling FinanceCoreTests MemoryTests.swift
+[32/41] Compiling FinanceCoreTests NudgesTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[33/41] Compiling FinanceCoreTests ObligationsTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[34/41] Compiling FinanceCoreTests OutlookTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[35/41] Compiling FinanceCoreTests PagePlansTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[36/41] Compiling FinanceCoreTests PhoneCaptureTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[37/41] Compiling FinanceCoreTests PiggyBankTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[38/41] Compiling FinanceCoreTests StaleOverwriteTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[39/41] Compiling FinanceCoreTests TrendsTests.swift
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:57:9: warning: result of 'try?' is unused
+ 55 |         var l = Ledger.starter
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+ 59 |         let subs = Subscriptions.status(l, today: today)
+
+/Users/runner/work/xiaxia-ledger/xiaxia-ledger/Tests/FinanceCoreTests/NudgesTests.swift:58:9: warning: result of 'try?' is unused
+ 56 |         l.accounts = [Account(id: "card", name: "银行卡", kind: .bank)]
+ 57 |         try? l.addSubscription(Subscription(name: "视频会员", amount: Money(cents: 12_99), cycle: .monthly, nextDate: d(11, 22), accountID: "card"), author: "测试")
+ 58 |         try? l.addSubscription(Subscription(name: "健身房", amount: Money(cents: 39_00), cycle: .monthly, nextDate: d(12, 10), accountID: "card"), author: "测试")
+    |         `- warning: result of 'try?' is unused
+ 59 |         let subs = Subscriptions.status(l, today: today)
+ 60 |         let ok = run([], subs: subs, balance: Money(cents: 500_00)).first { $0.kind == .upcoming }!
+[40/43] Emitting module XiaxiaLedgerPackageTests
+[41/43] Compiling XiaxiaLedgerPackageTests runner.swift
+[41/43] Write Objects.LinkFileList
+[42/43] Linking XiaxiaLedgerPackageTests
+Build complete! (23.88s)
+Test Suite 'All tests' started at 2026-11-26 23:54:51.472.
+Test Suite 'XiaxiaLedgerPackageTests.xctest' started at 2026-11-26 23:54:51.475.
+Test Suite 'AIConnectTests' started at 2026-11-26 23:54:51.475.
+Test Case '-[FinanceCoreTests.AIConnectTests testBrokenJSONIsLeftAlone]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testBrokenJSONIsLeftAlone]' passed (0.009 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testCLILookup]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testCLILookup]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testCodexTOML]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testCodexTOML]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectCreatesMissingFile]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectCreatesMissingFile]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectionsLog]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectionsLog]' passed (0.008 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectJSONKeepsOtherSettings]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testConnectJSONKeepsOtherSettings]' passed (0.007 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testDetectsInstalledTools]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testDetectsInstalledTools]' passed (0.008 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testHealthLevels]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testHealthLevels]' passed (0.009 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testHermesYAML]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testHermesYAML]' passed (0.012 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testParseSelfTest]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testParseSelfTest]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testPathWithQuotesInTOML]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testPathWithQuotesInTOML]' passed (0.005 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testPromptMakesLedgerTheEntryPoint]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testPromptMakesLedgerTheEntryPoint]' passed (0.007 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testRefreshInstalledOnlyTouchesWhatWeInstalled]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testRefreshInstalledOnlyTouchesWhatWeInstalled]' passed (0.020 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSelfTestRunsConfiguredCommand]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSelfTestRunsConfiguredCommand]' passed (0.286 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupExplainsSandboxDenial]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupExplainsSandboxDenial]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupInstallsEverythingAndIsRepeatable]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupInstallsEverythingAndIsRepeatable]' passed (0.014 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupLeavesForeignSkillFolderAside]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupLeavesForeignSkillFolderAside]' passed (0.008 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupPromptAndCLINames]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupPromptAndCLINames]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupPromptLetsAIConfigureItself]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupPromptLetsAIConfigureItself]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupRemoveTakesEverythingBack]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupRemoveTakesEverythingBack]' passed (0.021 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupReplacesOldBlockAndOldLink]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSetupReplacesOldBlockAndOldLink]' passed (0.016 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSkillBundleMatchesRepo]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSkillBundleMatchesRepo]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testSnippetAndClientNames]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testSnippetAndClientNames]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testUnsupportedChatGPT]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testUnsupportedChatGPT]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.AIConnectTests testWelcomeSentenceAndGuide]' started.
+Test Case '-[FinanceCoreTests.AIConnectTests testWelcomeSentenceAndGuide]' passed (0.003 seconds).
+Test Suite 'AIConnectTests' passed at 2026-11-26 23:54:51.949.
+	 Executed 25 tests, with 0 failures (0 unexpected) in 0.472 (0.474) seconds
+Test Suite 'ActivityTests' started at 2026-11-26 23:54:51.949.
+Test Case '-[FinanceCoreTests.ActivityTests testAddThenUndoByAIDisappears]' started.
+Test Case '-[FinanceCoreTests.ActivityTests testAddThenUndoByAIDisappears]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.ActivityTests testAIAddsAreCountedAndUndoneTogether]' started.
+Test Case '-[FinanceCoreTests.ActivityTests testAIAddsAreCountedAndUndoneTogether]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ActivityTests testFileStampChangesOnSave]' started.
+Test Case '-[FinanceCoreTests.ActivityTests testFileStampChangesOnSave]' passed (0.015 seconds).
+Test Case '-[FinanceCoreTests.ActivityTests testNonTransactionChangeAndMerge]' started.
+Test Case '-[FinanceCoreTests.ActivityTests testNonTransactionChangeAndMerge]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ActivityTests testOwnChangesAreIgnored]' started.
+Test Case '-[FinanceCoreTests.ActivityTests testOwnChangesAreIgnored]' passed (0.000 seconds).
+Test Suite 'ActivityTests' passed at 2026-11-26 23:54:51.966.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.017 (0.018) seconds
+Test Suite 'AmountTextTests' started at 2026-11-26 23:54:51.966.
+Test Case '-[LedgerUITests.AmountTextTests testFreeTextFromAI]' started.
+Test Case '-[LedgerUITests.AmountTextTests testFreeTextFromAI]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.AmountTextTests testUIAmountKeepsEuroOnSameLine]' started.
+Test Case '-[LedgerUITests.AmountTextTests testUIAmountKeepsEuroOnSameLine]' passed (0.006 seconds).
+Test Suite 'AmountTextTests' passed at 2026-11-26 23:54:51.973.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'AppBridgeTests' started at 2026-11-26 23:54:51.973.
+Test Case '-[FinanceCoreTests.AppBridgeTests testOpenRequestIsTakenOnceAndExpires]' started.
+Test Case '-[FinanceCoreTests.AppBridgeTests testOpenRequestIsTakenOnceAndExpires]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.AppBridgeTests testPageNames]' started.
+Test Case '-[FinanceCoreTests.AppBridgeTests testPageNames]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.AppBridgeTests testViewRoundTripAndDescribe]' started.
+Test Case '-[FinanceCoreTests.AppBridgeTests testViewRoundTripAndDescribe]' passed (0.002 seconds).
+Test Suite 'AppBridgeTests' passed at 2026-11-26 23:54:51.979.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'BetweenBooksTests' started at 2026-11-26 23:54:51.979.
+Test Case '-[FinanceCoreTests.BetweenBooksTests testLabelNamesTheOtherBook]' started.
+Test Case '-[FinanceCoreTests.BetweenBooksTests testLabelNamesTheOtherBook]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BetweenBooksTests testMoneyTakenHomeFromTheShop]' started.
+Test Case '-[FinanceCoreTests.BetweenBooksTests testMoneyTakenHomeFromTheShop]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BetweenBooksTests testOneSidedTransferIsFlaggedNotCounted]' started.
+Test Case '-[FinanceCoreTests.BetweenBooksTests testOneSidedTransferIsFlaggedNotCounted]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BetweenBooksTests testPairsNearestDateAndNeverSameAccount]' started.
+Test Case '-[FinanceCoreTests.BetweenBooksTests testPairsNearestDateAndNeverSameAccount]' passed (0.000 seconds).
+Test Suite 'BetweenBooksTests' passed at 2026-11-26 23:54:51.980.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'BookManageTests' started at 2026-11-26 23:54:51.980.
+Test Case '-[FinanceCoreTests.BookManageTests testAddRenameRemoveEmptyBook]' started.
+Test Case '-[FinanceCoreTests.BookManageTests testAddRenameRemoveEmptyBook]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BookManageTests testLastBookCannotBeRemoved]' started.
+Test Case '-[FinanceCoreTests.BookManageTests testLastBookCannotBeRemoved]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BookManageTests testOldBookWithoutKindStillDecodes]' started.
+Test Case '-[FinanceCoreTests.BookManageTests testOldBookWithoutKindStillDecodes]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BookManageTests testRemoveBookWithContentNeedsTargetAndUndoMovesBack]' started.
+Test Case '-[FinanceCoreTests.BookManageTests testRemoveBookWithContentNeedsTargetAndUndoMovesBack]' passed (0.002 seconds).
+Test Suite 'BookManageTests' passed at 2026-11-26 23:54:51.983.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'BusinessTests' started at 2026-11-26 23:54:51.983.
+Test Case '-[FinanceCoreTests.BusinessTests testAccountSidesAndTransferHome]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testAccountSidesAndTransferHome]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testBusinessNudgesNeverMentionTax]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testBusinessNudgesNeverMentionTax]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testCannotSwitchBooksWithCapital]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testCannotSwitchBooksWithCapital]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testChangesAndForecastSplitBySide]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testChangesAndForecastSplitBySide]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testCompetingBusinessUpgradeCannotOverwriteWinner]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testCompetingBusinessUpgradeCannotOverwriteWinner]' passed (0.016 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testConcurrentWALCommitRequiresReloadAndIsIncludedInUpgradeBackup]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testConcurrentWALCommitRequiresReloadAndIsIncludedInUpgradeBackup]' passed (0.043 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testDailyProfitEndsAtMonthProfit]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testDailyProfitEndsAtMonthProfit]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testDailyTakingsGoToShopAccountsAndUndo]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testDailyTakingsGoToShopAccountsAndUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testDemoShowsPartialRecoveryAndEstimate]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testDemoShowsPartialRecoveryAndEstimate]' passed (0.565 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testDescribeOnlyRoutedEntries]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testDescribeOnlyRoutedEntries]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testDisabledContextOmitsBusinessKeys]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testDisabledContextOmitsBusinessKeys]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testEnableDisableUndoAndChoose]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testEnableDisableUndoAndChoose]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testFixedCostStartsNextTimeAndPostsAutomatically]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testFixedCostStartsNextTimeAndPostsAutomatically]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testGuessAndMove]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testGuessAndMove]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testJSONRejectsBusinessAndReceivablesWithoutChangingFile]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testJSONRejectsBusinessAndReceivablesWithoutChangingFile]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testLoadRecoversHotRollbackJournal]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testLoadRecoversHotRollbackJournal]' passed (0.017 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testMorePaymentMethods]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testMorePaymentMethods]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testOldWriterAndSafeguards]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testOldWriterAndSafeguards]' passed (0.090 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testPhoneRejectsBusinessChangesBeforeWritingNote]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testPhoneRejectsBusinessChangesBeforeWritingNote]' passed (0.025 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testPreUpgradeEntryCannotOverwriteBusinessInDeleteMode]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testPreUpgradeEntryCannotOverwriteBusinessInDeleteMode]' passed (0.029 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testPreUpgradeEntryCannotOverwriteBusinessInWALMode]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testPreUpgradeEntryCannotOverwriteBusinessInWALMode]' passed (0.059 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testProfitCapitalAndTransfers]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testProfitCapitalAndTransfers]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testTakeHomeUsesTransferIDBeforeDate]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testTakeHomeUsesTransferIDBeforeDate]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testTwoOrdinarySQLiteWindowsRejectStaleSave]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testTwoOrdinarySQLiteWindowsRejectStaleSave]' passed (0.021 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testWALBackupFailurePreservesBytesAndRetryBacksUpCommittedRows]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testWALBackupFailurePreservesBytesAndRetryBacksUpCommittedRows]' passed (0.055 seconds).
+Test Case '-[FinanceCoreTests.BusinessTests testWritableConnectionRestoresDeleteJournalMode]' started.
+Test Case '-[FinanceCoreTests.BusinessTests testWritableConnectionRestoresDeleteJournalMode]' passed (0.027 seconds).
+Test Suite 'BusinessTests' passed at 2026-11-26 23:54:52.948.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 0.963 (0.965) seconds
+Test Suite 'CategoryStyleTests' started at 2026-11-26 23:54:52.948.
+Test Case '-[LedgerUITests.CategoryStyleTests testDemoCategoriesAllHaveIcons]' started.
+Test Case '-[LedgerUITests.CategoryStyleTests testDemoCategoriesAllHaveIcons]' passed (0.465 seconds).
+Test Case '-[LedgerUITests.CategoryStyleTests testEveryIconLabelMatchesItself]' started.
+Test Case '-[LedgerUITests.CategoryStyleTests testEveryIconLabelMatchesItself]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.CategoryStyleTests testMonogramSkipsDigits]' started.
+Test Case '-[LedgerUITests.CategoryStyleTests testMonogramSkipsDigits]' passed (0.001 seconds).
+Test Case '-[LedgerUITests.CategoryStyleTests testPickedIconWins]' started.
+Test Case '-[LedgerUITests.CategoryStyleTests testPickedIconWins]' passed (0.001 seconds).
+Test Case '-[LedgerUITests.CategoryStyleTests testRealWorldNames]' started.
+Test Case '-[LedgerUITests.CategoryStyleTests testRealWorldNames]' passed (0.002 seconds).
+Test Suite 'CategoryStyleTests' passed at 2026-11-26 23:54:53.419.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.470 (0.470) seconds
+Test Suite 'ChangelogTests' started at 2026-11-26 23:54:53.419.
+Test Case '-[LedgerUITests.ChangelogTests testAfterUpdateShowsEverySkippedVersionOnce]' started.
+Test Case '-[LedgerUITests.ChangelogTests testAfterUpdateShowsEverySkippedVersionOnce]' passed (0.004 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testBundledChangelogLoads]' started.
+Test Case '-[LedgerUITests.ChangelogTests testBundledChangelogLoads]' passed (0.003 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testEntriesBetweenVersions]' started.
+Test Case '-[LedgerUITests.ChangelogTests testEntriesBetweenVersions]' passed (0.001 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testNewInstallShowsNothingAndRemembersVersion]' started.
+Test Case '-[LedgerUITests.ChangelogTests testNewInstallShowsNothingAndRemembersVersion]' passed (0.004 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testOldUserWithoutRecordCountsFrom024]' started.
+Test Case '-[LedgerUITests.ChangelogTests testOldUserWithoutRecordCountsFrom024]' passed (0.003 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testVersionCompare]' started.
+Test Case '-[LedgerUITests.ChangelogTests testVersionCompare]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.ChangelogTests testVersionWithoutNotesShowsNothing]' started.
+Test Case '-[LedgerUITests.ChangelogTests testVersionWithoutNotesShowsNothing]' passed (0.004 seconds).
+Test Suite 'ChangelogTests' passed at 2026-11-26 23:54:53.438.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.018 (0.019) seconds
+Test Suite 'ChatRunnerTests' started at 2026-11-26 23:54:53.438.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testArguments]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testArguments]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testAskRunsFakeHermes]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testAskRunsFakeHermes]' passed (0.201 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testCandidatesPreferLocalAndBun]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testCandidatesPreferLocalAndBun]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testClaudeGetsAppFinAsOnlyMCP]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testClaudeGetsAppFinAsOnlyMCP]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testEnvironmentKeepsLoginAndPath]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testEnvironmentKeepsLoginAndPath]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testLogRedactsPromptWherever]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testLogRedactsPromptWherever]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testModelChoice]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testModelChoice]' passed (0.008 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testParseClaudeJSON]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testParseClaudeJSON]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testParsePlainAndFailure]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testParsePlainAndFailure]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ChatRunnerTests testPrompt]' started.
+Test Case '-[FinanceCoreTests.ChatRunnerTests testPrompt]' passed (0.001 seconds).
+Test Suite 'ChatRunnerTests' passed at 2026-11-26 23:54:53.653.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.214 (0.215) seconds
+Test Suite 'CurrencyTests' started at 2026-11-26 23:54:53.653.
+Test Case '-[FinanceCoreTests.CurrencyTests testAccountBalancesNativeAndBase]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testAccountBalancesNativeAndBase]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testChangeBaseCurrencyKeepsAmountsAndUndo]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testChangeBaseCurrencyKeepsAmountsAndUndo]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testConvertsWithRateOfThatDay]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testConvertsWithRateOfThatDay]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testCrossRateViaEuro]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testCrossRateViaEuro]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testFormatInOtherCurrencies]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testFormatInOtherCurrencies]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testMissingRateFallsBackAndIsReported]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testMissingRateFallsBackAndIsReported]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testOldLedgersUnchanged]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testOldLedgersUnchanged]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testParseECB]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testParseECB]' passed (0.010 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testSetAccountCurrency]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testSetAccountCurrency]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testSQLiteRoundTripKeepsCurrencyAndSubscriptions]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testSQLiteRoundTripKeepsCurrencyAndSubscriptions]' passed (0.009 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testStoredFXWinsAndBankRate]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testStoredFXWinsAndBankRate]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.CurrencyTests testUnknownChangeKindStillReads]' started.
+Test Case '-[FinanceCoreTests.CurrencyTests testUnknownChangeKindStillReads]' passed (0.000 seconds).
+Test Suite 'CurrencyTests' passed at 2026-11-26 23:54:53.677.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.024 (0.024) seconds
+Test Suite 'DataResetTests' started at 2026-11-26 23:54:53.677.
+Test Case '-[FinanceCoreTests.DataResetTests testBackupCopiesFileAndKeepsLatest]' started.
+Test Case '-[FinanceCoreTests.DataResetTests testBackupCopiesFileAndKeepsLatest]' passed (0.778 seconds).
+Test Case '-[FinanceCoreTests.DataResetTests testCountText]' started.
+Test Case '-[FinanceCoreTests.DataResetTests testCountText]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.DataResetTests testWipeEverythingKeepsOnlyPreferences]' started.
+Test Case '-[FinanceCoreTests.DataResetTests testWipeEverythingKeepsOnlyPreferences]' passed (0.414 seconds).
+Test Case '-[FinanceCoreTests.DataResetTests testWipeOneBookLeavesTheOther]' started.
+Test Case '-[FinanceCoreTests.DataResetTests testWipeOneBookLeavesTheOther]' passed (0.554 seconds).
+Test Case '-[FinanceCoreTests.DataResetTests testWipeUnknownBookThrows]' started.
+Test Case '-[FinanceCoreTests.DataResetTests testWipeUnknownBookThrows]' passed (0.546 seconds).
+Test Suite 'DataResetTests' passed at 2026-11-26 23:54:55.970.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 2.292 (2.292) seconds
+Test Suite 'DebtRulesTests' started at 2026-11-26 23:54:55.970.
+Test Case '-[FinanceCoreTests.DebtRulesTests testExactNameWinsAndOverRepayIsRefused]' started.
+Test Case '-[FinanceCoreTests.DebtRulesTests testExactNameWinsAndOverRepayIsRefused]' passed (0.000 seconds).
+Test Suite 'DebtRulesTests' passed at 2026-11-26 23:54:55.970.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'DedupTests' started at 2026-11-26 23:54:55.970.
+Test Case '-[FinanceCoreTests.DedupTests testDropsDuplicatesButKeepsRealRepeats]' started.
+Test Case '-[FinanceCoreTests.DedupTests testDropsDuplicatesButKeepsRealRepeats]' passed (0.000 seconds).
+Test Suite 'DedupTests' passed at 2026-11-26 23:54:55.971.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'DemoDataTests' started at 2026-11-26 23:54:55.971.
+Test Case '-[FinanceCoreTests.DemoDataTests testChangeHistory]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testChangeHistory]' passed (0.378 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testCurrencyAndSubscriptions]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testCurrencyAndSubscriptions]' passed (0.629 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testEveryFeatureHasData]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testEveryFeatureHasData]' passed (0.669 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testNothingReal]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testNothingReal]' passed (0.727 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testNumbersAreReasonable]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testNumbersAreReasonable]' passed (0.379 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testRoundTripsThroughStore]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testRoundTripsThroughStore]' passed (0.476 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testSameSeedSameLedger]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testSameSeedSameLedger]' passed (1.644 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testThirteenMonthsNoFuture]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testThirteenMonthsNoFuture]' passed (0.360 seconds).
+Test Case '-[FinanceCoreTests.DemoDataTests testWorksForAnyToday]' started.
+Test Case '-[FinanceCoreTests.DemoDataTests testWorksForAnyToday]' passed (1.212 seconds).
+Test Suite 'DemoDataTests' passed at 2026-11-26 23:55:02.447.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 6.475 (6.476) seconds
+Test Suite 'EditTests' started at 2026-11-26 23:55:02.447.
+Test Case '-[FinanceCoreTests.EditTests testAddTransferSameAccount]' started.
+Test Case '-[FinanceCoreTests.EditTests testAddTransferSameAccount]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.EditTests testCategorizeAssignAndUndoRestores]' started.
+Test Case '-[FinanceCoreTests.EditTests testCategorizeAssignAndUndoRestores]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.EditTests testFindByPrefix]' started.
+Test Case '-[FinanceCoreTests.EditTests testFindByPrefix]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.EditTests testLinkTransferCancelsInAll]' started.
+Test Case '-[FinanceCoreTests.EditTests testLinkTransferCancelsInAll]' passed (0.000 seconds).
+Test Suite 'EditTests' passed at 2026-11-26 23:55:02.449.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'EditorTests' started at 2026-11-26 23:55:02.449.
+Test Case '-[FinanceCoreTests.EditorTests testDebtAddRepayUndo]' started.
+Test Case '-[FinanceCoreTests.EditorTests testDebtAddRepayUndo]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.EditorTests testOldAccountJSONDecodes]' started.
+Test Case '-[FinanceCoreTests.EditorTests testOldAccountJSONDecodes]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.EditorTests testPrivateAccountHiddenFromSummary]' started.
+Test Case '-[FinanceCoreTests.EditorTests testPrivateAccountHiddenFromSummary]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.EditorTests testUnknownAccountRejected]' started.
+Test Case '-[FinanceCoreTests.EditorTests testUnknownAccountRejected]' passed (0.000 seconds).
+Test Suite 'EditorTests' passed at 2026-11-26 23:55:02.450.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'FixMistakesTests' started at 2026-11-26 23:55:02.450.
+Test Case '-[FinanceCoreTests.FixMistakesTests testEditThenUndo]' started.
+Test Case '-[FinanceCoreTests.FixMistakesTests testEditThenUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.FixMistakesTests testOpeningBalanceIsNotIncomeAndCanBeChanged]' started.
+Test Case '-[FinanceCoreTests.FixMistakesTests testOpeningBalanceIsNotIncomeAndCanBeChanged]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.FixMistakesTests testRemoveThenUndo]' started.
+Test Case '-[FinanceCoreTests.FixMistakesTests testRemoveThenUndo]' passed (0.000 seconds).
+Test Suite 'FixMistakesTests' passed at 2026-11-26 23:55:02.451.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ForecastTests' started at 2026-11-26 23:55:02.451.
+Test Case '-[FinanceCoreTests.ForecastTests testDecemberLooksAtNextYearAndNoFullMonthsMeansNothing]' started.
+Test Case '-[FinanceCoreTests.ForecastTests testDecemberLooksAtNextYearAndNoFullMonthsMeansNothing]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ForecastTests testFlowsCountOnlyPersonalBooksWhenThereIsAShop]' started.
+Test Case '-[FinanceCoreTests.ForecastTests testFlowsCountOnlyPersonalBooksWhenThereIsAShop]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ForecastTests testMonthEndAndYearEnd]' started.
+Test Case '-[FinanceCoreTests.ForecastTests testMonthEndAndYearEnd]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ForecastTests testNudgesSayYearEndAndBiggestLever]' started.
+Test Case '-[FinanceCoreTests.ForecastTests testNudgesSayYearEndAndBiggestLever]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.ForecastTests testOverspendingKeepsNormalPaceAndSalaryStillToCome]' started.
+Test Case '-[FinanceCoreTests.ForecastTests testOverspendingKeepsNormalPaceAndSalaryStillToCome]' passed (0.000 seconds).
+Test Suite 'ForecastTests' passed at 2026-11-26 23:55:02.456.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'GoalEditTests' started at 2026-11-26 23:55:02.456.
+Test Case '-[FinanceCoreTests.GoalEditTests testEarmarkInExistingAccount]' started.
+Test Case '-[FinanceCoreTests.GoalEditTests testEarmarkInExistingAccount]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.GoalEditTests testSavingsAccountAndLocked]' started.
+Test Case '-[FinanceCoreTests.GoalEditTests testSavingsAccountAndLocked]' passed (0.000 seconds).
+Test Suite 'GoalEditTests' passed at 2026-11-26 23:55:02.457.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'GoalLinkTests' started at 2026-11-26 23:55:02.457.
+Test Case '-[FinanceCoreTests.GoalLinkTests testAlreadyBrokenLedgerHealsFromChangeRecords]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testAlreadyBrokenLedgerHealsFromChangeRecords]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.GoalLinkTests testCannotUndoGoalCreationWhenOnlyChangeRecordLinksDeposit]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testCannotUndoGoalCreationWhenOnlyChangeRecordLinksDeposit]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.GoalLinkTests testRenameWithStaleCopyKeepsLaterDeposit]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testRenameWithStaleCopyKeepsLaterDeposit]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.GoalLinkTests testStaleCopyDoesNotOverwritePinnedOrRank]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testStaleCopyDoesNotOverwritePinnedOrRank]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.GoalLinkTests testUndoDepositStillRemovesIt]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testUndoDepositStillRemovesIt]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.GoalLinkTests testUndoRenameKeepsDepositMadeAfterRename]' started.
+Test Case '-[FinanceCoreTests.GoalLinkTests testUndoRenameKeepsDepositMadeAfterRename]' passed (0.001 seconds).
+Test Suite 'GoalLinkTests' passed at 2026-11-26 23:55:02.460.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'ICloudContainerTests' started at 2026-11-26 23:55:02.460.
+Test Case '-[FinanceCoreTests.ICloudContainerTests testContainerPathOnDisk]' started.
+Test Case '-[FinanceCoreTests.ICloudContainerTests testContainerPathOnDisk]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ICloudContainerTests testMigrateCopiesOnceAndKeepsOld]' started.
+Test Case '-[FinanceCoreTests.ICloudContainerTests testMigrateCopiesOnceAndKeepsOld]' passed (0.020 seconds).
+Test Case '-[FinanceCoreTests.ICloudContainerTests testMigrateReplacesEmptyContainerOnly]' started.
+Test Case '-[FinanceCoreTests.ICloudContainerTests testMigrateReplacesEmptyContainerOnly]' passed (0.025 seconds).
+Test Case '-[FinanceCoreTests.ICloudContainerTests testUnsignedProcessHasNoICloudEntitlement]' started.
+Test Case '-[FinanceCoreTests.ICloudContainerTests testUnsignedProcessHasNoICloudEntitlement]' passed (0.000 seconds).
+Test Suite 'ICloudContainerTests' passed at 2026-11-26 23:55:02.505.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.045 (0.045) seconds
+Test Suite 'ImportGuessTests' started at 2026-11-26 23:55:02.505.
+Test Case '-[FinanceCoreTests.ImportGuessTests testDetectsRevolut]' started.
+Test Case '-[FinanceCoreTests.ImportGuessTests testDetectsRevolut]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ImportGuessTests testDetectsSpanishBankHeaderAfterTitleRows]' started.
+Test Case '-[FinanceCoreTests.ImportGuessTests testDetectsSpanishBankHeaderAfterTitleRows]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ImportGuessTests testGuessesAccountFromFileName]' started.
+Test Case '-[FinanceCoreTests.ImportGuessTests testGuessesAccountFromFileName]' passed (0.000 seconds).
+Test Suite 'ImportGuessTests' passed at 2026-11-26 23:55:02.507.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'ImportTests' started at 2026-11-26 23:55:02.507.
+Test Case '-[FinanceCoreTests.ImportTests testCSVQuotes]' started.
+Test Case '-[FinanceCoreTests.ImportTests testCSVQuotes]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ImportTests testGenericCSVSpanishBank]' started.
+Test Case '-[FinanceCoreTests.ImportTests testGenericCSVSpanishBank]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ImportTests testGenericCSVWithCategoryBookFlow]' started.
+Test Case '-[FinanceCoreTests.ImportTests testGenericCSVWithCategoryBookFlow]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ImportTests testImportDedupAndUndo]' started.
+Test Case '-[FinanceCoreTests.ImportTests testImportDedupAndUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ImportTests testRevolutCSV]' started.
+Test Case '-[FinanceCoreTests.ImportTests testRevolutCSV]' passed (0.000 seconds).
+Test Suite 'ImportTests' passed at 2026-11-26 23:55:02.511.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'InsightTests' started at 2026-11-26 23:55:02.511.
+Test Case '-[FinanceCoreTests.InsightTests testDismissHidesAndUndoShowsAgain]' started.
+Test Case '-[FinanceCoreTests.InsightTests testDismissHidesAndUndoShowsAgain]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.InsightTests testEmptyTitleRejected]' started.
+Test Case '-[FinanceCoreTests.InsightTests testEmptyTitleRejected]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.InsightTests testReviewReplacesAndUndoBringsBack]' started.
+Test Case '-[FinanceCoreTests.InsightTests testReviewReplacesAndUndoBringsBack]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.InsightTests testSQLiteRoundTripKeepsInsights]' started.
+Test Case '-[FinanceCoreTests.InsightTests testSQLiteRoundTripKeepsInsights]' passed (0.008 seconds).
+Test Case '-[FinanceCoreTests.InsightTests testUnknownKindReadsAsTip]' started.
+Test Case '-[FinanceCoreTests.InsightTests testUnknownKindReadsAsTip]' passed (0.000 seconds).
+Test Suite 'InsightTests' passed at 2026-11-26 23:55:02.527.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.015 (0.016) seconds
+Test Suite 'InstallmentRuleTests' started at 2026-11-26 23:55:02.527.
+Test Case '-[FinanceCoreTests.InstallmentRuleTests testPurchaseCountsFullThenPaymentsDont]' started.
+Test Case '-[FinanceCoreTests.InstallmentRuleTests testPurchaseCountsFullThenPaymentsDont]' passed (0.001 seconds).
+Test Suite 'InstallmentRuleTests' passed at 2026-11-26 23:55:02.528.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'L10nTests' started at 2026-11-26 23:55:02.528.
+Test Case '-[FinanceCoreTests.L10nTests testInterpolationBecomesPlaceholders]' started.
+Test Case '-[FinanceCoreTests.L10nTests testInterpolationBecomesPlaceholders]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.L10nTests testLoadFromDefaults]' started.
+Test Case '-[FinanceCoreTests.L10nTests testLoadFromDefaults]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.L10nTests testLookupAndFallback]' started.
+Test Case '-[FinanceCoreTests.L10nTests testLookupAndFallback]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.L10nTests testSystemLanguagePick]' started.
+Test Case '-[FinanceCoreTests.L10nTests testSystemLanguagePick]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.L10nTests testTablesAreComplete]' started.
+Test Case '-[FinanceCoreTests.L10nTests testTablesAreComplete]' passed (0.244 seconds).
+Test Suite 'L10nTests' passed at 2026-11-26 23:55:02.784.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.256 (0.256) seconds
+Test Suite 'LedgerRevisionTests' started at 2026-11-26 23:55:02.784.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testJSONForkedCopiesAndConsecutiveSaves]' started.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testJSONForkedCopiesAndConsecutiveSaves]' passed (0.009 seconds).
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testPhoneInboxAndFinInterleaveWithoutLosingEitherEntry]' started.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testPhoneInboxAndFinInterleaveWithoutLosingEitherEntry]' passed (0.027 seconds).
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testPhoneRejectsSecondLocalWindowAndCanAppendAfterReload]' started.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testPhoneRejectsSecondLocalWindowAndCanAppendAfterReload]' passed (0.034 seconds).
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testSQLiteForkedCopiesAndConsecutiveSaves]' started.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testSQLiteForkedCopiesAndConsecutiveSaves]' passed (0.022 seconds).
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testWipeAndRestoreRejectStaleTarget]' started.
+Test Case '-[FinanceCoreTests.LedgerRevisionTests testWipeAndRestoreRejectStaleTarget]' passed (0.019 seconds).
+Test Suite 'LedgerRevisionTests' passed at 2026-11-26 23:55:02.896.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.112 (0.112) seconds
+Test Suite 'ManageTests' started at 2026-11-26 23:55:02.896.
+Test Case '-[FinanceCoreTests.ManageTests testAccountLifecycle]' started.
+Test Case '-[FinanceCoreTests.ManageTests testAccountLifecycle]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testAccountTransferMovesMoneyButIsNotIncomeOrExpense]' started.
+Test Case '-[FinanceCoreTests.ManageTests testAccountTransferMovesMoneyButIsNotIncomeOrExpense]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testClassifyAndRenameCategory]' started.
+Test Case '-[FinanceCoreTests.ManageTests testClassifyAndRenameCategory]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testCloseDebtAndReopen]' started.
+Test Case '-[FinanceCoreTests.ManageTests testCloseDebtAndReopen]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testFlowDecodingIsLenient]' started.
+Test Case '-[FinanceCoreTests.ManageTests testFlowDecodingIsLenient]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testMarkImportedAsTransferAddsOtherHalfAndUndoRemovesIt]' started.
+Test Case '-[FinanceCoreTests.ManageTests testMarkImportedAsTransferAddsOtherHalfAndUndoRemovesIt]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testPayOffInstallment]' started.
+Test Case '-[FinanceCoreTests.ManageTests testPayOffInstallment]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testRefundReducesExpenseNotIncome]' started.
+Test Case '-[FinanceCoreTests.ManageTests testRefundReducesExpenseNotIncome]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testRemoveDebtTakesItsTransactionsAndUndoRestores]' started.
+Test Case '-[FinanceCoreTests.ManageTests testRemoveDebtTakesItsTransactionsAndUndoRestores]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testRemoveInstallmentAndGoal]' started.
+Test Case '-[FinanceCoreTests.ManageTests testRemoveInstallmentAndGoal]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManageTests testUndoCreateAccountRemovesIt]' started.
+Test Case '-[FinanceCoreTests.ManageTests testUndoCreateAccountRemovesIt]' passed (0.000 seconds).
+Test Suite 'ManageTests' passed at 2026-11-26 23:55:02.902.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'ManualEntryTests' started at 2026-11-26 23:55:02.902.
+Test Case '-[FinanceCoreTests.ManualEntryTests testDateMath]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testDateMath]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testDuplicate]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testDuplicate]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testExpressions]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testExpressions]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testFrequentEntries]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testFrequentEntries]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testMakeExistingRecurring]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testMakeExistingRecurring]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testMonthlyRuleKeepsDayOfMonth]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testMonthlyRuleKeepsDayOfMonth]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testNoteAndTagsRoundTrip]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testNoteAndTagsRoundTrip]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testOldTransactionsWithoutNoteStillLoad]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testOldTransactionsWithoutNoteStillLoad]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringPostsDueAndUndoes]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringPostsDueAndUndoes]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringStopsAtUntilAndWhenPaused]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringStopsAtUntilAndWhenPaused]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringSurvivesSQLite]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testRecurringSurvivesSQLite]' passed (0.007 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testRefundReducesSpending]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testRefundReducesSpending]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testRemoveRecurringAndUndo]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testRemoveRecurringAndUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testSearchFindsNoteTagAndAmount]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testSearchFindsNoteTagAndAmount]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testSplitAndUndo]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testSplitAndUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testSplitPartParsing]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testSplitPartParsing]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testTagCleaning]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testTagCleaning]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testTagManyAndUndo]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testTagManyAndUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testTransfersCannotBeSplitOrCopied]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testTransfersCannotBeSplitOrCopied]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ManualEntryTests testUndoAddRecurringRemovesRule]' started.
+Test Case '-[FinanceCoreTests.ManualEntryTests testUndoAddRecurringRemovesRule]' passed (0.001 seconds).
+Test Suite 'ManualEntryTests' passed at 2026-11-26 23:55:02.919.
+	 Executed 20 tests, with 0 failures (0 unexpected) in 0.016 (0.017) seconds
+Test Suite 'MascotLookTests' started at 2026-11-26 23:55:02.919.
+Test Case '-[LedgerUITests.MascotLookTests testApplyBusinessDefaultOnlyForUntouchedUsers]' started.
+Test Case '-[LedgerUITests.MascotLookTests testApplyBusinessDefaultOnlyForUntouchedUsers]' passed (0.021 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testAvailableLooksFollowImages]' started.
+Test Case '-[LedgerUITests.MascotLookTests testAvailableLooksFollowImages]' passed (0.028 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testBusinessSuggestion]' started.
+Test Case '-[LedgerUITests.MascotLookTests testBusinessSuggestion]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testChooseRecordsChoice]' started.
+Test Case '-[LedgerUITests.MascotLookTests testChooseRecordsChoice]' passed (0.002 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testEveryLookHasFace]' started.
+Test Case '-[LedgerUITests.MascotLookTests testEveryLookHasFace]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testGirlClips]' started.
+Test Case '-[LedgerUITests.MascotLookTests testGirlClips]' passed (0.020 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testOldSettingsMapStraightAcross]' started.
+Test Case '-[LedgerUITests.MascotLookTests testOldSettingsMapStraightAcross]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testOldUserWhoPickedBoyIsKept]' started.
+Test Case '-[LedgerUITests.MascotLookTests testOldUserWhoPickedBoyIsKept]' passed (0.002 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testPartnersAreGone]' started.
+Test Case '-[LedgerUITests.MascotLookTests testPartnersAreGone]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotLookTests testPickingHighlightedGirlCountsAsChoice]' started.
+Test Case '-[LedgerUITests.MascotLookTests testPickingHighlightedGirlCountsAsChoice]' passed (0.003 seconds).
+Test Suite 'MascotLookTests' passed at 2026-11-26 23:55:02.996.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.077 (0.077) seconds
+Test Suite 'MascotMoodTests' started at 2026-11-26 23:55:02.996.
+Test Case '-[LedgerUITests.MascotMoodTests testFallsAsleepAndWakes]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testFallsAsleepAndWakes]' passed (0.001 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testGirlPlaysClip]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testGirlPlaysClip]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testIdleFidget]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testIdleFidget]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testPokeAndPokeFiveTimes]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testPokeAndPokeFiveTimes]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testRecordedSequenceAndCooldown]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testRecordedSequenceAndCooldown]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testSavedCelebrates]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testSavedCelebrates]' passed (0.000 seconds).
+Test Case '-[LedgerUITests.MascotMoodTests testWorriedBaseShows]' started.
+Test Case '-[LedgerUITests.MascotMoodTests testWorriedBaseShows]' passed (0.000 seconds).
+Test Suite 'MascotMoodTests' passed at 2026-11-26 23:55:02.998.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'MemoryTests' started at 2026-11-26 23:55:02.998.
+Test Case '-[FinanceCoreTests.MemoryTests testBuiltInChatOpensWithMemory]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testBuiltInChatOpensWithMemory]' passed (0.305 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testContextCarriesMemoryAndToolGuide]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testContextCarriesMemoryAndToolGuide]' passed (0.416 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testDemoLedgerHasMemories]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testDemoLedgerHasMemories]' passed (0.310 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testEditMoveRemoveAndUndo]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testEditMoveRemoveAndUndo]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testForgetLeavesNoTrace]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testForgetLeavesNoTrace]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testForgetOneLine]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testForgetOneLine]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testLimitsKeepMemorySmall]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testLimitsKeepMemorySmall]' passed (0.007 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testLooksSecret]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testLooksSecret]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testMonthlyTidy]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testMonthlyTidy]' passed (0.012 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testReadsOldAndFutureFiles]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testReadsOldAndFutureFiles]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testRefusesEmptyLongSecretAndBadLinks]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testRefusesEmptyLongSecretAndBadLinks]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testRegularsDropStoppedOnes]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testRegularsDropStoppedOnes]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testRegularsFindSalaryAndRent]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testRegularsFindSalaryAndRent]' passed (0.321 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testRelativeTimeBecomesConcrete]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testRelativeTimeBecomesConcrete]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testSameTopicGetsOneEntry]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testSameTopicGetsOneEntry]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.MemoryTests testSearchWithoutVectors]' started.
+Test Case '-[FinanceCoreTests.MemoryTests testSearchWithoutVectors]' passed (0.002 seconds).
+Test Suite 'MemoryTests' passed at 2026-11-26 23:55:04.390.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 1.391 (1.392) seconds
+Test Suite 'MerchantTests' started at 2026-11-26 23:55:04.390.
+Test Case '-[FinanceCoreTests.MerchantTests testCleansBankText]' started.
+Test Case '-[FinanceCoreTests.MerchantTests testCleansBankText]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.MerchantTests testLeavesGoodTextAlone]' started.
+Test Case '-[FinanceCoreTests.MerchantTests testLeavesGoodTextAlone]' passed (0.000 seconds).
+Test Suite 'MerchantTests' passed at 2026-11-26 23:55:04.391.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'MoneyTests' started at 2026-11-26 23:55:04.391.
+Test Case '-[FinanceCoreTests.MoneyTests testDecimalString]' started.
+Test Case '-[FinanceCoreTests.MoneyTests testDecimalString]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.MoneyTests testParsing]' started.
+Test Case '-[FinanceCoreTests.MoneyTests testParsing]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.MoneyTests testSpanishFormat]' started.
+Test Case '-[FinanceCoreTests.MoneyTests testSpanishFormat]' passed (0.000 seconds).
+Test Suite 'MoneyTests' passed at 2026-11-26 23:55:04.391.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'NudgesTests' started at 2026-11-26 23:55:04.391.
+Test Case '-[FinanceCoreTests.NudgesTests testGoalGapSaysWhereToCut]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testGoalGapSaysWhereToCut]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testGoalReached]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testGoalReached]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testInstallmentDueSoon]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testInstallmentDueSoon]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testPraiseOnlyWhenNothingElse]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testPraiseOnlyWhenNothingElse]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testSavingTarget]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testSavingTarget]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesCompareWithLastMonth]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesCompareWithLastMonth]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesLessThanLastMonth]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesLessThanLastMonth]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesNewLedgerAndOneBigItem]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testSpendingNudgesNewLedgerAndOneBigItem]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testUnusualWeek]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testUnusualWeek]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.NudgesTests testUpcomingAndShortBalance]' started.
+Test Case '-[FinanceCoreTests.NudgesTests testUpcomingAndShortBalance]' passed (0.000 seconds).
+Test Suite 'NudgesTests' passed at 2026-11-26 23:55:04.396.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'ObligationsTests' started at 2026-11-26 23:55:04.396.
+Test Case '-[FinanceCoreTests.ObligationsTests testClosedDebtAndOtherBookLeftOut]' started.
+Test Case '-[FinanceCoreTests.ObligationsTests testClosedDebtAndOtherBookLeftOut]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ObligationsTests testDebtsAndInstallmentsAddUpAsOfADate]' started.
+Test Case '-[FinanceCoreTests.ObligationsTests testDebtsAndInstallmentsAddUpAsOfADate]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ObligationsTests testRepaymentPlanSpreadsWhatIOweUntilTheDueMonth]' started.
+Test Case '-[FinanceCoreTests.ObligationsTests testRepaymentPlanSpreadsWhatIOweUntilTheDueMonth]' passed (0.000 seconds).
+Test Suite 'ObligationsTests' passed at 2026-11-26 23:55:04.397.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'OutlookTests' started at 2026-11-26 23:55:04.397.
+Test Case '-[FinanceCoreTests.OutlookTests testBusinessEstimatesByWeekday]' started.
+Test Case '-[FinanceCoreTests.OutlookTests testBusinessEstimatesByWeekday]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.OutlookTests testDetectsFixedAndSkipsAfterNo]' started.
+Test Case '-[FinanceCoreTests.OutlookTests testDetectsFixedAndSkipsAfterNo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.OutlookTests testLifeCardsLeaveOutFixedAndOneOff]' started.
+Test Case '-[FinanceCoreTests.OutlookTests testLifeCardsLeaveOutFixedAndOneOff]' passed (0.005 seconds).
+Test Case '-[FinanceCoreTests.OutlookTests testNotEnoughDataHidesCards]' started.
+Test Case '-[FinanceCoreTests.OutlookTests testNotEnoughDataHidesCards]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.OutlookTests testReviewQueueGuessesWithRule]' started.
+Test Case '-[FinanceCoreTests.OutlookTests testReviewQueueGuessesWithRule]' passed (0.001 seconds).
+Test Suite 'OutlookTests' passed at 2026-11-26 23:55:04.406.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.009 (0.009) seconds
+Test Suite 'PagePlansTests' started at 2026-11-26 23:55:04.406.
+Test Case '-[FinanceCoreTests.PagePlansTests testEditOnePeriodRebalancesTheTail]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testEditOnePeriodRebalancesTheTail]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testGoalForecastBehindAndExtra]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testGoalForecastBehindAndExtra]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testGoalSortingPinAndReorder]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testGoalSortingPinAndReorder]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testOldDebtJSONStillLoads]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testOldDebtJSONStillLoads]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testOverpayShortenOrLower]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testOverpayShortenOrLower]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testOverviewDueThisMonthAndAllClear]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testOverviewDueThisMonthAndAllClear]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testPlanByPerMonthAndByCount]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testPlanByPerMonthAndByCount]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testProgressCountsPeriodsAfterPlanning]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testProgressCountsPeriodsAfterPlanning]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testReplanKeepsPaidPeriods]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testReplanKeepsPaidPeriods]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testSubscriptionReviewAndGroups]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testSubscriptionReviewAndGroups]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testTheyOweMeCanHaveAPlanToo]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testTheyOweMeCanHaveAPlanToo]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PagePlansTests testUnderpayAddToNextOrExtend]' started.
+Test Case '-[FinanceCoreTests.PagePlansTests testUnderpayAddToNextOrExtend]' passed (0.001 seconds).
+Test Suite 'PagePlansTests' passed at 2026-11-26 23:55:04.415.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.009 (0.009) seconds
+Test Suite 'PhoneCaptureTests' started at 2026-11-26 23:55:04.415.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testAttachAndReimburse]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testAttachAndReimburse]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testDemoLedgerHasPhoneNotesAndReimbursements]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testDemoLedgerHasPhoneNotesAndReimbursements]' passed (0.296 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testNewTablesSurviveSQLite]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testNewTablesSurviveSQLite]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testPhoneAndMacThroughFolder]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testPhoneAndMacThroughFolder]' passed (0.070 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testReceiptGuess]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testReceiptGuess]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testResolveLinkDismissUndo]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testResolveLinkDismissUndo]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testSentenceGuess]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testSentenceGuess]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testSyncNoteRoundTrip]' started.
+Test Case '-[FinanceCoreTests.PhoneCaptureTests testSyncNoteRoundTrip]' passed (0.001 seconds).
+Test Suite 'PhoneCaptureTests' passed at 2026-11-26 23:55:04.793.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.377 (0.377) seconds
+Test Suite 'PiggyBankTests' started at 2026-11-26 23:55:04.793.
+Test Case '-[FinanceCoreTests.PiggyBankTests testAdviceTooTightOffersLater]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testAdviceTooTightOffersLater]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testDaysEarlierMatchesDailyRate]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testDaysEarlierMatchesDailyRate]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testHeldBackIsTaggedAndCounted]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testHeldBackIsTaggedAndCounted]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testIdleGoalAsksAndKeepSilencesIt]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testIdleGoalAsksAndKeepSilencesIt]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testNewMainReplacesOldAndUndoPutsItBack]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testNewMainReplacesOldAndUndoPutsItBack]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testOldGoalJSONStillReads]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testOldGoalJSONStillReads]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testOldLedgerOverLimitIsKeptAsExtra]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testOldLedgerOverLimitIsKeptAsExtra]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testOneMainThreeSmallThenFull]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testOneMainThreeSmallThenFull]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testSmallHabitAndPhrase]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testSmallHabitAndPhrase]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PiggyBankTests testStashLoose]' started.
+Test Case '-[FinanceCoreTests.PiggyBankTests testStashLoose]' passed (0.000 seconds).
+Test Suite 'PiggyBankTests' passed at 2026-11-26 23:55:04.798.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'PlansTests' started at 2026-11-26 23:55:04.798.
+Test Case '-[FinanceCoreTests.PlansTests testDebtOutstandingAndLoanNotExpense]' started.
+Test Case '-[FinanceCoreTests.PlansTests testDebtOutstandingAndLoanNotExpense]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PlansTests testGoalBySavingsAccount]' started.
+Test Case '-[FinanceCoreTests.PlansTests testGoalBySavingsAccount]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PlansTests testInstallmentProgress]' started.
+Test Case '-[FinanceCoreTests.PlansTests testInstallmentProgress]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.PlansTests testOldLedgerFileStillDecodes]' started.
+Test Case '-[FinanceCoreTests.PlansTests testOldLedgerFileStillDecodes]' passed (0.000 seconds).
+Test Suite 'PlansTests' passed at 2026-11-26 23:55:04.799.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ProfileTests' started at 2026-11-26 23:55:04.799.
+Test Case '-[FinanceCoreTests.ProfileTests testAddCategoryAndRename]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testAddCategoryAndRename]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testAssistantNameAndCallUser]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testAssistantNameAndCallUser]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testCategoryIcons]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testCategoryIcons]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testContextCarriesVoiceAndAim]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testContextCarriesVoiceAndAim]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testInsightForPage]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testInsightForPage]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testOldProfileWithoutIconsStillLoads]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testOldProfileWithoutIconsStillLoads]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testPersonaAndAimUndo]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testPersonaAndAimUndo]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testProfileSurvivesSQLiteAndUnknownPersona]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testProfileSurvivesSQLiteAndUnknownPersona]' passed (0.005 seconds).
+Test Case '-[FinanceCoreTests.ProfileTests testRenameCategoryWithTransactionsAlsoRenamesCustom]' started.
+Test Case '-[FinanceCoreTests.ProfileTests testRenameCategoryWithTransactionsAlsoRenamesCustom]' passed (0.001 seconds).
+Test Suite 'ProfileTests' passed at 2026-11-26 23:55:04.807.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.008 (0.008) seconds
+Test Suite 'ReconcileTests' started at 2026-11-26 23:55:04.807.
+Test Case '-[FinanceCoreTests.ReconcileTests testFindsDuplicate]' started.
+Test Case '-[FinanceCoreTests.ReconcileTests testFindsDuplicate]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.ReconcileTests testMatches]' started.
+Test Case '-[FinanceCoreTests.ReconcileTests testMatches]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ReconcileTests testMonthlyReportReads]' started.
+Test Case '-[FinanceCoreTests.ReconcileTests testMonthlyReportReads]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ReconcileTests testUnknownAccount]' started.
+Test Case '-[FinanceCoreTests.ReconcileTests testUnknownAccount]' passed (0.000 seconds).
+Test Suite 'ReconcileTests' passed at 2026-11-26 23:55:04.809.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ReportTests' started at 2026-11-26 23:55:04.809.
+Test Case '-[FinanceCoreTests.ReportTests testCSVExportQuotesText]' started.
+Test Case '-[FinanceCoreTests.ReportTests testCSVExportQuotesText]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ReportTests testMonthMath]' started.
+Test Case '-[FinanceCoreTests.ReportTests testMonthMath]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.ReportTests testSummariesMatchMonthly]' started.
+Test Case '-[FinanceCoreTests.ReportTests testSummariesMatchMonthly]' passed (0.000 seconds).
+Test Suite 'ReportTests' passed at 2026-11-26 23:55:04.810.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'SQLiteStoreTests' started at 2026-11-26 23:55:04.810.
+Test Case '-[FinanceCoreTests.SQLiteStoreTests testMigratesFromLegacyJSON]' started.
+Test Case '-[FinanceCoreTests.SQLiteStoreTests testMigratesFromLegacyJSON]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.SQLiteStoreTests testRoundTripEverything]' started.
+Test Case '-[FinanceCoreTests.SQLiteStoreTests testRoundTripEverything]' passed (0.006 seconds).
+Test Suite 'SQLiteStoreTests' passed at 2026-11-26 23:55:04.820.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.010 (0.011) seconds
+Test Suite 'StaleOverwriteTests' started at 2026-11-26 23:55:04.820.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testBookingEditDeleteAndUndoArrivalOrders]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testBookingEditDeleteAndUndoArrivalOrders]' passed (23.351 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testConflictingPaymentDeletionPreservesAllPlanReferences]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testConflictingPaymentDeletionPreservesAllPlanReferences]' passed (0.004 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testConflictingPlanEditDoesNotInsertUnlinkedPayment]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testConflictingPlanEditDoesNotInsertUnlinkedPayment]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29BookingStillSuppressedAt72HourPhotoTimeout]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29BookingStillSuppressedAt72HourPhotoTimeout]' passed (0.053 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29BookingSurvivesDay30CleanupUntilDay31Photo]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29BookingSurvivesDay30CleanupUntilDay31Photo]' passed (0.051 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29QueuedRenameProtectsDeleteUntilPhotoArrives]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDay29QueuedRenameProtectsDeleteUntilPhotoArrives]' passed (0.126 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDeleteArrivesBeforeUnseenBookingAndPhotoSuppressesBookingOnce]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testDeleteArrivesBeforeUnseenBookingAndPhotoSuppressesBookingOnce]' passed (0.070 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateNoteRemainsInOldInboxWhenNewStoreCannotCommit]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateNoteRemainsInOldInboxWhenNewStoreCannotCommit]' passed (0.020 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateNoteWaitsForAttachmentAndArrivesExactlyOnceAfterMigration]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateNoteWaitsForAttachmentAndArrivesExactlyOnceAfterMigration]' passed (0.037 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateReceiptPhotoThenBookingAndDeletionArchiveInOrderOnce]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLateReceiptPhotoThenBookingAndDeletionArchiveInOrderOnce]' passed (0.047 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyAccountUndoChecksOnlyAffectedRows]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyAccountUndoChecksOnlyAffectedRows]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyDeleteThenRenameAndAmountEditThenInitialBooking]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyDeleteThenRenameAndAmountEditThenInitialBooking]' passed (0.023 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyJSONBookingWithoutSequenceIsApplied]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyJSONBookingWithoutSequenceIsApplied]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyJSONDeletionWithOriginalInChangeIsApplied]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testLegacyJSONDeletionWithOriginalInChangeIsApplied]' passed (0.009 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMacUndoClearsOnlyOneOfTwoDeletionReceipts]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMacUndoClearsOnlyOneOfTwoDeletionReceipts]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMacUndoRestoresDeletedTransactionBeforeLateBooking]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMacUndoRestoresDeletedTransactionBeforeLateBooking]' passed (0.053 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMatchedBookingKeepsReceiptUntilQueuedRenameCommits]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMatchedBookingKeepsReceiptUntilQueuedRenameCommits]' passed (0.174 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMigrationCollectsNotesCopiesAttachmentsAndRejectsOldPhone]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMigrationCollectsNotesCopiesAttachmentsAndRejectsOldPhone]' passed (0.041 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMissingAttachmentPreventsSwitchAndMigrationCanRetry]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMissingAttachmentPreventsSwitchAndMigrationCanRetry]' passed (0.012 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMissingReceiptPhotoKeepsLaterBookingAndDeletionPending]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMissingReceiptPhotoKeepsLaterBookingAndDeletionPending]' passed (0.023 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMovedMarkerPlaceholderRejectsPhoneAndAttachments]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testMovedMarkerPlaceholderRejectsPhoneAndAttachments]' passed (0.006 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testObservedBookingTemporarilyOfflineAtExpiryAfterRestart]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testObservedBookingTemporarilyOfflineAtExpiryAfterRestart]' passed (0.057 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneDeleteAndConcurrentMacEditPreserveMacRecord]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneDeleteAndConcurrentMacEditPreserveMacRecord]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneUndoBookingAndDeletionInAllDeliveryOrders]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneUndoBookingAndDeletionInAllDeliveryOrders]' passed (0.005 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneUndoRestoresDeletedTransactionBeforeLateBooking]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testPhoneUndoRestoresDeletedTransactionBeforeLateBooking]' passed (0.059 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedAmountProtectsDeleteThroughPhotoTimeout]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedAmountProtectsDeleteThroughPhotoTimeout]' passed (0.131 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedDeletionSurvivesDay30]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedDeletionSurvivesDay30]' passed (0.125 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedPhoneRenamePreservesMacAmountAndReportsSameFieldConflict]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedPhoneRenamePreservesMacAmountAndReportsSameFieldConflict]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedPhoneUndoSurvivesExpiryAndRestoresOnce]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testQueuedPhoneUndoSurvivesExpiryAndRestoresOnce]' passed (0.149 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testRestoreSkipsArchivedNotesAndAcceptsPending]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testRestoreSkipsArchivedNotesAndAcceptsPending]' passed (0.021 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testScannerRequestsBothJSONAndSync2Placeholders]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testScannerRequestsBothJSONAndSync2Placeholders]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testSplitWaitingForRetryKeepsDeletionReceipt]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testSplitWaitingForRetryKeepsDeletionReceipt]' passed (0.140 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testThreeDayTimeoutFromFirstSeenBooksWithoutPhotoAndRepairsOnce]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testThreeDayTimeoutFromFirstSeenBooksWithoutPhotoAndRepairsOnce]' passed (0.053 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testThreeDayTimeoutReleasesDeletionAndLatePhotoDoesNotReviveTransaction]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testThreeDayTimeoutReleasesDeletionAndLatePhotoDoesNotReviveTransaction]' passed (0.047 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testTwoDeletionsOnlyUndoTheNamedDeletionInAll24Orders]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testTwoDeletionsOnlyUndoTheNamedDeletionInAll24Orders]' passed (1.101 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndatedTombstonesStartRetentionAtFirstRead]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndatedTombstonesStartRetentionAtFirstRead]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAccountRenameKeepsNewInstitution]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAccountRenameKeepsNewInstitution]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAddRejectsChangedRowEvenWithoutAnEditRecord]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAddRejectsChangedRowEvenWithoutAnEditRecord]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAtDay30WhileBookingWaitsForPhoto]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoAtDay30WhileBookingWaitsForPhoto]' passed (0.071 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoLastRenameLoadedFromMainLedger]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoLastRenameLoadedFromMainLedger]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoMainRenameAfterLaterAmountEditPreservesAmount]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoMainRenameAfterLaterAmountEditPreservesAmount]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoRenameKeepsNewAmountAndRejectsLaterRename]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUndoRenameKeepsNewAmountAndRejectsLaterRename]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUnmatchedDeleteAllowsLaterBookingsEvenAfter72Hours]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUnmatchedDeleteAllowsLaterBookingsEvenAfter72Hours]' passed (0.048 seconds).
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUnmatchedTombstonesExpireAfter30DaysWithoutFurtherWrites]' started.
+Test Case '-[FinanceCoreTests.StaleOverwriteTests testUnmatchedTombstonesExpireAfter30DaysWithoutFurtherWrites]' passed (0.032 seconds).
+Test Suite 'StaleOverwriteTests' passed at 2026-11-26 23:55:30.976.
+	 Executed 44 tests, with 0 failures (0 unexpected) in 26.154 (26.156) seconds
+Test Suite 'StoreTests' started at 2026-11-26 23:55:30.976.
+Test Case '-[FinanceCoreTests.StoreTests testJSONRoundTrip]' started.
+Test Case '-[FinanceCoreTests.StoreTests testJSONRoundTrip]' passed (0.001 seconds).
+Test Suite 'StoreTests' passed at 2026-11-26 23:55:30.978.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'SubscriptionTests' started at 2026-11-26 23:55:30.978.
+Test Case '-[FinanceCoreTests.SubscriptionTests testCycleText]' started.
+Test Case '-[FinanceCoreTests.SubscriptionTests testCycleText]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.SubscriptionTests testDateMath]' started.
+Test Case '-[FinanceCoreTests.SubscriptionTests testDateMath]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.SubscriptionTests testDetect]' started.
+Test Case '-[FinanceCoreTests.SubscriptionTests testDetect]' passed (0.003 seconds).
+Test Case '-[FinanceCoreTests.SubscriptionTests testForeignSubscriptionConvertsToBase]' started.
+Test Case '-[FinanceCoreTests.SubscriptionTests testForeignSubscriptionConvertsToBase]' passed (0.002 seconds).
+Test Case '-[FinanceCoreTests.SubscriptionTests testRegisterStatusTotalsAndUndo]' started.
+Test Case '-[FinanceCoreTests.SubscriptionTests testRegisterStatusTotalsAndUndo]' passed (0.017 seconds).
+Test Suite 'SubscriptionTests' passed at 2026-11-26 23:55:31.000.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.022 (0.023) seconds
+Test Suite 'SuggestTests' started at 2026-11-26 23:55:31.000.
+Test Case '-[FinanceCoreTests.SuggestTests testApplyingGuessesOnlyFillsBlanks]' started.
+Test Case '-[FinanceCoreTests.SuggestTests testApplyingGuessesOnlyFillsBlanks]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.SuggestTests testGuessesFromHistoryIncludingDifferentStoreNumbers]' started.
+Test Case '-[FinanceCoreTests.SuggestTests testGuessesFromHistoryIncludingDifferentStoreNumbers]' passed (0.000 seconds).
+Test Suite 'SuggestTests' passed at 2026-11-26 23:55:31.001.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'SummaryTests' started at 2026-11-26 23:55:31.001.
+Test Case '-[FinanceCoreTests.SummaryTests testTransfersCancelInAllButCountPerBook]' started.
+Test Case '-[FinanceCoreTests.SummaryTests testTransfersCancelInAllButCountPerBook]' passed (0.000 seconds).
+Test Suite 'SummaryTests' passed at 2026-11-26 23:55:31.001.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'TrendsTests' started at 2026-11-26 23:55:31.001.
+Test Case '-[FinanceCoreTests.TrendsTests testCreepingFindsCategoriesRisingSeveralMonths]' started.
+Test Case '-[FinanceCoreTests.TrendsTests testCreepingFindsCategoriesRisingSeveralMonths]' passed (0.000 seconds).
+Test Case '-[FinanceCoreTests.TrendsTests testTrendNudgesSayBetterOrWorse]' started.
+Test Case '-[FinanceCoreTests.TrendsTests testTrendNudgesSayBetterOrWorse]' passed (0.001 seconds).
+Test Case '-[FinanceCoreTests.TrendsTests testWealthBreakdownSplitsWhereTheMoneyIs]' started.
+Test Case '-[FinanceCoreTests.TrendsTests testWealthBreakdownSplitsWhereTheMoneyIs]' passed (0.283 seconds).
+Test Case '-[FinanceCoreTests.TrendsTests testWealthNudges]' started.
+Test Case '-[FinanceCoreTests.TrendsTests testWealthNudges]' passed (0.000 seconds).
+Test Suite 'TrendsTests' passed at 2026-11-26 23:55:31.286.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.284 (0.284) seconds
+Test Suite 'WipeConfirmationTests' started at 2026-11-26 23:55:31.286.
+Test Case '-[LedgerUITests.WipeConfirmationTests testBookRemovedElsewhereCancels]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testBookRemovedElsewhereCancels]' passed (0.308 seconds).
+Test Case '-[LedgerUITests.WipeConfirmationTests testNewEntryElsewhereCancels]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testNewEntryElsewhereCancels]' passed (0.284 seconds).
+Test Case '-[LedgerUITests.WipeConfirmationTests testRecreatedSameBookCancels]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testRecreatedSameBookCancels]' passed (0.272 seconds).
+Test Case '-[LedgerUITests.WipeConfirmationTests testStaleWindowWipeDoesNotLoseEntrySavedElsewhere]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testStaleWindowWipeDoesNotLoseEntrySavedElsewhere]' passed (0.574 seconds).
+Test Case '-[LedgerUITests.WipeConfirmationTests testSwapOneEntryKeepsCountButCancels]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testSwapOneEntryKeepsCountButCancels]' passed (0.272 seconds).
+Test Case '-[LedgerUITests.WipeConfirmationTests testUnchangedLedgerStaysValid]' started.
+Test Case '-[LedgerUITests.WipeConfirmationTests testUnchangedLedgerStaysValid]' passed (0.253 seconds).
+Test Suite 'WipeConfirmationTests' passed at 2026-11-26 23:55:33.249.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 1.963 (1.963) seconds
+Test Suite 'XiaxiaLedgerPackageTests.xctest' passed at 2026-11-26 23:55:33.249.
+	 Executed 373 tests, with 0 failures (0 unexpected) in 41.750 (41.774) seconds
+Test Suite 'All tests' passed at 2026-11-26 23:55:33.249.
+	 Executed 373 tests, with 0 failures (0 unexpected) in 41.750 (41.778) seconds
+◇ Test run started.
+↳ Testing Library Version: 124.4
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests passed after 0.001 seconds.

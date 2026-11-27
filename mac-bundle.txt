@@ -1,0 +1,7 @@
+total 110632
+-rwxr-xr-x  1 runner  staff     58080 Nov 26 23:57 夏夏账本 Debug
+-rwxr-xr-x  1 runner  staff  40412576 Nov 26 23:57 夏夏账本 Debug.debug.dylib
+-rwxr-xr-x  1 runner  staff     34896 Nov 26 23:57 __preview.dylib
+drwxr-xr-x  6 runner  staff       192 Nov 26 23:57 .
+drwxr-xr-x  8 runner  staff       256 Nov 26 23:57 ..
+-rwxr-xr-x  1 runner  staff  16127008 Nov 26 23:57 fin

@@ -1,0 +1,2947 @@
+临时账本：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/ledger.sqlite
+
+$ fin where
+/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/ledger.sqlite
+
+===== 空账本：新用户只有「个人」，自己加账本 =====
+
+$ fin books
+personal	个人	EUR
+
+$ fin book add Shop --kind business
+已记：加账本「Shop」（改动 08BA8360，写错了用 fin undo 08BA8360 撤销）
+
+$ fin book add 家庭 --kind personal
+已记：加账本「家庭」（改动 EA6C9423，写错了用 fin undo EA6C9423 撤销）
+
+$ fin books
+personal	个人	EUR
+shop	Shop	EUR
+book-7a34a7	家庭	EUR
+
+$ fin book add 家庭   （预期失败）
+Error: 已经有叫「家庭」的了，换个名字。
+
+$ fin book rename shop 小店 --dry-run
+预演（没有写入）：账本「Shop」改名为「小店」
+
+$ fin context
+账本：
+  personal	个人	0 笔
+  shop	Shop	0 笔
+  book-7a34a7	家庭	0 笔
+账户：
+  （还没有账户）
+流水：0 笔（— 到 —），未分账本 0 笔
+往来：别人欠我 0,00 €，我欠别人 0,00 €（0 笔未结清）
+分期：0 个进行中；目标：0 个
+最近改动：
+  · smoke：加账本「家庭」
+  · smoke：加账本「Shop」
+口径：
+  · 金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。
+  · 多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。
+  · 订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。
+  · 每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。
+  · 账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。
+  · 去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。
+  · 借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。
+  · 自己账户之间转钱（给另一张卡充值、还信用卡、两个银行账户互转）记为「互转」（flow=internal），两边各一笔，不算收入或支出。新记用 fin transfer move，已导入的流水用 fin transfer mark 标成互转。
+  · 退款（之前花的钱退回来）沿用原来那笔支出的分类，金额记正数：它冲减这个分类的支出，不算收入。
+  · 分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。
+  · 用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。
+  · 私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。
+  · 记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。
+  · 用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。
+  · 锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。
+  · 拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。
+  · 每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。
+  · 不动钱、不碰银行密码；银行数据只读。
+  · 记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。
+  · app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。
+
+$ fin context --json
+{
+  "accounts" : [
+
+  ],
+  "activeInstallments" : 0,
+  "assistantName" : "夏夏",
+  "baseCurrency" : "EUR",
+  "books" : [
+    {
+      "id" : "personal",
+      "name" : "个人",
+      "transactions" : 0
+    },
+    {
+      "id" : "shop",
+      "name" : "Shop",
+      "transactions" : 0
+    },
+    {
+      "id" : "book-7a34a7",
+      "name" : "家庭",
+      "transactions" : 0
+    }
+  ],
+  "goals" : 0,
+  "iOwe" : "0,00 €",
+  "memory" : {
+    "howTo" : [
+      "rules 是用户亲口定的规矩和用词，每次都照做；和别的说法冲突时以它为准。",
+      "index 是记忆目录（只有标题）。用户问到相关的话题，或你要做导入、对账、月报、分类这类事之前，先用 memory 工具把那条读出来（填 id 或 query）再回答。用到了哪条，跟用户说一声是按哪条记的，方便他纠正。",
+      "什么时候记（remember）：用户亲口说的、以后还用得上的事（例外、打算、偏好、用词）直接记，source=said；用户纠正了你，或改了你记的东西，记成 source=corrected，story 写当时怎么错的；你自己从流水看出来的规律，先在对话里问用户，用户说对才记，source=confirmed。",
+      "不记：能从流水直接算出来的数字（工资多少、房租多少，用 regulars 现算）、临时的事、闲聊、你的猜测、卡号和密码。",
+      "先搜再记：同一件事只留一条。已经有这个话题，就加在它下面（topic 填它的 id 或同名标题）；说法变了就用 update_memory 改那一行，不要留两条打架。标题写话题不写结论：「工资」，不是「工资 1.380 €」。",
+      "分三类：rule（规矩，每次必读，最多 20 行，只放高频、确定的约定）、topic（记得的事）、lesson（做事经验：导入、对账这类事做完，有值得下次注意的坑就记，标题用任务名，如「导入对账单」）。",
+      "用户说「忘掉」「别记这个」：用 forget_memory。forever=true 是彻底忘掉，连改动记录里的痕迹一起抹掉、找不回来，先跟用户确认。",
+      "时间写具体：用户说「明年 3 月退健身房」，text 里写「2027 年 3 月退健身房」，原话放 quote。「明年」「下个月」「明天」「下周三」这几种系统会自动换成具体日期；「月底」「年底」「过两个月」「开春」这类要你自己换算成年月日再记。",
+      "会过时的事记的时候带上 review_on（哪天回头看），比如「明年 3 月退健身房」填 3 月底。记忆每月整理一次：到期的、半年没用上的会列出来给用户清，所以少记、记准，一个话题最多 8 行。"
+    ],
+    "index" : [
+
+    ],
+    "rules" : [
+
+    ]
+  },
+  "missingRates" : [
+
+  ],
+  "openDebts" : 0,
+  "owedToMe" : "0,00 €",
+  "persona" : "温和直说",
+  "phoneNotesPending" : 0,
+  "recentChanges" : [
+    "smoke：加账本「家庭」",
+    "smoke：加账本「Shop」"
+  ],
+  "regulars" : [
+
+  ],
+  "reimbursementOutstanding" : "0,00 €",
+  "rules" : [
+    "金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。",
+    "多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。",
+    "订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。",
+    "每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。",
+    "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
+    "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
+    "借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。",
+    "自己账户之间转钱（给另一张卡充值、还信用卡、两个银行账户互转）记为「互转」（flow=internal），两边各一笔，不算收入或支出。新记用 fin transfer move，已导入的流水用 fin transfer mark 标成互转。",
+    "退款（之前花的钱退回来）沿用原来那笔支出的分类，金额记正数：它冲减这个分类的支出，不算收入。",
+    "分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。",
+    "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
+    "私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。",
+    "记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。",
+    "用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。",
+    "锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。",
+    "拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。",
+    "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
+    "不动钱、不碰银行密码；银行数据只读。",
+    "记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。",
+    "app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。"
+  ],
+  "subscriptions" : 0,
+  "subscriptionsDueSoon" : [
+
+  ],
+  "subscriptionsMonthly" : "0,00 €",
+  "subscriptionsYearly" : "0,00 €",
+  "toolGuide" : [
+    "先看 memory.rules：用户对「收益」「结余」「生活费」这些词有自己的说法时，照他的说法算。",
+    "收入、支出、结余、某个分类花了多少（一个月 / 一年 / 一段时间）→ summary。只问收入就只答收入那一行，不用把支出明细念一遍。",
+    "工资多少、每月固定进出多少 → context 里的 regulars（或 regulars 工具），不用自己翻流水加。",
+    "某几笔、某家店、某个标签、某天花了什么 → list_transactions（用 query / category / month 缩小范围）。",
+    "卡里、账户里现在有多少 → accounts。不要拿流水自己加。",
+    "订阅 → subscriptions；谁欠谁 → debts；分期 → installments；存钱进度 → goals。",
+    "要一段能直接读给用户的月度总结 → monthly_report。",
+    "用户说「这笔」「这页」「我在看的」→ current_view。",
+    "「同步今天的」「手机上记的」→ phone_notes，再逐条 resolve_phone_note / link_phone_note / dismiss_phone_note；报销 → reimbursements。",
+    "聊到 memory.index 里有的话题、或要做导入 / 对账 / 月报之前 → memory（填 id 或 query）把那条读出来。"
+  ],
+  "transactionCount" : 0,
+  "unassignedCount" : 0,
+  "voice" : "用温和、直接的口吻：先说结论和数字，再说一句该留意什么，不说教。"
+}
+
+$ fin books
+personal	个人	EUR
+shop	Shop	EUR
+book-7a34a7	家庭	EUR
+
+$ fin accounts
+
+===== 建账户 =====
+
+$ fin account add cash 现金 --kind cash --dry-run
+预演（没有写入）：加账户「现金」
+
+$ fin account add cash 现金 --kind cash
+已记：加账户「现金」（改动 27B463CB，写错了用 fin undo 27B463CB 撤销）
+
+$ fin account add caixa Caixa
+已记：加账户「Caixa」（改动 3615D0A8，写错了用 fin undo 3615D0A8 撤销）
+
+$ fin account add revolut Revolut
+已记：加账户「Revolut」（改动 4DDB12D4，写错了用 fin undo 4DDB12D4 撤销）
+
+$ fin business on --book shop --json
+{
+  "author" : "smoke",
+  "before" : {
+    "addedBookIDs" : [
+
+    ],
+    "changedBusiness" : true
+  },
+  "createdAt" : "2026-11-26T23:55:34Z",
+  "id" : "45D18F64-19C8-4A85-B927-19F7F5F126DB",
+  "kind" : "edit",
+  "planFieldHashes" : {
+
+  },
+  "summary" : "打开生意模式",
+  "transactionIDs" : [
+
+  ],
+  "undone" : false
+}
+
+$ fin business status --json
+{
+  "businessBookID" : "shop",
+  "enabled" : true
+}
+
+$ fin capital set --total 1000 --recovered-before 10 --json
+{
+  "author" : "smoke",
+  "before" : {
+    "addedBookIDs" : [
+
+    ],
+    "business" : {
+      "businessBookID" : "shop",
+      "enabled" : true
+    },
+    "changedBusiness" : true
+  },
+  "createdAt" : "2026-11-26T23:55:34Z",
+  "id" : "24704CFA-847A-44E6-ADC9-3B5CD3F065E0",
+  "kind" : "edit",
+  "planFieldHashes" : {
+
+  },
+  "summary" : "设置生意本钱",
+  "transactionIDs" : [
+
+  ],
+  "undone" : false
+}
+
+$ fin capital --json
+{
+  "estimate" : {
+    "tooEarly" : {
+
+    }
+  },
+  "fraction" : 0.01,
+  "recovered" : {
+    "cents" : 1000
+  },
+  "remaining" : {
+    "cents" : 99000
+  }
+}
+
+$ fin add --side business --account cash --dry-run -- -5 花材
+预演（没有写入）：记一笔 -5,00 € 花材 · 放到生意（指定了生意）
+
+$ fin profit --month 2026-11 --json
+{
+  "changeFromPrevious" : {
+    "cents" : 0
+  },
+  "cost" : {
+    "cents" : 0
+  },
+  "fixed" : [
+
+  ],
+  "fixedTotal" : {
+    "cents" : 0
+  },
+  "fixedUpcoming" : {
+    "cents" : 0
+  },
+  "income" : {
+    "cents" : 0
+  },
+  "profit" : {
+    "cents" : 0
+  },
+  "takenHome" : {
+    "cents" : 0
+  },
+  "todayCost" : {
+    "cents" : 0
+  },
+  "todayIncome" : {
+    "cents" : 0
+  },
+  "topCosts" : [
+
+  ]
+}
+
+$ fin business off --json
+{
+  "author" : "smoke",
+  "before" : {
+    "addedBookIDs" : [
+
+    ],
+    "business" : {
+      "businessBookID" : "shop",
+      "capital" : {
+        "items" : [
+
+        ],
+        "recoveredBefore" : {
+          "cents" : 1000
+        },
+        "total" : {
+          "cents" : 100000
+        }
+      },
+      "enabled" : true
+    },
+    "changedBusiness" : true
+  },
+  "createdAt" : "2026-11-26T23:55:34Z",
+  "id" : "2CF5E717-E587-488E-8F5C-4A4280676431",
+  "kind" : "edit",
+  "planFieldHashes" : {
+
+  },
+  "summary" : "关闭生意模式",
+  "transactionIDs" : [
+
+  ],
+  "undone" : false
+}
+
+$ fin account add pot 储蓄罐 --kind savings
+已记：加账户「储蓄罐」（改动 E3748D61，写错了用 fin undo E3748D61 撤销）
+
+$ fin account add stash 私房钱 --kind cash --private
+已记：加账户「私房钱」（私房钱）（改动 D48F2D85，写错了用 fin undo D48F2D85 撤销）
+
+$ fin accounts --json
+[
+  {
+    "account" : {
+      "id" : "cash",
+      "isPrivate" : false,
+      "kind" : "cash",
+      "name" : "现金"
+    },
+    "balance" : "0.00",
+    "balanceInBase" : "0.00",
+    "currency" : "EUR"
+  },
+  {
+    "account" : {
+      "id" : "caixa",
+      "isPrivate" : false,
+      "kind" : "bank",
+      "name" : "Caixa"
+    },
+    "balance" : "0.00",
+    "balanceInBase" : "0.00",
+    "currency" : "EUR"
+  },
+  {
+    "account" : {
+      "id" : "revolut",
+      "isPrivate" : false,
+      "kind" : "bank",
+      "name" : "Revolut"
+    },
+    "balance" : "0.00",
+    "balanceInBase" : "0.00",
+    "currency" : "EUR"
+  },
+  {
+    "account" : {
+      "id" : "pot",
+      "isPrivate" : false,
+      "kind" : "savings",
+      "name" : "储蓄罐"
+    },
+    "balance" : "0.00",
+    "balanceInBase" : "0.00",
+    "currency" : "EUR"
+  },
+  {
+    "account" : {
+      "id" : "stash",
+      "isPrivate" : true,
+      "kind" : "cash",
+      "name" : "私房钱"
+    },
+    "balance" : "0.00",
+    "balanceInBase" : "0.00",
+    "currency" : "EUR"
+  }
+]
+
+===== 记一笔 =====
+
+$ fin add --account cash --book personal --category 餐饮 --date 2026-11-03 --dry-run -- -12,50 超市
+预演（没有写入）：记一笔 -12,50 € 超市
+
+$ fin add --account cash --book personal --category 餐饮 --date 2026-11-03 --author Claude -- -12,50 超市
+已记：记一笔 -12,50 € 超市（改动 A89F951A，写错了用 fin undo A89F951A 撤销）
+
+$ fin add --account caixa --book shop --date 2026-11-04 -- 300 客人付款
+已记：记一笔 300,00 € 客人付款（改动 5E1A195A，写错了用 fin undo 5E1A195A 撤销）
+
+$ fin add --account caixa --book shop --category 材料 --date 2026-11-05 --json -- -45.90 指甲油
+{
+  "author" : "smoke",
+  "createdAt" : "2026-11-26T23:55:34Z",
+  "id" : "FA09DA0B-E49E-4813-A955-EA74322B86F9",
+  "kind" : "add",
+  "resultingTransactions" : [
+    {
+      "accountID" : "caixa",
+      "amount" : {
+        "cents" : -4590
+      },
+      "bookID" : "shop",
+      "category" : "材料",
+      "date" : "2026-11-05",
+      "description" : "指甲油",
+      "id" : "B4CEDA1C-A298-4C1A-BDF0-21A63ABF63E8",
+      "source" : "手记"
+    }
+  ],
+  "summary" : "记一笔 -45,90 € 指甲油",
+  "transactionIDs" : [
+    "B4CEDA1C-A298-4C1A-BDF0-21A63ABF63E8"
+  ],
+  "undone" : false
+}
+
+$ fin add --account caixa --book personal --category 工资 --date 2026-11-01 -- 1.234,56 工资
+已记：记一笔 1.234,56 € 工资（改动 0B6FDF0C，写错了用 fin undo 0B6FDF0C 撤销）
+
+$ fin add -20 私房零花 --account stash --book personal --date 2026-11-06
+已记：记一笔 -20,00 € 私房零花（改动 378A1974，写错了用 fin undo 378A1974 撤销）
+
+$ fin add --account cash --book personal -- abc 坏金额   （预期失败）
+Error: 金额看不懂：abc，写成 12,50、12.50 或 12,50+3,20
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin add --account cash --book personal --date 21/11/2026 -- -5 坏日期   （预期失败）
+Error: 日期格式要像 2026-11-21
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin add --account cash --book nobook -- -5 没这个账本   （预期失败）
+Error: 没有这个账本：nobook
+
+$ fin add --account nope --book personal -- -5 没这个账户   （预期失败）
+Error: 没有这个账户：nope
+
+===== 查 =====
+
+$ fin tx
+b4ceda1c	2026-11-05	-45,90 €	shop	材料	指甲油
+b49ac17d	2026-11-04	300,00 €	shop	未分类	客人付款
+13ca8ac8	2026-11-03	-12,50 €	personal	餐饮	超市
+d5c7fc2c	2026-11-01	1.234,56 €	personal	工资	工资
+
+$ fin tx --book shop --json
+[
+  {
+    "accountID" : "caixa",
+    "amount" : {
+      "cents" : -4590
+    },
+    "bookID" : "shop",
+    "category" : "材料",
+    "date" : "2026-11-05",
+    "description" : "指甲油",
+    "id" : "B4CEDA1C-A298-4C1A-BDF0-21A63ABF63E8",
+    "source" : "手记"
+  },
+  {
+    "accountID" : "caixa",
+    "amount" : {
+      "cents" : 30000
+    },
+    "bookID" : "shop",
+    "date" : "2026-11-04",
+    "description" : "客人付款",
+    "id" : "B49AC17D-B602-4CF6-B3B8-AA418CB54240",
+    "source" : "手记"
+  }
+]
+
+$ fin tx --month 2026-11 --category 餐饮
+13ca8ac8	2026-11-03	-12,50 €	personal	餐饮	超市
+
+$ fin summary --month 2026-11
+2026-11  全部
+收入 1.534,56 €  支出 -58,40 €  结余 1.476,16 €
+  材料	-45,90 €
+  餐饮	-12,50 €
+  未分类	300,00 €
+  工资	1.234,56 €
+
+$ fin summary --month 2026-11 --book shop --json
+{
+  "book" : "shop",
+  "byCategory" : {
+    "未分类" : "300.00",
+    "材料" : "-45.90"
+  },
+  "expense" : "-45.90",
+  "income" : "300.00",
+  "months" : [
+    {
+      "expense" : "-45.90",
+      "income" : "300.00",
+      "month" : "2026-11",
+      "net" : "254.10"
+    }
+  ],
+  "net" : "254.10",
+  "period" : "2026-11"
+}
+
+===== 整理：分类、分账本 =====
+
+$ fin categorize --category 服务收入 b49ac17d --dry-run
+预演（没有写入）：1 笔改成「服务收入」
+
+$ fin categorize --category 服务收入 b49ac17d
+已记：1 笔改成「服务收入」（改动 CAAAAFF1，写错了用 fin undo CAAAAFF1 撤销）
+
+$ fin assign --book shop 13ca8ac8 --dry-run
+预演（没有写入）：1 笔分到「Shop」
+
+$ fin assign --book personal 13ca8ac8
+已记：1 笔分到「个人」（改动 18826D8A，写错了用 fin undo 18826D8A 撤销）
+
+===== 借款往来 =====
+
+$ fin debt add 阿华 500 --they-owe-me --account cash --date 2026-11-02 --due 2026-12-01 --dry-run
+预演（没有写入）：记欠款：阿华 欠我 500,00 €
+
+$ fin debt add 阿华 500 --they-owe-me --account cash --date 2026-11-02 --due 2026-12-01
+已记：记欠款：阿华 欠我 500,00 €（改动 4AF30800，写错了用 fin undo 4AF30800 撤销）
+
+$ fin debt add 小李 200 --i-owe --note 旧账
+已记：记欠款：我欠 小李 200,00 €（改动 D3571960，写错了用 fin undo D3571960 撤销）
+
+$ fin debts
+别人欠我：
+  阿华	还欠 500,00 €（借出 500,00 €）
+我欠别人：
+  小李	还欠 200,00 €
+这个月我要还 0,00 €；有 1 笔没约日子，算不出哪天全部还清。还没有排还款计划的欠款（可以用 plan_debt 排）。
+
+$ fin debt repay 阿华 100 --account cash --date 2026-11-10
+已记：记还款：阿华 还我 100,00 €，还欠 400,00 €（改动 CB7BD6F3，写错了用 fin undo CB7BD6F3 撤销）
+
+$ fin debts --json
+[
+  {
+    "counterparty" : "阿华",
+    "direction" : "theyOweMe",
+    "dueDate" : "2026-12-01",
+    "id" : "62157AC3-9038-45C9-B812-2DA600EE8686",
+    "outstanding" : {
+      "cents" : 40000
+    },
+    "overdue" : false,
+    "principal" : {
+      "cents" : 50000
+    },
+    "repaid" : {
+      "cents" : 10000
+    }
+  },
+  {
+    "counterparty" : "小李",
+    "direction" : "iOweThem",
+    "id" : "552BA81C-00D8-48F9-B2EF-FFB3A1DE50BB",
+    "outstanding" : {
+      "cents" : 20000
+    },
+    "overdue" : false,
+    "principal" : {
+      "cents" : 20000
+    },
+    "repaid" : {
+      "cents" : 0
+    }
+  }
+]
+
+===== 转账 =====
+
+$ fin transfer new 200 --from shop --to personal --account caixa --date 2026-11-12 --dry-run
+预演（没有写入）：记转账：Shop → 个人 200,00 €
+
+$ fin transfer new 200 --from shop --to personal --account caixa --date 2026-11-12
+已记：记转账：Shop → 个人 200,00 €（改动 B9DD1CDB，写错了用 fin undo B9DD1CDB 撤销）
+
+$ fin transfer move 50 --from-account caixa --to-account cash --date 2026-11-13 --note 取现
+已记：账户间转账：Caixa → 现金 50,00 €（改动 2CFA76B4，写错了用 fin undo 2CFA76B4 撤销）
+
+$ fin add --account caixa --book personal --date 2026-11-14 -- -100 转到Revolut
+已记：记一笔 -100,00 € 转到Revolut（改动 5F989AC0，写错了用 fin undo 5F989AC0 撤销）
+
+$ fin transfer mark bb075f36 --counter-account revolut
+已记：1 笔标成账户间转账，不算收支（改动 CDECB949，写错了用 fin undo CDECB949 撤销）
+
+$ fin summary --month 2026-11
+2026-11  全部
+收入 1.534,56 €  支出 -58,40 €  结余 1.476,16 €
+  材料	-45,90 €
+  餐饮	-12,50 €
+  服务收入	300,00 €
+  工资	1.234,56 €
+
+===== 分期 =====
+
+$ fin installment add 美甲灯 329,40 --count 6 --account caixa --book shop --date 2026-11-08 --category 设备 --dry-run
+预演（没有写入）：记分期：美甲灯 329,40 €，分 6 期
+
+$ fin installment add 美甲灯 329,40 --count 6 --account caixa --book shop --date 2026-11-08 --category 设备
+已记：记分期：美甲灯 329,40 €，分 6 期（改动 78588753，写错了用 fin undo 78588753 撤销）
+
+$ fin installment pay 美甲灯 --date 2026-11-20
+已记：记分期还款：美甲灯 第 1/6 期 54,90 €（改动 74ACFED8，写错了用 fin undo 74ACFED8 撤销）
+
+$ fin installments
+美甲灯	1/6 期	每期 54,90 €	还剩 274,50 €	下次 2027-01-08
+
+$ fin installments --json
+[
+  {
+    "count" : 6,
+    "id" : "099E9062-A3E9-48ED-8DFF-F6FAFF8475A7",
+    "name" : "美甲灯",
+    "nextDate" : "2027-01-08",
+    "paidCount" : 1,
+    "perPayment" : {
+      "cents" : 5490
+    },
+    "remaining" : {
+      "cents" : 27450
+    }
+  }
+]
+
+===== 目标 =====
+
+$ fin goal add 应急金 6000 --deadline 2027-06-30
+已记：建目标「应急金」6.000,00 €（改动 87C98166，写错了用 fin undo 87C98166 撤销）
+存 6.000,00 €：每天 27,78 €（差不多每天 9 次一杯咖啡的钱），每月 857,15 €。
+
+$ fin goal add 旅行 1000 --savings-account pot --locked
+已记：建目标「旅行」1.000,00 €（锁定）（改动 CE40C9BC，写错了用 fin undo CE40C9BC 撤销）
+存 1.000,00 €：每天 2,74 €（每天少一次一杯咖啡），每月 83,34 €。
+
+$ fin goal deposit 应急金 300 --from caixa --date 2026-11-15
+已记：往「应急金」存 300,00 €（改动 D5969E67，写错了用 fin undo D5969E67 撤销）
+「应急金」提前了 11 天到手。照现在的存法 2028 年 6 月 18 日 能到。还差 5.700,00 €（5%）。
+
+$ fin goal withdraw 应急金 100 --to caixa --date 2026-11-16
+已记：从「应急金」取出 100,00 €（改动 978DA93C，写错了用 fin undo 978DA93C 撤销）
+「应急金」到手的日子往后推了大约 10 天。还差 5.800,00 €。用钱很正常，之后慢慢补回来就好。
+
+$ fin goal deposit 旅行 50 --from caixa
+已记：往「旅行」存 50,00 €（改动 5CE5DF20，写错了用 fin undo 5CE5DF20 撤销）
+「旅行」又近了一步。照现在的存法 2028 年 6 月 17 日 能到。还差 950,00 €（5%）。
+
+$ fin goal deposit 应急金 3,20 --from caixa --held-back 咖啡
+已记：忍住了「咖啡」，往「应急金」存 3,20 €（改动 4F587756，写错了用 fin undo 4F587756 撤销）
+「应急金」提前了 1 天到手。照现在的存法 2029 年 4 月 1 日 能到。还差 5.796,80 €（3%）。
+
+$ fin goal plan 1200 --deadline 2027-06-30
+存 1.200,00 €：每天 5,56 €（每天少 2 次一杯咖啡），每月 171,43 €。
+
+$ fin goal main 旅行
+已记：把「旅行」设成大目标（改动 7400AE3B，写错了用 fin undo 7400AE3B 撤销）
+
+$ fin goal check 应急金 keep
+已记：「应急金」还重要，继续存（改动 EE0F7B10，写错了用 fin undo EE0F7B10 撤销）
+
+$ fin goal withdraw 旅行 10 --to caixa   （预期失败）
+Error: 「旅行」是锁定的储蓄，到期前不能动
+
+$ fin goals
+[大目标] 旅行	50,00 € / 1.000,00 €（5%）	2028 年 6 月 17 日 到手	每天 1,67 €
+[小目标] 应急金	203,20 € / 6.000,00 €（3%）	2029 年 4 月 1 日 到手	每天 26,84 €
+要问：「旅行」还没记钱存在哪：问用户是储蓄罐、一张银行卡，还是一个固定的地方。
+
+$ fin goals --json
+{
+  "ask" : [
+    "「旅行」还没记钱存在哪：问用户是储蓄罐、一张银行卡，还是一个固定的地方。"
+  ],
+  "done" : [
+
+  ],
+  "habit" : "流水里还看不出常买的小东西，按一杯咖啡 3 € 算",
+  "main" : {
+    "arrival" : "2028 年 6 月 17 日",
+    "ask_still_important" : false,
+    "held_back_this_month" : 0,
+    "idle_days" : 0,
+    "left" : "950,00 €",
+    "locked" : true,
+    "name" : "旅行",
+    "per_day" : "1,67 €",
+    "per_day_plain" : "每 2 天少一次一杯咖啡",
+    "percent" : 5,
+    "role" : "大目标",
+    "saved" : "50,00 €",
+    "target" : "1.000,00 €"
+  },
+  "over_limit" : [
+
+  ],
+  "rules" : "目标不在多，在于坚持。同时最多 1 个大目标、3 个小目标。每次真的存了钱都要记一笔（goal_deposit）；钱可以取出来（goal_withdraw），不责怪。",
+  "slots_left" : 2,
+  "small" : [
+    {
+      "arrival" : "2029 年 4 月 1 日",
+      "ask_still_important" : false,
+      "deadline" : "2027-06-30",
+      "held_back_this_month" : 1,
+      "idle_days" : 0,
+      "left" : "5.796,80 €",
+      "locked" : false,
+      "name" : "应急金",
+      "per_day" : "26,84 €",
+      "per_day_plain" : "差不多每天 9 次一杯咖啡的钱",
+      "percent" : 3,
+      "role" : "小目标",
+      "saved" : "203,20 €",
+      "target" : "6.000,00 €"
+    }
+  ]
+}
+
+===== 导入对账单 =====
+
+$ fin import /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/revolut.csv --account revolut --dry-run
+读到 3 笔，新的 3 笔，重复 0 笔（没有写入）
+  2026-11-17	-23,40 €	Mercadona
+  2026-11-18	-39,95 €	Zara
+  2026-11-19	50,00 €	Top-Up by *1234
+
+$ fin import /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/revolut.csv --account revolut --format revolut
+已记：导入 Revolut 3 笔（revolut.csv，跳过重复 0 笔）（改动 C9CF29E6，写错了用 fin undo C9CF29E6 撤销）
+
+$ fin import /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/revolut.csv --account revolut --format revolut
+没有新流水（3 笔都已经有了）。
+
+$ fin import /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/caixa.csv --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book shop --dry-run
+读到 2 笔，新的 2 笔，重复 0 笔（没有写入）
+  2026-11-19	-8,20 €	BAZAR CHINO
+  2026-11-20	35,00 €	BIZUM DE CLIENTA
+
+$ fin import /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/caixa.csv --account caixa --date-col Fecha --amount-col Importe --desc-col Concepto --book shop
+已记：导入 Caixa 2 笔（caixa.csv，跳过重复 0 笔）（改动 1D538C01，写错了用 fin undo 1D538C01 撤销）
+
+===== 改、删、对账、月报、开账余额 =====
+
+$ fin edit d5c7fc2c --amount=1.300,00 --dry-run
+预演（没有写入）：改了一笔：工资 1.300,00 €
+
+$ fin edit d5c7fc2c --amount=1.300,00 --category 工资
+已记：改了一笔：工资 1.300,00 €（改动 576CA686，写错了用 fin undo 576CA686 撤销）
+
+$ fin rm ada92ca8 --dry-run
+会删：2026-11-19  -8,20 €  BAZAR CHINO
+预演（没有写入）：删了一笔：BAZAR CHINO -8,20 €
+
+$ fin rm ada92ca8
+已记：删了一笔：BAZAR CHINO -8,20 €（改动 D543FA7B，写错了用 fin undo D543FA7B 撤销）
+
+$ fin account opening revolut 100 --date 2026-11-01
+已记：「Revolut」期初余额 100,00 €（改动 161F4B2E，写错了用 fin undo 161F4B2E 撤销）
+
+$ fin reconcile --account revolut --balance 110,05 --date 2026-11-19
+对账：Revolut，截至 2026-11-19
+银行余额 110,05 €
+账本余额 186,65 €（5 笔，最后一笔 2026-11-19）
+差 -76,60 €（银行 − 账本）
+· 账本比银行多 76,60 €：可能有支出没导入，或多记了收入。
+
+$ fin reconcile --account cash --balance=-1
+对账：现金，截至 2026-11-26
+银行余额 -1,00 €
+账本余额 -362,50 €（4 笔，最后一笔 2026-11-13）
+差 361,50 €（银行 − 账本）
+· 这个账户还没有期初余额。如果开始记账前账户里就有钱，差额 361,50 € 可能就是期初余额。
+
+$ fin report --month 2026-11
+# 2026 年 11 月 · 全部账本
+
+进账 1.635,00 €，花掉 451,15 €，剩下 1.183,85 €。
+存下 72%。
+
+## 钱花在哪
+- 设备 329,40 €（73%）
+- 材料 45,90 €（10%）
+- 未分类 28,35 €（6%）
+- 餐饮 12,50 €（3%）
+
+## 钱从哪来
+- 工资 1.300,00 €
+- 服务收入 300,00 €
+
+## 最大的几笔
+- 2026-11-08 美甲灯 329,40 €（设备）
+- 2026-11-05 指甲油 45,90 €（材料）
+- 2026-11-18 Zara 39,95 €（没分类）
+- 2026-11-17 Mercadona 23,40 €（没分类）
+- 2026-11-03 超市 12,50 €（餐饮）
+
+## 要留意
+- 3 笔流水还没分类或没分账本，上面的数字会不准。
+- 分期「美甲灯」下次 2027-01-08 扣 54,90 €，还剩 274,50 €。
+- 目标「应急金」存了 203,20 € / 6.000,00 €（3%）。
+- 目标「旅行」存了 50,00 € / 1.000,00 €（5%）。
+
+$ fin report --month 2026-11 --book shop
+# 2026 年 11 月 · Shop
+
+进账 335,00 €，花掉 575,30 €，剩下 -240,30 €。
+存下 -71%。
+
+## 钱花在哪
+- 设备 329,40 €（57%）
+- 老板提款 200,00 €（35%）
+- 材料 45,90 €（8%）
+
+## 钱从哪来
+- 服务收入 300,00 €
+- 未分类 35,00 €
+
+## 最大的几笔
+- 2026-11-08 美甲灯 329,40 €（设备）
+- 2026-11-12 Shop → 个人 200,00 €（老板提款）
+- 2026-11-05 指甲油 45,90 €（材料）
+
+## 要留意
+- 3 笔流水还没分类或没分账本，上面的数字会不准。
+- 分期「美甲灯」下次 2027-01-08 扣 54,90 €，还剩 274,50 €。
+- 目标「应急金」存了 203,20 € / 6.000,00 €（3%）。
+- 目标「旅行」存了 50,00 € / 1.000,00 €（5%）。
+
+===== 自己动手记账：算式、备注、标签、复制、拆开、退款、重复 =====
+
+$ fin add --account cash --book personal --category 餐饮 --date 2026-11-20 --note 和小王AA --tag 聚餐 --tag 周末 -- -12,50-3,20 火锅
+已记：记一笔 -15,70 € 火锅（改动 4F1E629D，写错了用 fin undo 4F1E629D 撤销）
+算式 -12,50-3,20 记成了 -15,70
+
+$ fin tx --tag 聚餐
+6d51da46	2026-11-20	-15,70 €	personal	餐饮	火锅（和小王AA） #聚餐 #周末
+
+$ fin tx --query #周末 --kind expense
+6d51da46	2026-11-20	-15,70 €	personal	餐饮	火锅（和小王AA） #聚餐 #周末
+
+$ fin tx --query 小王
+6d51da46	2026-11-20	-15,70 €	personal	餐饮	火锅（和小王AA） #聚餐 #周末
+
+$ fin edit 6d51da46 --note 改过的备注 --tags 聚餐,朋友
+已记：改了一笔：火锅 -15,70 €（改动 2ADD5B94，写错了用 fin undo 2ADD5B94 撤销）
+
+$ fin tag 6d51da46 --add 报销 --remove 朋友
+已记：1 笔加标签 #报销，去掉标签 #朋友（改动 FC44D17C，写错了用 fin undo FC44D17C 撤销）
+
+$ fin copy 6d51da46 --date 2026-11-21
+已记：复制一笔：火锅 -15,70 €（2026-11-21）（改动 7928549E，写错了用 fin undo 7928549E 撤销）
+
+$ fin add --account caixa --book personal --category 超市 --date 2026-11-21 -- -48,30 大超市
+已记：记一笔 -48,30 € 大超市（改动 FB38F8B4，写错了用 fin undo FB38F8B4 撤销）
+
+$ fin split 80de5faf 30:超市 10:日用品   （预期失败）
+Error: 拆开的几份合计 40,00 €，和原来的 48,30 € 对不上。
+
+$ fin split 80de5faf 30:超市 18,30:日用品:洗衣液
+已记：拆开：大超市 48,30 € → 超市 30,00 € + 日用品 18,30 €（改动 33D895D5，写错了用 fin undo 33D895D5 撤销）
+拆开存进账本了
+
+$ fin add --account caixa --book personal --category 购物 --date 2026-11-15 -- -60 鞋子
+已记：记一笔 -60,00 € 鞋子（改动 2B45FD31，写错了用 fin undo 2B45FD31 撤销）
+
+$ fin refund a842ddf0 --amount 70   （预期失败）
+Error: 退款不能比原来那笔多，最多 60,00 €。
+
+$ fin refund a842ddf0 --amount 20 --date 2026-11-18
+已记：记退款：鞋子 20,00 €（改动 5C094C57，写错了用 fin undo 5C094C57 撤销）
+
+$ fin add --account caixa --book personal --category 住房 --date 2026-09-01 --repeat monthly -- -650 房租
+已记：记一笔并设成每月：房租 -650,00 €（改动 769F3AAF，写错了用 fin undo 769F3AAF 撤销）
+
+$ fin repeat list
+8b4a308c	每月 1 号 · 房租 650,00 €	下次 2026-10-01
+
+$ fin repeat run --date 2026-11-22
+已记：自动记了 2 笔重复的账：房租 650,00 € ×2（改动 D7D264A9，写错了用 fin undo D7D264A9 撤销）
+
+$ fin repeat run --date 2026-11-22
+没有到日子的重复记账。
+房租 9、10、11 月各一笔
+
+$ fin repeat pause 房租
+已记：暂停重复记账：房租（改动 42657B17，写错了用 fin undo 42657B17 撤销）
+暂停存进账本了
+
+$ fin repeat resume 房租
+已记：继续重复记账：房租（改动 8711713D，写错了用 fin undo 8711713D 撤销）
+
+$ fin repeat set a842ddf0 yearly --dry-run
+预演（没有写入）：设成每年：鞋子 -60,00 €，下次 2027-11-15
+
+$ fin repeat rm 房租
+已记：停掉重复记账：房租 -650,00 €每月（改动 61C90DBE，写错了用 fin undo 61C90DBE 撤销）
+停掉存进账本了
+
+===== 改动记录、撤销 =====
+
+$ fin history
+61C90DBE	2026-11-26 23:55	smoke	停掉重复记账：房租 -650,00 €每月
+8711713D	2026-11-26 23:55	smoke	继续重复记账：房租
+42657B17	2026-11-26 23:55	smoke	暂停重复记账：房租
+D7D264A9	2026-11-26 23:55	smoke	自动记了 2 笔重复的账：房租 650,00 € ×2
+769F3AAF	2026-11-26 23:55	smoke	记一笔并设成每月：房租 -650,00 €
+5C094C57	2026-11-26 23:55	smoke	记退款：鞋子 20,00 €
+2B45FD31	2026-11-26 23:55	smoke	记一笔 -60,00 € 鞋子
+33D895D5	2026-11-26 23:55	smoke	拆开：大超市 48,30 € → 超市 30,00 € + 日用品 18,30 €
+FB38F8B4	2026-11-26 23:55	smoke	记一笔 -48,30 € 大超市
+7928549E	2026-11-26 23:55	smoke	复制一笔：火锅 -15,70 €（2026-11-21）
+FC44D17C	2026-11-26 23:55	smoke	1 笔加标签 #报销，去掉标签 #朋友
+2ADD5B94	2026-11-26 23:55	smoke	改了一笔：火锅 -15,70 €
+4F1E629D	2026-11-26 23:55	smoke	记一笔 -15,70 € 火锅
+161F4B2E	2026-11-26 23:55	smoke	「Revolut」期初余额 100,00 €
+D543FA7B	2026-11-26 23:55	smoke	删了一笔：BAZAR CHINO -8,20 €
+576CA686	2026-11-26 23:55	smoke	改了一笔：工资 1.300,00 €
+1D538C01	2026-11-26 23:55	smoke	导入 Caixa 2 笔（caixa.csv，跳过重复 0 笔）
+C9CF29E6	2026-11-26 23:55	smoke	导入 Revolut 3 笔（revolut.csv，跳过重复 0 笔）
+EE0F7B10	2026-11-26 23:55	smoke	「应急金」还重要，继续存
+7400AE3B	2026-11-26 23:55	smoke	把「旅行」设成大目标
+
+$ fin undo 61C90DBE --dry-run
+预演（没有写入）：撤销：停掉重复记账：房租 -650,00 €每月
+
+$ fin undo 61C90DBE
+已记：撤销：停掉重复记账：房租 -650,00 €每月（改动 CE348779，写错了用 fin undo CE348779 撤销）
+
+$ fin history --limit 3
+CE348779	2026-11-26 23:55	smoke	撤销：停掉重复记账：房租 -650,00 €每月
+61C90DBE	2026-11-26 23:55	smoke	停掉重复记账：房租 -650,00 €每月	（已撤销）
+8711713D	2026-11-26 23:55	smoke	继续重复记账：房租
+
+===== 说明书（有数据后） =====
+
+$ fin context
+账本：
+  personal	个人	25 笔
+  shop	Shop	7 笔
+  book-7a34a7	家庭	0 笔
+账户：
+  cash	现金	余额 -393,90 €	截止 —
+  caixa	Caixa	余额 -704,10 €	截止 2026-11-20
+  revolut	Revolut	余额 186,65 €	截止 2026-11-19
+  pot	储蓄罐	余额 50,00 €	截止 —
+  stash	私房钱	余额 -20,00 €	截止 —
+流水：38 笔（2026-09-01 到 2026-11-26），未分账本 6 笔
+往来：别人欠我 400,00 €，我欠别人 200,00 €（2 笔未结清）
+分期：1 个进行中；目标：2 个
+最近改动：
+  · smoke：撤销：停掉重复记账：房租 -650,00 €每月
+  · smoke：继续重复记账：房租
+  · smoke：暂停重复记账：房租
+  · smoke：自动记了 2 笔重复的账：房租 650,00 € ×2
+  · smoke：记一笔并设成每月：房租 -650,00 €
+口径：
+  · 金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。
+  · 多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。
+  · 订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。
+  · 每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。
+  · 账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。
+  · 去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。
+  · 借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。
+  · 自己账户之间转钱（给另一张卡充值、还信用卡、两个银行账户互转）记为「互转」（flow=internal），两边各一笔，不算收入或支出。新记用 fin transfer move，已导入的流水用 fin transfer mark 标成互转。
+  · 退款（之前花的钱退回来）沿用原来那笔支出的分类，金额记正数：它冲减这个分类的支出，不算收入。
+  · 分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。
+  · 用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。
+  · 私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。
+  · 记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。
+  · 用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。
+  · 锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。
+  · 拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。
+  · 每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。
+  · 不动钱、不碰银行密码；银行数据只读。
+  · 记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。
+  · app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。
+
+===== 私房钱是否隐藏 =====
+（stash 账户里有一笔 -20 私房零花）
+fin tx：没显示私房钱
+
+===== 多币种（不联网：没取过汇率时外币先按 1:1 算） =====
+
+$ fin account add usdcard 美元卡 --currency USD
+已记：加账户「美元卡」（改动 C3CEC8F3，写错了用 fin undo C3CEC8F3 撤销）
+
+$ fin account add bad 坏币种 --currency XYZ   （预期失败）
+Error: 不认识的币种「XYZ」。用三个字母的代码，比如 EUR、USD、CNY。
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin add --account usdcard --book personal --category 软件 --date 2026-11-02 -- -20 OpenAI
+已记：记一笔 -20,00 US$ OpenAI（改动 DA41721F，写错了用 fin undo DA41721F 撤销）
+
+$ fin add --account caixa --book personal --category 旅行 --date 2026-11-05 --original 50 USD -- -46,12 Hotel
+已记：记一笔 -46,12 € Hotel（改动 A80A56E3，写错了用 fin undo A80A56E3 撤销）
+
+$ fin fx
+主币种：欧元 EUR
+  usdcard	美元卡	美元 USD	余额 -20,00 US$，约 -20,00 €
+汇率：还没取过。运行 fin fx update
+缺汇率：USD，现在先按 1:1 算
+
+$ fin accounts
+cash	现金	-393,90 €
+caixa	Caixa	-750,22 €
+revolut	Revolut	186,65 €
+pot	储蓄罐	50,00 €
+stash	私房钱（私房钱）	-20,00 €
+usdcard	美元卡	-20,00 US$（约 -20,00 €）
+
+$ fin tx --limit 3
+3c0739f6	2026-11-26	-50,00 €	personal	储蓄	存进「旅行」
+176f2e63	2026-11-26	50,00 €	personal	储蓄	存进「旅行」
+bdff361f	2026-11-26	-3,20 €	personal	储蓄	忍住了「咖啡」，存进「应急金」
+
+$ fin fx set-rate 91804bee --bank 18,40
+已记：汇率改成 1 USD = 0,9200 EUR（OpenAI）（改动 4A1239B3，写错了用 fin undo 4A1239B3 撤销）
+
+$ fin fx set-rate 91804bee --rate 0,9 --dry-run
+预演（没有写入）：汇率改成 1 USD = 0,9000 EUR（OpenAI）
+
+$ fin summary --month 2026-11
+2026-11  全部
+收入 1.635,00 €  支出 -1.285,37 €  结余 349,63 €
+  住房	-650,00 €
+  设备	-329,40 €
+  购物	-60,00 €
+  旅行	-46,12 €
+  材料	-45,90 €
+  餐饮	-43,90 €
+  超市	-30,00 €
+  未分类	-28,35 €
+  软件	-18,40 €
+  日用品	-18,30 €
+  退款	20,00 €
+  服务收入	300,00 €
+  工资	1.300,00 €
+
+$ fin fx base USD --dry-run
+预演（没有写入）：主币种改成美元 USD（原来是欧元 EUR）
+
+===== 订阅 =====
+
+$ fin subscription find
+流水里认出 2 个可能是订阅的（先问用户哪些是，确认后再 fin subscription add）：
+  房租	每月 650,00 €	扣过 3 次，最近 2026-11-01，下次约 2026-12-01	账户 caixa	关键词 房租
+  Netflix	每月 12,99 €	扣过 5 次，最近 2026-11-03，下次约 2026-12-03	账户 caixa	关键词 netflix
+
+$ fin subscription add 视频会员 12,99 --next 2026-12-03 --account caixa --match netflix --category 娱乐
+已记：登记订阅「视频会员」每月 12,99 €，下次 2026-12-03（改动 E5231153，写错了用 fin undo E5231153 撤销）
+
+$ fin subscription add 云盘 29,99 --cycle yearly --next 2027-02-01
+已记：登记订阅「云盘」每年 29,99 €，下次 2027-02-01（改动 1722D80A，写错了用 fin undo 1722D80A 撤销）
+
+$ fin subscription add 坏周期 5 --cycle biweekly --next 2027-01-01   （预期失败）
+Error: 周期只能是 weekly、monthly、quarterly、yearly
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin subscriptions
+在续 2 个，每月约 15,49 €，一年约 185,87 €；7 天内要扣 1 个，共 12,99 €
+  12e3490c	视频会员	每月 12,99 €	下次 2026-12-03（7 天后）
+  b4744aca	云盘	每年 29,99 €	下次 2027-02-01	折合每月 2,50 €
+
+$ fin subscription edit 视频 --amount 13,99
+已记：订阅「视频会员」：金额 13,99 €（改动 72C47BCB，写错了用 fin undo 72C47BCB 撤销）
+
+$ fin subscription cancel 云盘
+已记：订阅「云盘」：停了（改动 8F3D2EFD，写错了用 fin undo 8F3D2EFD 撤销）
+
+$ fin subscriptions --all --json
+{
+  "baseCurrency" : "EUR",
+  "subscriptions" : [
+    {
+      "accountID" : "caixa",
+      "amount" : {
+        "cents" : 1399
+      },
+      "category" : "娱乐",
+      "chargeCount" : 5,
+      "currency" : "EUR",
+      "cycle" : "monthly",
+      "daysLeft" : 7,
+      "id" : "12E3490C-447F-45F8-A044-57316F4818C6",
+      "lastChargeAmount" : {
+        "cents" : 1299
+      },
+      "lastChargeDate" : "2026-11-03",
+      "monthlyAmount" : {
+        "cents" : 1399
+      },
+      "monthlyBase" : {
+        "cents" : 1399
+      },
+      "name" : "视频会员",
+      "nextDate" : "2026-12-03",
+      "priceChanged" : true,
+      "priceUp" : false,
+      "rarelyUsed" : false,
+      "yearlyBase" : {
+        "cents" : 16788
+      }
+    },
+    {
+      "amount" : {
+        "cents" : 2999
+      },
+      "cancelledOn" : "2026-11-26",
+      "chargeCount" : 0,
+      "currency" : "EUR",
+      "cycle" : "yearly",
+      "id" : "B4744ACA-7FA4-4C73-9207-0857A02D5EC4",
+      "monthlyAmount" : {
+        "cents" : 250
+      },
+      "monthlyBase" : {
+        "cents" : 0
+      },
+      "name" : "云盘",
+      "priceChanged" : false,
+      "priceUp" : false,
+      "rarelyUsed" : false,
+      "yearlyBase" : {
+        "cents" : 0
+      }
+    }
+  ],
+  "totals" : {
+    "activeCount" : 1,
+    "dueSoon" : 1,
+    "monthly" : {
+      "cents" : 1399
+    },
+    "reviewCount" : 0,
+    "reviewMonthly" : {
+      "cents" : 0
+    },
+    "weekAmount" : {
+      "cents" : 1399
+    },
+    "weekCount" : 1,
+    "yearly" : {
+      "cents" : 16788
+    }
+  }
+}
+
+$ fin subscription find
+流水里认出 1 个可能是订阅的（先问用户哪些是，确认后再 fin subscription add）：
+  房租	每月 650,00 €	扣过 3 次，最近 2026-11-01，下次约 2026-12-01	账户 caixa	关键词 房租
+
+===== 夏夏的记忆 =====
+
+$ fin memory
+夏夏还没记住什么。用 fin memory add <话题> <记住什么> 记一条。
+
+$ fin memory add 转给妈妈的钱 转给妈妈的钱不算支出，算家里往来。 --kind rule --quote 给我妈的钱别算花销 --author Claude
+已记：记忆：记住了「转给妈妈的钱」（我的规矩）（改动 CBE4DAB9，写错了用 fin undo CBE4DAB9 撤销）
+
+$ fin memory add 工资 明年 1 月起涨一点。 --review-on 2027-01-31 --link category:工资
+已记：记忆：记住了「工资」（记得的事）（改动 148A56AE，写错了用 fin undo 148A56AE 撤销）
+
+$ fin memory add 工资 6 月和 12 月多发一份。 --source confirmed
+已记：记忆：在「工资」下面又记了一行（改动 CF8D5D69，写错了用 fin undo CF8D5D69 撤销）
+
+$ fin memory add 工资 6 月和 12 月多发一份。   （预期失败）
+Error: 「工资」里已经记过这句了。
+
+$ fin memory add 我的工资 同一件事换个名字再记一遍   （预期失败）
+Error: 已经有相近的话题：b6e205be「工资」。是同一件事就加在那条下面（topic 填它的 id）；确实是另一件事，加 new_topic=true 再记。
+
+$ fin memory add 银行卡 卡号 4111 1111 1111 1111   （预期失败）
+Error: 看起来像卡号、银行账号或密码。记忆里不存这些。
+
+$ fin memory add 坏挂法 挂在不存在的账户上 --link account:nosuch   （预期失败）
+Error: 挂的东西看不懂：account:nosuch。写成「种类:名字」，种类只能是 category / account / book / merchant / subscription / goal / person，账户和账本要用 context 里的 id。
+
+$ fin memory add 导入对账单 还信用卡是账户互转，别记成支出。 --kind lesson --source corrected --story 第一次导入时算成了支出
+已记：记忆：记住了「导入对账单」（做事经验）（改动 C6EC199E，写错了用 fin undo C6EC199E 撤销）
+
+$ fin memory add 旧打算 去年说过想换手机。 --review-on 2026-01-31
+已记：记忆：记住了「旧打算」（记得的事）（改动 56D4F13D，写错了用 fin undo 56D4F13D 撤销）
+
+$ fin memory
+== 我的规矩 ==
+90f10575 【我的规矩】转给妈妈的钱
+  · f916f0 转给妈妈的钱不算支出，算家里往来。（你说的 · 2026-11-26 · Claude 记下）
+      原话：「给我妈的钱别算花销」
+== 记得的事 ==
+b6e205be 【记得的事】工资  [category:工资]
+  · ac3f8d 2027 年 1 月起涨一点。（你说的 · 2026-11-26 · smoke 记下）
+      回头看：2027-01-31
+  · de59b9 6 月和 12 月多发一份。（夏夏看出来的，你确认过 · 2026-11-26 · smoke 记下）
+d89b59bf 【记得的事】旧打算
+  · 5101b5 2025 年说过想换手机。（你说的 · 2026-11-26 · smoke 记下）
+      回头看：2026-01-31
+== 做事经验 ==
+421a87f2 【做事经验】导入对账单
+  · 5e53ba 还信用卡是账户互转，别记成支出。（你纠正的 · 2026-11-26 · smoke 记下）
+      经过：第一次导入时算成了支出
+
+$ fin memory list --kind rule
+== 我的规矩 ==
+90f10575 【我的规矩】转给妈妈的钱
+  · f916f0 转给妈妈的钱不算支出，算家里往来。（你说的 · 2026-11-26 · Claude 记下）
+      原话：「给我妈的钱别算花销」
+
+$ fin memory list --json
+{
+  "howTo" : [
+    "rules 是用户亲口定的规矩和用词，每次都照做；和别的说法冲突时以它为准。",
+    "index 是记忆目录（只有标题）。用户问到相关的话题，或你要做导入、对账、月报、分类这类事之前，先用 memory 工具把那条读出来（填 id 或 query）再回答。用到了哪条，跟用户说一声是按哪条记的，方便他纠正。",
+    "什么时候记（remember）：用户亲口说的、以后还用得上的事（例外、打算、偏好、用词）直接记，source=said；用户纠正了你，或改了你记的东西，记成 source=corrected，story 写当时怎么错的；你自己从流水看出来的规律，先在对话里问用户，用户说对才记，source=confirmed。",
+    "不记：能从流水直接算出来的数字（工资多少、房租多少，用 regulars 现算）、临时的事、闲聊、你的猜测、卡号和密码。",
+    "先搜再记：同一件事只留一条。已经有这个话题，就加在它下面（topic 填它的 id 或同名标题）；说法变了就用 update_memory 改那一行，不要留两条打架。标题写话题不写结论：「工资」，不是「工资 1.380 €」。",
+    "分三类：rule（规矩，每次必读，最多 20 行，只放高频、确定的约定）、topic（记得的事）、lesson（做事经验：导入、对账这类事做完，有值得下次注意的坑就记，标题用任务名，如「导入对账单」）。",
+    "用户说「忘掉」「别记这个」：用 forget_memory。forever=true 是彻底忘掉，连改动记录里的痕迹一起抹掉、找不回来，先跟用户确认。",
+    "时间写具体：用户说「明年 3 月退健身房」，text 里写「2027 年 3 月退健身房」，原话放 quote。「明年」「下个月」「明天」「下周三」这几种系统会自动换成具体日期；「月底」「年底」「过两个月」「开春」这类要你自己换算成年月日再记。",
+    "会过时的事记的时候带上 review_on（哪天回头看），比如「明年 3 月退健身房」填 3 月底。记忆每月整理一次：到期的、半年没用上的会列出来给用户清，所以少记、记准，一个话题最多 8 行。"
+  ],
+  "index" : [
+    {
+      "id" : "b6e205be",
+      "kind" : "topic",
+      "lines" : 2,
+      "links" : [
+        "category:工资"
+      ],
+      "title" : "工资",
+      "updated" : "2026-11-26"
+    },
+    {
+      "id" : "421a87f2",
+      "kind" : "lesson",
+      "lines" : 1,
+      "links" : [
+
+      ],
+      "title" : "导入对账单",
+      "updated" : "2026-11-26"
+    },
+    {
+      "id" : "d89b59bf",
+      "kind" : "topic",
+      "lines" : 1,
+      "links" : [
+
+      ],
+      "title" : "旧打算",
+      "updated" : "2026-11-26"
+    }
+  ],
+  "rules" : [
+    "转给妈妈的钱：转给妈妈的钱不算支出，算家里往来。"
+  ]
+}
+
+$ fin memory show 工资
+b6e205be 【记得的事】工资  [category:工资]
+  · ac3f8d 2027 年 1 月起涨一点。（你说的 · 2026-11-26 · smoke 记下）
+      回头看：2027-01-31
+  · de59b9 6 月和 12 月多发一份。（夏夏看出来的，你确认过 · 2026-11-26 · smoke 记下）
+
+$ fin memory search 妈妈
+90f10575 【我的规矩】转给妈妈的钱
+  · f916f0 转给妈妈的钱不算支出，算家里往来。（你说的 · 2026-11-26 · Claude 记下）
+      原话：「给我妈的钱别算花销」
+
+$ fin memory edit 工资 --pin
+已记：记忆：「工资」标成重要（改动 81D5363B，写错了用 fin undo 81D5363B 撤销）
+
+$ fin memory edit 转给妈妈的钱 --text 转给妈妈的钱算家里往来，不算支出。 --dry-run
+预演（没有写入）：记忆：改了「转给妈妈的钱」里的一行
+
+$ fin memory edit 工资 --text 两行的话题不说改哪一行   （预期失败）
+Error: 「工资」有 2 行，用 --line 指明改哪一行。
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin memory tidy
+d89b59bf「旧打算」2025 年说过想换手机。（记的时候说 1 月 31 日回头看，已经过了）
+
+$ fin memory tidy --json
+[
+  {
+    "memoryID" : "D89B59BF-3973-418E-A03B-8FABC056CF46",
+    "reason" : "expired",
+    "text" : "2025 年说过想换手机。",
+    "title" : "旧打算",
+    "why" : "记的时候说 1 月 31 日回头看，已经过了"
+  }
+]
+
+$ fin memory edit 旧打算 --keep --dry-run
+预演（没有写入）：记忆：「旧打算」留着
+
+$ fin memory tidy --remove 旧打算
+已记：记忆：整理了一次，清掉 1 行（改动 83EE3F51，写错了用 fin undo 83EE3F51 撤销）
+
+$ fin memory forget 导入对账单 --dry-run
+预演（没有写入）：记忆：删了「导入对账单」
+
+$ fin memory forget 导入对账单
+已记：记忆：删了「导入对账单」（改动 A1186209，写错了用 fin undo A1186209 撤销）
+
+$ fin memory forget 转给妈妈的钱 --forever
+已记：记忆：忘掉了一条（不留内容，找不回来）（改动 A56DB794，写错了用 fin undo A56DB794 撤销）
+
+$ fin history --limit 6
+A56DB794	2026-11-26 23:55	smoke	记忆：忘掉了一条（不留内容，找不回来）
+A1186209	2026-11-26 23:55	smoke	记忆：删了「导入对账单」
+83EE3F51	2026-11-26 23:55	smoke	记忆：整理了一次，清掉 1 行
+81D5363B	2026-11-26 23:55	smoke	记忆：「工资」标成重要
+56D4F13D	2026-11-26 23:55	smoke	记忆：记住了「旧打算」（记得的事）
+C6EC199E	2026-11-26 23:55	smoke	记忆：记住了「导入对账单」（做事经验）
+
+$ fin memory
+== 记得的事 ==
+b6e205be 【记得的事】工资  [category:工资]（重要）
+  · ac3f8d 2027 年 1 月起涨一点。（你说的 · 2026-11-26 · smoke 记下）
+      回头看：2027-01-31
+  · de59b9 6 月和 12 月多发一份。（夏夏看出来的，你确认过 · 2026-11-26 · smoke 记下）
+
+$ fin regulars
+房租：每月 1 号前后扣，约 650,00 €（最近一年里有 3 个月）
+Netflix：每月 3 号前后扣，约 12,99 €（最近一年里有 5 个月）
+
+$ fin regulars --json
+[
+  {
+    "bookID" : "personal",
+    "category" : "住房",
+    "day" : 1,
+    "extraMonths" : [
+
+    ],
+    "id" : "-房租",
+    "income" : false,
+    "last" : "2026-11-01",
+    "months" : 3,
+    "name" : "房租",
+    "typical" : {
+      "cents" : 65000
+    }
+  },
+  {
+    "bookID" : "personal",
+    "category" : "娱乐",
+    "day" : 3,
+    "extraMonths" : [
+
+    ],
+    "id" : "-netflix com",
+    "income" : false,
+    "last" : "2026-11-03",
+    "months" : 5,
+    "name" : "Netflix",
+    "typical" : {
+      "cents" : 1299
+    }
+  }
+]
+
+===== MCP =====
+{"result": {"capabilities": {"tools": {}}, "instructions": "夏夏账本：用户自己的记账本（Mac 上的本地文件，app 和这个 MCP 读写同一份），可以有好几个账本（个人、家庭、店……）。app 里的 AI 叫「夏夏」。\n用户说到记一笔、花了多少、收支、余额、月报、对账、导入对账单、分类、谁欠我钱、还款、分期、存钱目标时用这些工具。\n1. 先调用 context：账本、账户 id、余额、数据覆盖到哪天、统计口径、夏夏的说话方式（voice）和用户的目标（aim）都在里面。账户 id、账本 id 只用 context 里有的，别猜。context 里还有夏夏的记忆（memory：用户定的规矩照做，目录里有相关话题就用 memory 工具读出来）、每月固定进出（regulars）和问什么用哪个工具（toolGuide）。用户说「记住……」「以后都……」用 remember 记下来。\n2. 拿不准的（哪个账户、哪个账本、什么分类、是不是自己账户之间转钱）先在对话里问用户，确认后再写。\n3. 导入和一次改多笔先用 dry_run 预演，把会改什么列给用户，同意后再正式写。单笔且信息齐全可以直接写。用户发来银行 Excel / PDF、支付宝或微信账单、别的记账 App 导出的文件：你自己读懂，整理成 rows 用 impo
+tools/list： business_status, business_on, business_off, profit, capital, capital_set, context, welcome, list_transactions, summary, accounts, monthly_report, reconcile, debts, installments, history, add_transaction, add_debt, repay_debt, plan_debt, edit_debt_plan, skip_debt_payment, edit_transaction, split_transaction, duplicate_transaction, add_refund, tag_transactions, one_off_review, mark_one_off, list_recurring, set_recurring, update_recurring, run_recurring, delete_transactions, account_transfer, mark_account_transfer, add_account, add_book, rename_book, remove_book, edit_account, remove_account, rename_category, add_category, set_category_icon, list_category_icons, set_profile, set_opening_balance, book_transfer, categorize, assign_book, import_rows, import_statement, add_installment, pay_installment, add_insight, list_insights, dismiss_insight, ai_status, current_view, open_in_app, undo, goals, plan_goal, add_goal, goal_deposit, goal_withdraw, set_main_goal, goal_check, set_goal_stash, remove_goal, currency, update_rates, set_base_currency, set_account_currency, set_rate, subscriptions, find_subscriptions, add_subscription, edit_subscription, remove_subscription, memory, remember, update_memory, forget_memory, tidy_memory, regulars, phone_notes, resolve_phone_note, link_phone_note, dismiss_phone_note, attach_receipt, reimbursements, set_reimbursement, export_reimbursements
+
+MCP 握手后记下连上的 AI 工具（app 的连 AI 引导靠它显示「连上了」）：
+{
+  "AI" : "2026-11-26T23:55:34Z",
+  "smoke-client" : "2026-11-26T23:55:39Z"
+}
+MCP › context {}
+{
+  "accounts" : [
+    {
+      "balance" : "-393,90 €",
+      "currency" : "EUR",
+      "id" : "cash",
+      "isPrivate" : false,
+      "kind" : "cash",
+      "name" : "现金"
+    },
+    {
+      "balance" : "-815,17 €",
+      "currency" : "EUR",
+      "id" : "caixa",
+      "isPrivate" : false,
+      "kind" : "bank",
+      "lastStatementDate" : "2026-11-20",
+      "name" : "Caixa"
+    },
+    {
+      "balance" : "186,65 €",
+      "currency" : "EUR",
+      "id" : "revolut",
+      "isPrivate" : false,
+      "kind" : "bank",
+      "lastStatementDate" : "2026-11-19",
+      "name" : "Revolut"
+    },
+    {
+      "balance" : "50,00 €",
+      "currency" : "EUR",
+      "id" : "pot",
+      "isPrivate" : false,
+      "kind" : "savings",
+      "name" : "储蓄罐"
+    },
+    {
+      "balance" : "-20,00 €",
+      "currency" : "EUR",
+      "id" : "stash",
+      "isPrivate" : true,
+      "kind" : "cash",
+      "name" : "私房钱"
+    },
+    {
+      "balance" : "-20,00 US$",
+      "balanceInBase" : "-20,00 €",
+      "currency" : "USD",
+      "id" : "usdcard",
+      "isPrivate" : false,
+      "kind" : "bank",
+      "name" : "美元卡"
+    }
+  ],
+  "activeInstallments" : 1,
+  "assistantName" : "夏夏",
+  "baseCurrency" : "EUR",
+  "books" : [
+    {
+      "id" : "personal",
+      "name" : "个人",
+      "transactions" : 32
+    },
+    {
+      "id" : "shop",
+      "name" : "Shop",
+      "transactions" : 7
+    },
+    {
+      "id" : "book-7a34a7",
+      "name" : "家庭",
+      "transactions" : 0
+    }
+  ],
+  "firstDate" : "2026-07-03",
+  "goals" : 2,
+  "iOwe" : "200,00 €",
+  "lastDate" : "2026-11-26",
+  "memory" : {
+    "howTo" : [
+      "rules 是用户亲口定的规矩和用词，每次都照做；和别的说法冲突时以它为准。",
+      "index 是记忆目录（只有标题）。用户问到相关的话题，或你要做导入、对账、月报、分类这类事之前，先用 memory 工具把那条读出来（填 id 或 query）再回答。用到了哪条，跟用户说一声是按哪条记的，方便他纠正。",
+      "什么时候记（remember）：用户亲口说的、以后还用得上的事（例外、打算、偏好、用词）直接记，source=said；用户纠正了你，或改了你记的东西，记成 source=corrected，story 写当时怎么错的；你自己从流水看出来的规律，先在对话里问用户，用户说对才记，source=confirmed。",
+      "不记：能从流水直接算出来的数字（工资多少、房租多少，用 regulars 现算）、临时的事、闲聊、你的猜测、卡号和密码。",
+      "先搜再记：同一件事只留一条。已经有这个话题，就加在它下面（topic 填它的 id 或同名标题）；说法变了就用 update_memory 改那一行，不要留两条打架。标题写话题不写结论：「工资」，不是「工资 1.380 €」。",
+      "分三类：rule（规矩，每次必读，最多 20 行，只放高频、确定的约定）、topic（记得的事）、lesson（做事经验：导入、对账这类事做完，有值得下次注意的坑就记，标题用任务名，如「导入对账单」）。",
+      "用户说「忘掉」「别记这个」：用 forget_memory。forever=true 是彻底忘掉，连改动记录里的痕迹一起抹掉、找不回来，先跟用户确认。",
+      "时间写具体：用户说「明年 3 月退健身房」，text 里写「2027 年 3 月退健身房」，原话放 quote。「明年」「下个月」「明天」「下周三」这几种系统会自动换成具体日期；「月底」「年底」「过两个月」「开春」这类要你自己换算成年月日再记。",
+      "会过时的事记的时候带上 review_on（哪天回头看），比如「明年 3 月退健身房」填 3 月底。记忆每月整理一次：到期的、半年没用上的会列出来给用户清，所以少记、记准，一个话题最多 8 行。"
+    ],
+    "index" : [
+      {
+        "id" : "b6e205be",
+        "kind" : "topic",
+        "lines" : 2,
+        "links" : [
+          "category:工资"
+        ],
+        "title" : "工资",
+        "updated" : "2026-11-26"
+      }
+    ],
+    "rules" : [
+
+    ]
+  },
+  "missingRates" : [
+    "USD"
+  ],
+  "openDebts" : 2,
+  "owedToMe" : "400,00 €",
+  "persona" : "温和直说",
+  "phoneNotesPending" : 0,
+  "recentChanges" : [
+    "smoke：记忆：忘掉了一条（不留内容，找不回来）",
+    "smoke：记忆：删了「导入对账单」",
+    "smoke：记忆：整理了一次，清掉 1 行",
+    "smoke：记忆：「工资」标成重要",
+    "smoke：记忆：记住了「旧打算」（记得的事）"
+  ],
+  "regulars" : [
+    "房租：每月 1 号前后扣，约 650,00 €（最近一年里有 3 个月）",
+    "Netflix：每月 3 号前后扣，约 12,99 €（最近一年里有 5 个月）"
+  ],
+  "reimbursementOutstanding" : "0,00 €",
+  "rules" : [
+    "金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。",
+    "多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。",
+    "订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。",
+    "每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。",
+    "账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。",
+    "去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。",
+    "借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。",
+    "自己账户之间转钱（给另一张卡充值、还信用卡、两个银行账户互转）记为「互转」（flow=internal），两边各一笔，不算收入或支出。新记用 fin transfer move，已导入的流水用 fin transfer mark 标成互转。",
+    "退款（之前花的钱退回来）沿用原来那笔支出的分类，金额记正数：它冲减这个分类的支出，不算收入。",
+    "分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。",
+    "用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。",
+    "私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。",
+    "记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。",
+    "用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。",
+    "锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。",
+    "拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。",
+    "每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。",
+    "不动钱、不碰银行密码；银行数据只读。",
+    "记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。",
+    "app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。"
+  ],
+  "subscriptions" : 1,
+  "subscriptionsDueSoon" : [
+    "视频会员 2026-12-03 13,99 €"
+  ],
+  "subscriptionsMonthly" : "13,99 €",
+  "subscriptionsYearly" : "167,88 €",
+  "toolGuide" : [
+    "先看 memory.rules：用户对「收益」「结余」「生活费」这些词有自己的说法时，照他的说法算。",
+    "收入、支出、结余、某个分类花了多少（一个月 / 一年 / 一段时间）→ summary。只问收入就只答收入那一行，不用把支出明细念一遍。",
+    "工资多少、每月固定进出多少 → context 里的 regulars（或 regulars 工具），不用自己翻流水加。",
+    "某几笔、某家店、某个标签、某天花了什么 → list_transactions（用 query / category / month 缩小范围）。",
+    "卡里、账户里现在有多少 → accounts。不要拿流水自己加。",
+    "订阅 → subscriptions；谁欠谁 → debts；分期 → installments；存钱进度 → goals。",
+    "要一段能直接读给用户的月度总结 → monthly_report。",
+    "用户说「这笔」「这页」「我在看的」→ current_view。",
+    "「同步今天的」「手机上记的」→ phone_notes，再逐条 resolve_phone_note / link_phone_note / dismiss_phone_note；报销 → reimbursements。",
+    "聊到 memory.index 里有的话题、或要做导入 / 对账 / 月报之前 → memory（填 id 或 query）把那条读出来。"
+  ],
+  "transactionCount" : 45,
+  "unassignedCount" : 6,
+  "voice" : "用温和、直接的口吻：先说结论和数字，再说一句该留意什么，不说教。"
+}
+
+MCP › welcome {}
+用户刚装好夏夏账本，这是第一次让你记账。照下面带着走：语气轻松，用用户说话的语言，每次只问一句，不要把账本里的内容念给用户听。
+1. 先调 context 看有哪些账本和账户。
+2. 只问一句：「今天花了什么？」等用户回答，再用 add_transaction 记下来（支出是负数）。金额、账户、账本没说清楚、你拿不准的，先问再记。记完用一句话说记了什么。
+3. 再问一句：「有没有想存钱达成的心愿？」（比如旅行、换手机、应急的钱）有就问清名字和金额，用 add_goal 建一个存钱目标；没有就跳过。context 里的 aim 是用户在引导里定的记账目标，问的时候可以顺着它问（比如目标是「每个月存下 300 €」，就问这笔钱想存来做什么）。
+4. 最后说「回到夏夏账本看看吧」，有 aim 就围着它鼓励一句，再举三个以后可以怎么跟你说的例子（比如「今天打车 12」「这个月吃饭花了多少」「拍张小票发给我」）。
+规矩：只记用户在这次对话里亲口说的；金额不要自己编。
+
+MCP › import_rows {"account":"cash","rows":[{"date":"2026-11-03","amount":"-12,50","description":"烟测超市"},{"date":"bad","amount":"1","description":"x"}],"dry_run":true}
+预演（没有写入）：读到 1 笔，新的 1 笔
+  2026-11-03 -12,50 € 烟测超市
+跳过：
+  第 2 行：日期看不懂（要 2026-11-03）
+
+MCP › list_transactions {"month":"2026-11","limit":3}
+[
+  {
+    "accountID" : "caixa",
+    "amount" : {
+      "cents" : -5000
+    },
+    "bookID" : "personal",
+    "category" : "储蓄",
+    "date" : "2026-11-26",
+    "description" : "存进「旅行」",
+    "flow" : "saving",
+    "id" : "3C0739F6-6FCF-4F09-9081-D111FE2BA392",
+    "source" : "手记"
+  },
+  {
+    "accountID" : "pot",
+    "amount" : {
+      "cents" : 5000
+    },
+    "bookID" : "personal",
+    "category" : "储蓄",
+    "date" : "2026-11-26",
+    "description" : "存进「旅行」",
+    "flow" : "saving",
+    "id" : "176F2E63-0E53-4BAD-BA80-D6456C9331B4",
+    "source" : "手记"
+  },
+  {
+    "accountID" : "caixa",
+    "amount" : {
+      "cents" : -320
+    },
+    "bookID" : "personal",
+    "category" : "储蓄",
+    "date" : "2026-11-26",
+    "description" : "忍住了「咖啡」，存进「应急金」",
+    "flow" : "saving",
+    "id" : "BDFF361F-AA62-41D2-A044-016EEAA5698F",
+    "source" : "手记"
+  }
+]
+
+MCP › list_transactions {"query":"mercadona"}
+[
+  {
+    "accountID" : "revolut",
+    "amount" : {
+      "cents" : -2340
+    },
+    "date" : "2026-11-17",
+    "description" : "Mercadona",
+    "id" : "C7C4E36F-F8EB-42D7-BCB0-B234CAC16EB7",
+    "source" : "revolut.csv"
+  }
+]
+
+MCP › list_transactions {"include_private":true,"account":"stash"}
+[
+  {
+    "accountID" : "stash",
+    "amount" : {
+      "cents" : -2000
+    },
+    "bookID" : "personal",
+    "date" : "2026-11-06",
+    "description" : "私房零花",
+    "id" : "C27B9663-0B63-4A57-86E5-749FDA703BAE",
+    "source" : "手记"
+  }
+]
+
+MCP › summary {"month":"2026-11"}
+2026-11  全部
+收入 1.635,00 €  支出 -1.298,36 €  结余 336,64 €
+  住房	-650,00 €
+  设备	-329,40 €
+  购物	-60,00 €
+  旅行	-46,12 €
+  材料	-45,90 €
+  餐饮	-43,90 €
+  超市	-30,00 €
+  未分类	-28,35 €
+  软件	-18,40 €
+  日用品	-18,30 €
+  娱乐	-12,99 €
+  退款	20,00 €
+  服务收入	300,00 €
+  工资	1.300,00 €
+
+MCP › summary {"month":"2026-11","book":"shop"}
+2026-11  shop
+收入 335,00 €  支出 -575,30 €  结余 -240,30 €
+  设备	-329,40 €
+  老板提款	-200,00 €
+  材料	-45,90 €
+  未分类	35,00 €
+  服务收入	300,00 €
+
+MCP › accounts {}
+cash	现金	-393,90 €
+caixa	Caixa	-815,17 €
+revolut	Revolut	186,65 €
+pot	储蓄罐	50,00 €
+usdcard	美元卡	-20,00 US$（约 -20,00 €）
+
+MCP › monthly_report {"month":"2026-11"}
+# 2026 年 11 月 · 全部账本
+
+进账 1.635,00 €，花掉 1.298,36 €，剩下 336,64 €。
+比上个月多花 635,37 €（上个月花掉 662,99 €）。
+存下 20%。
+
+## 钱花在哪
+- 住房 650,00 €（50%）
+- 设备 329,40 €（25%），上个月没有
+- 购物 60,00 €（5%），上个月没有
+- 旅行 46,12 €（4%），上个月没有
+- 材料 45,90 €（4%），上个月没有
+- 餐饮 43,90 €（3%），上个月没有
+- 超市 30,00 €（2%），上个月没有
+- 未分类 28,35 €（2%），上个月没有
+- 其余 3 类 49,69 €
+
+## 钱从哪来
+- 工资 1.300,00 €
+- 服务收入 300,00 €
+
+## 最大的几笔
+- 2026-11-01 房租 650,00 €（住房）
+- 2026-11-08 美甲灯 329,40 €（设备）
+- 2026-11-15 鞋子 60,00 €（购物）
+- 2026-11-05 Hotel 46,12 €（旅行）
+- 2026-11-05 指甲油 45,90 €（材料）
+
+## 要留意
+- 3 笔流水还没分类或没分账本，上面的数字会不准。
+- 分期「美甲灯」下次 2027-01-08 扣 54,90 €，还剩 274,50 €。
+- 订阅「视频会员」最近一次扣了 12,99 €，登记的是 13,99 €：可能涨价了。
+- 还没有 USD 的汇率，外币先按 1:1 算了；联网后运行 fin fx update。
+- 目标「应急金」存了 203,20 € / 6.000,00 €（3%）。
+- 目标「旅行」存了 50,00 € / 1.000,00 €（5%）。
+
+MCP › reconcile {"account":"revolut","balance":"110,05"}
+对账：Revolut，截至 2026-11-26
+银行余额 110,05 €
+账本余额 186,65 €（5 笔，最后一笔 2026-11-19）
+差 -76,60 €（银行 − 账本）
+· 账本比银行多 76,60 €：可能有支出没导入，或多记了收入。
+
+MCP › business_status {}
+{
+  "businessBookID" : "shop",
+  "capital" : {
+    "items" : [
+
+    ],
+    "recoveredBefore" : {
+      "cents" : 1000
+    },
+    "total" : {
+      "cents" : 100000
+    }
+  },
+  "enabled" : false
+}
+
+MCP › business_on {"book":"shop","dry_run":true}
+预演（没有写入）：打开生意模式
+
+MCP › business_off {"dry_run":true}
+预演（没有写入）：关闭生意模式
+
+MCP › profit {"month":"2026-11"}
+{
+  "changeFromPrevious" : {
+    "cents" : -4030
+  },
+  "cost" : {
+    "cents" : 37530
+  },
+  "fixed" : [
+
+  ],
+  "fixedTotal" : {
+    "cents" : 0
+  },
+  "fixedUpcoming" : {
+    "cents" : 0
+  },
+  "income" : {
+    "cents" : 33500
+  },
+  "profit" : {
+    "cents" : -4030
+  },
+  "takenHome" : {
+    "cents" : 20000
+  },
+  "todayCost" : {
+    "cents" : 0
+  },
+  "todayIncome" : {
+    "cents" : 0
+  },
+  "topCosts" : [
+    {
+      "amount" : {
+        "cents" : 32940
+      },
+      "category" : "设备"
+    },
+    {
+      "amount" : {
+        "cents" : 4590
+      },
+      "category" : "材料"
+    }
+  ]
+}
+
+MCP › capital {}
+{
+  "estimate" : {
+    "tooEarly" : {
+
+    }
+  },
+  "fraction" : 0,
+  "recovered" : {
+    "cents" : -3030
+  },
+  "remaining" : {
+    "cents" : 103030
+  }
+}
+
+MCP › capital_set {"total":"1200","dry_run":true}
+预演（没有写入）：设置生意本钱
+
+MCP › add_transaction {"amount":"12","description":"测试收款","account":"cash","side":"business","dry_run":true}
+预演（没有写入）：记一笔 12,00 € 测试收款
+
+MCP › account_transfer {"amount":"10","from_account":"caixa","to_account":"cash","dry_run":true}
+预演（没有写入）：账户间转账：Caixa → 现金 10,00 €
+
+MCP › add_account {"id":"n26","name":"N26","opening_balance":"200","dry_run":true}
+预演（没有写入）：加账户「N26」，现有 200,00 €
+
+MCP › debts {}
+[
+  {
+    "counterparty" : "阿华",
+    "direction" : "theyOweMe",
+    "dueDate" : "2026-12-01",
+    "id" : "62157AC3-9038-45C9-B812-2DA600EE8686",
+    "outstanding" : {
+      "cents" : 40000
+    },
+    "overdue" : false,
+    "principal" : {
+      "cents" : 50000
+    },
+    "repaid" : {
+      "cents" : 10000
+    }
+  },
+  {
+    "counterparty" : "小李",
+    "direction" : "iOweThem",
+    "id" : "552BA81C-00D8-48F9-B2EF-FFB3A1DE50BB",
+    "outstanding" : {
+      "cents" : 20000
+    },
+    "overdue" : false,
+    "principal" : {
+      "cents" : 20000
+    },
+    "repaid" : {
+      "cents" : 0
+    }
+  }
+]
+
+这个月我要还 0,00 €；有 1 笔没约日子，算不出哪天全部还清。还没有排还款计划的欠款（可以用 plan_debt 排）。
+
+MCP › installments {}
+[
+  {
+    "count" : 6,
+    "id" : "099E9062-A3E9-48ED-8DFF-F6FAFF8475A7",
+    "name" : "美甲灯",
+    "nextDate" : "2027-01-08",
+    "paidCount" : 1,
+    "perPayment" : {
+      "cents" : 5490
+    },
+    "remaining" : {
+      "cents" : 27450
+    }
+  }
+]
+
+MCP › goals {}
+{
+  "ask" : [
+    "「旅行」还没记钱存在哪：问用户是储蓄罐、一张银行卡，还是一个固定的地方。"
+  ],
+  "done" : [
+
+  ],
+  "habit" : "流水里还看不出常买的小东西，按一杯咖啡 3 € 算",
+  "main" : {
+    "arrival" : "2028 年 6 月 17 日",
+    "ask_still_important" : false,
+    "held_back_this_month" : 0,
+    "idle_days" : 0,
+    "left" : "950,00 €",
+    "locked" : true,
+    "name" : "旅行",
+    "per_day" : "1,67 €",
+    "per_day_plain" : "每 2 天少一次一杯咖啡",
+    "percent" : 5,
+    "role" : "大目标",
+    "saved" : "50,00 €",
+    "target" : "1.000,00 €"
+  },
+  "monthly_room" : "-446,32 €",
+  "over_limit" : [
+
+  ],
+  "rules" : "目标不在多，在于坚持。同时最多 1 个大目标、3 个小目标。每次真的存了钱都要记一笔（goal_deposit）；钱可以取出来（goal_withdraw），不责怪。",
+  "slots_left" : 2,
+  "small" : [
+    {
+      "arrival" : "2029 年 4 月 1 日",
+      "ask_still_important" : false,
+      "deadline" : "2027-06-30",
+      "held_back_this_month" : 1,
+      "idle_days" : 0,
+      "left" : "5.796,80 €",
+      "locked" : false,
+      "name" : "应急金",
+      "per_day" : "26,84 €",
+      "per_day_plain" : "差不多每天 9 次一杯咖啡的钱",
+      "percent" : 3,
+      "role" : "小目标",
+      "saved" : "203,20 €",
+      "target" : "6.000,00 €"
+    }
+  ]
+}
+
+MCP › history {"limit":3}
+[
+  {
+    "author" : "smoke",
+    "createdAt" : "2026-11-26T23:55:39Z",
+    "id" : "A56DB794-6ED1-45EE-822B-58A45368DBA9",
+    "kind" : "edit",
+    "summary" : "记忆：忘掉了一条（不留内容，找不回来）",
+    "transactionIDs" : [
+
+    ],
+    "undone" : false
+  },
+  {
+    "author" : "smoke",
+    "before" : {
+      "memories" : [
+        {
+          "createdAt" : "2026-11-26T23:55:38Z",
+          "id" : "421A87F2-D819-463C-96F7-B23F5BB254B6",
+          "kind" : "lesson",
+          "links" : [
+
+          ],
+          "notes" : [
+            {
+              "author" : "smoke",
+              "createdAt" : "2026-11-26T23:55:38Z",
+              "date" : "2026-11-26",
+              "id" : "5E53BA24-F971-4DE3-891A-17973C313327",
+              "source" : "corrected",
+              "story" : "第一次导入时算成了支出",
+              "text" : "还信用卡是账户互转，别记成支出。"
+            }
+          ],
+          "pinned" : false,
+          "title" : "导入对账单",
+          "updatedAt" : "2026-11-26T23:55:38Z"
+        }
+      ]
+    },
+    "createdAt" : "2026-11-26T23:55:39Z",
+    "id" : "A1186209-C0A9-432F-966C-A5104F2BFBEA",
+    "kind" : "edit",
+    "planFieldHashes" : {
+
+    },
+    "summary" : "记忆：删了「导入对账单」",
+    "transactionIDs" : [
+
+    ],
+    "undone" : false
+  },
+  {
+    "author" : "smoke",
+    "before" : {
+      "memories" : [
+        {
+          "createdAt" : "2026-11-26T23:55:38Z",
+          "id" : "D89B59BF-3973-418E-A03B-8FABC056CF46",
+          "kind" : "topic",
+          "links" : [
+
+          ],
+          "notes" : [
+            {
+              "author" : "smoke",
+              "createdAt" : "2026-11-26T23:55:38Z",
+              "date" : "2026-11-26",
+              "id" : "5101B54B-563B-4BBD-BAEF-0203F9F2B8E1",
+              "reviewOn" : "2026-01-31",
+              "source" : "said",
+              "text" : "2025 年说过想换手机。"
+            }
+          ],
+          "pinned" : false,
+          "title" : "旧打算",
+          "updatedAt" : "2026-11-26T23:55:38Z"
+        }
+      ],
+      "profile" : {
+        "categories" : [
+
+        ],
+        "persona" : "gentle"
+      }
+    },
+    "createdAt" : "2026-11-26T23:55:39Z",
+    "id" : "83EE3F51-90B3-493A-9450-E28B9DE72B53",
+    "kind" : "edit",
+    "planFieldHashes" : {
+      "profile" : {
+        "categories" : "T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU=",
+        "memoryTidiedAt" : "X6VsiW/bO57Iv/9wEA1Xk7fDCvZLbZshI5uLF0echPg=",
+        "persona" : "EPYzkCKP005xdJ+aL/yk1nGO8/PSW79vM5IsEXVrZx4="
+      }
+    },
+    "summary" : "记忆：整理了一次，清掉 1 行",
+    "transactionIDs" : [
+
+    ],
+    "undone" : false
+  }
+]
+
+MCP › add_transaction {"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","dry_run":true}
+预演（没有写入）：记一笔 -9,99 € MCP 测试
+
+MCP › add_transaction {"amount":"-9,99","description":"MCP 测试","account":"cash","book":"personal","category":"餐饮"}
+已记：记一笔 -9,99 € MCP 测试
+改动 id：6e030032（写错了用 undo 撤销）
+
+MCP › add_transaction {"amount":"-1","description":"坏账本","account":"cash","book":"nobook"}
+出错 出错了：没有这个账本：nobook
+
+MCP › add_debt {"counterparty":"阿梅","direction":"they_owe_me","amount":"80","account":"cash","dry_run":true}
+预演（没有写入）：记欠款：阿梅 欠我 80,00 €
+
+MCP › repay_debt {"counterparty":"阿华","amount":"50","account":"cash","dry_run":true}
+预演（没有写入）：记还款：阿华 还我 50,00 €，还欠 350,00 €
+
+MCP › plan_debt {"counterparty":"阿华","count":3,"start":"2026-12-20","dry_run":true}
+预演（没有写入）：排还款计划：阿华还我 400,00 €，分 3 期，每期 133,33 €，2027-02-20 还清
+
+MCP › goal_deposit {"name":"应急金","amount":"20","from_account":"caixa","dry_run":true}
+预演（没有写入）：往「应急金」存 20,00 €
+「应急金」提前了 3 天到手。照现在的存法 2029 年 1 月 11 日 能到。还差 5.776,80 €（3%）。
+
+MCP › goal_deposit {"name":"应急金","amount":"3,20","from_account":"caixa","held_back":"咖啡"}
+已记：忍住了「咖啡」，往「应急金」存 3,20 €
+「应急金」提前了 1 天到手。照现在的存法 2029 年 3 月 18 日 能到。还差 5.793,60 €（3%）。
+改动 id：50ef19a5（写错了用 undo 撤销）
+
+MCP › plan_goal {"target":"1500","deadline":"2027-06-30"}
+存 1.500,00 €：每天 6,95 €（每天少 2 次一杯咖啡），每月 214,29 €。最近每月大约剩 -446,32 €。每月要存的比平时剩的多，会很吃力。
+
+MCP › goal_check {"name":"应急金","choice":"pause","dry_run":true}
+预演（没有写入）：「应急金」先放一放（90 天内不再问）
+
+MCP › set_goal_stash {"name":"应急金","stash":"jar","stash_note":"书桌上的小猪"}
+已记：改了目标「应急金」
+改动 id：a7da67fe（写错了用 undo 撤销）
+
+MCP › import_statement {"file":"/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/revolut.csv","account":"revolut","format":"revolut","dry_run":true}
+预演（没有写入）：读到 3 笔，新的 0 笔
+
+
+MCP › add_book {"name":"家庭","kind":"personal"}
+出错 出错了：已经有叫「家庭」的了，换个名字。
+
+MCP › add_transaction {"amount":"-2,20*3","description":"MCP 咖啡","account":"cash","book":"personal","category":"餐饮","note":"三杯","tags":["上班"]}
+已记：记一笔 -6,60 € MCP 咖啡
+改动 id：57541dad（写错了用 undo 撤销）
+
+MCP › list_transactions {"tag":"上班"}
+[
+  {
+    "accountID" : "cash",
+    "amount" : {
+      "cents" : -660
+    },
+    "bookID" : "personal",
+    "category" : "餐饮",
+    "date" : "2026-11-26",
+    "description" : "MCP 咖啡",
+    "id" : "5925503D-6ED4-4AD5-A144-1C209F15B8ED",
+    "note" : "三杯",
+    "source" : "手记（smoke-client）",
+    "tags" : [
+      "上班"
+    ]
+  }
+]
+
+MCP › list_transactions {"query":"三杯","kind":"expense"}
+[
+  {
+    "accountID" : "cash",
+    "amount" : {
+      "cents" : -660
+    },
+    "bookID" : "personal",
+    "category" : "餐饮",
+    "date" : "2026-11-26",
+    "description" : "MCP 咖啡",
+    "id" : "5925503D-6ED4-4AD5-A144-1C209F15B8ED",
+    "note" : "三杯",
+    "source" : "手记（smoke-client）",
+    "tags" : [
+      "上班"
+    ]
+  }
+]
+
+MCP › add_transaction {"amount":"-9","description":"MCP 话费","account":"cash","book":"personal","category":"通讯","repeat":"monthly"}
+已记：记一笔并设成每月：MCP 话费 -9,00 €
+改动 id：15ca7158（写错了用 undo 撤销）
+
+MCP › list_recurring {}
+[
+  {
+    "account" : "caixa",
+    "book" : "personal",
+    "category" : "住房",
+    "frequency" : "monthly",
+    "id" : "8b4a308c",
+    "next" : "2026-12-01",
+    "paused" : false,
+    "summary" : "每月 1 号 · 房租 650,00 €"
+  },
+  {
+    "account" : "cash",
+    "book" : "personal",
+    "category" : "通讯",
+    "frequency" : "monthly",
+    "id" : "ed30af6c",
+    "next" : "2026-12-26",
+    "paused" : false,
+    "summary" : "每月 26 号 · MCP 话费 9,00 €"
+  }
+]
+
+MCP › update_recurring {"key":"MCP 话费","action":"pause"}
+已记：暂停重复记账：MCP 话费
+改动 id：f3be2d63（写错了用 undo 撤销）
+
+MCP › run_recurring {}
+没有到日子的重复记账。
+
+MCP › rename_book {"book":"shop","name":"小店","dry_run":true}
+预演（没有写入）：账本「Shop」改名为「小店」
+
+MCP › remove_book {"book":"shop","dry_run":true}
+出错 出错了：「Shop」里还有 8 样东西（流水、借款、分期、目标），删之前要选一个账本把它们挪过去。
+
+MCP › remove_book {"book":"shop","move_to":"personal","dry_run":true}
+预演（没有写入）：删账本「Shop」，里面的 8 样东西挪到「个人」
+
+MCP › edit_account {"account":"cash","name":"钱包现金","dry_run":true}
+预演（没有写入）：改账户「现金」→「钱包现金」
+
+MCP › remove_account {"account":"caixa","dry_run":true}
+出错 出错了：「Caixa」里还有 33 笔流水，不能直接删。可以先把这些流水删掉或改到别的账户。
+
+MCP › rename_category {"from":"餐饮","to":"吃饭","dry_run":true}
+预演（没有写入）：分类「餐饮」改名为「吃饭」（5 笔）
+
+MCP › add_insight {"kind":"tip","title":"测试提醒","body":"编的"}
+已记：写了11 月建议：测试提醒
+改动 id：cdfeb6a2（写错了用 undo 撤销）
+
+MCP › add_insight {"kind":"alert","title":"花销页提醒","page":"spending"}
+已记：写了11 月留意：花销页提醒
+改动 id：8101d613（写错了用 undo 撤销）
+
+MCP › add_insight {"kind":"alert","title":"坏页面","page":"nopage"}
+出错 出错了：page 只能是 overview / spending / trends / wealth / plans / debts
+
+MCP › add_category {"name":"宠物"}
+已记：加分类「宠物」（支出）
+改动 id：0f0423be（写错了用 undo 撤销）
+
+MCP › add_category {"name":"宠物"}
+出错 出错了：已经有叫「宠物」的了，换个名字。
+
+MCP › add_category {"name":"奶茶","icon":"bubbletea"}
+已记：加分类「奶茶」（支出，图标「奶茶」）
+改动 id：d565ff83（写错了用 undo 撤销）
+
+MCP › add_category {"name":"坏图标","icon":"nosuchicon"}
+出错 出错了：没有叫「nosuchicon」的图标，用 list_category_icons 看看有哪些。
+
+MCP › set_category_icon {"name":"餐饮","icon":"hotpot"}
+已记：分类「餐饮」的图标换成「火锅」
+改动 id：a9a1cc7f（写错了用 undo 撤销）
+
+MCP › set_category_icon {"name":"餐饮","icon":""}
+已记：分类「餐饮」的图标改回自动配
+改动 id：4c07e712（写错了用 undo 撤销）
+
+MCP › list_category_icons {}
+吃喝：dining（餐饮） delivery（外卖） breakfast（早餐） grocery（超市） veggies（买菜） fruit（水果） snacks（零食） dessert（甜品） bakery（面包） coffee（咖啡） bubbletea（奶茶） drinks（喝酒） hotpot（火锅）
+出行：transport（交通） metro（地铁） taxi（打车） train（火车） flight（机票） bike（单车） fuel（加油） parking（停车） toll（过路费） carcare（修车） travel（旅行） hotel（酒店） visa（证件）
+住家：housing（房租） mortgage（房贷） utilities（水电） power（电费） water（水费） gas（燃气） internet（网费） property（物业） home（家居） appliance（家电） repair（维修） cleaning（清洁） plants（绿植）
+购物：shopping（购物） online（网购） clothing（衣服） shoes（鞋子） handbag（包包） jewelry（首饰） glasses（眼镜） cosmetics（化妆品） digital（数码） phone（通讯） books（书） stationery（文具） toys（玩具） gift（礼物）
+健康美容：medical（医疗） pharmacy（买药） checkup（体检） dental（看牙） beauty（美容） skincare（护肤） nails（美甲） haircut（理发） spa（按摩） sport（运动） gym（健身房） insurance（保险） social（社保）
+玩乐：entertainment（娱乐） movie（电影） music（音乐） ticket（门票） camera（摄影） bar（酒吧） karaoke（唱歌） hobby（爱好） subscription（订阅）
+家人人情：baby（宝宝） babycare（母婴） school（学费） family（家人） elderly（父母） pets（宠物） redpacket（红包） wedding（婚礼） donation（捐款） celebrate（节日）
+学习工作：education（学习） course（课程） office（办公） software（软件） website（网站） staff（员工工资） uniform（工作服）
+钱和金融：savings（储蓄） invest（投资） stocks（股票） crypto（数字货币） exchange（换汇） interest（利息） loan（借款） repay（还款） debt（欠款） cardpay（还信用卡） installment（分期） mortgage（房贷） tax（税费） taxrefund（退税） fee（手续费） bankfee（银行费） fine（罚款） remit（汇款） topup（充值） transfer（转账） withdraw（老板提款）
+店里：revenue（营业收入） customer（客人） shoprent（店租） supplies（耗材） equipment（设备） rent-equip（租设备） shipping（快递） platformfee（平台佣金） pos（刷卡费） marketing（营销） renovation（装修） accounting（会计） license（执照）
+收入：salary（工资） income（收入） bonus（奖金） sidejob（副业） reimburse（报销） rentincome（租金收入） resale（二手） interest（利息） refund（退款） taxrefund（退税） redpacket（红包） revenue（营业收入）
+其他：star（心愿） heart（喜欢） emergency（应急） other（其他） uncategorized（未分类）
+已挑过图标的分类：奶茶 → bubbletea
+
+MCP › set_profile {"persona":"sharp","aim":"每个月存下 500 €"}
+已记：目标写成「每个月存下 500 €」
+改动 id：d871ef59（写错了用 undo 撤销）
+
+MCP › set_profile {"persona":"pirate"}
+出错 出错了：persona 只能是 gentle / sharp / calm / cheer
+
+MCP › list_insights {}
+[
+  {
+    "author" : "smoke-client",
+    "body" : "编的",
+    "createdAt" : "2026-11-26T23:55:40Z",
+    "id" : "6D97B897-5B9F-45F6-852E-34C1F97FC9BE",
+    "kind" : "tip",
+    "month" : {
+      "month" : 11,
+      "year" : 2026
+    },
+    "title" : "测试提醒"
+  },
+  {
+    "author" : "smoke-client",
+    "body" : "",
+    "createdAt" : "2026-11-26T23:55:40Z",
+    "id" : "A137E511-8F97-4BB3-94E1-B010082AD538",
+    "kind" : "alert",
+    "month" : {
+      "month" : 11,
+      "year" : 2026
+    },
+    "page" : "spending",
+    "title" : "花销页提醒"
+  }
+]
+
+MCP › ai_status {}
+[
+  {
+    "author" : "smoke-client",
+    "last" : "2026-11-26T23:55:41Z",
+    "summary" : "加分类「宠物」（支出）"
+  },
+  {
+    "author" : "smoke",
+    "last" : "2026-11-26T23:55:39Z",
+    "summary" : "记忆：整理了一次，清掉 1 行"
+  },
+  {
+    "author" : "Claude",
+    "last" : "2026-11-26T23:55:38Z",
+    "summary" : "记忆：（已经忘掉的一条）"
+  }
+]
+
+MCP › currency {}
+主币种：欧元 EUR
+  usdcard	美元卡	美元 USD	余额 -20,00 US$，约 -20,00 €
+汇率：还没取过。运行 fin fx update
+缺汇率：USD，现在先按 1:1 算
+
+MCP › set_account_currency {"account":"pot","currency":"CNY","dry_run":true}
+预演（没有写入）：账户「储蓄罐」的币种改成人民币 CNY
+
+MCP › set_base_currency {"currency":"XYZ"}
+出错 出错了：不认识的币种「XYZ」。用三个字母的代码，比如 EUR、USD、CNY。
+
+MCP › add_transaction {"amount":"-30","description":"国外刷卡","account":"cash","book":"personal","original":"35 USD","dry_run":true}
+预演（没有写入）：记一笔 -30,00 € 国外刷卡
+
+MCP › subscriptions {}
+在续 1 个，每月约 13,99 €，一年约 167,88 €；7 天内要扣 1 个，共 13,99 €
+  12e3490c	视频会员	每月 13,99 €	下次 2026-12-03（7 天后）	最近一次扣了 12,99 €，可能涨价了
+
+MCP › find_subscriptions {}
+流水里认出 1 个可能是订阅的（先问用户哪些是，确认后再 fin subscription add）：
+  房租	每月 650,00 €	扣过 3 次，最近 2026-11-01，下次约 2026-12-01	账户 caixa	关键词 房租
+
+MCP › add_subscription {"name":"音乐会员","amount":"10,99","cycle":"monthly","next_date":"2026-12-10","account":"caixa"}
+已记：登记订阅「音乐会员」每月 10,99 €，下次 2026-12-10
+改动 id：f8d9e6a1（写错了用 undo 撤销）
+
+MCP › edit_subscription {"subscription":"音乐会员","amount":"11,99"}
+已记：订阅「音乐会员」：金额 11,99 €
+改动 id：8a7768a8（写错了用 undo 撤销）
+
+MCP › edit_subscription {"subscription":"音乐会员","cancel":true,"dry_run":true}
+预演（没有写入）：订阅「音乐会员」：停了
+
+MCP › remove_subscription {"subscription":"没有这个"}
+出错 出错了：找不到订阅「没有这个」
+
+MCP › memory {}
+{
+  "howTo" : [
+    "rules 是用户亲口定的规矩和用词，每次都照做；和别的说法冲突时以它为准。",
+    "index 是记忆目录（只有标题）。用户问到相关的话题，或你要做导入、对账、月报、分类这类事之前，先用 memory 工具把那条读出来（填 id 或 query）再回答。用到了哪条，跟用户说一声是按哪条记的，方便他纠正。",
+    "什么时候记（remember）：用户亲口说的、以后还用得上的事（例外、打算、偏好、用词）直接记，source=said；用户纠正了你，或改了你记的东西，记成 source=corrected，story 写当时怎么错的；你自己从流水看出来的规律，先在对话里问用户，用户说对才记，source=confirmed。",
+    "不记：能从流水直接算出来的数字（工资多少、房租多少，用 regulars 现算）、临时的事、闲聊、你的猜测、卡号和密码。",
+    "先搜再记：同一件事只留一条。已经有这个话题，就加在它下面（topic 填它的 id 或同名标题）；说法变了就用 update_memory 改那一行，不要留两条打架。标题写话题不写结论：「工资」，不是「工资 1.380 €」。",
+    "分三类：rule（规矩，每次必读，最多 20 行，只放高频、确定的约定）、topic（记得的事）、lesson（做事经验：导入、对账这类事做完，有值得下次注意的坑就记，标题用任务名，如「导入对账单」）。",
+    "用户说「忘掉」「别记这个」：用 forget_memory。forever=true 是彻底忘掉，连改动记录里的痕迹一起抹掉、找不回来，先跟用户确认。",
+    "时间写具体：用户说「明年 3 月退健身房」，text 里写「2027 年 3 月退健身房」，原话放 quote。「明年」「下个月」「明天」「下周三」这几种系统会自动换成具体日期；「月底」「年底」「过两个月」「开春」这类要你自己换算成年月日再记。",
+    "会过时的事记的时候带上 review_on（哪天回头看），比如「明年 3 月退健身房」填 3 月底。记忆每月整理一次：到期的、半年没用上的会列出来给用户清，所以少记、记准，一个话题最多 8 行。"
+  ],
+  "index" : [
+    {
+      "id" : "b6e205be",
+      "kind" : "topic",
+      "lines" : 2,
+      "links" : [
+        "category:工资"
+      ],
+      "title" : "工资",
+      "updated" : "2026-11-26"
+    }
+  ],
+  "rules" : [
+
+  ]
+}
+
+MCP › remember {"title":"房租","text":"合同签到明年 8 月底。","links":["category:房租"],"review_on":"2027-08-31"}
+已记：记忆：记住了「房租」（记得的事）
+改动 id：694678d3
+
+MCP › remember {"text":"房东说到期可能要涨。","topic":"房租","quote":"到期再说吧"}
+已记：记忆：在「房租」下面又记了一行
+改动 id：ef8b9797
+
+MCP › remember {"title":"房租合同","text":"换个名字再记一遍"}
+出错 出错了：已经有相近的话题：effe31e4「房租」。是同一件事就加在那条下面（topic 填它的 id）；确实是另一件事，加 new_topic=true 再记。
+
+MCP › remember {"title":"网银","text":"网银密码 123456"}
+出错 出错了：看起来像卡号、银行账号或密码。记忆里不存这些。
+
+MCP › remember {"title":"收益","text":"我说收益是指店里赚的，不算工资。","kind":"rule","source":"corrected","story":"问收益时答成了工资加店里收入","dry_run":true}
+预演（没有写入）：记忆：记住了「收益」（我的规矩）
+
+MCP › memory {"query":"房租"}
+effe31e4 【记得的事】房租  [category:房租]
+  · c707c9 合同签到 2027 年 8 月底。（你说的 · 2026-11-26 · smoke-client 记下）
+      回头看：2027-08-31
+  · de8fd8 房东说到期可能要涨。（你说的 · 2026-11-26 · smoke-client 记下）
+      原话：「到期再说吧」
+
+MCP › memory {"link":"category:房租"}
+effe31e4 【记得的事】房租  [category:房租]
+  · c707c9 合同签到 2027 年 8 月底。（你说的 · 2026-11-26 · smoke-client 记下）
+      回头看：2027-08-31
+  · de8fd8 房东说到期可能要涨。（你说的 · 2026-11-26 · smoke-client 记下）
+      原话：「到期再说吧」
+
+MCP › memory {"kind":"topic"}
+effe31e4 【记得的事】房租  [category:房租]
+  · c707c9 合同签到 2027 年 8 月底。（你说的 · 2026-11-26 · smoke-client 记下）
+      回头看：2027-08-31
+  · de8fd8 房东说到期可能要涨。（你说的 · 2026-11-26 · smoke-client 记下）
+      原话：「到期再说吧」
+
+b6e205be 【记得的事】工资  [category:工资]（重要）
+  · ac3f8d 2027 年 1 月起涨一点。（你说的 · 2026-11-26 · smoke 记下）
+      回头看：2027-01-31
+  · de59b9 6 月和 12 月多发一份。（夏夏看出来的，你确认过 · 2026-11-26 · smoke 记下）
+
+MCP › update_memory {"id":"房租","pinned":true}
+已记：记忆：「房租」标成重要
+改动 id：0a50bd07
+
+MCP › update_memory {"id":"房租","text":"两行的话题不说改哪一行"}
+出错 出错了：「房租」有 2 行，line 要填改哪一行（memory 读出来每行开头那几位）。
+
+MCP › tidy_memory {}
+没有要清的：没有到期的、半年没用上的，也没有挂的东西没了的。
+
+MCP › tidy_memory {"done":true,"dry_run":true}
+预演（没有写入）：记忆：整理了一次，没有要清的
+
+MCP › forget_memory {"id":"房租","dry_run":true}
+预演（没有写入）：记忆：删了「房租」
+
+MCP › forget_memory {"id":"房租","forever":true,"dry_run":true}
+预演（没有写入）：会彻底忘掉「房租」，找不回来。
+
+MCP › forget_memory {"id":"没有这条"}
+出错 出错了：没有这条记忆：没有这条。先用 memory 看目录，id 写前 8 位。
+
+MCP › regulars {}
+房租：每月 1 号前后扣，约 650,00 €（最近一年里有 3 个月）
+Netflix：每月 3 号前后扣，约 12,99 €（最近一年里有 5 个月）
+
+MCP › current_view {}
+app 还没打开过，或者是旧版本，不知道用户在看什么。直接问用户。
+
+MCP › open_in_app {"page":"spending","month":"2026-10","note":"看看 10 月"}
+已让 app 打开「花销」。如果 app 没开，打开后 10 分钟内还会跳过去。
+
+MCP › open_in_app {"page":"nopage"}
+出错 出错了：page 只能是 overview / spending / trends / wealth / plans / subscriptions / debts / insights / changes / transactions
+
+MCP › nope {}
+出错 出错了：没有这个工具：nope
+
+import_rows 预演（AI 读懂 Excel / PDF / 支付宝账单后批量导入）：
+读到 1 笔，坏的那行跳过了
+
+open_in_app 留给 app 的纸条：
+{
+  "author" : "smoke-client",
+  "createdAt" : "2026-11-26T23:55:42Z",
+  "id" : "DE341F7A-6EE9-455E-B02A-16D442F44D31",
+  "month" : "2026-10",
+  "note" : "看看 10 月",
+  "page" : "花销",
+  "transactionIDs" : [
+
+  ]
+}
+===== fin connect：让 AI 自己把夏夏账本连上（在假的主目录里试） =====
+
+$ fin connect --list
+fin：/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin
+claude-desktop	Claude 桌面版	没装
+claude-code	Claude Code	没装
+codex	Codex	装了，没连
+hermes	Hermes Agent	装了，没连
+cursor	Cursor	没装
+gemini	Gemini CLI	没装
+
+$ fin connect codex
+已连上 Codex（/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/home/.codex/config.toml）。重开 Codex后就能用。
+
+$ fin connect --all --dry-run
+（预演）会把夏夏账本写进 /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/home/.codex/config.toml
+（预演）会把夏夏账本写进 /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/home/.hermes/config.yaml
+
+$ fin connect nosuchtool   （预期失败）
+Error: 不认识 nosuchtool。能连的：claude-desktop、claude-code、codex、hermes、cursor、gemini。别的工具请把 MCP 配置粘进它的设置：
+{
+  "mcpServers" : {
+    "xiaxia-ledger" : {
+      "args" : [
+        "mcp"
+      ],
+      "command" : "/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin"
+    }
+  }
+}
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin connect hermes
+已连上 Hermes Agent（/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/home/.hermes/config.yaml）。在 Hermes 里输入 /reload-mcp（或重开 Hermes）后就能用。
+model:
+  provider: "deepseek"
+
+mcp_servers:
+  xiaxia-ledger:
+    command: "/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin"
+    args: ["mcp"]
+[mcp_servers.xiaxia-ledger]
+command = "/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin"
+args = ["mcp"]
+
+===== fin setup：粘一段话给 AI，它跑这条把 MCP、skill、提示词都装好（假的主目录） =====
+
+$ fin setup --dry-run
+fin：/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin
+会改	命令行 fin	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.local/bin/fin
+会改	使用说明（skill）	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.agents/skills/fin
+会改	Claude Code：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude.json
+会改	Claude Code：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/skills/fin
+会改	Claude Code：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/CLAUDE.md
+会改	Codex：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/config.toml
+会改	Codex：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/skills/fin
+会改	Codex：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/AGENTS.md
+（预演，什么都没改。去掉 --dry-run 正式装。）
+
+$ fin setup
+fin：/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin
+已装好	命令行 fin	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.local/bin/fin
+已装好	使用说明（skill）	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.agents/skills/fin
+已装好	Claude Code：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude.json
+已装好	Claude Code：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/skills/fin
+已装好	Claude Code：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/CLAUDE.md
+已装好	Codex：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/config.toml
+已装好	Codex：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/skills/fin
+已装好	Codex：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/AGENTS.md
+
+✓	Claude Code	装好了，新开一个 Claude Code 对话后就能用
+✓	Codex	装好了，重开 Codex后就能用
+✓	账本自检	能读到账本（自测调了一次只读的 summary，2026-11）
+
+装好了。按上面说的重开一次 AI 工具，然后对它说「这个月花了多少」试试。
+fin：/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin
+都已经装好了，没有要改的。
+
+✓	Claude Code	装好了，新开一个 Claude Code 对话后就能用
+✓	Codex	装好了，重开 Codex后就能用
+✓	账本自检	能读到账本（自测调了一次只读的 summary，2026-11）
+
+装好了。按上面说的重开一次 AI 工具，然后对它说「这个月花了多少」试试。
+
+$ fin setup --check --json
+{
+  "check" : {
+    "message" : "能读到账本（自测调了一次只读的 summary，2026-11）",
+    "ok" : true
+  },
+  "dryRun" : false,
+  "fin" : "/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin",
+  "steps" : [
+
+  ],
+  "tools" : [
+    {
+      "name" : "Claude Code",
+      "next" : "新开一个 Claude Code 对话",
+      "ready" : true,
+      "tool" : "claude-code"
+    },
+    {
+      "name" : "Codex",
+      "next" : "重开 Codex",
+      "ready" : true,
+      "tool" : "codex"
+    }
+  ]
+}
+
+$ fin setup --remove
+fin：/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin
+已拿掉	Claude Code：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude.json
+已拿掉	Claude Code：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/skills/fin
+已拿掉	Claude Code：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.claude/CLAUDE.md
+已拿掉	Codex：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/config.toml
+已拿掉	Codex：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/skills/fin
+已拿掉	Codex：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.codex/AGENTS.md
+已拿掉	使用说明（skill）	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.agents/skills/fin
+已拿掉	命令行 fin	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/sethome/.local/bin/fin
+
+$ fin setup nosuchtool   （预期失败）
+Error: 不认识 nosuchtool。能装的：claude-desktop、claude-code、codex、hermes、cursor、gemini。别的工具请把这段粘进它的 MCP 设置：
+{
+  "mcpServers" : {
+    "xiaxia-ledger" : {
+      "args" : [
+        "mcp"
+      ],
+      "command" : "/Users/runner/work/xiaxia-ledger/xiaxia-ledger/.build/arm64-apple-macosx/debug/fin"
+    }
+  }
+}
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+===== 历史里的作者 =====
+0A50BD07	2026-11-26 23:55	smoke-client	记忆：「房租」标成重要
+EF8B9797	2026-11-26 23:55	smoke-client	记忆：在「房租」下面又记了一行
+694678D3	2026-11-26 23:55	smoke-client	记忆：记住了「房租」（记得的事）
+8A7768A8	2026-11-26 23:55	smoke-client	订阅「音乐会员」：金额 11,99 €
+
+===== 删账本：有流水的要先挪 =====
+
+$ fin book rm shop   （预期失败）
+Error: 「Shop」里还有 8 样东西（流水、借款、分期、目标），删之前要选一个账本把它们挪过去。
+
+$ fin book rm shop --move-to personal --dry-run
+预演（没有写入）：删账本「Shop」，里面的 8 样东西挪到「个人」
+
+$ fin book rm personal --move-to personal   （预期失败）
+Error: 不能挪到要删的这个账本里。
+
+===== fin demo：一键生成示例账本（全是编的），读出来看看 =====
+
+$ fin demo --out /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite --end 2026-11-20
+已生成示例账本（全是编的）：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite
+  时间：2025-11-01 到 2026-11-20，995 笔流水
+  账本：个人、我的小店；账户 9 个（含私房钱）
+  借款 3 笔、分期 2 个、目标 4 个、夏夏建议 7 条、改动记录 229 条
+用它：XIAXIA_LEDGER_PATH="/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite" fin report
+
+$ fin demo --out /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite --end 2026-11-20   （预期失败）
+Error: 文件已经在了：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite。要覆盖以前生成的示例账本，加 --force
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin demo --out /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite --end 2026-11-20 --force --json
+{
+  "accounts" : 9,
+  "books" : [
+    "个人",
+    "我的小店"
+  ],
+  "changes" : 229,
+  "debts" : 3,
+  "from" : "2025-11-01",
+  "goals" : 4,
+  "insights" : 7,
+  "installments" : 2,
+  "path" : "/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/示例账本.sqlite",
+  "to" : "2026-11-20",
+  "transactions" : 995
+}
+
+$ fin demo --out /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/x.txt   （预期失败）
+Error: 生意模式需要 SQLite 账本，请用 .sqlite 结尾的文件名
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin demo --out /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/demo/real.json --force   （预期失败）
+Error: 生意模式需要 SQLite 账本，请用 .sqlite 结尾的文件名
+Usage: fin <subcommand>
+  See 'fin --help' for more information.
+
+$ fin context
+生意模式：打开，生意账本 shop，生活账本 personal
+账本：
+  personal	个人	643 笔
+  shop	我的小店	342 笔
+账户：
+  daily	日常卡	余额 8.044,09 €	截止 2026-11-19
+  credit	信用卡	余额 -402,82 €	截止 2026-11-20
+  wallet	电子钱包	余额 1.075,98 €	截止 2026-11-04
+  cash	现金	余额 283,15 €	截止 —
+  pot	应急金储蓄罐	余额 3.000,00 €	截止 —
+  shop	店里账户	余额 9.216,98 €	截止 2026-11-20
+  till	店里现金	余额 659,39 €	截止 —
+  stash	私房钱	余额 557,00 €	截止 —
+  usd	美元账户	余额 1.935,34 US$	截止 2026-11-11
+流水：995 笔（2025-11-01 到 2026-11-20），未分账本 10 笔
+往来：别人欠我 200,00 €，我欠别人 200,00 €（2 笔未结清）
+分期：2 个进行中；目标：4 个
+最近改动：
+  · Claude：写了11 月建议：订阅每个月扣 80,01 €，一年就是 960,12 €
+  · Claude：写了11 月要处理：阿杰的 200,00 € 过了约定日期还没还
+  · Codex：写了11 月好消息：应急金存到 60% 了
+  · Claude：写了11 月留意：「个人护理」比上个月同期多花了 35,97 €
+  · Claude：写了11 月本月点评：这个月到今天花了 1.336,40 €，比上个月同期少 145,36 €。
+口径：
+  · 金额：正数是收入，负数是支出；显示用西班牙格式 1.234,56 €。
+  · 多币种：每个账户有自己的币种（accounts[].currency），流水金额就是这个账户币种的数（美元卡记美元）。汇总、月报都换成主币种（baseCurrency），外币按那天的欧洲央行汇率；银行实际扣了多少主币种以银行为准，用 fin fx set-rate --bank 改。欧元卡在国外刷外币：金额记银行扣的欧元，原价用 --original 记成备注。
+  · 订阅：每月 / 每年固定在扣的钱（会员、软件、健身房、云服务）。用户说「我订了什么」用 fin subscriptions 回答；fin subscription find 能从流水里认出可能是订阅的，先在对话里问用户哪些是，确认后再 fin subscription add；涨价了用 fin subscription edit，不续了用 fin subscription cancel。
+  · 每笔流水单独归一个账本；账户（银行卡、现金等）不固定属于某个账本。
+  · 账本间转账两边各记一笔、共用 transferID；单个账本照常统计，「全部」汇总时抵消。
+  · 去重：同账户 + 同日期 + 同金额 + 描述归一化后相同 = 同一笔。
+  · 借出、借入、还款记为「往来」（flow=debt），存进目标记为「储蓄」（flow=saving），都不算收入或支出。
+  · 自己账户之间转钱（给另一张卡充值、还信用卡、两个银行账户互转）记为「互转」（flow=internal），两边各一笔，不算收入或支出。新记用 fin transfer move，已导入的流水用 fin transfer mark 标成互转。
+  · 退款（之前花的钱退回来）沿用原来那笔支出的分类，金额记正数：它冲减这个分类的支出，不算收入。
+  · 分期：买的那天按全额记支出；之后每期扣款是还债（flow=debt），不进收支；手续费、利息单独记支出。用 fin installment add 建、fin installment pay 记一期，导入的扣款用 --tx 认领；fin installments 看还剩几期。
+  · 用户问「谁欠我钱」「我还欠谁」，用 fin debts 回答；问存钱进度，用 fin goals。
+  · 私房钱（isPrivate 的账户）：用户本人问才说；做给别人看（合伙人、会计）的报表时不要算进去。
+  · 记欠款用 fin debt add，记还款用 fin debt repay；先用 fin debts 确认是哪一笔、还欠多少。
+  · 用户欠别人钱时：帮着看这个月哪些分类花多了、能省出多少，排一个每月还多少、哪个月还清的计划。夏夏偶尔会开玩笑说「要不我们想个法子赖掉吧」，用户真附和也马上说是逗他们的，拉回还钱计划；绝不帮着赖账、躲债或编理由骗人。
+  · 锁定的储蓄目标（locked）存进去就不能动，不要建议从里面取钱。
+  · 拿不准的事（属于哪个账本、怎么分类）先在对话里问用户，确认后再写；不要猜着写。
+  · 每次写入都记进改动记录（谁改的、改了什么），可以用 fin undo 撤销。
+  · 不动钱、不碰银行密码；银行数据只读。
+  · 记忆：memory.rules 是用户定的规矩，每次照做；memory.howTo 说了什么时候记、什么不记。用户说「记住……」「以后都……」「别再……」就用 remember 记下来。
+  · app 里的 AI 默认叫「夏夏」，用户改过名字就用 assistantName 自称；称呼用户用 callUser（没有就叫「你」）。写意见（add_insight）时照 voice 的口吻，围着 aim（用户的目标）说；page 填写给哪一页（overview / spending / trends / wealth / plans / debts）。
+
+$ fin accounts
+daily	日常卡	8.044,09 €
+credit	信用卡	-402,82 €
+wallet	电子钱包	1.075,98 €
+cash	现金	283,15 €
+pot	应急金储蓄罐	3.000,00 €
+shop	店里账户	9.216,98 €
+till	店里现金	659,39 €
+stash	私房钱（私房钱）	557,00 €
+usd	美元账户	1.935,34 US$（约 1.829,07 €）
+
+$ fin summary --month 2026-10
+2026-10  全部
+收入 7.385,51 €  支出 -6.719,49 €  结余 666,02 €
+  花材	-1.133,28 €
+  店租	-1.100,00 €
+  员工工资	-1.050,00 €
+  税费	-1.007,24 €
+  房租	-780,00 €
+  社保	-310,00 €
+  超市	-290,98 €
+  水电	-243,82 €
+  餐饮	-154,38 €
+  包装耗材	-126,45 €
+  原料	-118,83 €
+  宠物	-80,84 €
+  订阅	-70,02 €
+  购物	-63,08 €
+  手续费	-60,27 €
+  通讯	-35,00 €
+  运动	-34,90 €
+  维修	-23,40 €
+  交通	-20,00 €
+  学习	-9,99 €
+  娱乐	-7,01 €
+  副业	532,69 €
+  工资	1.380,00 €
+  营业收入	5.472,82 €
+
+$ fin summary --month 2026-10 --book shop
+2026-10  shop
+收入 5.472,82 €  支出 -5.140,36 €  结余 332,46 €
+拿去个人的 700,00 €（自己账户间转账，不算收支）  算上它结余 -367,54 €
+  花材	-1.133,28 €
+  店租	-1.100,00 €
+  员工工资	-1.050,00 €
+  税费	-1.007,24 €
+  社保	-310,00 €
+  水电	-181,89 €
+  包装耗材	-126,45 €
+  原料	-118,83 €
+  手续费	-60,27 €
+  订阅	-29,00 €
+  维修	-23,40 €
+  营业收入	5.472,82 €
+
+$ fin report --month 2026-11
+# 2026 年 11 月 · 全部账本
+
+进账 3.726,79 €，花掉 4.077,18 €，剩下 -350,39 €。
+比上个月少花 2.642,31 €（上个月花掉 6.719,49 €）。
+存下 -9%。
+
+## 钱花在哪
+- 店租 1.100,00 €（27%）
+- 花材 1.012,16 €（25%），比上个月少 121,12 €
+- 房租 780,00 €（19%）
+- 水电 230,56 €（6%），比上个月少 13,26 €
+- 超市 161,83 €（4%），比上个月少 129,15 €
+- 原料 157,18 €（4%），比上个月多 38,35 €
+- 包装耗材 120,73 €（3%）
+- 餐饮 98,94 €（2%），比上个月少 55,44 €
+- 其余 9 类 372,03 €
+
+## 钱从哪来
+- 营业收入 3.085,32 €
+- 副业 581,47 €
+- 未分类 16,25 €
+
+## 最大的几笔
+- 2026-11-01 店租 1.100,00 €（店租）
+- 2026-11-01 房租 780,00 €（房租）
+- 2026-11-09 COMPRA TARJ. VIVERO MAYOR 0932 354,19 €（花材）
+- 2026-11-02 COMPRA TARJ. VIVERO MAYOR 0932 337,94 €（花材）
+- 2026-11-16 COMPRA TARJ. VIVERO MAYOR 0932 320,03 €（花材）
+
+## 要留意
+- 3 笔流水还没分类或没分账本，上面的数字会不准。
+- 阿杰 还欠你 200,00 €，已经过了约定的日子。
+- 分期「咖啡机」下次 2026-12-10 扣 150,00 €，还剩 450,00 €。
+- 分期「新手机」下次 2026-12-15 扣 89,90 €，还剩 539,40 €。
+- 订阅「云存储 50GB」2026-12-03 要扣 2,99 €。
+- 订阅「StreamBox 视频会员」最近一次扣了 12,99 €，登记的是 11,99 €：可能涨价了。
+- 目标「应急金」存了 3.000,00 € / 5.000,00 €（60%）。
+- 目标「店面重新装修」存了 1.200,00 € / 6.000,00 €（20%）。
+- 目标「换新电脑」存了 619,20 € / 1.400,00 €（44%）。
+- 目标「锁起来的存钱罐」存了 150,00 € / 1.000,00 €（15%）。
+
+$ fin debts
+别人欠我：
+  阿杰	还欠 200,00 €（借出 300,00 €）	已过期
+我欠别人：
+  姐姐	还欠 200,00 €	2027-03-30 前还
+这个月我要还 100,00 €，该收回 200,00 €；照现在的还法 2027 年 5 月全部还清。
+还款计划：
+  我还姐姐：第 2 / 4 期，还剩 2 期；下一期 2026-11-20 还 100,00 €（已过期）；2026-12-20 还清
+
+$ fin installments
+咖啡机	9/12 期	每期 150,00 €	还剩 450,00 €	下次 2026-12-10
+新手机	4/10 期	每期 89,90 €	还剩 539,40 €	下次 2026-12-15
+
+$ fin goals
+[大目标] 换新电脑	619,20 € / 1.400,00 €（44%）	2027 年 7 月 5 日 到手	每天 5,04 €	存在储蓄罐（书桌上的小猪储蓄罐）
+[小目标] 应急金	3.000,00 € / 5.000,00 €（60%）	2027 年 8 月 2 日 到手	每天 10,82 €	存在一张银行卡（银行 app 里的储蓄罐）	31 天没存了
+[小目标] 店面重新装修	1.200,00 € / 6.000,00 €（20%）	2028 年 12 月 21 日 到手	每天 19,36 €	存在一张银行卡（店里那张卡）	32 天没存了
+[小目标] 锁起来的存钱罐	150,00 € / 1.000,00 €（15%）	2031 年 2 月 19 日 到手	每天 0,55 €	存在一个固定的地方（衣柜里的信封）	90 天没存了
+每月大约剩 627,42 € 可以存
+要问：「应急金」已经 31 天没存了：问用户它还重要吗，选项「还重要，继续」「先放一放」「删掉」（goal_check）。
+
+$ fin insight list
+416213d7  2026-11  本月点评  Claude：这个月到今天花了 1.336,40 €，比上个月同期少 145,36 €。
+          花得最多的是「房租」780,00 €和「超市」161,83 €。房租月初已经付了，剩下的日子照平时花就够。
+4ba8e27a  2026-11  本月点评  Claude：小店这个月到今天进账 3.085,32 €，比上个月同期多 315,78 €。
+          花材进货花了 1.012,16 €。装修基金每个月存 200 €，按计划走。
+0080e928  2026-11  建议  Claude：订阅每个月扣 80,01 €，一年就是 960,12 €
+          StreamBox 视频会员从 11,99 € 涨到了 12,99 €；LinguaPal 语言课每月扣 9,99 €，还没记成订阅。不常用的可以停掉。
+a870c7d7  2026-11  要处理  Claude：阿杰的 200,00 € 过了约定日期还没还
+          约好 8 月 30 日前还清，已经还了 100,00 €。要不要提醒一下？
+3a69b492  2026-11  好消息  Codex：应急金存到 60% 了
+          已经存了 3.000,00 €，目标 5.000,00 €。照每个月 250 € 的速度，再存 8 个月就满。
+da244088  2026-11  留意  Claude：「个人护理」比上个月同期多花了 35,97 €
+          这个月到今天「个人护理」花了 35,97 €，上个月同期是 0,00 €。
+
+$ fin memory
+== 我的规矩 ==
+ce2fe6db 【我的规矩】记账习惯
+  · 39b536 咖啡、奶茶都记在「餐饮」，不单独分一类。（你自己写的 · 2026-07-14 · 你 记下）
+8dd6a3ea 【我的规矩】收益  [book:shop]
+  · 3ffb90 我说「收益」是指小店赚的钱（店里收入减店里开销），不包括工资。（你纠正的 · 2026-05-08 · Claude 记下）
+      原话：「我问收益是问店里赚了多少，不是问工资」
+      经过：第一次问「2026 年 5 月收益多少」，答成了工资加店里收入的合计。
+837acad2 【我的规矩】还姐姐的钱  [person:姐姐]（重要）
+  · 863cdf 还给姐姐的钱不算花销，算还款。（你说的 · 2026-02-20 · Claude 记下）
+      原话：「还我姐的钱别算进花销里」
+== 记得的事 ==
+1afc8d0a 【记得的事】工资  [category:工资]
+  · d80091 6 月和 12 月各多发一份双薪。（夏夏看出来的，你确认过 · 2026-06-28 · Claude 记下）
+  · fc313c 2027 年 1 月起每月涨 120 €。（你说的 · 2026-10-06 · Claude 记下）
+      原话：「老板说明年一月给我涨一百二」
+      回头看：2027-01-31
+593b349a 【记得的事】阿杰借的钱  [person:阿杰]
+  · 51a868 他说 2026 年 10 月底前把剩下的 200 € 还清。（你说的 · 2026-09-05 · 你 记下）
+      回头看：2026-10-28
+efef1d37 【记得的事】房租  [category:房租]
+  · 01d4ea 合同签到 2027 年 8 月底，到期可能要涨。（你说的 · 2026-08-02 · Codex 记下）
+4097e2ed 【记得的事】FitPlan 健身 App  [subscription:FitPlan 健身 App]
+  · 573d1e 试用完觉得不值，已经退了，不用再提醒续费。（你说的 · 2026-07-21 · Claude 记下）
+3599b55b 【记得的事】夏天去海边
+  · 8d2e95 夏天想去海边玩一周，预算 800 € 左右。（你说的 · 2025-12-15 · Claude 记下）
+== 做事经验 ==
+3b9fe0f2 【做事经验】对账
+  · 43497b 先对日常账户，再对电子钱包：钱包充值会在两边各出现一次，别当成漏记。（夏夏看出来的 · 2026-09-02 · Codex 记下）
+5c3135de 【做事经验】导入对账单
+  · 1530a6 信用卡对账单里的「信用卡还款」是自己账户之间转钱，要标成账户互转，别记成支出。（你纠正的 · 2026-08-03 · Claude 记下）
+      经过：第一次导入时把还款也算成了支出，那个月的花销多出一大截，后来改成账户互转才对上。
+
+$ fin memory tidy
+593b349a「阿杰借的钱」他说 2026 年 10 月底前把剩下的 200 € 还清。（记的时候说 10 月 28 日回头看，已经过了）
+4097e2ed「FitPlan 健身 App」试用完觉得不值，已经退了，不用再提醒续费。（订阅「FitPlan 健身 App」已经停了）
+3599b55b「夏天去海边」夏天想去海边玩一周，预算 800 € 左右。（11 个月没动过，也没用上）
+
+$ fin regulars
+工资：每月 27 号前后进，约 1.380,00 €（最近一年每个月都有；6、12 月多一份）
+店租：每月 1 号前后扣，约 1.100,00 €（最近一年每个月都有）
+兼职店员工资：每月 30 号前后扣，约 1.050,00 €（最近一年每个月都有）
+房租：每月 1 号前后扣，约 780,00 €（最近一年每个月都有）
+自雇社保：每月 28 号前后扣，约 310,00 €（最近一年每个月都有）
+店里水电：每月 12 号前后扣，约 206,37 €（最近一年每个月都有）
+Pack&Co 包装耗材：每月 17 号前后扣，约 122,29 €（最近一年每个月都有）
+刷卡手续费：每月 28 号前后扣，约 62,71 €（最近一年每个月都有）
+Luz Y GAS Enerluz：每月 10 号前后扣，约 61,93 €（最近一年每个月都有）
+Telefonia Nubemovil：每月 5 号前后扣，约 35,00 €（最近一年每个月都有）
+FitBox 健身房：每月 2 号前后扣，约 34,90 €（最近一年每个月都有）
+收银系统月费：每月 5 号前后扣，约 29,00 €（最近一年每个月都有）
+公交月票：每月 1 号前后扣，约 20,00 €（最近一年每个月都有）
+Fonthub Subscription：每月 11 号前后扣，约 14,05 €（最近一年里有 11 个月）
+StreamBox 视频会员：每月 7 号前后扣，约 12,99 €（最近一年每个月都有）
+Tuneo 音乐会员：每月 15 号前后扣，约 10,99 €（最近一年每个月都有）
+Linguapal：每月 18 号前后扣，约 9,99 €（最近一年里有 10 个月）
+
+$ fin history --limit 8
+76E9A19A	2026-11-20 07:15	Claude	写了11 月建议：订阅每个月扣 80,01 €，一年就是 960,12 €
+A0A339C8	2026-11-20 07:14	Claude	写了11 月要处理：阿杰的 200,00 € 过了约定日期还没还
+FF3A4FD3	2026-11-20 07:13	Codex	写了11 月好消息：应急金存到 60% 了
+20362314	2026-11-20 07:12	Claude	写了11 月留意：「个人护理」比上个月同期多花了 35,97 €
+93790FAF	2026-11-20 07:11	Claude	写了11 月本月点评：这个月到今天花了 1.336,40 €，比上个月同期少 145,36 €。
+AF244339	2026-11-20 07:10	Claude	写了11 月本月点评：小店这个月到今天进账 3.085,32 €，比上个月同期多 315,78 €。
+0402123D	2026-11-20 07:09	Codex	导入 日常卡 1 笔（日常卡-2026-11.csv，跳过重复 0 笔）
+7A9A4465	2026-11-20 07:08	Claude	导入 信用卡 2 笔（信用卡-2026-11.csv，跳过重复 1 笔）
+
+$ fin tx --limit 8
+2c5b9c8c	2026-11-20	-3,20 €	personal	餐饮	Café Nube
+e206b47e	2026-11-20	131,16 €	shop	营业收入	现金收入
+67f83a30	2026-11-20	-120,73 €	shop	包装耗材	Pack&Co 包装耗材
+e4d4c0b3	2026-11-20	-18,00 €	shop	购物	书包
+5c6aa35c	2026-11-19	-9,33 €	personal	餐饮	Café Nube
+f2e8e376	2026-11-19	-3,20 €	personal	储蓄	忍住了「Café Nube」，存进「换新电脑」
+e3abca74	2026-11-19	3,20 €	personal	储蓄	忍住了「Café Nube」，存进「换新电脑」 #忍住了
+d7aa819f	2026-11-19	-31,15 €	未分	未分类	COMPRA TARJ. SUPER LUMI 4821
+
+$ fin reconcile --account daily --balance 1000
+对账：日常卡，截至 2026-11-26
+银行余额 1.000,00 €
+账本余额 8.044,09 €（175 笔，最后一笔 2026-11-19）
+差 -7.044,09 €（银行 − 账本）
+· 账本比银行多 7.044,09 €：可能有支出没导入，或多记了收入。
+两次生成一模一样
+
+===== 手机记的：小纸条收进账本、入账、挂小票、报销（SQLite 账本在临时「夏夏账本」文件夹） =====
+
+$ fin account add card 示例卡 --kind bank
+已记：加账户「示例卡」（改动 7FF7A7E4，写错了用 fin undo 7FF7A7E4 撤销）
+
+$ fin phone
+11111111 2026-11-23 12:00 [一句话] 午饭 10 欧 · 猜 -10,00 €
+66666666 2026-11-23 12:01 [小票照片] 
+    照片：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/夏夏账本/附件/smoke-photo.jpg
+
+$ fin phone resolve 11111111 -10 午饭 --account card --book personal --category 餐饮 --date 2026-11-23
+已记：待记录入账：午饭 10 欧 → -10,00 € 午饭（改动 77242092，写错了用 fin undo 77242092 撤销）
+
+$ fin phone resolve 66666666 -5,50 咖啡小票 --account card --book personal
+已记：待记录入账：一张小票 → -5,50 € 咖啡小票（改动 58713DF7，写错了用 fin undo 58713DF7 撤销）
+
+$ fin phone resolve 11111111 -10 午饭 --account card --book personal   （预期失败）
+Error: 这条待记录已经处理过了
+
+$ fin receipt 7f412437 /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/receipt.jpg --invoice
+已记：挂发票：2026-11-23 -5,50 € 咖啡小票（改动 C2A3D9ED，写错了用 fin undo C2A3D9ED 撤销）
+
+$ fin reimburse set toSubmit 7f412437 --to 示例公司
+已记：报销「待提交」：咖啡小票 5,50 € · 找示例公司（改动 D1606BB3，写错了用 fin undo D1606BB3 撤销）
+
+$ fin reimburse
+待提交 5,50 €（1 笔）· 已提交 0,00 €（0 笔）· 已到账 0,00 €（0 笔）
+  7f412437 2026-11-23 5,50 € 咖啡小票 · 待提交 · 找示例公司 · 2 张凭证
+
+$ fin reimburse export --folder /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/export
+已导出 1 笔、合计 5,50 €、2 张凭证到：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.7CRSI8wgmg/export/报销清单-2026-11-26
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"text":"[\n  {\n    \"device\" : \"iPhone\",\n    \"guessAmount\" : \"-10,00 €\",\n    \"id\" : \"11111111\",\n    \"kind\" : \"一句话\",\n    \"possibleDuplicates\" : [\n\n    ],\n    \"recordedAt\" : \"2026-11-23 12:00\",\n    \"text\" : \"午饭 10 欧\"\n  },\n  {\n    \"device\" : \"iPhone\",\n    \"id\" : \"66666666\",\n    \"kind\" : \"小�
+
+意外失败：0 处

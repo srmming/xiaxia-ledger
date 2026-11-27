@@ -1,0 +1,55 @@
+• fin → /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin
+• 注意：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin 不在 PATH 里，命令行里要写全路径（MCP 配置已用全路径）
+fin：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin
+已装好	使用说明（skill）	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.agents/skills/fin
+已装好	Claude 桌面版：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/Library/Application Support/Claude/claude_desktop_config.json
+已装好	Claude Code：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.claude.json
+已装好	Claude Code：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.claude/skills/fin
+已装好	Claude Code：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.claude/CLAUDE.md
+已装好	Codex：MCP	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.codex/config.toml
+已装好	Codex：skill	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.codex/skills/fin
+已装好	Codex：提示词	/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.codex/AGENTS.md
+
+✓	Claude 桌面版	装好了，完全退出 Claude（⌘Q）再打开后就能用
+✓	Claude Code	装好了，新开一个 Claude Code 对话后就能用
+✓	Codex	装好了，重开 Codex后就能用
+✓	账本自检	能读到账本（自测调了一次只读的 summary，2026-11）
+
+装好了。按上面说的重开一次 AI 工具，然后对它说「这个月花了多少」试试。
+• fin → /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin
+• 注意：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin 不在 PATH 里，命令行里要写全路径（MCP 配置已用全路径）
+fin：/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin
+都已经装好了，没有要改的。
+
+✓	Claude 桌面版	装好了，完全退出 Claude（⌘Q）再打开后就能用
+✓	Claude Code	装好了，新开一个 Claude Code 对话后就能用
+✓	Codex	装好了，重开 Codex后就能用
+✓	账本自检	能读到账本（自测调了一次只读的 summary，2026-11）
+
+装好了。按上面说的重开一次 AI 工具，然后对它说「这个月花了多少」试试。
+
+/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.agents/skills:
+total 0
+drwxr-xr-x  3 runner  staff   96 Nov 26 23:55 .
+drwxr-xr-x  3 runner  staff   96 Nov 26 23:55 ..
+drwxr-xr-x  6 runner  staff  192 Nov 26 23:55 fin
+
+/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.claude/skills:
+total 0
+drwxr-xr-x  3 runner  staff   96 Nov 26 23:55 .
+drwxr-xr-x  4 runner  staff  128 Nov 26 23:55 ..
+lrwxr-xr-x  1 runner  staff   82 Nov 26 23:55 fin -> /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.agents/skills/fin
+[mcp_servers.xiaxia-ledger]
+command = "/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin"
+args = ["mcp"]
+{
+  "mcpServers" : {
+    "xiaxia-ledger" : {
+      "command" : "/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp.b5g8ckZ8bf/.local/bin/fin",
+      "args" : [
+        "mcp"
+      ]
+    }
+  }
+}
+1
