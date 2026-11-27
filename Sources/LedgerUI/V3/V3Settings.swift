@@ -463,12 +463,26 @@ private struct V3SetMemoryPage: View {
                 }
             }
         } trailing: {
-            V3SetGroup(title: "\(state.prefs.xiaName)是怎么记的", grow: true) {
-                V3Label("你亲口说的直接记；她自己从流水里看出来的，会先问你一句。")
-                V3Label("工资、房租这些数字不记，每次现算；卡号、密码从来不记。").padding(.top, 6)
-                V3Label("每个月提醒你整理一次，不会自己删。").padding(.top, 6)
-                Spacer(minLength: 0)
-                V3Label("\(state.prefs.xiaName)和你连上的 AI 都读这一份。", size: 12.5)
+            VStack(spacing: 14) {
+                let stale = state.book.memos.filter { !$0.important && $0.kind == .lesson }
+                if !stale.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("该整理了").font(V3.font(15, .heavy))
+                        V3Label("有 \(stale.count) 条可能用不上了。我不会自己删。")
+                        Button("看一看") { state.open(.memoTidy) }.buttonStyle(.v3(.primary, .small))
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 22).fill(V3.goodBG))
+                }
+                V3SetGroup(title: "让\(state.prefs.xiaName)先认识我") {
+                    V3Label("她翻一遍流水，把看出来的规律一条条问你，你说对的才记。")
+                    Button("开始") { state.open(.memoMeet) }.buttonStyle(.v3(.ghost, .small)).padding(.top, 10)
+                }
+                V3SetGroup(title: "\(state.prefs.xiaName)是怎么记的", grow: true) {
+                    V3Label("你说的直接记；她自己看出来的先问你。金额、卡号、密码不记。")
+                    Spacer(minLength: 0)
+                    V3Label("\(state.prefs.xiaName)和你连上的 AI 都读这一份。", size: 12.5)
+                }
             }
         }
     }
@@ -650,10 +664,10 @@ private struct V3SetBusinessPage: View {
                     V3SetGroup(title: "开店本钱", grow: true) {
                         if b.capitalTotal > .zero {
                             V3SetRow(title: b.capitalTotal.v3, sub: "\(b.capital.count) 样 · 已经赚回 \(Int((Double(16_728_00) / Double(max(b.capitalTotal.cents, 1)) * 100).rounded()))%", line: false) {
-                                Button("又投了一笔…") { state.open(.capital) }.buttonStyle(.v3(.ghost, .small))
+                                Button("改本钱…") { state.open(.capitalTotal) }.buttonStyle(.v3(.ghost, .small))
                             }
                         } else {
-                            V3SetRow(title: "还没填", sub: "填上以后，夏夏就能算什么时候回本", line: false) { Button("填本钱…") { state.open(.capital) }.buttonStyle(.v3(.teal, .small)) }
+                            V3SetRow(title: "还没填", sub: "填上以后，夏夏就能算什么时候回本", line: false) { Button("填本钱…") { state.open(.capitalTotal) }.buttonStyle(.v3(.teal, .small)) }
                         }
                     }
                 } else {
@@ -820,6 +834,72 @@ struct V3MemoForgetSheet: View {
             state.closeSheet()
         }) {
             V3ConfirmBody(text: "连改动记录里留着的那段话一起抹掉，找不回来，也不能撤销。\n只是不想让它出现在这里的话，用「删掉」就行，那个能撤销。", warn: true)
+        }
+    }
+}
+
+/// 该整理了：一条条看，留着还是删掉。
+struct V3MemoTidySheet: View {
+    @Environment(V3State.self) private var state
+    var body: some View {
+        let stale = state.book.memos.filter { !$0.important && $0.kind == .lesson }
+        V3SheetBox(width: 560, title: "该整理了", sub: "可能用不上的", foot: "删掉的能撤销。留着的标成重要，以后不再问。", primary: "好了", save: { state.closeSheet() }) {
+            if stale.isEmpty { V3ConfirmBody(text: "都整理完了。") }
+            ForEach(stale.prefix(4)) { m in
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(m.topic).font(V3.font(14.5, .heavy))
+                        Text(m.lines.joined(separator: "；")).font(V3.font(13, .regular)).foregroundStyle(V3.ink2).lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Button("留着") { state.change("留着：\(m.topic)") { try $0.setMemo(m.id, important: true) } }.buttonStyle(.v3(.ghost, .small))
+                    Button("删掉") { state.change("删掉了：\(m.topic)", kind: .remove) { try $0.removeMemo(m.id) } }.buttonStyle(.v3(.danger, .small))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 14).fill(V3.bg))
+            }
+        }
+    }
+}
+
+/// 让夏夏先认识我：把从流水里看出来的规律一条条问，说对的才记。
+struct V3MemoMeetSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var step = 0
+    @State private var kept = 0
+    @State private var skipped: Set<String> = []
+
+    /// 从账本里现看出来的几条（话题，一句话）。
+    private var guesses: [(String, String)] {
+        let b = state.book
+        var out: [(String, String)] = []
+        if let rent = b.upcoming.first(where: { $0.name == "房租" }) { out.append(("房租", "每月 1 日付，\(rent.amount.v3Short) 左右")) }
+        if let top = Dictionary(grouping: b.entries.filter { !$0.place.isEmpty && $0.amount.cents < 0 }, by: \.place).max(by: { $0.value.count < $1.value.count }) {
+            out.append((top.key, "常去，用\(top.value.first?.account ?? "现金")付"))
+        }
+        if let s = b.subscriptions.first(where: { $0.flag }) { out.append((s.name, "赚钱要用的，别建议我退")) }
+        if b.accounts.contains(where: { $0.kind == .shop }) { out.append(("店里的钱", "和家里的分开算")) }
+        return out.filter { g in !skipped.contains(g.0) && !b.memos.contains { $0.topic == g.0 } }
+    }
+
+    var body: some View {
+        let list = guesses
+        let g = list.first
+        V3SheetBox(width: 540, title: "让\(state.prefs.xiaName)先认识我", sub: g == nil ? "" : "第 \(step + 1) 条", foot: "你说对的才记。记了也能删。", primary: g == nil ? "好了" : "先到这",
+                   save: { state.closeSheet() }) {
+            if let g {
+                V3Ask(face: "think", text: "「\(g.0)」：\(g.1)。对吗？") {
+                    HStack(spacing: 8) {
+                        Button("对，记下") {
+                            if state.change("记下了：\(g.0)", { try $0.remember(.topic, topic: g.0, line: g.1, source: "夏夏看出来的，你确认过") }) { kept += 1; step += 1 }
+                        }
+                        .buttonStyle(.v3(.primary, .small))
+                        Button("不对") { skipped.insert(g.0); step += 1; state.say("好，这条不记") }
+                            .buttonStyle(.v3(.ghost, .small))
+                    }
+                }
+            } else {
+                V3ConfirmBody(text: kept > 0 ? "这一轮记了 \(kept) 条。别的我没看出来，以后看出来再问你。" : "流水里暂时没看出别的规律，以后看出来再问你。")
+            }
         }
     }
 }

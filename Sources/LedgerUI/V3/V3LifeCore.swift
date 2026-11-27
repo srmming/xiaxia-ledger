@@ -407,7 +407,7 @@ struct V3GoalsPage: View {
             .v3Card()
 
             VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle("沿途风光")
+                V3CardTitle("沿途风光", note: state.book.nextGoals.first.map { "下一个目标：\($0.name) \($0.amount.v3Short)" } ?? "")
                 HStack(spacing: 10) {
                     ForEach(state.book.letters.suffix(2)) { l in
                         Button { state.openMoment(.letter(l)) } label: {

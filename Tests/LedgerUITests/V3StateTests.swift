@@ -193,6 +193,25 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book, before)
     }
 
+    func testSubscriptionCycleInstallmentQueuedGoalAndCapitalTotal() {
+        let s = V3State()
+        let monthly = s.book.subscriptionsMonthly
+        XCTAssertTrue(s.change("加好了") { try $0.addSubscription(name: "域名", amount: self.eur("24"), note: "每年扣", forWork: true, cycle: 3) })
+        XCTAssertEqual(s.book.subscriptionsMonthly, monthly + eur("2"), "一年 24 € 折成每月 2 €")
+        let owe = s.book.totals.owe
+        XCTAssertTrue(s.change("记上了") { try $0.addInstallment(name: "新冰箱", total: self.eur("600"), periods: 12, paid: 2, day: 8) })
+        XCTAssertEqual(s.book.totals.owe, owe + eur("500"))
+        XCTAssertEqual(s.book.upcoming.last?.amount, eur("50"))
+        XCTAssertFalse(s.change("记上了") { try $0.addInstallment(name: "沙发", total: self.eur("600"), periods: 12, paid: 12, day: 8) })
+        XCTAssertTrue(s.change("存成目标了") { try $0.queueGoal(name: "攒够 6 个月底气", total: self.eur("5160")) })
+        XCTAssertEqual(s.book.nextGoals.first?.note, "排在「换新电脑」后面")
+        XCTAssertEqual(s.book.journey.name, "换新电脑", "现在这条路不动")
+        s.undo()
+        XCTAssertTrue(s.book.nextGoals.isEmpty)
+        XCTAssertTrue(s.change("存好了") { try $0.setCapitalTotal(self.eur("32000")) })
+        XCTAssertEqual(s.book.capitalTotal, eur("32000"))
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

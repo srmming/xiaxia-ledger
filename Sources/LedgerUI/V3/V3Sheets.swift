@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -21,13 +21,13 @@ enum V3Sheet: Equatable {
             "sheet-daily": (.bizHome, .biz, .shopDay(18)), "sheet-fixed": (.fixed, .biz, .fixed),
             "sheet-purchase": (.stock, .biz, .purchase), "sheet-stock": (.stock, .biz, .stock),
             "sheet-capital": (.payback, .biz, .capital), "sheet-transfer": (.bizHome, .biz, .transfer),
-            "sheet-shopdebt": (.bizDebts, .biz, .shopDebt),
+            "sheet-shopdebt": (.bizDebts, .biz, .shopDebt), "sheet-captotal": (.payback, .biz, .capitalTotal),
         ]
         if let (page, side, sheet) = map[p] { state.side = side; state.page = page; state.sheet = sheet }
         let set: [String: (V3State.SettingsSub?, V3Sheet)] = [
             "sheet-memo": (.memory, .memoAdd), "sheet-del1": (.data, .deleteAsk), "sheet-del2": (.data, .deleteConfirm),
             "sheet-feedback": (nil, .feedback), "sheet-books": (.books, .books), "sheet-accounts": (.books, .accounts),
-            "sheet-cats": (.books, .categories), "sheet-base": (.sync, .baseCurrency),
+            "sheet-cats": (.books, .categories), "sheet-base": (.sync, .baseCurrency), "sheet-tidy": (.memory, .memoTidy), "sheet-meet": (.memory, .memoMeet),
         ]
         if let (sub, sheet) = set[p] { state.page = .settings; state.settingsSub = sub; state.sheet = sheet }
         if p == "sheet-forget", let m = state.book.memos.last { state.page = .settings; state.settingsSub = .memory; state.sheet = .memoForget(m.id) }
@@ -78,6 +78,9 @@ struct V3SheetHost: View {
                 case .categories: V3CategoriesSheet()
                 case .baseCurrency: V3BaseCurrencySheet()
                 case .goalNew: V3GoalNewSheet()
+                case .capitalTotal: V3CapitalTotalSheet()
+                case .memoTidy: V3MemoTidySheet()
+                case .memoMeet: V3MemoMeetSheet()
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -428,22 +431,36 @@ private struct V3SubscriptionSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
+    @State private var cycle = 1
+    @State private var next = ""
+    @State private var account = 0
     @State private var forWork = false
 
     var body: some View {
         let m = V3Form.amount(amount)
+        let accounts = state.book.payable(.life)
         let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
-        V3SheetBox(width: 540, title: "加一个订阅", sub: "每个月自己扣走的钱", foot: m.map { "一年是 \(Money(cents: $0.cents * 12).v3Short)。" } ?? "", primary: "加好",
+        let yearly = m.map { TrialBook.Item(emoji: "", name: "", note: "", amount: $0, cycle: cycle).yearly }
+        V3SheetBox(width: 560, title: "加一个订阅", foot: yearly.map { "一年是 \($0.v3Short)。" } ?? "", primary: "加好",
                    canSave: ok,
                    save: {
                        guard let m else { return }
-                       if state.change("加好了：\(name) 每月 \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: "每月扣 · 刚加的", forWork: forWork) }) { state.closeSheet() }
+                       let cyc = TrialBook.Item.cycleNames[cycle]
+                       let day = next.trimmingCharacters(in: .whitespaces)
+                       let acc = accounts.indices.contains(account) ? accounts[account].name : ""
+                       let note = [day.isEmpty ? "\(cyc)扣" : "\(day)扣", acc].filter { !$0.isEmpty }.joined(separator: " · ")
+                       if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle) }) { state.closeSheet() }
                    }) {
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "叫什么", prompt: "健身房", text: $name, focus: true)
-                V3FormField(label: "每月扣多少", prompt: "29,00", text: $amount).frame(width: 170)
+                V3FormField(label: "每次扣多少", prompt: "29,00", text: $amount).frame(width: 170)
             }
             V3AmountHint(text: amount)
+            V3FormPick(label: "多久扣一次", options: TrialBook.Item.cycleNames, pick: $cycle)
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "下次哪天扣", prompt: "12 月 5 日", text: $next).frame(width: 170)
+                V3FormPick(label: "从哪个账户扣", options: accounts.map(\.name), pick: $account)
+            }
             V3FormSwitch(title: "赚钱要用的", sub: "打开后夏夏不会建议你退掉", on: $forWork)
         }
     }
@@ -457,23 +474,47 @@ private struct V3DebtSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var note = ""
+    @State private var periods = "12"
+    @State private var paid = "0"
+    @State private var day = "8"
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
-        V3SheetBox(width: 560, title: "记一笔欠款", foot: "借钱和还钱不算花也不算赚。", primary: "记上", canSave: ok,
+        let n = Int(periods.trimmingCharacters(in: .whitespaces)), done = Int(paid.trimmingCharacters(in: .whitespaces)), d = Int(day.trimmingCharacters(in: .whitespaces))
+        let each = m.flatMap { m in n.flatMap { $0 > 0 ? Money(cents: m.cents / Int64($0)) : nil } }
+        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && (who != 2 || (n != nil && done != nil && d != nil))
+        V3SheetBox(width: 600, title: "记一笔欠款", foot: who == 2 ? "每月要还的会从「能随便花」里先扣掉。" : "借钱和还钱不算花也不算赚。", primary: "记上", canSave: ok,
                    save: {
                        guard let m else { return }
-                       let n = who == 1 ? "借给\(name)" : name
-                       if state.change("记上了：\(n) \(m.v3)", kind: .debt, { try $0.addDebt(name: n, amount: m, owedToMe: who == 1, note: note) }) { state.closeSheet() }
+                       let saved: Bool
+                       if who == 2, let n, let done, let d {
+                           saved = state.change("记上了：\(name) 分 \(n) 期", kind: .installment) { try $0.addInstallment(name: name, total: m, periods: n, paid: done, day: d) }
+                       } else {
+                           let label = who == 1 ? "借给\(name)" : name
+                           saved = state.change("记上了：\(label) \(m.v3)", kind: .debt) { try $0.addDebt(name: label, amount: m, owedToMe: who == 1, note: note) }
+                       }
+                       if saved { state.closeSheet() }
                    }) {
-            V3FormPick(label: "", options: ["我欠别人", "别人欠我"], pick: $who)
+            V3FormPick(label: "", options: ["我欠别人", "别人欠我", "分期"], pick: $who)
             HStack(alignment: .top, spacing: 12) {
-                V3FormField(label: who == 1 ? "谁欠我" : "欠谁的 / 买的什么", prompt: who == 1 ? "小李" : "朋友阿杰", text: $name, focus: true)
+                V3FormField(label: who == 1 ? "谁欠我" : who == 2 ? "买的什么" : "欠谁的", prompt: who == 1 ? "小李" : who == 2 ? "新冰箱" : "朋友阿杰", text: $name, focus: true)
                 V3FormField(label: "一共多少", prompt: "300,00", text: $amount).frame(width: 170)
             }
             V3AmountHint(text: amount)
-            V3FormField(label: "说好什么时候还", prompt: "可不填，比如：12 月还", text: $note)
+            if who == 2 {
+                HStack(alignment: .top, spacing: 12) {
+                    V3FormField(label: "分几期", prompt: "12", text: $periods)
+                    V3FormField(label: "已经还了几期", prompt: "0", text: $paid)
+                    V3FormField(label: "每月几号扣", prompt: "8", text: $day)
+                }
+                if let each, let n, let done, done < n, let m {
+                    V3FormPreview(text: "每期 \(each.v3) · 还剩 \(n - done) 期，还欠", amount: (m - Money(cents: each.cents * Int64(done))).v3)
+                } else if m != nil {
+                    V3FormPreview(text: "期数没看懂：分几期填 2 到 60，已经还的要比它少。", good: false)
+                }
+            } else {
+                V3FormField(label: "说好什么时候还", prompt: "可不填，比如：12 月还", text: $note)
+            }
         }
     }
 }
@@ -652,6 +693,26 @@ private struct V3SimpleSheet: View {
     private var title: String { kind == .purchase ? "记一次进货" : kind == .stock ? "估一下现在的货" : "后来又投了钱" }
     private var sub: String { kind == .purchase ? "钱从店里账户出去" : kind == .stock ? "大概的数就行" : "本钱变多，回本的路变长" }
     private var foot: String { kind == .capital ? "本钱改了，回本的进度马上重算。" : "" }
+}
+
+/// 改开店本钱的总数。
+struct V3CapitalTotalSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var amount = ""
+    var body: some View {
+        let m = V3Form.amount(amount)
+        let many = state.book.capital.count > 1
+        V3SheetBox(width: 520, title: "开店本钱", foot: many ? "改了总数，下面的几样会合成一行。改错了能撤销。" : "本钱改了，回本的进度马上重算。", primary: "存好", teal: true,
+                   canSave: m != nil && m != state.book.capitalTotal,
+                   save: {
+                       guard let m else { return }
+                       if state.change("存好了：本钱 \(m.v3)", { try $0.setCapitalTotal(m) }) { state.closeSheet() }
+                   }) {
+            V3FormField(label: "一共投了", prompt: "32000", text: $amount, big: true, focus: true)
+            V3AmountHint(text: amount)
+        }
+        .onAppear { if state.book.capitalTotal > .zero { amount = V3Form.plain(state.book.capitalTotal) } }
+    }
 }
 
 // MARK: - 生意：两边转钱

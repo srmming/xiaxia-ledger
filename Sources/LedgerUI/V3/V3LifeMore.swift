@@ -518,7 +518,17 @@ private struct V3BigDecision: View {
                                 state.say(frugal ? "省着过：能撑 10,2 个月，到 2027 年 10 月" : "回到原来的算法")
                             }
                             .buttonStyle(.v3(.primary, .small))
-                            V3SayButton("存成一个目标", "好：新目标「攒够 6 个月底气再离职」（试用版先不真的新建）", .ghost)
+                            let goal = "攒够 6 个月底气"
+                            if state.book.nextGoals.contains(where: { $0.name == goal }) || state.book.journey.name == goal {
+                                V3Tag(text: "已经存成目标", tone: .green)
+                            } else {
+                                Button("存成一个目标") {
+                                    let total = Money(cents: state.book.monthlyMust.cents * 6)
+                                    let after = state.book.journey.total > .zero ? "，排在「\(state.book.journey.name)」后面" : ""
+                                    state.change("存成目标了：\(goal) \(total.v3Short)\(after)", kind: .goal) { try $0.queueGoal(name: goal, total: total) }
+                                }
+                                .buttonStyle(.v3(.ghost, .small))
+                            }
                         }
                     }
                     Spacer(minLength: 0)
@@ -545,7 +555,7 @@ struct V3SubscriptionsPage: View {
         let monthly = b.subscriptionsMonthly
         let doubt = b.subscriptions.filter { $0.tag == "可以考虑退" && !$0.off }
         let dropped = b.subscriptions.filter(\.off)
-        let saved = dropped.map(\.amount).reduce(.zero, +)
+        let saved = dropped.map(\.monthly).reduce(.zero, +)
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "订阅每月一共", amount: monthly) {
@@ -565,14 +575,14 @@ struct V3SubscriptionsPage: View {
                 }
                 V3GrowCard {
                     V3CardTitle(dropped.isEmpty ? "如果这几个都退" : "已经省下的")
-                    V3Amount("每月省 \((dropped.isEmpty ? doubt.map(\.amount).reduce(.zero, +) : saved).v3)", color: V3.green, size: 30, weight: .heavy)
+                    V3Amount("每月省 \((dropped.isEmpty ? doubt.map(\.monthly).reduce(.zero, +) : saved).v3)", color: V3.green, size: 30, weight: .heavy)
                 }
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
                 V3CardTitle("按下次扣钱的日子排", note: "\(b.subscriptions.count) 个")
                 V3RowList(rows: b.subscriptions.prefix(7).map { x in
-                    .init(x.emoji, x.name, x.off ? "要退 · 这个月之后不再扣" : x.note, x.amount.v3, tag: x.off ? "要退" : x.tag,
+                    .init(x.emoji, x.name, x.off ? "要退 · 这个月之后不再扣" : x.note, x.amount.v3 + (x.cycle == 1 ? "" : " / " + ["周", "月", "季", "年"][x.cycle]), tag: x.off ? "要退" : x.tag,
                           tone: x.off || x.flag ? .green : .gold)
                 }, compact: b.subscriptions.count > 5)
                 Spacer(minLength: 0)

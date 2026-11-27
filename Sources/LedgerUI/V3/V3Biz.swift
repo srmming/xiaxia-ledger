@@ -275,7 +275,10 @@ struct V3PaybackPage: View {
                 }
                 .padding(.top, 6)
                 Spacer(minLength: 0)
-                Button("后来又投了钱") { state.open(.capital) }.buttonStyle(.v3(.teal, .small))
+                HStack(spacing: 8) {
+                    Button("后来又投了钱") { state.open(.capital) }.buttonStyle(.v3(.teal, .small))
+                    Button("改总数") { state.open(.capitalTotal) }.buttonStyle(.v3(.ghost, .small))
+                }
             }
         }
     }

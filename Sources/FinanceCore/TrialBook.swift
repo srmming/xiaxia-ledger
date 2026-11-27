@@ -86,9 +86,23 @@ public struct TrialBook: Equatable, Sendable {
         public var off = false
         /// 固定开销：能不能省；订阅：赚钱要用的。
         public var flag = false
-        public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false) {
-            self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.amount = amount; self.tag = tag; self.off = off; self.flag = flag
+        /// 订阅多久扣一次：0 每周、1 每月、2 每三个月、3 每年。
+        public var cycle = 1
+        public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false, cycle: Int = 1) {
+            self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.amount = amount; self.tag = tag; self.off = off; self.flag = flag; self.cycle = cycle
         }
+        public static let cycleNames = ["每周", "每月", "每三个月", "每年"]
+        /// 折成每个月多少（订阅用）。
+        public var monthly: Money {
+            switch cycle {
+            case 0: Money(cents: amount.cents * 52 / 12)
+            case 2: Money(cents: amount.cents / 3)
+            case 3: Money(cents: amount.cents / 12)
+            default: amount
+            }
+        }
+        /// 一年多少（订阅用）。
+        public var yearly: Money { Money(cents: amount.cents * [52, 12, 4, 1][min(max(cycle, 0), 3)]) }
     }
 
     /// 店里某一天收了多少。
@@ -381,7 +395,7 @@ public struct TrialBook: Equatable, Sendable {
         for i in shopDays.indices where shopDays[i].state == .open || shopDays[i].state == .rest {
             shopDays[i] = ShopDay(day: shopDays[i].day, cash: .zero, card: .zero, state: shopDays[i].day <= todayDay ? .missing : .future)
         }
-        fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []
+        fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []; nextGoals = []
     }
 
     // MARK: 目标
@@ -454,13 +468,47 @@ public struct TrialBook: Equatable, Sendable {
                        balance: amount, kind: owedToMe ? .lent : .debt)
     }
 
+    /// 记一笔分期：一共多少、分几期、已经还了几期。欠的是还没还的那部分，每期的钱排进「接下来要付的」。
+    public mutating func addInstallment(name: String, total: Money, periods: Int, paid: Int, day: Int) throws {
+        try Self.positive(total)
+        guard (2...60).contains(periods) else { throw TrialError("分期填 2 到 60 期") }
+        guard (0..<periods).contains(paid) else { throw TrialError("已经还的期数要比总期数少") }
+        guard (1...28).contains(day) else { throw TrialError("每月几号扣，填 1 到 28") }
+        let each = Money(cents: total.cents / Int64(periods))
+        let left = total - Money(cents: each.cents * Int64(paid))
+        try addAccount(emoji: "🧾", name: name, note: "欠 · 还剩 \(periods - paid) 期，每月 \(each.formatted)", balance: left, kind: .debt)
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        upcoming.append(Entry(emoji: "🧾", name: clean, meta: "12 月 \(day) 日 · 第 \(paid + 1) / \(periods) 期", amount: each, red: true))
+    }
+
+    /// 排在现在这个目标后面的下一个目标（大决定页「存成一个目标」）。
+    public var nextGoals: [Item] = []
+
+    public mutating func queueGoal(name: String, total: Money) throws {
+        try Self.positive(total, "目标的钱")
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("先写一下目标叫什么") }
+        guard clean != journey.name, !nextGoals.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个目标了") }
+        if journey.total == .zero { try startGoal(name: clean, total: total); return }
+        nextGoals.append(Item(emoji: "🧭", name: clean, note: "排在「\(journey.name)」后面", amount: total))
+    }
+
+    /// 改开店本钱的总数。细项加起来对不上时，合成一行。
+    public mutating func setCapitalTotal(_ total: Money) throws {
+        try Self.positive(total, "本钱")
+        guard total != capitalTotal else { throw TrialError("和现在的一样，没有要改的") }
+        capital = [Item(emoji: "💰", name: "开店本钱", note: "一共投的", amount: total)]
+    }
+
     // MARK: 订阅、想要清单
 
-    public mutating func addSubscription(name: String, amount: Money, note: String, forWork: Bool) throws {
+    public mutating func addSubscription(name: String, amount: Money, note: String, forWork: Bool, cycle: Int = 1) throws {
         try Self.positive(amount)
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { throw TrialError("先写一下订阅叫什么") }
-        subscriptions.append(Item(emoji: "🔁", name: clean, note: note, amount: amount, tag: forWork ? "赚钱用的" : "", flag: forWork))
+        guard !subscriptions.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个订阅了") }
+        guard (0...3).contains(cycle) else { throw TrialError("多久扣一次没选对") }
+        subscriptions.append(Item(emoji: "🔁", name: clean, note: note, amount: amount, tag: forWork ? "赚钱用的" : "", flag: forWork, cycle: cycle))
     }
 
     public mutating func setSubscription(_ name: String, dropped: Bool) throws {
@@ -468,7 +516,7 @@ public struct TrialBook: Equatable, Sendable {
         subscriptions[i].off = dropped
     }
 
-    public var subscriptionsMonthly: Money { subscriptions.filter { !$0.off }.map(\.amount).reduce(.zero, +) }
+    public var subscriptionsMonthly: Money { subscriptions.filter { !$0.off }.map(\.monthly).reduce(.zero, +) }
 
     public mutating func addWanted(name: String, price: Money) throws {
         try Self.positive(price, "价钱")

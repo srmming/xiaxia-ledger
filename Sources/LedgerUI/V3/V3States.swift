@@ -118,14 +118,22 @@ struct V3LoadingPage: View {
 struct V3ErrorPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
+        // 流水页有自己的出错：文件读不了（规格稿）。别的页都是账本读不出来。
+        let file = state.page == .transactions
         VStack(spacing: 12) {
             V3Face(face: "worried", width: 110)
-            Text("账本读不出来").font(V3.font(26, .heavy)).foregroundStyle(V3.ink)
-            Text("你的账没丢，还好好地在 iCloud 云盘的「夏夏账本」文件夹里。可能是它还没同步完。")
+            Text(file ? "这个文件我读不了" : "账本读不出来").font(V3.font(26, .heavy)).foregroundStyle(V3.ink)
+            Text(file ? "你的账没动。换成银行导出的 CSV 再试试；还不行就把文件发给我们看看。" : "你的账没丢，还好好地在 iCloud 云盘的「夏夏账本」文件夹里。可能是它还没同步完。")
                 .font(V3.font(15, .regular)).foregroundStyle(V3.ink2).multilineTextAlignment(.center).frame(maxWidth: 440)
             HStack(spacing: 10) {
-                Button("重新读取账本") { state.reload() }.buttonStyle(.v3)
-                Button("看看账本在哪") { state.forced = nil; state.page = .settings; state.openSettings(.sync) }.buttonStyle(.v3(.ghost))
+                if file {
+                    Button("换一个文件") { withAnimation(.easeOut(duration: 0.2)) { state.forced = nil } }.buttonStyle(.v3)
+                    Button("怎么从银行导出") { state.say("在银行 app 里找「对账单」或「导出」，选 CSV，时间选一个月") }.buttonStyle(.v3(.ghost))
+                    Button("发给我们看看") { state.forced = nil; state.open(.feedback) }.buttonStyle(.v3(.ghost))
+                } else {
+                    Button("重新读取账本") { state.reload() }.buttonStyle(.v3)
+                    Button("看看账本在哪") { state.forced = nil; state.page = .settings; state.openSettings(.sync) }.buttonStyle(.v3(.ghost))
+                }
             }
             .padding(.top, 6)
         }
