@@ -34,22 +34,25 @@ public enum V3Launch {
             if p == "smallerstep" { state.page = .goals; state.moment = .smallerStep }
             if p == "letter" {
                 state.page = .goals
-                state.book.journey.resisted = 14
-                state.book.journey.monthlyPlan = Money(cents: 100_00)
-                _ = state.book.journey.deposit(state.book.journey.remainingToNext)
+                state.patch {
+                    $0.journey.resisted = 14
+                    $0.journey.monthlyPlan = Money(cents: 100_00)
+                    _ = $0.journey.deposit($0.journey.remainingToNext)
+                }
                 if let st = state.book.journey.stations.first(where: { $0.target == Money(cents: 700_00) }) {
                     let l = state.arrivalLetter(for: st)
-                    state.book.letters.append(l)
+                    state.patch { $0.letters.append(l) }
                     state.moment = .letter(l)
                 }
             }
-        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) {
+        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) || p.hasPrefix("sheet-") {
             state.onboardingStep = nil
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
             if p == "bigdecision" { state.page = .think; state.thinkBig = true }
             if p == "log" { state.page = .settings; state.showLog = true }
             if p == "add" { state.showAdd = true }
+            V3Sheet.fromLaunch(p, state)
             if p == "ask" { state.page = .overview; state.chatOpen = true }
             if p == "askfrom" { state.page = .overview; state.sayPopsToday = 0 }
         } else if let page = V3State.Page(rawValue: p) {
@@ -216,6 +219,7 @@ struct V3Shell: View {
             .clipped()
         }
         .overlay { if state.showAdd { V3AddSheet().environment(\.v3InlineXia, true).transition(.opacity) } }
+        .overlay { if let sheet = state.sheet { V3SheetHost(sheet: sheet).environment(\.v3InlineXia, true).transition(.opacity) } }
         .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state).environment(\.v3InlineXia, true) }
     }
 
@@ -383,7 +387,9 @@ private struct V3TopBar: View {
                     }
                 }
                 .keyboardShortcut("k", modifiers: .command).help("问夏夏（⌘K）")
-            Button("+ 记一笔") { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
+            Button(state.side == .biz ? "+ 记今天的账" : "+ 记一笔") {
+                if state.side == .biz { state.open(.shopDay(state.book.todayDay)) } else { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
+            }
                 .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
                 .keyboardShortcut("n", modifiers: .command).help("记一笔（⌘N）")
         }

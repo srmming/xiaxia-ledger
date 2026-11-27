@@ -18,7 +18,7 @@ extension V3State {
     func offer(_ id: String?) {
         guard let id else { sayCardID = nil; sayUnreadID = nil; return }
         guard !sayDismissed.contains(id), id != sayCardID else { return }
-        if chatOpen { return }
+        if chatOpen || sheet != nil || showAdd { return }
         // 一页一次只滑下来一句；今天说满三句以后只亮小红点
         if sayPoppedThisPage || sayPopsToday >= 3 {
             if sayCardID == nil { sayUnreadID = id }

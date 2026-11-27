@@ -68,6 +68,7 @@ struct V3AddSheet: View {
                 HStack(spacing: 10) {
                     V3Label("记完还剩：这个月能随便花 \((state.book.month.left - (way == 0 ? q?.amount ?? .zero : .zero)).v3)")
                     Spacer()
+                    Button("自己填") { close(); state.open(.manual) }.buttonStyle(.v3(.ghost)).help("金额、店、分类、账户、哪天，自己一样样填")
                     Button("先不记") { close() }.buttonStyle(.v3(.ghost))
                     Button("记好") { if let q { save(q, "现金") } }.buttonStyle(.v3).disabled(q == nil || way != 0).keyboardShortcut(.defaultAction)
                 }
@@ -195,12 +196,26 @@ struct V3SettingsPage: View {
 // MARK: - 改动记录
 
 private struct V3LogPage: View {
+    static func emoji(_ k: ChangeRecord.Kind) -> String {
+        switch k {
+        case .add, .capture: "✏️"
+        case .categorize: "🏷"
+        case .importBatch: "📥"
+        case .goalDeposit, .goal: "⭐"
+        case .subscription: "🔁"
+        case .account: "🏦"
+        case .debt, .repay: "💳"
+        case .delete, .remove: "🗑"
+        case .transfer: "🔄"
+        default: "📝"
+        }
+    }
     @Environment(V3State.self) private var state
     @State private var filter = "全部"
     private let whos = ["全部", "你", "Claude", "夏夏", "流水导入", "拍小票"]
 
     var body: some View {
-        let items = state.log.filter { filter == "全部" || $0.who == filter }
+        let items = state.ledger.changes.filter { !$0.undone && (filter == "全部" || $0.author == filter) }
         V3Cols(left: 1.6, right: 1) {
             V3GrowCard(spacing: 4) {
                 V3CardTitle(title: "今天") { EmptyView() } trail: {
@@ -214,25 +229,19 @@ private struct V3LogPage: View {
                     ForEach(Array(items.prefix(9).enumerated()), id: \.element.id) { i, item in
                         if i > 0 { V3Divider() }
                         HStack(spacing: 12) {
-                            V3Ico(emoji: item.emoji)
+                            V3Ico(emoji: Self.emoji(item.kind))
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(item.what).font(V3.font(14, .bold)).lineLimit(1)
-                                Text(item.when).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
+                                Text(item.summary).font(V3.font(14, .bold)).lineLimit(1)
+                                Text(item.createdAt.formatted(date: .omitted, time: .shortened)).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
                             }
                             Spacer(minLength: 6)
-                            V3Tag(text: item.who, tone: item.who == "夏夏" ? .green : item.who == "Claude" ? .gold : .blue)
-                            Button("撤销") {
-                                if item.mine, state.log.first(where: \.mine)?.id == item.id {
-                                    state.undo()
-                                } else if item.mine {
-                                    state.say("先撤销它后面的那几步，才能撤到这一步")
-                                } else {
-                                    withAnimation(.snappy) { state.log.removeAll { $0.id == item.id } }
-                                    state.say("撤销了：\(item.what)")
-                                }
+                            V3Tag(text: item.author, tone: item.author == "夏夏" ? .green : item.author == "Claude" ? .gold : .blue)
+                            if state.ledger.canUndo(item.id) {
+                                Button("撤销") { state.undo(change: item.id) }
+                                    .buttonStyle(.v3(.ghost, .small))
+                                    .accessibilityLabel("撤销：\(item.summary)")
+                                    .help("它后面做的也会一起撤回")
                             }
-                            .buttonStyle(.v3(.ghost, .small))
-                            .accessibilityLabel("撤销：\(item.what)")
                         }
                         .padding(.vertical, 8)
                     }
@@ -258,7 +267,7 @@ private struct V3LogPage: View {
                     Spacer(minLength: 0)
                     VStack(alignment: .leading, spacing: 2) {
                         V3Label("这个月", size: 12.5)
-                        Text("自己进来 96 笔 · 你手记 \(4 + state.log.filter(\.mine).count) 笔").font(V3.num(16)).contentTransition(.numericText())
+                        Text("自己进来 96 笔 · 你手记 \(4 + state.ledger.changes.filter { !$0.undone && $0.author == state.author && $0.kind == .add }.count) 笔").font(V3.num(16)).contentTransition(.numericText())
                     }
                     .padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 14).fill(V3.bg))

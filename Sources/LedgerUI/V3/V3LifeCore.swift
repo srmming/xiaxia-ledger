@@ -84,7 +84,7 @@ struct V3OverviewPage: View {
                 HStack(spacing: 16) {
                     V3Road(journey: j, mini: true).frame(maxWidth: .infinity, maxHeight: .infinity)
                     VStack(alignment: .leading, spacing: 10) {
-                        Button("+ 存一笔") { state.depositAndCelebrate() }.buttonStyle(.v3)
+                        Button("+ 存一笔") { state.open(.save) }.buttonStyle(.v3)
                         Button("忍住了一杯咖啡") { state.depositAndCelebrate(Money(cents: 3_20), resisted: true) }.buttonStyle(.v3(.ghost, .small))
                     }
                     .padding(.bottom, 6)
@@ -379,7 +379,7 @@ struct V3GoalsPage: View {
                     V3Gold(amount: j.remainingToNext, size: 56, whole: j.remainingToNext.cents % 100 == 0)
                     V3Label(j.isFinished ? "\(j.total.v3Short) · 电脑到手" : "到 \(j.nextStation?.target.v3Short ?? "") · \(state.deadline)前")
                     HStack(spacing: 8) {
-                        Button("+ 存一笔") { state.depositAndCelebrate() }.buttonStyle(.v3)
+                        Button("+ 存一笔") { state.open(.save) }.buttonStyle(.v3)
                         if !j.isFinished, j.remainingToNext > Money(cents: 20_00) {
                             Button("存够这一站") { state.depositAndCelebrate(j.remainingToNext) }.buttonStyle(.v3(.ghost, .small))
                         }

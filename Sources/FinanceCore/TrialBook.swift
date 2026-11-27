@@ -126,7 +126,7 @@ public struct TrialBook: Equatable, Sendable {
     /// 今天是这个月几号（示例：18）。
     public var todayDay = 18
     /// 每天开门要先收多少才够付固定开销。
-    public var dailyBreakEven: Money { Money(cents: fixedTotal.cents / 30 / 100 * 100) }
+    public var dailyBreakEven: Money { Money(cents: (fixedTotal.cents + 1500) / 3000 * 100) }
     public var fixedTotal: Money { fixedCosts.filter { !$0.off }.map(\.amount).reduce(.zero, +) }
     public var capitalTotal: Money { capital.map(\.amount).reduce(.zero, +) }
 
@@ -222,6 +222,16 @@ public struct TrialBook: Equatable, Sendable {
         if entries[k].side == .life {
             if old.cents < 0 { month.spent = month.spent - diff } else { month.income = month.income + diff }
         }
+    }
+
+    /// 自己两个账户之间挪钱：不算花也不算赚。
+    public mutating func move(_ amount: Money, from: String, to: String) throws {
+        try Self.positive(amount)
+        guard from != to else { throw TrialError("两边选了同一个账户") }
+        let f = try index(from), t = try index(to)
+        guard accounts[f].balance >= amount else { throw TrialError("\(from)里只有 \(accounts[f].balance.formatted)") }
+        accounts[f].balance = accounts[f].balance - amount
+        accounts[t].balance = accounts[t].balance + amount
     }
 
     // MARK: 目标
@@ -420,6 +430,9 @@ public struct TrialLedger: Sendable {
         if changes.count > 200 { let old = changes.removeLast(); before[old.id] = nil }
         return record
     }
+
+    /// 不留记录地改：只给摆示例场景用（启动时、到站的信收进沿途风光）。
+    public mutating func patch(_ body: (inout TrialBook) -> Void) { body(&book) }
 
     /// 这条能不能撤销：没撤过，而且留着改之前的样子（示例里原来就有的那几条不行）。
     public func canUndo(_ id: UUID) -> Bool {

@@ -60,97 +60,27 @@ final class V3State {
         static let biz: [Page] = [.bizHome, .sales, .fixed, .payback, .stock, .checkup, .bizDebts]
     }
 
-    struct Account: Identifiable, Equatable {
-        enum Kind { case own, shop, debt, lent, secret }
-        enum Block { case daily, emergency, goal, shop, none }
-        var id = UUID()
-        var emoji: String
-        var name: String
-        /// 家底页卡片下面那行小字。
-        var note: String
-        var balance: Money
-        var kind: Kind = .own
-        var block: Block = .daily
-        /// 总览小卡片上的短名字。
-        var short: String = ""
-        var label: String { short.isEmpty ? name : short }
-        var isDebt: Bool { kind == .debt }
-    }
-
-    struct Entry: Identifiable, Equatable {
-        var id = UUID()
-        var emoji: String
-        var name: String
-        var meta: String
-        var amount: Money
-        var tag: String = ""
-        var red = false
-    }
-
-    struct Letter: Identifiable, Equatable {
-        var id = UUID()
-        var title: String
-        var quote: String
-        var date: String
-        /// 信纸上面那行小标签和大标题。
-        var tag = ""
-        var headline = "你做到了。"
-        var paragraphs: [String] = []
-        /// 小卡片上的三个数。
-        var facts: [[String]] = []
-    }
-
-    /// 能撤销的那部分。
-    struct Book: Equatable {
-        var accounts: [Account]
-        var today: [Entry]
-        var upcoming: [Entry]
-        var month: FreeToSpend
-        var journey: Journey
-        var letters: [Letter]
-        /// 应急钱和目标对半分：nil = 还没回答。
-        var splitWithEmergency: Bool?
-        var monthlyMust: Money
-
-        var owned: [Account] { accounts.filter { $0.kind == .own || $0.kind == .shop } }
-        var debts: [Account] { accounts.filter { $0.kind == .debt } }
-        var lent: [Account] { accounts.filter { $0.kind == .lent } }
-        var totals: HouseholdTotals { HouseholdTotals(holdings: owned.map(\.balance), debts: debts.map(\.balance)) }
-        func sum(_ block: Account.Block) -> Money { owned.filter { $0.block == block }.map(\.balance).reduce(.zero, +) }
-        var runway: EmergencyRunway { EmergencyRunway(fund: sum(.emergency), monthlyMust: monthlyMust) }
-    }
-
-    /// 改动记录里的一条。
-    struct LogItem: Identifiable, Equatable {
-        var id = UUID()
-        var emoji: String
-        var who: String
-        var what: String
-        var when: String
-        /// 这次打开以后你自己做的（能真的撤销）。
-        var mine = false
-    }
-
-    /// 想要清单里的一样。
-    struct Wanted: Identifiable, Equatable {
-        var id = UUID()
-        var emoji: String
-        var name: String
-        var note: String
-        var price: Money
-        var tag = ""
-        var saved = false
-    }
+    // 账本里的东西都在核心（FinanceCore/TrialBook.swift）里，这里只起个短名字。
+    typealias Account = TrialBook.Account
+    typealias Entry = TrialBook.Entry
+    typealias Letter = TrialBook.Letter
+    typealias Book = TrialBook
 
     struct Toast: Identifiable, Equatable {
         let id = UUID()
         var text: String
         var canUndo = false
+        /// 没做成：不带撤销，停久一点。
+        var isError = false
     }
 
     // MARK: 状态
 
-    var book: Book
+    /// 试用账本 + 改动记录。写入只走 change(…)，规则都在核心里。
+    private(set) var ledger: TrialLedger
+    var book: Book { ledger.book }
+    /// 记账人：写进每条改动记录。
+    var author = "你"
     var page: Page = .overview
     var side: Side = .life
     var mode: Mode = .both
@@ -166,6 +96,8 @@ final class V3State {
     var secretShown = false
     var showAddAccount = false
     var showAdd = false
+    /// 正开着的弹窗（自己填、存一笔、改分类……）。
+    var sheet: V3Sheet?
     /// 和夏夏聊天的那一页开着没有。
     var chatOpen = false
     var chat: [ChatMessage] = []
@@ -181,19 +113,6 @@ final class V3State {
     var thinkBig = false
     /// 设置里点进去的改动记录。
     var showLog = false
-    var log: [LogItem] = [
-        LogItem(emoji: "🧾", who: "拍小票", what: "记一笔：午饭 12,50 € · 日常卡", when: "今天 13:05"),
-        LogItem(emoji: "🛒", who: "夏夏", what: "「Super Lumi」归进超市，以后这家店都这样", when: "今天 10:42"),
-        LogItem(emoji: "🔁", who: "Claude", what: "把「健身房 29 €」标成像订阅，等你确认", when: "今天 10:41"),
-        LogItem(emoji: "📄", who: "流水导入", what: "导入「Revolut 11 月流水」31 笔，跳过重复 6 笔", when: "今天 10:40"),
-        LogItem(emoji: "☕", who: "Claude", what: "记一笔：咖啡 3,20 € · 现金", when: "今天 09:12"),
-        LogItem(emoji: "⭐", who: "你", what: "存一笔 20 € 进「换新电脑」", when: "今天 08:30"),
-    ]
-    var wanted: [Wanted] = [
-        Wanted(emoji: "⌚", name: "运动手表", note: "还要冷静 21 小时", price: Money(cents: 189_00)),
-        Wanted(emoji: "👟", name: "跑鞋", note: "冷静完了，还想要吗？", price: Money(cents: 95_00), tag: "该回答了"),
-        Wanted(emoji: "🎮", name: "游戏手柄", note: "上周忍住了 · 存进目标", price: Money(cents: 59_00), saved: true),
-    ]
     /// 目标的三个时刻：定第一步、改小步子、到站的信。
     var moment: V3Moment?
 
@@ -201,37 +120,57 @@ final class V3State {
     let lastMonthNetDelta = Money(cents: 490_00)
     let spentLessThanLastMonth = Money(cents: 86_00)
 
-    private var undoStack: [Book] = []
     private var toastTask: Task<Void, Never>?
     private var secretTask: Task<Void, Never>?
 
-    init() { book = Self.demoBook }
+    init() { ledger = TrialLedger(book: Self.demoBook, changes: Self.demoChanges) }
 
     // MARK: 做一件事：马上有回应，能撤销
 
     func say(_ text: String) { show(Toast(text: text)) }
 
-    /// 改账本里的东西：记下改之前的样子，底部弹提示带「撤销」。
-    func change(_ text: String, _ body: (inout Book) -> Void) {
-        undoStack.append(book)
-        if undoStack.count > 30 { undoStack.removeFirst() }
-        withAnimation(.spring(duration: 0.45)) { body(&book) }
-        log.insert(LogItem(emoji: "✏️", who: "你", what: text, when: "刚刚", mine: true), at: 0)
-        show(Toast(text: text, canUndo: true))
+    /// 没做成时说人话：不带撤销，停 5 秒。
+    func fail(_ text: String) { show(Toast(text: text, isError: true)) }
+
+    /// 改账本里的东西：规则在核心里（body 里调用 TrialBook 的方法），记一条改动记录（写明记账人），底部弹提示带「撤销」。
+    /// 做不成就什么都不变，底部说清为什么。返回做成了没有。
+    @discardableResult
+    func change(_ text: String, kind: ChangeRecord.Kind = .edit, _ body: (inout Book) throws -> Void) -> Bool {
+        do {
+            try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
+            show(Toast(text: text, canUndo: true))
+            return true
+        } catch let e as TrialError {
+            fail(e.message)
+        } catch {
+            fail("没做成，再试一次")
+        }
+        return false
     }
 
+    /// 撤销最近一次改动（⌥⌘Z、提示条上的「撤销」）。
     func undo() {
-        guard let last = undoStack.popLast() else { return }
-        withAnimation(.spring(duration: 0.45)) { book = last }
-        if let i = log.firstIndex(where: \.mine) { log.remove(at: i) }
-        show(Toast(text: "撤销了，回到刚才的样子"))
+        guard let last = ledger.lastUndoable else { say("没有能撤销的了"); return }
+        undo(change: last.id)
     }
+
+    /// 撤销某一条改动（改动记录里点「撤销」）。它后面做的也会一起撤回。
+    func undo(change id: UUID) {
+        do {
+            var n = 0
+            try withAnimation(.spring(duration: 0.45)) { n = try ledger.undo(id) }
+            show(Toast(text: n > 1 ? "撤销了，连后面的 \(n - 1) 步一起" : "撤销了"))
+        } catch let e as TrialError { fail(e.message) } catch { fail("没撤成，再试一次") }
+    }
+
+    /// 不留记录地摆场景（启动参数、信收进沿途风光）。
+    func patch(_ body: (inout Book) -> Void) { ledger.patch(body) }
 
     private func show(_ t: Toast) {
         toastTask?.cancel()
         withAnimation(.spring(duration: 0.28, bounce: 0.35)) { toast = t }
         toastTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(t.canUndo ? 4 : 2.6))
+            try? await Task.sleep(for: .seconds(t.isError ? 5 : t.canUndo ? 4 : 2.6))
             guard !Task.isCancelled else { return }
             withAnimation(.easeIn(duration: 0.18)) { self?.toast = nil }
         }
@@ -256,45 +195,25 @@ final class V3State {
 
     // MARK: 具体动作
 
-    /// 右上角「+ 记一笔」的示例：一杯咖啡，现金付的。
-    func quickAddCoffee() {
-        let amount = Money(cents: 3_20)
-        change("记好了 · 咖啡 \(amount.v3)") { b in
-            b.month.spent = b.month.spent + amount
-            if let i = b.accounts.firstIndex(where: { $0.name == "现金" }) { b.accounts[i].balance = b.accounts[i].balance - amount }
-            b.today.insert(Entry(emoji: "☕", name: "咖啡", meta: "Café Nube · 现金", amount: -amount, tag: "刚记的"), at: 0)
-        }
-    }
-
-    /// 记一笔开销（记一笔面板用）。
-    func record(_ q: QuickPhrase, account: String, place: String = "") {
-        change("记好了 · \(q.name) \(q.amount.v3) · \(account)") { b in
-            b.month.spent = b.month.spent + q.amount
-            if let i = b.accounts.firstIndex(where: { $0.name == account }) { b.accounts[i].balance = b.accounts[i].balance - q.amount }
-            b.today.insert(Entry(emoji: q.emoji, name: q.name, meta: (place.isEmpty ? "" : place + " · ") + account, amount: -q.amount, tag: "刚记的"), at: 0)
-        }
-    }
-
-    /// 存一笔进目标：钱从日常卡挪到目标罐，星星掉进瓶子。返回这一笔刚到的站。
+    /// 记一笔开销（说一句、问夏夏用）。
     @discardableResult
-    func deposit(_ amount: Money = Money(cents: 20_00), resisted: Bool = false) -> [Journey.Station] {
+    func record(_ q: QuickPhrase, account: String, place: String = "") -> Bool {
+        change("记好了 · \(q.name) \(q.amount.v3) · \(account)", kind: .add) {
+            try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: account, place: place)
+        }
+    }
+
+    /// 存一笔进目标：钱从账户挪到目标罐，星星掉进瓶子。返回这一笔刚到的站。
+    @discardableResult
+    func deposit(_ amount: Money = Money(cents: 20_00), from: String? = nil, resisted: Bool = false) -> [Journey.Station] {
         var reached: [Journey.Station] = []
         let text = resisted ? "算你忍住一次 +\(amount.v3Short)" : "存好了 +\(amount.v3Short) · 瓶里多了一颗星"
-        change(text) { b in
-            let half = b.splitWithEmergency == true && !resisted
-            let toGoal = half ? Money(cents: amount.cents / 2) : amount
-            let toEmergency = amount - toGoal
-            if let i = b.accounts.firstIndex(where: { $0.block == .daily && $0.kind == .own }) { b.accounts[i].balance = b.accounts[i].balance - amount }
-            if let i = b.accounts.firstIndex(where: { $0.block == .goal }) { b.accounts[i].balance = b.accounts[i].balance + toGoal }
-            if toEmergency > .zero, let i = b.accounts.firstIndex(where: { $0.block == .emergency }) {
-                b.accounts[i].balance = b.accounts[i].balance + toEmergency
-            }
-            reached = b.journey.deposit(toGoal)
-            if resisted { b.journey.resisted += 1 }
+        let ok = change(text, kind: .goalDeposit) { b in
+            reached = try b.deposit(amount, from: from, resisted: resisted)
             if let i = b.accounts.firstIndex(where: { $0.block == .goal }) { b.accounts[i].note = Self.goalNote(b.journey) }
         }
-        starDrops += 1
-        return reached
+        if ok { starDrops += 1 }
+        return ok ? reached : []
     }
 
     func revealSecret() {
@@ -308,11 +227,9 @@ final class V3State {
         }
     }
 
-    func addAccount(emoji: String, name: String, note: String, balance: Money, kind: Account.Kind) {
-        change("加好了：\(name)") { b in
-            b.accounts.append(Account(emoji: emoji, name: name, note: note, balance: balance, kind: kind,
-                                      block: kind == .own ? .daily : .none))
-        }
+    @discardableResult
+    func addAccount(emoji: String, name: String, note: String, balance: Money, kind: Account.Kind) -> Bool {
+        change("加好了：\(name)", kind: .account) { try $0.addAccount(emoji: emoji, name: name, note: note, balance: balance, kind: kind) }
     }
 
     static func goalNote(_ j: Journey) -> String {
@@ -341,7 +258,10 @@ final class V3State {
 
     static var demoBook: Book {
         let j = demoJourney
-        return Book(
+        func item(_ e: String, _ n: String, _ note: String, _ a: String, tag: String = "", off: Bool = false, flag: Bool = false) -> TrialBook.Item {
+            .init(emoji: e, name: n, note: note, amount: eur(a), tag: tag, off: off, flag: flag)
+        }
+        var b = Book(
             accounts: [
                 Account(emoji: "💳", name: "日常卡", note: "Revolut · 今天刚导入", balance: eur("1496,61")),
                 Account(emoji: "🏦", name: "储蓄", note: "应急钱放这里 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄 · 应急钱"),
@@ -353,10 +273,12 @@ final class V3State {
                 Account(emoji: "🧑", name: "借给小李", note: "他欠我 · 说好 12 月还", balance: eur("120"), kind: .lent, block: .none, short: "小李欠我"),
                 Account(emoji: "🙈", name: "私房钱", note: "默认藏着，点一下才显示，不算进上面的数", balance: eur("1250"), kind: .secret, block: .none),
             ],
-            today: [
-                Entry(emoji: "🛒", name: "超市", meta: "Mercadona · 日常卡", amount: eur("-23,40"), tag: "流水导入"),
-                Entry(emoji: "☕", name: "咖啡", meta: "Café Nube · 现金", amount: eur("-3,20"), tag: "跟 AI 说的"),
-                Entry(emoji: "🥗", name: "午饭", meta: "La Tasca · 日常卡", amount: eur("-12,50"), tag: "拍小票"),
+            entries: [
+                Entry(emoji: "🛒", name: "超市", meta: "Mercadona · 日常卡", amount: eur("-23,40"), tag: "流水导入", place: "Mercadona", account: "日常卡"),
+                Entry(emoji: "☕", name: "咖啡", meta: "Café Nube · 现金", amount: eur("-3,20"), tag: "跟 AI 说的", place: "Café Nube", account: "现金"),
+                Entry(emoji: "🥗", name: "午饭", meta: "La Tasca · 日常卡", amount: eur("-12,50"), tag: "拍小票", place: "La Tasca", account: "日常卡"),
+                Entry(emoji: "💼", name: "私活进账", meta: "小林工作室 · 日常卡", amount: eur("420"), tag: "流水导入", daysAgo: 1, place: "小林工作室", account: "日常卡"),
+                Entry(emoji: "❓", name: "Super Lumi", meta: "Super Lumi · 日常卡", amount: eur("-18,60"), tag: "等你看一眼", daysAgo: 1, place: "Super Lumi", account: "日常卡"),
             ],
             upcoming: [
                 Entry(emoji: "🏠", name: "房租", meta: "12 月 1 日 · 13 天后", amount: eur("650")),
@@ -379,6 +301,57 @@ final class V3State {
             ],
             splitWithEmergency: nil,
             monthlyMust: eur("860"))
+        b.subscriptions = [
+            item("☁️", "云盘 Plus", "12 月 2 日扣 · 3 个月没怎么用", "4,99", tag: "可以考虑退"),
+            item("🎬", "视频会员", "12 月 4 日扣 · 和另一个重了", "9,99", tag: "可以考虑退"),
+            item("🎵", "音乐", "12 月 9 日扣", "10,99"),
+            item("✂️", "剪辑软件", "12 月 15 日扣", "12,04", tag: "赚钱用的", flag: true),
+            item("📰", "新闻", "12 月 21 日扣", "3,99"),
+        ]
+        b.wanted = [
+            item("⌚", "运动手表", "还要冷静 21 小时", "189"),
+            item("👟", "跑鞋", "冷静完了，还想要吗？", "95", tag: "该回答了"),
+            item("🎮", "游戏手柄", "上周忍住了 · 存进目标", "59", off: true),
+        ]
+        b.fixedCosts = [
+            item("🧑", "给自己发的工资", "每月 1 日", "1000", tag: "必要"),
+            item("🏠", "店面房租", "每月 3 日", "600", tag: "必要"),
+            item("📣", "广告", "每月 10 日", "80", tag: "可省", flag: true),
+            item("💡", "水电", "每月 15 日", "70", tag: "必要"),
+            item("🗓", "预约软件", "每月 20 日", "40", tag: "可省", flag: true),
+        ]
+        b.purchases = [item("📦", "甲油胶补货", "11 月 12 日", "340"), item("📦", "工具和耗材", "10 月 28 日", "310"), item("📦", "饰品", "10 月 6 日", "240")]
+        b.stockEstimates = [item("📅", "9 月 30 日", "第三季度末", "2600"), item("📅", "6 月 30 日", "第二季度末", "2400"), item("📅", "开店时", "2025 年 10 月", "4200")]
+        b.capital = [item("🔨", "装修", "2025 年 9 月", "14000"), item("💺", "设备和桌椅", "2025 年 9 月", "9800"),
+                     item("📦", "第一批货", "2025 年 10 月", "4200"), item("🔑", "押金", "退租时能拿回", "4170")]
+        b.shopDebts = [item("📦", "供货商赊账", "12 月 3 日到期", "320"), item("🧑", "熟客挂账", "11 月 9 日 · 说下次来付", "85", flag: true)]
+        // 11 月每天收了多少：和设计稿同一个算法。11 月 1 日是周日；周日休息；16 号没记；18 号是今天，还没记。
+        var r = 11.0
+        for d in 1...30 {
+            r = (r * 9301 + 49297).truncatingRemainder(dividingBy: 233280)
+            let wd = (d + 5) % 7
+            var amt = 120 + Int((r / 233280 * 140).rounded())
+            if wd == 5 { amt += 170 }
+            let state: TrialBook.ShopDay.State = d > 18 ? .future : wd == 6 ? .rest : d == 16 || d == 18 ? .missing : .open
+            let cash = state == .open ? Money(cents: Int64(amt * 2 / 5) * 100) : .zero
+            let card = state == .open ? Money(cents: Int64(amt) * 100) - cash : .zero
+            b.shopDays.append(.init(day: d, cash: cash, card: card, state: state))
+        }
+        return b
+    }
+
+    /// 示例里原来就有的几条改动（撤不了：没有留它们之前的样子）。
+    static var demoChanges: [ChangeRecord] {
+        let cal = Calendar.current
+        func at(_ h: Int, _ m: Int) -> Date { cal.date(bySettingHour: h, minute: m, second: 0, of: Date()) ?? Date() }
+        return [
+            ChangeRecord(kind: .capture, summary: "记一笔：午饭 12,50 € · 日常卡", transactionIDs: [], author: "拍小票", createdAt: at(13, 5)),
+            ChangeRecord(kind: .categorize, summary: "「Mercadona」归进超市，以后这家店都这样", transactionIDs: [], author: "夏夏", createdAt: at(10, 42)),
+            ChangeRecord(kind: .subscription, summary: "把「健身房 29 €」标成像订阅，等你确认", transactionIDs: [], author: "Claude", createdAt: at(10, 41)),
+            ChangeRecord(kind: .importBatch, summary: "导入「Revolut 11 月流水」31 笔，跳过重复 6 笔", transactionIDs: [], author: "流水导入", createdAt: at(10, 40)),
+            ChangeRecord(kind: .add, summary: "记一笔：咖啡 3,20 € · 现金", transactionIDs: [], author: "Claude", createdAt: at(9, 12)),
+            ChangeRecord(kind: .goalDeposit, summary: "存一笔 20 € 进「换新电脑」", transactionIDs: [], author: "你", createdAt: at(8, 30)),
+        ]
     }
 }
 #endif

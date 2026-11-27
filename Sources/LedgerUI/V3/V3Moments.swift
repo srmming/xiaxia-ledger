@@ -15,11 +15,28 @@ extension V3State {
     func closeMoment() { withAnimation(.snappy(duration: 0.22)) { moment = nil } }
 
     /// 存一笔；刚好到站就先让星星掉完，再把信拿出来。
-    func depositAndCelebrate(_ amount: Money = Money(cents: 20_00), resisted: Bool = false) {
-        let reached = deposit(amount, resisted: resisted)
+    @discardableResult
+    func depositAndCelebrate(_ amount: Money = Money(cents: 20_00), from: String? = nil, resisted: Bool = false) -> Bool {
+        let before = book.journey.saved
+        let reached = deposit(amount, from: from, resisted: resisted)
+        celebrate(reached)
+        return book.journey.saved != before
+    }
+
+    /// 想要清单里忍住一样：钱存进目标。
+    func resist(wanted w: TrialBook.Item) {
+        var reached: [Journey.Station] = []
+        let ok = change("算你忍住一次 +\(w.amount.v3Short)", kind: .goalDeposit) { b in
+            reached = try b.resist(wanted: w.id)
+            if let i = b.accounts.firstIndex(where: { $0.block == .goal }) { b.accounts[i].note = Self.goalNote(b.journey) }
+        }
+        if ok { starDrops += 1; celebrate(reached) }
+    }
+
+    private func celebrate(_ reached: [Journey.Station]) {
         guard let st = reached.last else { return }
         let letter = arrivalLetter(for: st)
-        book.letters.append(letter)
+        patch { $0.letters.append(letter) }
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(0.9))
             self?.openMoment(.letter(letter))
@@ -190,7 +207,7 @@ private struct V3SmallerStepSheet: View {
                     Button(pick < smaller.count ? "就这么改" : "好，不改") {
                         if pick < smaller.count {
                             let m = smaller[pick]
-                            state.change("改好了：12 月先存 \(m.v3Short)") { $0.journey.monthlyPlan = m; $0.month.forGoals = m }
+                            state.change("改好了：12 月先存 \(m.v3Short)") { try $0.setMonthlyPlan(m) }
                         } else {
                             state.say("好，不改。我帮你找了两处能省的")
                         }

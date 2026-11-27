@@ -234,10 +234,6 @@ struct V3TransactionsPage: View {
     @State private var search = ""
     @State private var selected: UUID?
     @State private var lumi: Bool?
-    @State private var yesterday: [V3State.Entry] = [
-        .init(emoji: "💼", name: "私活进账", meta: "剪辑 · 小林工作室", amount: Money(cents: 420_00), tag: "流水导入"),
-        .init(emoji: "❓", name: "Super Lumi", meta: "日常卡", amount: Money(cents: -18_60), tag: "等你看一眼"),
-    ]
     private let total = 52
 
     private func match(_ e: V3State.Entry) -> Bool {
@@ -247,8 +243,8 @@ struct V3TransactionsPage: View {
 
     var body: some View {
         let today = state.book.today.filter(match)
-        let yest = yesterday.filter(match)
-        let all = state.book.today + yesterday
+        let yest = state.book.entries.filter { $0.daysAgo == 1 && $0.side == .life }.filter(match)
+        let all = state.book.entries
         let pick = all.first { $0.id == selected } ?? all.first
         V3Cols(left: 1.5, right: 1) {
             VStack(spacing: 16) {
@@ -282,13 +278,10 @@ struct V3TransactionsPage: View {
                     V3Ask(face: "think", text: "「Super Lumi」那笔 18,60 €，我帮你归进超市？") {
                         HStack(spacing: 8) {
                             Button("好") {
-                                withAnimation(.snappy) {
-                                    lumi = true
-                                    if let i = yesterday.firstIndex(where: { $0.name == "Super Lumi" }) {
-                                        yesterday[i].emoji = "🛒"; yesterday[i].name = "超市"; yesterday[i].meta = "Super Lumi · 日常卡"; yesterday[i].tag = "夏夏认的"
-                                    }
+                                withAnimation(.snappy) { lumi = true }
+                                if let e = state.book.entries.first(where: { $0.place == "Super Lumi" }) {
+                                    state.change("归好了，以后这家店都按超市", kind: .categorize) { try $0.recategorize(entry: e.id, emoji: "🛒", name: "超市", always: true) }
                                 }
-                                state.say("归好了，以后这家店都按超市")
                             }
                             .buttonStyle(.v3(.primary, .small))
                             Button("不是") { withAnimation(.snappy) { lumi = false }; state.say("好，那先留着，你有空在右边改分类") }.buttonStyle(.v3(.ghost, .small))
@@ -324,24 +317,19 @@ struct V3TransactionsPage: View {
                     }
                     V3Amount(e.amount.cents > 0 ? e.amount.v3Signed : e.amount.v3, color: e.amount.cents > 0 ? V3.green : V3.navy, size: 38, weight: .heavy)
                     VStack(spacing: 0) {
-                        detail("什么时候", state.book.today.contains(e) ? "今天" : "昨天"); V3Divider()
+                        detail("什么时候", e.daysAgo == 0 ? "今天" : e.daysAgo == 1 ? "昨天" : "\(e.daysAgo) 天前"); V3Divider()
                         detail("怎么付的", e.meta.components(separatedBy: " · ").last ?? ""); V3Divider()
                         detail("怎么进来的", e.tag == "跟 AI 说的" ? "你跟 Claude 说了一句" : e.tag == "刚记的" ? "你刚才自己记的" : e.tag.isEmpty ? "自己记的" : e.tag)
                         if e.name == "咖啡" { V3Divider(); detail("这周第几次", "第 2 次 · 上周同期 4 次") }
                     }
                     Spacer(minLength: 0)
                     HStack(spacing: 8) {
-                        V3SayButton("改分类", "选一个分类（试用版先不能改）", .ghost)
-                        V3SayButton("改金额", "改成多少？（试用版先不能改）", .ghost)
-                        if state.book.today.contains(e) {
-                            Button("删掉") {
-                                state.change("删掉了：\(e.name) \(e.amount.magnitude.v3)") { b in
-                                    b.today.removeAll { $0.id == e.id }
-                                    if e.amount.cents < 0 { b.month.spent = b.month.spent + e.amount }
-                                }
-                            }
-                            .buttonStyle(.v3(.danger, .small))
+                        Button("改分类") { state.open(.category(e.id)) }.buttonStyle(.v3(.ghost, .small))
+                        Button("改金额") { state.open(.amount(e.id)) }.buttonStyle(.v3(.ghost, .small))
+                        Button("删掉") {
+                            state.change("删掉了：\(e.name) \(e.amount.magnitude.v3)", kind: .remove) { try $0.delete(entry: e.id) }
                         }
+                        .buttonStyle(.v3(.danger, .small)).help("删了能撤销")
                     }
                 } else {
                     V3Label("点左边一笔，这里看它的来龙去脉。")
@@ -417,8 +405,7 @@ struct V3ThinkPage: View {
                     HStack(spacing: 8) {
                         Button("放进清单") {
                             let n = name.trimmingCharacters(in: .whitespaces).isEmpty ? "想买的东西" : name
-                            withAnimation(.spring(duration: 0.35)) { state.wanted.insert(.init(emoji: "🛍", name: n, note: "还要冷静 48 小时", price: p), at: 0) }
-                            state.say("放好了，11 月 20 日我再问你")
+                            state.change("放好了，11 月 20 日我再问你") { try $0.addWanted(name: n, price: p) }
                         }
                         .buttonStyle(.v3(.primary, .small)).disabled(price == nil)
                         V3SayButton("现在就买", "好，买了记得告诉我一声", .ghost)
@@ -435,19 +422,14 @@ struct V3ThinkPage: View {
             V3GrowCard {
                 V3CardTitle("想要清单")
                 VStack(spacing: 0) {
-                    ForEach(Array(state.wanted.prefix(5).enumerated()), id: \.element.id) { i, w in
+                    ForEach(Array(state.book.wanted.prefix(5).enumerated()), id: \.element.id) { i, w in
                         if i > 0 { V3Divider() }
                         HStack(spacing: 8) {
-                            V3Row(emoji: w.emoji, name: w.name, meta: w.note, amount: w.saved ? "+" + w.price.v3 : w.price.v3,
-                                  color: w.saved ? V3.green : V3.navy, tag: w.tag, tagTone: .gold)
-                            if !w.saved {
+                            V3Row(emoji: w.emoji, name: w.name, meta: w.note, amount: w.off ? "+" + w.amount.v3 : w.amount.v3,
+                                  color: w.off ? V3.green : V3.navy, tag: w.tag, tagTone: .gold)
+                            if !w.off {
                                 Button("忍住") {
-                                    if let k = state.wanted.firstIndex(where: { $0.id == w.id }) {
-                                        withAnimation(.spring(duration: 0.35)) {
-                                            state.wanted[k].saved = true; state.wanted[k].note = "刚忍住了 · 存进目标"; state.wanted[k].tag = ""
-                                        }
-                                    }
-                                    state.depositAndCelebrate(w.price, resisted: true)
+                                    state.resist(wanted: w)
                                 }
                                 .buttonStyle(.v3(.ghost, .small))
                                 .accessibilityLabel("忍住不买\(w.name)，把钱存进目标")
@@ -456,8 +438,8 @@ struct V3ThinkPage: View {
                     }
                 }
                 Spacer(minLength: 0)
-                let saved = state.wanted.filter(\.saved)
-                V3Ask(face: "happy", text: "这个月忍住了 \(saved.count + 2) 次，一共 \((saved.map(\.price).reduce(.zero, +) + Money(cents: 28_00)).v3Short)，都存进电脑那条路了。", tone: .good)
+                let saved = state.book.wanted.filter(\.off)
+                V3Ask(face: "happy", text: "这个月忍住了 \(saved.count + 2) 次，一共 \((saved.map(\.amount).reduce(.zero, +) + Money(cents: 28_00)).v3Short)，都存进电脑那条路了。", tone: .good)
             }
         }
     }
@@ -556,48 +538,47 @@ private struct V3BigDecision: View {
 
 struct V3SubscriptionsPage: View {
     @Environment(V3State.self) private var state
-    @State private var dropCloud = false
-    @State private var dropVideo = false
     @State private var keepAll = false
 
     var body: some View {
-        let monthly = Money(cents: 42_00 - (dropCloud ? 4_99 : 0) - (dropVideo ? 9_99 : 0))
+        let b = state.book
+        let monthly = b.subscriptionsMonthly
+        let doubt = b.subscriptions.filter { $0.tag == "可以考虑退" && !$0.off }
+        let dropped = b.subscriptions.filter(\.off)
+        let saved = dropped.map(\.amount).reduce(.zero, +)
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "订阅每月一共", amount: monthly) {
                     V3Label("一年是 \(Money(cents: monthly.cents * 12).v3Short)")
                 }
-                if keepAll || (dropCloud && dropVideo) {
-                    V3Ask(face: "happy", text: keepAll ? "好，都留着。哪天想退再说。" : "两个都记下了：12 月 2 日前退云盘，12 月 4 日前退视频会员。到日子我提醒你。", tone: .good)
+                if keepAll || doubt.isEmpty {
+                    V3Ask(face: "happy", text: keepAll ? "好，都留着。哪天想退再说。" : dropped.isEmpty ? "这几个订阅我都看过了，没有该退的。" : "记下了：\(dropped.map(\.name).joined(separator: "、"))要退。到日子我提醒你。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: "「云盘 Plus」3 个月没怎么用，「视频会员」和另一个重了。我参考了你和 AI 的聊天记录，不确定，所以问你：这两个还要吗？") {
+                    V3Ask(face: "think", text: "\(doubt.map { "「\($0.name)」" }.joined(separator: "、"))好像用得不多。我不确定，所以问你：还要吗？") {
                         HStack(spacing: 8) {
-                            if !dropCloud { Button("退云盘") { withAnimation(.snappy) { dropCloud = true }; state.say("记下了：云盘 Plus 12 月 2 日前退") }.buttonStyle(.v3(.primary, .small)) }
-                            if !dropVideo { Button("退视频会员") { withAnimation(.snappy) { dropVideo = true }; state.say("记下了：视频会员 12 月 4 日前退") }.buttonStyle(.v3(.primary, .small)) }
-                            Button("都留着") { withAnimation(.snappy) { keepAll = true; dropCloud = false; dropVideo = false }; state.say("好，都留着") }.buttonStyle(.v3(.ghost, .small))
+                            ForEach(doubt.prefix(2)) { d in
+                                Button("退\(d.name)") { state.change("记下了：\(d.name)要退", kind: .subscription) { try $0.setSubscription(d.name, dropped: true) } }.buttonStyle(.v3(.primary, .small))
+                            }
+                            Button("都留着") { withAnimation(.snappy) { keepAll = true }; state.say("好，都留着") }.buttonStyle(.v3(.ghost, .small))
                         }
                     }
                 }
                 V3GrowCard {
-                    V3CardTitle(dropCloud || dropVideo ? "已经省下的" : "如果两个都退")
-                    V3Amount("每月省 \(Money(cents: dropCloud || dropVideo ? 42_00 - monthly.cents : 14_98).v3)", color: V3.green, size: 30, weight: .heavy)
-                    V3Label(dropCloud && dropVideo || !(dropCloud || dropVideo) ? "电脑能早 3 周到手" : "电脑能早 1 周多到手")
+                    V3CardTitle(dropped.isEmpty ? "如果这几个都退" : "已经省下的")
+                    V3Amount("每月省 \((dropped.isEmpty ? doubt.map(\.amount).reduce(.zero, +) : saved).v3)", color: V3.green, size: 30, weight: .heavy)
                 }
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
-                V3CardTitle("按下次扣钱的日子排", note: "5 个")
-                V3RowList(rows: [
-                    .init("☁️", "云盘 Plus", dropCloud ? "12 月 2 日前退掉" : "12 月 2 日扣 · 3 个月没怎么用", "4,99 €", tag: dropCloud ? "要退" : "可以考虑退", tone: dropCloud ? .green : .red),
-                    .init("🎬", "视频会员", dropVideo ? "12 月 4 日前退掉" : "12 月 4 日扣 · 和另一个重了", "9,99 €", tag: dropVideo ? "要退" : "可以考虑退", tone: dropVideo ? .green : .red),
-                    .init("🎵", "音乐", "12 月 9 日扣", "10,99 €"),
-                    .init("✂️", "剪辑软件", "12 月 15 日扣 · 干活要用", "12,04 €", tag: "赚钱用的", tone: .green),
-                    .init("📰", "新闻", "12 月 21 日扣", "3,99 €"),
-                ])
+                V3CardTitle("按下次扣钱的日子排", note: "\(b.subscriptions.count) 个")
+                V3RowList(rows: b.subscriptions.prefix(7).map { x in
+                    .init(x.emoji, x.name, x.off ? "要退 · 这个月之后不再扣" : x.note, x.amount.v3, tag: x.off ? "要退" : x.tag,
+                          tone: x.off || x.flag ? .green : .gold)
+                }, compact: b.subscriptions.count > 5)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    V3Label("我在流水里还看到 2 笔像订阅的，")
-                    Button("看看") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small))
+                    Button("加一个订阅") { state.open(.subscription) }.buttonStyle(.v3(.primary, .small))
+                    Button("去流水里找找") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)).help("流水里还有 2 笔像订阅的")
                 }
             }
         }
@@ -615,6 +596,7 @@ struct V3DebtsPage: View {
         let card = b.debts.first { $0.name == "信用卡" }?.balance ?? .zero
         let phone = b.debts.first { $0.name == "手机分期" }?.balance ?? .zero
         let periodsLeft = Int(phone.cents / 200_00)
+        let others = b.debts.filter { $0.name != "信用卡" && $0.name != "手机分期" }
         let dueNow = (card > .zero ? card : .zero) + (phone > .zero && !moved ? Money(cents: 200_00) : .zero)
         let paidFraction = 1 - Double(b.totals.owe.cents) / 3_286_00
         V3Cols(left: 1, right: 1.3) {
@@ -642,22 +624,19 @@ struct V3DebtsPage: View {
                     card > .zero ? .init("💳", "信用卡", "12 月 5 日 · 拖了要收利息", card.v3, V3.red, tag: "先还这个", tone: .red)
                                  : .init("💳", "信用卡", "这个月的还清了", "0,00 €", V3.green, tag: "还清了", tone: .green),
                     .init("📱", "手机分期", moved ? "这一期挪到 1 月 8 日 · 还剩 \(periodsLeft) 期" : "每月 8 日 · 还剩 \(periodsLeft) 期", "200,00 € / 月", V3.red, tag: "按月还就行"),
-                ])
+                ] + others.prefix(2).map { .init($0.emoji, $0.name, $0.note, $0.balance.v3, $0.balance > .zero ? V3.red : V3.green) }, compact: !others.isEmpty)
                 V3Periods(total: 12, done: 12 - periodsLeft)
                 V3Label("手机分期 · 12 期还了 \(12 - periodsLeft) 期")
                 V3CardTitle("别人欠我的").padding(.top, 6)
-                V3RowList(rows: b.lent.map { .init($0.emoji, $0.name.replacingOccurrences(of: "借给", with: ""), "10 月借的 · 说好 12 月还", $0.balance.v3) })
+                V3RowList(rows: b.lent.prefix(3).map { .init($0.emoji, $0.name.replacingOccurrences(of: "借给", with: ""), $0.note, $0.balance.v3) }, compact: b.lent.count > 1)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     Button("记一笔还款") {
-                        guard card > .zero else { state.say("信用卡这个月已经还清了"); return }
-                        state.change("还款记好了 · 信用卡 \(card.v3)") { bk in
-                            if let i = bk.accounts.firstIndex(where: { $0.name == "信用卡" }) { bk.accounts[i].balance = .zero; bk.accounts[i].note = "这个月还清了" }
-                            if let i = bk.accounts.firstIndex(where: { $0.name == "日常卡" }) { bk.accounts[i].balance = bk.accounts[i].balance - card }
-                            bk.upcoming.removeAll { $0.name == "信用卡" }
-                        }
+                        guard let d = b.debts.first(where: { $0.balance > .zero }) else { state.say("欠的都还清了"); return }
+                        state.open(.repay(d.name))
                     }
                     .buttonStyle(.v3(.primary, .small))
+                    Button("记一笔欠款") { state.open(.debt) }.buttonStyle(.v3(.ghost, .small))
                     Button(moved ? "还是按原来的还" : "这个月还不上") {
                         withAnimation(.snappy) { moved.toggle() }
                         state.say(moved ? "没事，我帮你把这一期挪到下个月，看看影响" : "好，还是按原来的日子还")
