@@ -43,14 +43,15 @@ public enum V3Launch {
                     state.moment = .letter(l)
                 }
             }
-        } else if ["bigdecision", "log", "add", "ask"].contains(p) {
+        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) {
             state.onboardingStep = nil
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
             if p == "bigdecision" { state.page = .think; state.thinkBig = true }
             if p == "log" { state.page = .settings; state.showLog = true }
             if p == "add" { state.showAdd = true }
-            if p == "ask" { state.page = .spending; state.showAsk = true }
+            if p == "ask" { state.page = .overview; state.chatOpen = true }
+            if p == "askfrom" { state.page = .overview; state.sayPopsToday = 0 }
         } else if let page = V3State.Page(rawValue: p) {
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
@@ -90,11 +91,11 @@ public struct V3RootView: View {
             let canvas = CGSize(width: g.size.width / max(s, 0.01), height: g.size.height / max(s, 0.01))
             ZStack {
                 if state.onboardingStep != nil {
-                    V3Onboarding().transition(.opacity)
+                    V3Onboarding().environment(\.v3InlineXia, true).transition(.opacity)
                 } else {
                     V3Shell().transition(.opacity)
                 }
-                V3MomentLayer()
+                V3MomentLayer().environment(\.v3InlineXia, true)
             }
             .frame(width: canvas.width, height: canvas.height)
             .overlay(alignment: .bottom) { V3ToastHost() }
@@ -210,18 +211,12 @@ struct V3Shell: View {
             .padding(.init(top: V3Launch.overTitleBar ? 22 : 14, leading: 30, bottom: 24, trailing: 30))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(V3.bg)
+            // 夏夏的消息和整页对话：盖在主区域上，左边栏一直留着
+            .overlayPreferenceValue(V3SayKey.self) { saying in V3XiaLayer(saying: saying) }
+            .clipped()
         }
-        .overlay(alignment: .trailing) {
-            if state.showAsk {
-                ZStack(alignment: .trailing) {
-                    V3.ink.opacity(0.18).onTapGesture { withAnimation(.snappy(duration: 0.25)) { state.showAsk = false } }.accessibilityHidden(true)
-                    V3AskPanel().transition(.move(edge: .trailing))
-                }
-                .transition(.opacity)
-            }
-        }
-        .overlay { if state.showAdd { V3AddSheet().transition(.opacity) } }
-        .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state) }
+        .overlay { if state.showAdd { V3AddSheet().environment(\.v3InlineXia, true).transition(.opacity) } }
+        .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state).environment(\.v3InlineXia, true) }
     }
 
     @ViewBuilder private var pageBody: some View {
@@ -293,7 +288,7 @@ private struct V3Sidebar: View {
     }
 
     private func navItem(_ p: V3State.Page) -> some View {
-        let on = state.page == p
+        let on = state.page == p && !state.chatOpen
         return Button { state.go(p) } label: {
             V3NavRow(on: on) {
             HStack(spacing: 10) {
@@ -379,7 +374,14 @@ private struct V3TopBar: View {
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
-            Button("问夏夏") { withAnimation(.snappy(duration: 0.25)) { state.showAsk.toggle() } }.buttonStyle(.v3(.ghost))
+            Button("问夏夏") { state.openChat() }.buttonStyle(.v3(.ghost))
+                .overlay(alignment: .topTrailing) {
+                    // 夏夏有一句话没看：小红点
+                    if state.sayUnreadID != nil {
+                        Circle().fill(V3.red).overlay(Circle().strokeBorder(.white, lineWidth: 2)).frame(width: 13, height: 13).offset(x: 3, y: -3)
+                            .transition(.scale.combined(with: .opacity)).accessibilityLabel("夏夏有一句话")
+                    }
+                }
                 .keyboardShortcut("k", modifiers: .command).help("问夏夏（⌘K）")
             Button("+ 记一笔") { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
                 .buttonStyle(.v3(state.side == .biz ? .teal : .primary))

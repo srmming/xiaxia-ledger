@@ -29,23 +29,20 @@ struct V3Question: View {
     @Environment(V3State.self) private var state
     @State private var answered: String?
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            V3Face(face: answered == nil ? face : "happy")
-            V3Bubble(text: answered ?? text, tone: answered == nil ? tone : .good, kicker: answered == nil ? kicker : "") {
-                AnyView(Group {
-                    if answered == nil {
-                        HStack(spacing: 8) {
-                            ForEach(Array(answers.enumerated()), id: \.offset) { i, a in
-                                Button(a.0) {
-                                    state.say(a.1)
-                                    withAnimation(.snappy(duration: 0.2)) { answered = a.1 }
-                                }
-                                .buttonStyle(.v3(i == 0 ? .primary : .ghost, .small))
+        V3Ask(face: answered == nil ? face : "happy", text: answered ?? text, tone: answered == nil ? tone : .good, kicker: answered == nil ? kicker : "") {
+            AnyView(Group {
+                if answered == nil {
+                    HStack(spacing: 8) {
+                        ForEach(Array(answers.enumerated()), id: \.offset) { i, a in
+                            Button(a.0) {
+                                state.say(a.1)
+                                withAnimation(.snappy(duration: 0.2)) { answered = a.1 }
                             }
+                            .buttonStyle(.v3(i == 0 ? .primary : .ghost, .small))
                         }
                     }
-                })
-            }
+                }
+            })
         }
     }
 }
@@ -192,16 +189,13 @@ struct V3TrendsPage: View {
                     HStack { V3Label("1 日"); Spacer(); V3Label("10 日"); Spacer(); V3Label("今天 18 日"); Spacer(); V3Label("30 日") }
                 }
                 .accessibilityLabel("花钱速度正常，比上个月同期慢")
-                HStack(alignment: .top, spacing: 10) {
-                    V3Face(face: gym == nil ? "think" : "happy")
-                    if let gym {
-                        V3Bubble(gym ? "好，算进固定开销，12 月要付变成 1.561 €。" : "好，不算，以后不再问这一笔。", tone: .good)
-                    } else {
-                        V3Bubble("「健身房 29 €」连着 3 个月都扣了，要算进每月固定要付的吗？") {
-                            HStack(spacing: 8) {
-                                Button("算") { withAnimation(.snappy) { gym = true }; state.say("好，算进固定开销，12 月要付变成 1.561 €") }.buttonStyle(.v3(.primary, .small))
-                                Button("不算") { withAnimation(.snappy) { gym = false }; state.say("好，不算，以后不再问这一笔") }.buttonStyle(.v3(.ghost, .small))
-                            }
+                if let gym {
+                    V3Ask(face: "happy", text: gym ? "好，算进固定开销，12 月要付变成 1.561 €。" : "好，不算，以后不再问这一笔。", tone: .good)
+                } else {
+                    V3Ask(face: "think", text: "「健身房 29 €」连着 3 个月都扣了，要算进每月固定要付的吗？") {
+                        HStack(spacing: 8) {
+                            Button("算") { withAnimation(.snappy) { gym = true }; state.say("好，算进固定开销，12 月要付变成 1.561 €") }.buttonStyle(.v3(.primary, .small))
+                            Button("不算") { withAnimation(.snappy) { gym = false }; state.say("好，不算，以后不再问这一笔") }.buttonStyle(.v3(.ghost, .small))
                         }
                     }
                 }
@@ -681,6 +675,10 @@ struct V3MonthlyPage: View {
     @Environment(V3State.self) private var state
 
     var body: some View {
+        content.environment(\.v3InlineXia, true)
+    }
+
+    private var content: some View {
         V3Cols(left: 1, right: 1.2) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "10 月存下", amount: Money(cents: 200_00)) {

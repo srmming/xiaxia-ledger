@@ -166,7 +166,17 @@ final class V3State {
     var secretShown = false
     var showAddAccount = false
     var showAdd = false
-    var showAsk = false
+    /// 和夏夏聊天的那一页开着没有。
+    var chatOpen = false
+    var chat: [ChatMessage] = []
+    /// 夏夏的消息：正滑下来的那句、收成小红点的那句、今天点掉的、今天说了几句、这一页说过没有。
+    var sayCardID: String?
+    var sayUnreadID: String?
+    var sayDismissed: Set<String> = []
+    var sayPopsToday = 0
+    var sayPoppedThisPage = false
+    var sayReplay = 0
+    @ObservationIgnored var sayTask: Task<Void, Never>?
     /// 「花钱前想想」里的第二种：大决定。
     var thinkBig = false
     /// 设置里点进去的改动记录。
@@ -230,7 +240,8 @@ final class V3State {
     func go(_ p: Page) {
         withAnimation(.snappy(duration: 0.22)) {
             page = p
-            thinkBig = false; showLog = false; showAsk = false
+            thinkBig = false; showLog = false; chatOpen = false
+            if p != page { sayPoppedThisPage = false; sayCardID = nil; sayUnreadID = nil }
             if Page.biz.contains(p) { side = .biz } else if Page.life.contains(p) { side = .life }
         }
     }

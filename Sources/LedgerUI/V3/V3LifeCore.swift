@@ -64,7 +64,6 @@ struct V3OverviewPage: View {
             .padding(.init(top: 18, leading: 24, bottom: 34, trailing: 24))
             .frame(maxWidth: .infinity, alignment: .leading)
             .v3Sticker().v3WaveBottom()
-            .overlay(alignment: .topTrailing) { V3Xia(width: 150).offset(x: -16, y: -66) }
             .accessibilityElement(children: .combine)
 
             HStack(spacing: 14) {

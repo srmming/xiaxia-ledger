@@ -323,17 +323,27 @@ extension V3Bubble where Extra == EmptyView {
     }
 }
 
-/// 夏夏头像 + 气泡。
+/// 夏夏要说的一句话（可以带按钮）。
+/// 平常的页面上不画出来：夏夏像聊天助手，这句话从页面顶上滑下来，点开是和她聊天的那一页（见 V3Xia.swift）。
+/// 只有大时刻（引导、到站的信、减半商量、每月小结）和弹出的纸里，才直接画成头像 + 气泡。
 struct V3Ask<Extra: View>: View {
     let face: String
     let text: String
     var tone: V3Bubble<Extra>.Tone = .plain
     var kicker: String = ""
     @ViewBuilder var extra: Extra
+    @Environment(\.v3InlineXia) private var inline
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            V3Face(face: face)
-            V3Bubble(text: text, tone: tone, kicker: kicker) { extra }
+        if inline {
+            HStack(alignment: .top, spacing: 10) {
+                V3Face(face: face)
+                V3Bubble(text: text, tone: tone, kicker: kicker) { extra }
+            }
+        } else {
+            Color.clear.frame(width: 0, height: 0).padding(.vertical, -8)
+                .preference(key: V3SayKey.self, value: V3Saying(id: text, face: face, text: text,
+                                                                 tone: tone == .good ? 1 : tone == .warn ? 2 : 0, extra: AnyView(extra)))
+                .accessibilityHidden(true)
         }
     }
 }
@@ -341,6 +351,31 @@ struct V3Ask<Extra: View>: View {
 extension V3Ask where Extra == EmptyView {
     init(face: String, text: String, tone: V3Bubble<EmptyView>.Tone = .plain, kicker: String = "") {
         self.init(face: face, text: text, tone: tone, kicker: kicker) { EmptyView() }
+    }
+}
+
+/// 页面交上来的那句话。
+struct V3Saying {
+    var id: String
+    var face: String
+    var text: String
+    /// 0 平常，1 好消息，2 要留意。
+    var tone: Int
+    var extra: AnyView
+}
+
+struct V3SayKey: PreferenceKey {
+    static let defaultValue: V3Saying? = nil
+    // 一页上有好几句时只说第一句
+    static func reduce(value: inout V3Saying?, nextValue: () -> V3Saying?) { if value == nil { value = nextValue() } }
+}
+
+private struct V3InlineXiaKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    /// 这里的夏夏直接画出来（大时刻和弹出的纸）。
+    var v3InlineXia: Bool {
+        get { self[V3InlineXiaKey.self] }
+        set { self[V3InlineXiaKey.self] = newValue }
     }
 }
 

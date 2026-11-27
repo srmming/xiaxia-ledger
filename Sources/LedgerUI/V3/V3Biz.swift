@@ -109,19 +109,16 @@ struct V3SalesPage: View {
         V3Cols(left: 1, right: 1.5) {
             VStack(spacing: 16) {
                 if day16 == nil {
-                    HStack(alignment: .top, spacing: 10) {
-                        V3Face(face: "think")
-                        V3Bubble(asking ? "16 号那天收了多少？" : "16 号那天没记，是休息还是忘了？", tone: .warn) {
-                            if asking {
-                                HStack(spacing: 8) {
-                                    V3Field(prompt: "收了多少", text: $fill, rounded: true) { saveFill() }.frame(width: 130)
-                                    Button("补上") { saveFill() }.buttonStyle(.v3(.teal, .small))
-                                }
-                            } else {
-                                HStack(spacing: 8) {
-                                    Button("是休息") { withAnimation(.snappy) { day16 = 0 }; state.say("好，16 号算休息") }.buttonStyle(.v3(.teal, .small))
-                                    Button("忘了，补上") { withAnimation(.snappy) { asking = true } }.buttonStyle(.v3(.ghost, .small))
-                                }
+                    V3Ask(face: "think", text: asking ? "16 号那天收了多少？" : "16 号那天没记，是休息还是忘了？", tone: .warn) {
+                        if asking {
+                            HStack(spacing: 8) {
+                                V3Field(prompt: "收了多少", text: $fill, rounded: true) { saveFill() }.frame(width: 130)
+                                Button("补上") { saveFill() }.buttonStyle(.v3(.teal, .small))
+                            }
+                        } else {
+                            HStack(spacing: 8) {
+                                Button("是休息") { withAnimation(.snappy) { day16 = 0 }; state.say("好，16 号算休息") }.buttonStyle(.v3(.teal, .small))
+                                Button("忘了，补上") { withAnimation(.snappy) { asking = true } }.buttonStyle(.v3(.ghost, .small))
                             }
                         }
                     }
@@ -319,22 +316,19 @@ struct V3StockPage: View {
     var body: some View {
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
-                HStack(alignment: .top, spacing: 10) {
-                    V3Face(face: later ? "happy" : "think")
-                    if later {
-                        V3Bubble("好，12 月 28 日提醒你重新估一次。", tone: .good)
-                    } else {
-                        V3Bubble(estimating ? "店里的货现在大约值多少？估个总数就行。" : "12 月底是季度末，到时候我提醒你重新估一次。现在想先估也行。") {
-                            if estimating {
-                                HStack(spacing: 8) {
-                                    V3Field(prompt: "大约值多少", text: $text, rounded: true) { save() }.frame(width: 150)
-                                    Button("就这个数") { save() }.buttonStyle(.v3(.teal, .small))
-                                }
-                            } else {
-                                HStack(spacing: 8) {
-                                    Button("现在估") { withAnimation(.snappy) { estimating = true } }.buttonStyle(.v3(.teal, .small))
-                                    Button("到时候再说") { withAnimation(.snappy) { later = true }; state.say("好，12 月 28 日提醒你") }.buttonStyle(.v3(.ghost, .small))
-                                }
+                if later {
+                    V3Ask(face: "happy", text: when == "今天估的" ? "记好了，下次季度末我再提醒你估一次。" : "好，12 月 28 日提醒你重新估一次。", tone: .good)
+                } else {
+                    V3Ask(face: "think", text: estimating ? "店里的货现在大约值多少？估个总数就行。" : "12 月底是季度末，到时候我提醒你重新估一次。现在想先估也行。") {
+                        if estimating {
+                            HStack(spacing: 8) {
+                                V3Field(prompt: "大约值多少", text: $text, rounded: true) { save() }.frame(width: 150)
+                                Button("就这个数") { save() }.buttonStyle(.v3(.teal, .small))
+                            }
+                        } else {
+                            HStack(spacing: 8) {
+                                Button("现在估") { withAnimation(.snappy) { estimating = true } }.buttonStyle(.v3(.teal, .small))
+                                Button("到时候再说") { withAnimation(.snappy) { later = true }; state.say("好，12 月 28 日提醒你") }.buttonStyle(.v3(.ghost, .small))
                             }
                         }
                     }
