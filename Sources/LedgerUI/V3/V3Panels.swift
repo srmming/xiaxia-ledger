@@ -120,12 +120,12 @@ struct V3LogPage: View {
     private var whos: [String] { ["全部", state.author, "Claude", "夏夏", "流水导入", "拍小票"] }
 
     var body: some View {
-        let items = state.ledger.changes.filter { !$0.undone && (filter == "全部" || $0.author == filter) }
+        let items = state.ledger.changes.filter { filter == "全部" || $0.author == filter }
         V3Cols(left: 1.6, right: 1) {
             V3GrowCard(spacing: 4) {
                 V3CardTitle(title: "今天") { EmptyView() } trail: {
                     HStack(spacing: 10) {
-                        Text("\(items.count) 次改动").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+                        Text("\(items.filter { !$0.undone }.count) 次改动").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                     }
                 }
                 if items.isEmpty { V3Label("「\(filter)」今天没有改过什么。").padding(.top, 10) }
@@ -135,11 +135,12 @@ struct V3LogPage: View {
                         HStack(spacing: 12) {
                             V3Ico(emoji: Self.emoji(item.kind))
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(item.summary).font(V3.font(14, .bold)).lineLimit(1)
+                                Text(item.summary).font(V3.font(14, .bold)).lineLimit(1).strikethrough(item.undone).foregroundStyle(item.undone ? V3.ink2 : V3.ink)
                                 Text(item.createdAt.formatted(date: .omitted, time: .shortened)).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
                             }
                             Spacer(minLength: 6)
                             V3Tag(text: item.author, tone: item.author == "夏夏" ? .green : item.author == "Claude" ? .gold : .blue)
+                            if item.undone { V3Tag(text: "已撤销", tone: .blue) }
                             if state.ledger.canUndo(item.id) {
                                 Button("撤销") { state.undo(change: item.id) }
                                     .buttonStyle(.v3(.ghost, .small))

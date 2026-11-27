@@ -153,15 +153,21 @@ struct V3OverviewPage: View {
                     .buttonStyle(V3SinkStyle(depth: 1))
                 }
                 V3Rows(data: Array(b.today.prefix(3))) { e in
-                    V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, tag: e.tag, compact: true)
+                    Button { state.txFocus = e.id; state.go(.transactions) } label: {
+                        V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, tag: e.tag, compact: true).contentShape(Rectangle())
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 1))
                 }
             }
             .v3Card(h: 16, v: 14)
 
             VStack(alignment: .leading, spacing: 6) {
                 V3CardTitle(title: "接下来要付的") { EmptyView() } trail: { V3Tag(text: "钱够", tone: .green) }
-                V3Rows(data: b.upcoming) { e in
-                    V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, color: e.red ? V3.red : V3.navy, compact: true)
+                V3Rows(data: Array(b.upcoming.prefix(3))) { e in
+                    Button { state.go(e.red ? .debts : e.name == "房租" ? .trends : .subscriptions) } label: {
+                        V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, color: e.red ? V3.red : V3.navy, compact: true).contentShape(Rectangle())
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 1))
                 }
                 Spacer(minLength: 0)
             }
@@ -220,6 +226,14 @@ struct V3WealthPage: View {
     }
 
     private func card(_ a: V3State.Account) -> some View {
+        Button {
+            if a.kind == .debt || a.kind == .lent { state.go(.debts) } else { state.accountFocus = a.name; state.open(.accounts) }
+        } label: { cardBody(a) }
+        .buttonStyle(V3SinkStyle(depth: 2))
+        .help(a.kind == .debt || a.kind == .lent ? "去欠款与还债" : "改这个账户")
+    }
+
+    private func cardBody(_ a: V3State.Account) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 V3Ico(emoji: a.emoji, size: 32)
@@ -392,6 +406,7 @@ struct V3GoalsPage: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .v3Sticker()
 
+            Button { state.open(.monthlyPlan) } label: {
             VStack(alignment: .leading, spacing: 10) {
                 V3CardTitle("这个月的计划", note: "每月存 \(plan.v3Short)")
                 V3Bar(fraction: plan > .zero ? Double(j.savedThisMonth.cents) / Double(plan.cents) : 0, height: 14)
@@ -404,7 +419,9 @@ struct V3GoalsPage: View {
                     }
                 }
             }
-            .v3Card()
+            .v3Card().contentShape(Rectangle())
+            }
+            .buttonStyle(V3SinkStyle(depth: 2)).help("改每月存多少")
 
             VStack(alignment: .leading, spacing: 10) {
                 V3CardTitle("沿途风光", note: state.book.nextGoals.first.map { "下一个目标：\($0.name) \($0.amount.v3Short)" } ?? "")

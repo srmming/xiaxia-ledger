@@ -215,7 +215,7 @@ struct V3Shell: View {
                     .id(state.page)
                     .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 10)), removal: .opacity))
             }
-            .padding(.init(top: V3Launch.overTitleBar ? 22 : 14, leading: 30, bottom: 24, trailing: 30))
+            .padding(.init(top: V3Launch.overTitleBar ? 22 : 14, leading: 30, bottom: 26, trailing: 30))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(V3.bg)
             // 夏夏的消息和整页对话：盖在主区域上，左边栏一直留着
@@ -332,7 +332,7 @@ private struct V3Sidebar: View {
                     let frac = min(1, Double(back.cents) / Double(max(total.cents, 1)))
                     Text(total > back ? "还差 \((total - back).v3Short)" : "回本了").font(V3.num(14.5)).foregroundStyle(V3.ink).contentTransition(.numericText())
                     V3Bar(fraction: frac, color: V3.teal)
-                    Text("走了 \(Int(frac * 100))%").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+                    Text("走了 \(Int((frac * 100).rounded()))%").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))

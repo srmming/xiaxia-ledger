@@ -1068,7 +1068,10 @@ struct V3AccountsSheet: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
-        .onAppear { if let first = state.book.accounts.first { load(first) } }
+        .onAppear {
+            if let n = state.accountFocus, let a = state.book.account(n) { load(a); state.accountFocus = nil }
+            else if let first = state.book.accounts.first { load(first) }
+        }
     }
 
     private func load(_ a: V3State.Account) {

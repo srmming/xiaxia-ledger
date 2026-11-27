@@ -9,6 +9,15 @@ import SwiftUI
 
 struct V3BizHomePage: View {
     @Environment(V3State.self) private var state
+    @State private var todayText = ""
+
+    /// 只填一个总数：先都算刷卡收的，想分开再点「分开填」。
+    private func quick() {
+        guard let m = V3Form.amount(todayText) else { state.fail("这个数没看懂，写成 186 这样就行"); return }
+        let need = state.book.dailyBreakEven
+        let day = state.book.todayDay
+        state.change(m >= need ? "记好了 · 今天 \(m.v3)，够付今天的固定开销了" : "记好了 · 今天 \(m.v3)，还差 \((need - m).v3Short)", kind: .add) { try $0.recordShopDay(day, cash: .zero, card: m) }
+    }
 
     var body: some View {
         let b = state.book
@@ -41,8 +50,13 @@ struct V3BizHomePage: View {
                             V3Amount(today.total.v3, color: V3.teal, size: 30, weight: .heavy)
                             if today.total >= b.dailyBreakEven { V3Tag(text: "够付今天的固定开销", tone: .teal) }
                         }
+                        if !done {
+                            V3Field(prompt: "0,00", text: $todayText, size: 22, rounded: true) { quick() }
+                            Text("€").font(V3.num(20)).foregroundStyle(V3.ink2)
+                            Button("记好") { quick() }.buttonStyle(.v3(.teal))
+                        }
                         Spacer(minLength: 0)
-                        Button(done ? "改一下" : "记今天的账") { state.open(.shopDay(b.todayDay)) }.buttonStyle(.v3(done ? .ghost : .teal))
+                        Button(done ? "改一下" : "分开填") { state.open(.shopDay(b.todayDay)) }.buttonStyle(.v3(.ghost, .small)).help("现金和刷卡分开填")
                     }
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
@@ -219,7 +233,7 @@ struct V3FixedPage: View {
                 V3CardTitle("按花得多少排", note: "\(b.fixedCosts.count) 样")
                 V3RowList(rows: b.fixedCosts.prefix(7).map { c in
                     .init(c.emoji, c.name, c.off ? "先停着" : c.note, c.off ? "0,00 €" : c.amount.v3, c.name.contains("工资") ? V3.teal : V3.navy,
-                          tag: c.off ? "停着" : c.tag, tone: c.flag ? .gold : .teal)
+                          tag: c.off ? "停着" : c.tag, tone: c.flag ? .gold : .teal, action: { state.open(.fixedEdit(c.name)) })
                 }, compact: b.fixedCosts.count > 5)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {

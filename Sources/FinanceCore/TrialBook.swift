@@ -565,6 +565,19 @@ public struct TrialBook: Equatable, Sendable {
         fixedCosts.sort { $0.amount > $1.amount }
     }
 
+    public mutating func editFixedCost(_ name: String, amount: Money) throws {
+        try Self.positive(amount)
+        guard let i = fixedCosts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这样开销") }
+        fixedCosts[i].amount = amount
+        fixedCosts.sort { $0.amount > $1.amount }
+    }
+
+    /// 不再付这笔了。
+    public mutating func removeFixedCost(_ name: String) throws {
+        guard let i = fixedCosts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这样开销") }
+        fixedCosts.remove(at: i)
+    }
+
     public mutating func setFixedCost(_ name: String, paused: Bool) throws {
         guard let i = fixedCosts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这样开销") }
         fixedCosts[i].off = paused

@@ -117,6 +117,11 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 从别的页点过来：流水页要选中哪一笔、先搜什么；管理账户先选中谁；自己填先填好什么。
+    var txFocus: UUID?
+    var txQuery: String?
+    var accountFocus: String?
+    var manualPrefill: (name: String, amount: Money)?
     /// 硬摆出来的「在读 / 出错」（重新读取时、截图检查时）。
     var forced: Forced?
     var prefs = V3Prefs()

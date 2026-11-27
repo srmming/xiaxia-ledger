@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String)
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -81,6 +81,9 @@ struct V3SheetHost: View {
                 case .capitalTotal: V3CapitalTotalSheet()
                 case .memoTidy: V3MemoTidySheet()
                 case .memoMeet: V3MemoMeetSheet()
+                case .monthlyPlan: V3MonthlyPlanSheet()
+                case .subscriptionInfo(let n): V3SubscriptionInfoSheet(name: n)
+                case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -299,7 +302,10 @@ private struct V3ManualSheet: View {
                 V3FormField(label: "备注", prompt: "可不填", text: $note)
             }
         }
-        .onAppear { side = state.side == .biz ? 1 : 0 }
+        .onAppear {
+            side = state.side == .biz ? 1 : 0
+            if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
+        }
         .onChange(of: side) { _, _ in account = 0 }
         .onChange(of: kind) { _, _ in account = 0; to = 1 }
     }
@@ -712,6 +718,83 @@ struct V3CapitalTotalSheet: View {
             V3AmountHint(text: amount)
         }
         .onAppear { if state.book.capitalTotal > .zero { amount = V3Form.plain(state.book.capitalTotal) } }
+    }
+}
+
+/// 改每月存多少（目标页点「这个月的计划」）。
+struct V3MonthlyPlanSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var amount = ""
+    var body: some View {
+        let m = V3Form.amount(amount)
+        let j = state.book.journey
+        let months = m.flatMap { j.monthsToFinish(monthly: $0) }
+        V3SheetBox(width: 460, title: "每月存多少", primary: "定好", canSave: m != nil && m != j.monthlyPlan,
+                   save: {
+                       guard let m else { return }
+                       if state.change("定好了：每月存 \(m.v3Short)", { try $0.setMonthlyPlan(m) }) { state.closeSheet() }
+                   }) {
+            V3FormField(label: "每月存", prompt: "200", text: $amount, big: true, focus: true)
+            V3AmountHint(text: amount)
+            HStack(spacing: 6) { ForEach([100, 150, 200, 250], id: \.self) { n in V3Chip(text: "\(n) €", size: 13) { amount = "\(n)" } } }
+            if let months { V3FormPreview(text: "照这个数，\(j.name)大概", amount: V3State.monthName(after: months) + "到手") }
+        }
+        .onAppear { amount = V3Form.plain(j.monthlyPlan) }
+    }
+}
+
+/// 一个订阅的详情：每次多少、一年多少，退不退。
+struct V3SubscriptionInfoSheet: View {
+    let name: String
+    @Environment(V3State.self) private var state
+    var body: some View {
+        let x = state.book.subscriptions.first { $0.name == name }
+        V3SheetBox(width: 480, title: name, sub: x?.note ?? "", foot: "app 不能替你去退，到日子叫你。", primary: "好了", save: { state.closeSheet() },
+                   extra: {
+                       if let x {
+                           Button(x.off ? "还是留着" : "标成要退") {
+                               if state.change(x.off ? "好，\(name)留着" : "记下了：\(name)要退", kind: .subscription, { try $0.setSubscription(name, dropped: !x.off) }) { state.closeSheet() }
+                           }
+                           .buttonStyle(.v3(.ghost))
+                       }
+                   }) {
+            if let x {
+                V3FormPreview(text: "\(TrialBook.Item.cycleNames[min(max(x.cycle, 0), 3)])扣", amount: x.amount.v3)
+                V3FormPreview(text: "一年是", amount: x.yearly.v3)
+                if x.flag { V3Label("赚钱要用的，我不会叫你退。", weight: .semibold) }
+            }
+        }
+    }
+}
+
+/// 改一样固定开销，或者不再付这笔了。
+struct V3FixedEditSheet: View {
+    let name: String
+    @Environment(V3State.self) private var state
+    @State private var amount = ""
+    var body: some View {
+        let x = state.book.fixedCosts.first { $0.name == name }
+        let m = V3Form.amount(amount)
+        V3SheetBox(width: 500, title: name, sub: x?.note ?? "", primary: "存好", teal: true, canSave: m != nil && m != x?.amount,
+                   save: {
+                       guard let m else { return }
+                       if state.change("改好了：\(name) 每月 \(m.v3)", { try $0.editFixedCost(name, amount: m) }) { state.closeSheet() }
+                   },
+                   extra: {
+                       Button("不再付这笔了") {
+                           if state.change("拿掉了：\(name)", kind: .remove, { try $0.removeFixedCost(name) }) { state.closeSheet() }
+                       }
+                       .buttonStyle(.v3(.danger))
+                   }) {
+            V3FormField(label: "每月多少", prompt: "", text: $amount, big: true, focus: true)
+            V3AmountHint(text: amount)
+            if let x {
+                V3FormSwitch(title: "先停一个月", sub: "停着的不算进每月要付的", on: Binding(get: { x.off }, set: { v in
+                    state.change(v ? "好，\(name)先停着" : "好，\(name)接着付") { try $0.setFixedCost(name, paused: v) }
+                }), teal: true)
+            }
+        }
+        .onAppear { if let x { amount = V3Form.plain(x.amount) } }
     }
 }
 

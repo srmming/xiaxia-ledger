@@ -26,6 +26,8 @@ struct V3Question: View {
     var kicker = ""
     /// (按钮上的字, 点了以后底部说的话)
     let answers: [(String, String)]
+    /// 点了第几个按钮以后真的去做的事。
+    var onAnswer: (Int) -> Void = { _ in }
     @Environment(V3State.self) private var state
     @State private var answered: String?
     var body: some View {
@@ -36,6 +38,7 @@ struct V3Question: View {
                         ForEach(Array(answers.enumerated()), id: \.offset) { i, a in
                             Button(a.0) {
                                 state.say(a.1)
+                                onAnswer(i)
                                 withAnimation(.snappy(duration: 0.2)) { answered = a.1 }
                             }
                             .buttonStyle(.v3(i == 0 ? .primary : .ghost, .small))
@@ -56,8 +59,10 @@ struct V3RowData: Identifiable {
     var color: Color = V3.navy
     var tag = ""
     var tone: V3Tag.Tone = .blue
-    init(_ emoji: String, _ name: String, _ meta: String, _ amount: String, _ color: Color = V3.navy, tag: String = "", tone: V3Tag.Tone = .blue) {
-        self.emoji = emoji; self.name = name; self.meta = meta; self.amount = amount; self.color = color; self.tag = tag; self.tone = tone
+    /// 点这一行做什么（没有就不能点）。
+    var action: (() -> Void)?
+    init(_ emoji: String, _ name: String, _ meta: String, _ amount: String, _ color: Color = V3.navy, tag: String = "", tone: V3Tag.Tone = .blue, action: (() -> Void)? = nil) {
+        self.emoji = emoji; self.name = name; self.meta = meta; self.amount = amount; self.color = color; self.tag = tag; self.tone = tone; self.action = action
     }
 }
 
@@ -66,7 +71,14 @@ struct V3RowList: View {
     var compact = false
     var body: some View {
         V3Rows(data: rows) { r in
-            V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone)
+            if let action = r.action {
+                Button(action: action) {
+                    V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone).contentShape(Rectangle())
+                }
+                .buttonStyle(V3SinkStyle(depth: 1))
+            } else {
+                V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone)
+            }
         }
     }
 }
@@ -126,6 +138,7 @@ struct V3SpendingPage: View {
             V3GrowCard(spacing: 0) {
                 V3CardTitle("花得最多的").padding(.bottom, 6)
                 ForEach(Array(top.enumerated()), id: \.offset) { _, t in
+                    Button { state.txQuery = t.1; state.go(.transactions) } label: {
                     HStack(spacing: 12) {
                         V3Ico(emoji: t.0)
                         VStack(alignment: .leading, spacing: 4) {
@@ -141,7 +154,9 @@ struct V3SpendingPage: View {
                         }
                         V3Amount("\(t.2)\u{00A0}€").frame(width: 96, alignment: .trailing)
                     }
-                    .frame(maxHeight: .infinity)
+                    .frame(maxHeight: .infinity).contentShape(Rectangle())
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 1)).help("去流水里只看「\(t.1)」")
                     .accessibilityElement(children: .combine)
                 }
             }
@@ -245,7 +260,7 @@ struct V3TransactionsPage: View {
         let today = state.book.today.filter(match)
         let yest = state.book.entries.filter { $0.daysAgo == 1 && $0.side == .life }.filter(match)
         let all = state.book.entries
-        let pick = all.first { $0.id == selected } ?? all.first
+        let pick = all.first { $0.id == selected } ?? today.first ?? yest.first ?? all.first
         V3Cols(left: 1.5, right: 1) {
             VStack(spacing: 16) {
                 // 导入进度：一笔一笔跳
@@ -336,6 +351,12 @@ struct V3TransactionsPage: View {
                 }
             }
         }
+        .onAppear { takeFocus() }
+    }
+
+    private func takeFocus() {
+        if let id = state.txFocus { selected = id; state.txFocus = nil }
+        if let q = state.txQuery { search = q; state.txQuery = nil }
     }
 
     private func list(_ items: [V3State.Entry], pick: V3State.Entry?) -> some View {
@@ -388,7 +409,7 @@ struct V3ThinkPage: View {
             VStack(spacing: 16) {
                 HStack(spacing: 12) {
                     Text("想买").font(V3.font(14, .heavy))
-                    V3Field(prompt: "想买什么", text: $name)
+                    V3Field(prompt: "想买什么", text: $name).frame(minWidth: 180).layoutPriority(1)
                     V3Field(prompt: "多少钱", text: $priceText, rounded: true).frame(width: 130)
                     Text("€").font(V3.num(16)).foregroundStyle(V3.ink2)
                     Button("放进清单") {
@@ -413,7 +434,11 @@ struct V3ThinkPage: View {
                             state.change("放好了，11 月 20 日我再问你") { try $0.addWanted(name: n, price: p) }
                         }
                         .buttonStyle(.v3(.primary, .small)).disabled(price == nil)
-                        V3SayButton("现在就买", "好，买了记得告诉我一声", .ghost)
+                        Button("现在就买") {
+                            state.manualPrefill = (name.trimmingCharacters(in: .whitespaces).isEmpty ? "想买的东西" : name, p)
+                            state.open(.manual)
+                        }
+                        .buttonStyle(.v3(.ghost, .small)).disabled(price == nil)
                     }
                 }
                 HStack(spacing: 10) {
@@ -591,7 +616,7 @@ struct V3SubscriptionsPage: View {
                 V3CardTitle("按下次扣钱的日子排", note: "\(b.subscriptions.count) 个")
                 V3RowList(rows: b.subscriptions.prefix(7).map { x in
                     .init(x.emoji, x.name, x.off ? "要退 · 这个月之后不再扣" : x.note, x.amount.v3 + (x.cycle == 1 ? "" : " / " + ["周", "月", "季", "年"][x.cycle]), tag: x.off ? "要退" : x.tag,
-                          tone: x.off || x.flag ? .green : .gold)
+                          tone: x.off || x.flag ? .green : .gold, action: { state.open(.subscriptionInfo(x.name)) })
                 }, compact: b.subscriptions.count > 5)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
@@ -639,10 +664,10 @@ struct V3DebtsPage: View {
             V3GrowCard(spacing: 8) {
                 V3CardTitle("先还哪个")
                 V3RowList(rows: [
-                    card > .zero ? .init("💳", "信用卡", "12 月 5 日 · 拖了要收利息", card.v3, V3.red, tag: "先还这个", tone: .red)
+                    card > .zero ? .init("💳", "信用卡", "12 月 5 日 · 拖了要收利息", card.v3, V3.red, tag: "先还这个", tone: .red, action: { state.open(.repay("信用卡")) })
                                  : .init("💳", "信用卡", "这个月的还清了", "0,00 €", V3.green, tag: "还清了", tone: .green),
                     .init("📱", "手机分期", moved ? "这一期挪到 1 月 8 日 · 还剩 \(periodsLeft) 期" : "每月 8 日 · 还剩 \(periodsLeft) 期", "200,00 € / 月", V3.red, tag: "按月还就行"),
-                ] + others.prefix(2).map { .init($0.emoji, $0.name, $0.note, $0.balance.v3, $0.balance > .zero ? V3.red : V3.green) }, compact: !others.isEmpty)
+                ] + others.prefix(2).map { d in .init(d.emoji, d.name, d.note, d.balance.v3, d.balance > .zero ? V3.red : V3.green, action: d.balance > .zero ? { state.open(.repay(d.name)) } : nil) }, compact: !others.isEmpty)
                 V3Periods(total: 12, done: 12 - periodsLeft)
                 V3Label("手机分期 · 12 期还了 \(12 - periodsLeft) 期")
                 V3CardTitle("别人欠我的").padding(.top, 6)
@@ -691,7 +716,11 @@ struct V3MonthlyPage: View {
                 }
                 Spacer(minLength: 0)
                 V3Question(face: "happy", text: "过了 200 € 那站。11 月还存 200 €？", tone: .good,
-                           answers: [("还是 200 €", "好，11 月还是 200 €"), ("想少一点", "好，减一半，100 €？去「目标」里点「看看办法」就能改"), ("想多一点", "好，250 €？试用版先记下你的想法")])
+                           answers: [("还是 200 €", "好，11 月还是 200 €"), ("想少一点", "好，11 月存 100 €"), ("想多一点", "好，11 月存 250 €")],
+                           onAnswer: { i in
+                               let plan = Money(cents: [200_00, 100_00, 250_00][i])
+                               state.change("定好了：11 月存 \(plan.v3Short)") { try $0.setMonthlyPlan(plan) }
+                           })
             }
         } trailing: {
             VStack(spacing: 16) {
