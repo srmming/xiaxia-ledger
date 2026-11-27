@@ -50,18 +50,18 @@ struct V3AddSheet: View {
                             V3Amount((-q.amount).v3, size: 26, weight: .heavy)
                         }
                         .padding(.horizontal, 22).padding(.vertical, 16).v3Sticker(fill: V3.bg)
-                        V3Ask(face: "calm", text: "这家店你是付现金还是刷日常卡？只问这一次，以后同一家店我按你的习惯记。") {
+                        V3Ask(face: "calm", text: "这家店付现金还是刷卡？只问这一次。") {
                             HStack(spacing: 8) {
                                 Button("现金") { save(q, "现金") }.buttonStyle(.v3(.primary, .small))
                                 Button("日常卡") { save(q, "日常卡") }.buttonStyle(.v3(.ghost, .small))
                             }
                         }
                     } else {
-                        V3Ask(face: "think", text: text.trimmingCharacters(in: .whitespaces).isEmpty ? "说一句就行，比如「午饭 12,5」「打车 15」。" : "我没听出多少钱。带上数字再说一遍？比如「午饭 12,5」。", tone: text.trimmingCharacters(in: .whitespaces).isEmpty ? .plain : .warn)
+                        V3Ask(face: "think", text: text.trimmingCharacters(in: .whitespaces).isEmpty ? "说一句就行，比如「午饭 12,5」「打车 15」。" : "没听出多少钱，带上数字再说一遍？", tone: text.trimmingCharacters(in: .whitespaces).isEmpty ? .plain : .warn)
                     }
                 } else {
-                    V3Ask(face: "think", text: way == 1 ? "试用版还没接上手机。正式版里，手机拍的小票会自己出现在这里，日期按小票上印的那天记。"
-                          : "把银行流水拖到「流水」那一页就行，数字会一笔一笔跳，重复的自动跳过。") {
+                    V3Ask(face: "think", text: way == 1 ? "试用版还没接手机。正式版里拍了就到这儿。"
+                          : "流水拖到「流水」那页就行，重复的会跳过。") {
                         if way == 2 { Button("去流水页") { close(); state.go(.transactions) }.buttonStyle(.v3(.primary, .small)) }
                     }
                 }

@@ -42,7 +42,7 @@ struct V3OverviewPage: View {
         let m = b.month
         let j = b.journey
         return VStack(spacing: 14) {
-            V3Ask(face: "calm", text: "照这样花，这个月的存钱计划差一点。我想了个办法。") {
+            V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
                 Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
             }
             .frame(width: width * 0.62).frame(maxWidth: .infinity, alignment: .leading)
@@ -305,16 +305,16 @@ struct V3WealthPage: View {
                 Spacer(minLength: 0)
                 switch b.splitWithEmergency {
                 case nil:
-                    V3Ask(face: "calm", text: "到 3 个月之前，每次存钱一半给应急钱、一半给电脑，好吗？") {
+                    V3Ask(face: "calm", text: "应急钱才 \(run.monthsText) 个月。存的钱分一半给它？") {
                         HStack(spacing: 8) {
                             Button("好，一半一半") { state.change("好，以后存钱自动对半分") { $0.splitWithEmergency = true } }.buttonStyle(.v3(.primary, .small))
                             Button("全给电脑") { state.change("好，全给电脑") { $0.splitWithEmergency = false } }.buttonStyle(.v3(.ghost, .small))
                         }
                     }
                 case true?:
-                    V3Ask(face: "happy", text: "记住了：以后每次存钱，一半给应急钱，一半给电脑。到 3 个月我再问你。", tone: .good)
+                    V3Ask(face: "happy", text: "记住了，以后对半分。", tone: .good)
                 case false?:
-                    V3Ask(face: "calm", text: "好，存的钱全给电脑。应急钱先停在 \(run.monthsText) 个月，想改随时说。")
+                    V3Ask(face: "calm", text: "好，全给电脑。想改再说。")
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 18)
@@ -356,7 +356,7 @@ struct V3GoalsPage: View {
                     V3Ask(face: "celebrate", text: "走完了！\(j.total.v3Short) 都存够了。", tone: .good)
                 } else {
                     let name = j.nextStation.flatMap { $0.title.isEmpty ? nil : "「\($0.title)」那一站" } ?? "下一站"
-                    V3Ask(face: "happy", text: "再存 \(j.remainingToNext.v3Short) 就到\(name)。按现在的速度，\(state.deadline)前够呛，要不要看看我的办法？") {
+                    V3Ask(face: "happy", text: "离\(name)还差 \(j.remainingToNext.v3Short)，\(state.deadline)前有点悬。") {
                         HStack(spacing: 8) {
                             Button("看看办法") { state.openMoment(.smallerStep) }.buttonStyle(.v3(.primary, .small))
                             Button("先不用") { state.say("好，我 12 月 10 日再看一眼") }.buttonStyle(.v3(.ghost, .small))

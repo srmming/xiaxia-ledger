@@ -87,7 +87,7 @@ struct V3SpendingPage: View {
         V3Cols(left: 1.1, right: 1) {
             VStack(spacing: 16) {
                 V3Ask(face: diff >= .zero ? "happy" : "calm",
-                      text: diff >= .zero ? "比上个月同期少花 \(diff.v3Short)，咖啡少了 4 杯。省下的我算进「忍住」里了。" : "比上个月同期多花了 \(diff.magnitude.v3Short)。不要紧，我只是告诉你一声。",
+                      text: diff >= .zero ? "比上月同期少花 \(diff.v3Short)，咖啡少 4 杯。" : "比上月同期多花 \(diff.magnitude.v3Short)，跟你说一声。",
                       tone: diff >= .zero ? .good : .plain)
                 V3KeyCard(label: "11 月到今天花掉", amount: m.spentTotal, size: 56) {
                     HStack(spacing: 26) {
@@ -190,9 +190,9 @@ struct V3TrendsPage: View {
                 }
                 .accessibilityLabel("花钱速度正常，比上个月同期慢")
                 if let gym {
-                    V3Ask(face: "happy", text: gym ? "好，算进固定开销，12 月要付变成 1.561 €。" : "好，不算，以后不再问这一笔。", tone: .good)
+                    V3Ask(face: "happy", text: gym ? "算进去了，12 月要付 1.561 €。" : "好，不算，不再问了。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: "「健身房 29 €」连着 3 个月都扣了，要算进每月固定要付的吗？") {
+                    V3Ask(face: "think", text: "健身房 29 € 扣了 3 个月，算固定的吗？") {
                         HStack(spacing: 8) {
                             Button("算") { withAnimation(.snappy) { gym = true }; state.say("好，算进固定开销，12 月要付变成 1.561 €") }.buttonStyle(.v3(.primary, .small))
                             Button("不算") { withAnimation(.snappy) { gym = false }; state.say("好，不算，以后不再问这一笔") }.buttonStyle(.v3(.ghost, .small))
@@ -275,7 +275,7 @@ struct V3TransactionsPage: View {
                     }
                 }
                 if lumi == nil {
-                    V3Ask(face: "think", text: "「Super Lumi」那笔 18,60 €，我帮你归进超市？") {
+                    V3Ask(face: "think", text: "Super Lumi 那 18,60 €，算超市？") {
                         HStack(spacing: 8) {
                             Button("好") {
                                 withAnimation(.snappy) { lumi = true }
@@ -391,17 +391,22 @@ struct V3ThinkPage: View {
                     V3Field(prompt: "想买什么", text: $name)
                     V3Field(prompt: "多少钱", text: $priceText, rounded: true).frame(width: 130)
                     Text("€").font(V3.num(16)).foregroundStyle(V3.ink2)
+                    Button("放进清单") {
+                        let n = name.trimmingCharacters(in: .whitespaces).isEmpty ? "想买的东西" : name
+                        state.change("放好了，11 月 20 日再问你") { try $0.addWanted(name: n, price: p) }
+                    }
+                    .buttonStyle(.v3(.primary, .small)).disabled(price == nil)
                     Button("算个大决定") { withAnimation(.snappy) { state.thinkBig = true } }.buttonStyle(.v3(.ghost, .small))
                 }
                 .v3Card()
                 if price == nil {
-                    V3Ask(face: "worried", text: "这个价钱我没看懂。写成 279 或者 279,00 这样就行。", tone: .warn)
+                    V3Label("价钱没看懂，写成 279 这样就行。", color: V3.red, weight: .semibold)
                 }
                 V3KeyCard(label: "买了以后，这个月还能随便花", amount: after) {
                     V3Label(after >= .zero ? "现在是 \(m.left.v3) · 到月底每天从 \(Money(cents: m.perDay.cents / 100 * 100).v3Short) 变成 \(perDayAfter.v3Short)"
                             : "现在是 \(m.left.v3) · 买了这个月就超了 \(after.magnitude.v3Short)", color: after >= .zero ? V3.ink2 : V3.red)
                 }
-                V3Ask(face: "think", text: "要不要先放进想要清单，冷静 48 小时？到时候我再问你一次。") {
+                V3Ask(face: "think", text: "先放清单里，过 48 小时再说？") {
                     HStack(spacing: 8) {
                         Button("放进清单") {
                             let n = name.trimmingCharacters(in: .whitespaces).isEmpty ? "想买的东西" : name
@@ -439,7 +444,10 @@ struct V3ThinkPage: View {
                 }
                 Spacer(minLength: 0)
                 let saved = state.book.wanted.filter(\.off)
-                V3Ask(face: "happy", text: "这个月忍住了 \(saved.count + 2) 次，一共 \((saved.map(\.amount).reduce(.zero, +) + Money(cents: 28_00)).v3Short)，都存进电脑那条路了。", tone: .good)
+                HStack(spacing: 6) {
+                    V3Label("这个月忍住")
+                    V3Amount("\(saved.count + 2) 次 · \((saved.map(\.amount).reduce(.zero, +) + Money(cents: 28_00)).v3Short)", color: V3.green, size: 15)
+                }
             }
         }
     }
@@ -511,7 +519,7 @@ private struct V3BigDecision: View {
                     ], compact: true)
                 }
                 V3GrowCard {
-                    V3Ask(face: "think", text: "要不要看一个省着过的版本？随便花减一半，能撑到 10,2 个月。我只帮你算，决定你来做。") {
+                    V3Ask(face: "think", text: "省着过能撑 10,2 个月，要看吗？") {
                         HStack(spacing: 8) {
                             Button(frugal ? "看原来的" : "看省着过的") {
                                 withAnimation(.snappy) { frugal.toggle(); pick = 0 }
@@ -562,9 +570,9 @@ struct V3SubscriptionsPage: View {
                     V3Label("一年是 \(Money(cents: monthly.cents * 12).v3Short)")
                 }
                 if keepAll || doubt.isEmpty {
-                    V3Ask(face: "happy", text: keepAll ? "好，都留着。哪天想退再说。" : dropped.isEmpty ? "这几个订阅我都看过了，没有该退的。" : "记下了：\(dropped.map(\.name).joined(separator: "、"))要退。到日子我提醒你。", tone: .good)
+                    V3Ask(face: "happy", text: keepAll ? "好，都留着。" : dropped.isEmpty ? "订阅都看过了，没有该退的。" : "记下了：\(dropped.map(\.name).joined(separator: "、"))要退，到日子叫你。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: "\(doubt.map { "「\($0.name)」" }.joined(separator: "、"))好像用得不多。我不确定，所以问你：还要吗？") {
+                    V3Ask(face: "think", text: "\(doubt.map { "「\($0.name)」" }.joined(separator: "、"))好像用得不多，还要吗？") {
                         HStack(spacing: 8) {
                             ForEach(doubt.prefix(2)) { d in
                                 Button("退\(d.name)") { state.change("记下了：\(d.name)要退", kind: .subscription) { try $0.setSubscription(d.name, dropped: true) } }.buttonStyle(.v3(.primary, .small))
@@ -618,7 +626,7 @@ struct V3DebtsPage: View {
                     }
                 }
                 V3Ask(face: moved ? "calm" : "calm",
-                      text: moved ? "这一期挪到 1 月了，不收利息。还完的日子往后推一个月，到明年 6 月。" : "钱够还，这 \(dueNow.v3Short) 已经从「能随便花」里扣掉了。照这个计划，明年 5 月你就不欠钱了。",
+                      text: moved ? "这期挪到 1 月，不收利息。明年 6 月还完。" : "这 \(dueNow.v3Short) 钱够还。明年 5 月就不欠了。",
                       tone: .good)
                 V3GrowCard {
                     V3CardTitle("还完的那天")
@@ -682,7 +690,7 @@ struct V3MonthlyPage: View {
                     }
                 }
                 Spacer(minLength: 0)
-                V3Question(face: "happy", text: "这个月你过了「200 €」那一站。11 月还是存 200 €，还是想换个数？", tone: .good,
+                V3Question(face: "happy", text: "过了 200 € 那站。11 月还存 200 €？", tone: .good,
                            answers: [("还是 200 €", "好，11 月还是 200 €"), ("想少一点", "好，减一半，100 €？去「目标」里点「看看办法」就能改"), ("想多一点", "好，250 €？试用版先记下你的想法")])
             }
         } trailing: {

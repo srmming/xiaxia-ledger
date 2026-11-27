@@ -177,7 +177,7 @@ private struct V3SmallerStepSheet: View {
                     V3Tile(label: "现在已经存了", value: j.savedThisMonth.v3Short, color: V3.navy)
                     V3Tile(label: "照现在，月底大概", value: state.projectedThisMonth.v3Short, color: V3.red)
                 }
-                V3Bubble("我看了你的流水：这个月进账比平时少了 260 €（少接了一单活），花销和平时差不多。不是你乱花，是这个月本来就紧。", flat: true)
+                V3Bubble("这个月进账少了 260 €，不是你乱花。", flat: true)
                 Text("要不要把步子改小一点？").font(V3.font(16, .heavy)).foregroundStyle(V3.ink)
                 HStack(spacing: 14) {
                     ForEach(Array(smaller.enumerated()), id: \.offset) { i, m in

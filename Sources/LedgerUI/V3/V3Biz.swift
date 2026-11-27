@@ -17,7 +17,7 @@ struct V3BizHomePage: View {
         let back = Money(cents: 16_728_00)
         V3Cols(left: 1.35, right: 1) {
             VStack(spacing: 16) {
-                V3Ask(face: "think", text: "周六收得最多，一天顶平时两天。固定开销已经赚回来了，后面收的都是你的。", kicker: "每周一句")
+                V3Ask(face: "think", text: "周六一天顶两天。后面收的都是你的了。", kicker: "每周一句")
                     .frame(maxWidth: 560).frame(maxWidth: .infinity, alignment: .leading)
                 V3KeyCard(label: "11 月 · 真正赚了", amount: Money(cents: 1_520_26), wave: V3.tealSoft) {
                     V3Label("比上个月同期多 140 €", size: 14, color: V3.green, weight: .bold)
@@ -84,7 +84,7 @@ struct V3SalesPage: View {
         V3Cols(left: 1, right: 1.5) {
             VStack(spacing: 16) {
                 if let gap {
-                    V3Ask(face: "think", text: "\(gap.day) 号那天没记，是休息还是忘了？", tone: .warn) {
+                    V3Ask(face: "think", text: "\(gap.day) 号没记，休息还是忘了？", tone: .warn) {
                         HStack(spacing: 8) {
                             Button("是休息") { state.change("好，\(gap.day) 号算休息") { try $0.markShopRest(gap.day) } }.buttonStyle(.v3(.teal, .small))
                             Button("忘了，补上") { state.open(.shopDay(gap.day)) }.buttonStyle(.v3(.ghost, .small))
@@ -195,13 +195,13 @@ struct V3FixedPage: View {
                 }
                 if let ads {
                     if ads.off {
-                        V3Ask(face: "happy", text: "好，12 月停广告。月底我告诉你客人有没有少。", tone: .good) {
+                        V3Ask(face: "happy", text: "12 月停广告，月底看客人少没少。", tone: .good) {
                             Button("还是开着") { state.change("好，广告接着投") { try $0.setFixedCost("广告", paused: false) } }.buttonStyle(.v3(.ghost, .small))
                         }
                     } else if kept {
                         V3Ask(face: "happy", text: "好，广告先留着。", tone: .good)
                     } else {
-                        V3Ask(face: "think", text: "广告每月 \(ads.amount.v3Short)，这三个月看不出带来了新客人。要不要先停一个月试试？我不替你决定。") {
+                        V3Ask(face: "think", text: "广告每月 \(ads.amount.v3Short)，没见带来新客人。停一个月试试？") {
                             HStack(spacing: 8) {
                                 Button("停一个月试试") { state.change("好，12 月停广告") { try $0.setFixedCost("广告", paused: true) } }.buttonStyle(.v3(.teal, .small))
                                 Button("先留着") { withAnimation(.snappy) { kept = true }; state.say("好，先留着") }.buttonStyle(.v3(.ghost, .small))
@@ -263,7 +263,7 @@ struct V3PaybackPage: View {
                     HStack { V3Label("开店 · 2025 年 10 月"); Spacer(); V3Label("今天"); Spacer(); V3Label("2027 年 9 月 · 回本") }
                 }
                 .accessibilityLabel("回本走了 \(Int(frac * 100))%")
-                V3Ask(face: "think", text: "每月多赚 150 €，能早 4 个月回本。回本那天，我给你写一封信。", tone: .good)
+                V3Ask(face: "think", text: "每月多赚 150 €，早 4 个月回本。", tone: .good)
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
@@ -301,9 +301,9 @@ struct V3StockPage: View {
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
                 if later || fresh {
-                    V3Ask(face: "happy", text: fresh ? "记好了，下次季度末我再提醒你估一次。" : "好，12 月 28 日提醒你重新估一次。", tone: .good)
+                    V3Ask(face: "happy", text: fresh ? "记好了，季度末再估一次。" : "好，12 月 28 日再叫你。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: estimating ? "店里的货现在大约值多少？估个总数就行。" : "12 月底是季度末，到时候我提醒你重新估一次。现在想先估也行。") {
+                    V3Ask(face: "think", text: estimating ? "货架上的货大约值多少？" : "12 月底该估货了，现在先估也行。") {
                         if estimating {
                             HStack(spacing: 8) {
                                 V3Field(prompt: "大约值多少", text: $text, rounded: true) { save() }.frame(width: 150)
@@ -386,7 +386,7 @@ struct V3CheckupPage: View {
                     }
                 }
                 Spacer(minLength: 0)
-                V3Question(face: "think", text: "下个季度先试哪一个？一次只试一个，我每周跟你说进展。",
+                V3Question(face: "think", text: "下个季度先试哪个？一次试一个。",
                            answers: [("周六多开 2 小时", "好，这就是店里下个季度的那一站：周六多开 2 小时"), ("停掉广告", "好，下个季度先试停掉广告"), ("先不试", "好，下个季度再问你")])
             }
         } trailing: {
@@ -433,11 +433,11 @@ struct V3BizDebtsPage: View {
                     }
                 }
                 if let first {
-                    V3Ask(face: "worried", text: "\(first.name)那 \(first.amount.v3Short)\(first.note.isEmpty ? "" : "，" + first.note)。拖了下次不给赊账。", tone: .warn, kicker: "要留意") {
+                    V3Ask(face: "worried", text: "\(first.name)那 \(first.amount.v3Short)\(first.note.isEmpty ? "" : "，" + first.note)。拖了下次不给赊。", tone: .warn, kicker: "要留意") {
                         Button("现在记还款") { state.change("还款记好了 · \(first.name) \(first.amount.v3)", kind: .repay) { try $0.payShopDebt(first.name) } }.buttonStyle(.v3(.teal, .small))
                     }
                 } else {
-                    V3Ask(face: "happy", text: "赊的账都还清了，下次还能赊。", tone: .good)
+                    V3Ask(face: "happy", text: "赊的账都清了。", tone: .good)
                 }
                 V3GrowCard {
                     V3CardTitle("还贷款怎么算")

@@ -388,7 +388,7 @@ private struct V3WishStep: View {
             HStack(alignment: .center, spacing: 26) {
                 V3Xia(width: 150)
                 VStack(spacing: 12) {
-                    V3Bubble("我先替你记着，不追问。以后给你提建议的时候，会想着这句话。")
+                    V3Bubble("我先记着，不追问。")
                     HStack(spacing: 12) {
                         V3Ico(emoji: "🧠")
                         VStack(alignment: .leading, spacing: 1) {
@@ -600,7 +600,7 @@ private struct V3AccountsStep: View {
             .animation(.snappy(duration: 0.3), value: totals)
             HStack(alignment: .bottom, spacing: 10) {
                 V3Xia(width: 110)
-                V3Bubble("每加一个，上面的数马上跟着变。你的家底就是这三个数。").padding(.bottom, 34)
+                V3Bubble("每加一个，上面的数就跟着变。").padding(.bottom, 34)
             }
         }
     }
