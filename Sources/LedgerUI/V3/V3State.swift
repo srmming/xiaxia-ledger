@@ -94,6 +94,8 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var secretShown = false
+    /// 设置里打开了「一直显示私房钱」。
+    var secretPinned = false { didSet { secretShown = secretPinned } }
     var showAddAccount = false
     var showAdd = false
     /// 正开着的弹窗（自己填、存一笔、改分类……）。
@@ -113,6 +115,13 @@ final class V3State {
     var thinkBig = false
     /// 设置里点进去的改动记录。
     var showLog = false
+    /// 设置里正开着的那一页（nil = 设置首页）。
+    var settingsSub: SettingsSub?
+    /// 硬摆出来的「在读 / 出错」（重新读取时、截图检查时）。
+    var forced: Forced?
+    var prefs = V3Prefs()
+    var aiLinks = V3AILink.demo
+    var backups = V3Backup.demo
     /// 目标的三个时刻：定第一步、改小步子、到站的信。
     var moment: V3Moment?
 
@@ -163,6 +172,14 @@ final class V3State {
         } catch let e as TrialError { fail(e.message) } catch { fail("没撤成，再试一次") }
     }
 
+    /// 整本换掉（从备份恢复、换回示例）。
+    func replaceLedger(_ l: TrialLedger) { ledger = l }
+
+    /// 彻底忘掉一条记忆：不留记录，也撤不回来。
+    func forget(memo id: UUID) {
+        do { try ledger.forget(memo: id); say("忘掉了") } catch let e as TrialError { fail(e.message) } catch { fail("没忘成，再试一次") }
+    }
+
     /// 不留记录地摆场景（启动参数、信收进沿途风光）。
     func patch(_ body: (inout Book) -> Void) { ledger.patch(body) }
 
@@ -179,7 +196,7 @@ final class V3State {
     func go(_ p: Page) {
         withAnimation(.snappy(duration: 0.22)) {
             page = p
-            thinkBig = false; showLog = false; chatOpen = false
+            thinkBig = false; showLog = false; chatOpen = false; settingsSub = nil
             if p != page { sayPoppedThisPage = false; sayCardID = nil; sayUnreadID = nil }
             if Page.biz.contains(p) { side = .biz } else if Page.life.contains(p) { side = .life }
         }
@@ -223,7 +240,8 @@ final class V3State {
         secretTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
-            withAnimation(.snappy) { self?.secretShown = false }
+            guard let self, !self.secretPinned else { return }
+            withAnimation(.snappy) { self.secretShown = false }
         }
     }
 
@@ -325,6 +343,16 @@ final class V3State {
         b.capital = [item("🔨", "装修", "2025 年 9 月", "14000"), item("💺", "设备和桌椅", "2025 年 9 月", "9800"),
                      item("📦", "第一批货", "2025 年 10 月", "4200"), item("🔑", "押金", "退租时能拿回", "4170")]
         b.shopDebts = [item("📦", "供货商赊账", "12 月 3 日到期", "320"), item("🧑", "熟客挂账", "11 月 9 日 · 说下次来付", "85", flag: true)]
+        b.memos = [
+            .init(kind: .topic, topic: "我想要的", lines: ["三年后不用为钱发愁", "先换台电脑，剪自己的片子"], source: "你说的", important: true),
+            .init(kind: .rule, topic: "转给妈妈的钱", lines: ["每月 5 日转 150 €，不算支出，算家里的"], source: "你纠正的"),
+            .init(kind: .topic, topic: "工资", lines: ["每月 28 日前后到，晚几天不用提醒", "私活的钱不固定，别算进每月进账"], source: "夏夏看出来的，你确认过"),
+            .init(kind: .topic, topic: "Café Nube", lines: ["付现金。一周超过 4 次时说一声"], source: "你说的"),
+            .init(kind: .rule, topic: "超过 100 € 的东西", lines: ["先放进想要清单冷静 48 小时"], source: "你说的"),
+            .init(kind: .rule, topic: "店里和家里", lines: ["店里的钱不拿来付家里的开销，要用就走「两边转钱」"], source: "你说的"),
+            .init(kind: .lesson, topic: "Revolut 的流水", lines: ["「To EUR」开头的是自己账户之间转，不算花"], source: "夏夏看出来的，你确认过"),
+            .init(kind: .lesson, topic: "Super Lumi", lines: ["小票上印的是总公司的名字，认成超市"], source: "你纠正的"),
+        ]
         // 11 月每天收了多少：和设计稿同一个算法。11 月 1 日是周日；周日休息；16 号没记；18 号是今天，还没记。
         var r = 11.0
         for d in 1...30 {

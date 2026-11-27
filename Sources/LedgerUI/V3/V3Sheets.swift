@@ -9,6 +9,8 @@ import SwiftUI
 enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
+    // 设置里的
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -22,6 +24,14 @@ enum V3Sheet: Equatable {
             "sheet-shopdebt": (.bizDebts, .biz, .shopDebt),
         ]
         if let (page, side, sheet) = map[p] { state.side = side; state.page = page; state.sheet = sheet }
+        let set: [String: (V3State.SettingsSub?, V3Sheet)] = [
+            "sheet-memo": (.memory, .memoAdd), "sheet-del1": (.data, .deleteAsk), "sheet-del2": (.data, .deleteConfirm),
+            "sheet-feedback": (nil, .feedback), "sheet-books": (.books, .books), "sheet-accounts": (.books, .accounts),
+            "sheet-cats": (.books, .categories), "sheet-base": (.sync, .baseCurrency),
+        ]
+        if let (sub, sheet) = set[p] { state.page = .settings; state.settingsSub = sub; state.sheet = sheet }
+        if p == "sheet-forget", let m = state.book.memos.last { state.page = .settings; state.settingsSub = .memory; state.sheet = .memoForget(m.id) }
+        if p == "sheet-restore", let b = state.backups.first { state.page = .settings; state.settingsSub = .data; state.sheet = .restore(b.id) }
         if p == "sheet-cat" || p == "sheet-amount", let e = state.book.entries.first(where: { $0.place == "Super Lumi" }) {
             state.page = .transactions
             state.sheet = p == "sheet-cat" ? .category(e.id) : .amount(e.id)
@@ -32,14 +42,6 @@ enum V3Sheet: Equatable {
 extension V3State {
     func open(_ s: V3Sheet) { withAnimation(.snappy(duration: 0.2)) { sheet = s } }
     func closeSheet() { withAnimation(.snappy(duration: 0.2)) { sheet = nil } }
-}
-
-/// 规格稿里的 12 个分类。
-enum V3Cats {
-    static let all: [(emoji: String, name: String)] = [
-        ("🛒", "超市"), ("🥗", "餐饮"), ("☕", "咖啡"), ("🚇", "交通"), ("🏠", "房租"), ("🔁", "订阅"),
-        ("💊", "看病"), ("🎬", "娱乐"), ("👕", "衣服"), ("📱", "话费"), ("🎁", "送礼"), ("❓", "还没分"),
-    ]
 }
 
 struct V3SheetHost: View {
@@ -65,6 +67,17 @@ struct V3SheetHost: View {
                 case .capital: V3SimpleSheet(kind: .capital)
                 case .transfer: V3TransferSheet()
                 case .shopDebt: V3ShopDebtSheet()
+                case .memoAdd: V3MemoAddSheet()
+                case .memoForget(let id): V3MemoForgetSheet(id: id)
+                case .deleteAsk: V3DeleteAskSheet()
+                case .deleteConfirm: V3DeleteConfirmSheet()
+                case .restore(let id): V3RestoreSheet(id: id)
+                case .feedback: V3FeedbackSheet()
+                case .books: V3BooksSheet()
+                case .accounts: V3AccountsSheet()
+                case .categories: V3CategoriesSheet()
+                case .baseCurrency: V3BaseCurrencySheet()
+                case .goalNew: V3GoalNewSheet()
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -82,6 +95,7 @@ struct V3SheetBox<Content: View, Extra: View>: View {
     var foot = ""
     var primary = "记好"
     var teal = false
+    var danger = false
     var canSave = true
     var save: () -> Void
     @ViewBuilder var extra: Extra
@@ -105,7 +119,7 @@ struct V3SheetBox<Content: View, Extra: View>: View {
                 Spacer(minLength: 8)
                 Button("取消") { state.closeSheet() }.buttonStyle(.v3(.ghost))
                 extra
-                Button(primary, action: save).buttonStyle(.v3(teal ? .teal : .primary)).disabled(!canSave).keyboardShortcut(.defaultAction)
+                Button(primary, action: save).buttonStyle(.v3(danger ? .danger : teal ? .teal : .primary)).disabled(!canSave).keyboardShortcut(.defaultAction)
             }
             .padding(.top, 2)
         }
@@ -117,9 +131,9 @@ struct V3SheetBox<Content: View, Extra: View>: View {
 }
 
 extension V3SheetBox where Extra == EmptyView {
-    init(width: CGFloat = 540, title: String, sub: String = "", foot: String = "", primary: String = "记好", teal: Bool = false,
+    init(width: CGFloat = 540, title: String, sub: String = "", foot: String = "", primary: String = "记好", teal: Bool = false, danger: Bool = false,
          canSave: Bool = true, save: @escaping () -> Void, @ViewBuilder content: () -> Content) {
-        self.init(width: width, title: title, sub: sub, foot: foot, primary: primary, teal: teal, canSave: canSave, save: save,
+        self.init(width: width, title: title, sub: sub, foot: foot, primary: primary, teal: teal, danger: danger, canSave: canSave, save: save,
                   extra: { EmptyView() }, content: content)
     }
 }
@@ -295,7 +309,7 @@ private struct V3ManualSheet: View {
             let dest = accounts[to].name
             return state.change("转好了 · \(acc) → \(dest) \(m.v3)", kind: .transfer) { try $0.move(m, from: acc, to: dest) }
         }
-        let c = V3Cats.all[cat]
+        let c = state.book.categories[min(cat, state.book.categories.count - 1)]
         let shop = place.trimmingCharacters(in: .whitespaces)
         let name = kind == 1 ? (shop.isEmpty ? "进账" : shop) : c.name
         return state.change("记好了 · \(name) \(m.v3) · \(acc)", kind: .add) {
@@ -309,9 +323,10 @@ private struct V3ManualSheet: View {
 private struct V3CatGrid: View {
     let pick: Int?
     var choose: (Int) -> Void
+    @Environment(V3State.self) private var state
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
-            ForEach(Array(V3Cats.all.enumerated()), id: \.offset) { i, c in
+            ForEach(Array(state.book.categories.prefix(18).enumerated()), id: \.offset) { i, c in
                 Button { choose(i) } label: {
                     VStack(spacing: 3) {
                         V3Ico(emoji: c.emoji, size: 30)
@@ -371,11 +386,11 @@ private struct V3CategorySheet: View {
     var body: some View {
         let e = state.book.entries.first { $0.id == id }
         let place = e.map { $0.place.isEmpty ? $0.name : $0.place } ?? ""
-        let now = V3Cats.all.firstIndex { $0.name == e?.name }
+        let now = state.book.categories.firstIndex { $0.name == e?.name }
         V3SheetBox(width: 580, title: "这笔算哪一类", sub: e.map { "\(place) · \($0.amount.v3)" } ?? "", foot: "点图标就选好，不用再点确定。", primary: "不改了",
                    save: { state.closeSheet() }) {
             V3CatGrid(pick: now) { i in
-                let c = V3Cats.all[i]
+                let c = state.book.categories[i]
                 let text = always ? "归好了，以后「\(place)」都按\(c.name)" : "归好了：\(c.name)"
                 if state.change(text, kind: .categorize, { try $0.recategorize(entry: id, emoji: c.emoji, name: c.name, always: always) }) { state.closeSheet() }
             }

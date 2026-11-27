@@ -23,6 +23,9 @@ public enum V3Launch {
         return args[i + 1]
     }
     @MainActor static func apply(to state: V3State) {
+        // `-XiaxiaV3Data empty`：从一本空账本开始，看每页没数据时的样子。
+        if value("-XiaxiaV3Data") == "empty" { state.patch { $0.wipe() } }
+        if let f = value("-XiaxiaV3State") { state.forced = V3State.Forced(rawValue: f) }
         guard let p = value("-XiaxiaV3Page") else { return }
         if p.hasPrefix("ob"), let n = Int(p.dropFirst(2)), (1...5).contains(n) {
             state.onboardingStep = n - 1
@@ -45,7 +48,7 @@ public enum V3Launch {
                     state.moment = .letter(l)
                 }
             }
-        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) || p.hasPrefix("sheet-") {
+        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) || p.hasPrefix("sheet-") || p.hasPrefix("set-") {
             state.onboardingStep = nil
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
@@ -53,6 +56,7 @@ public enum V3Launch {
             if p == "log" { state.page = .settings; state.showLog = true }
             if p == "add" { state.showAdd = true }
             V3Sheet.fromLaunch(p, state)
+            if p.hasPrefix("set-"), let sub = V3State.SettingsSub(rawValue: String(p.dropFirst(4))) { state.page = .settings; state.settingsSub = sub }
             if p == "ask" { state.page = .overview; state.chatOpen = true }
             if p == "askfrom" { state.page = .overview; state.sayPopsToday = 0 }
         } else if let page = V3State.Page(rawValue: p) {
@@ -224,6 +228,13 @@ struct V3Shell: View {
     }
 
     @ViewBuilder private var pageBody: some View {
+        if state.forced == .loading { V3LoadingPage() }
+        else if state.forced == .error { V3ErrorPage() }
+        else if state.isEmpty(state.page) { V3EmptyPage(page: state.page) }
+        else { pageData }
+    }
+
+    @ViewBuilder private var pageData: some View {
         switch state.page {
         case .overview: V3OverviewPage()
         case .goals: V3GoalsPage()
@@ -311,13 +322,17 @@ private struct V3Sidebar: View {
 
     /// 左边栏最下面一直看得到：目标走到哪了。
     @ViewBuilder private var goalCard: some View {
-        if state.side == .biz {
+        if state.side == .biz ? state.book.capital.isEmpty : state.book.journey.total == .zero {
+            EmptyView()
+        } else if state.side == .biz {
             Button { state.go(.payback) } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("店的这条路 · 回本").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
-                    Text("还差 15.442\u{00A0}€").font(V3.num(14.5)).foregroundStyle(V3.ink)
-                    V3Bar(fraction: 0.52, color: V3.teal)
-                    Text("走了 52%").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+                    let total = state.book.capitalTotal, back = Money(cents: 16_728_00)
+                    let frac = min(1, Double(back.cents) / Double(max(total.cents, 1)))
+                    Text(total > back ? "还差 \((total - back).v3Short)" : "回本了").font(V3.num(14.5)).foregroundStyle(V3.ink).contentTransition(.numericText())
+                    V3Bar(fraction: frac, color: V3.teal)
+                    Text("走了 \(Int(frac * 100))%").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
@@ -375,10 +390,14 @@ private struct V3TopBar: View {
 
     var body: some View {
         HStack(spacing: 14) {
+            if state.page == .settings, state.settingsSub != nil || state.showLog {
+                Button { withAnimation(.snappy(duration: 0.2)) { state.settingsSub = nil; state.showLog = false } } label: { Label("设置", systemImage: "chevron.left") }
+                    .buttonStyle(.v3(.ghost, .small)).help("回到设置")
+            }
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
-            Button("问夏夏") { state.openChat() }.buttonStyle(.v3(.ghost))
+            Button("问\(state.prefs.xiaName)") { state.openChat() }.buttonStyle(.v3(.ghost))
                 .overlay(alignment: .topTrailing) {
                     // 夏夏有一句话没看：小红点
                     if state.sayUnreadID != nil {
@@ -399,6 +418,7 @@ private struct V3TopBar: View {
     private var title: String {
         if state.page == .think, state.thinkBig { return "大决定" }
         if state.page == .settings, state.showLog { return "改动记录" }
+        if state.page == .settings, let sub = state.settingsSub { return sub.title }
         if state.page == .monthly { return "10 月小结" }
         return state.page.title
     }
@@ -407,7 +427,7 @@ private struct V3TopBar: View {
     private var subtitle: String {
         switch state.page {
         case .overview: state.today
-        case .bizHome: "Miora 小店 · 11 月"
+        case .bizHome: "\(state.book.shopName) · 11 月"
         default: ""
         }
     }

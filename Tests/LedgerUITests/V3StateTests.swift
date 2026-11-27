@@ -147,6 +147,52 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.totals.net, net, "两边挪钱，净剩不变")
     }
 
+    func testMemoryCategoriesAndAccounts() {
+        let s = V3State()
+        let n = s.book.memos.count
+        XCTAssertTrue(s.change("记下了") { try $0.remember(.rule, topic: "转给妈妈的钱", line: "明年 1 月起每月多转 50 €") })
+        XCTAssertEqual(s.book.memos.count, n, "已经有这个话题：加在它下面，不另开一条")
+        XCTAssertEqual(s.book.memos.first { $0.topic == "转给妈妈的钱" }?.lines.count, 2)
+        let cafe = s.book.memos.first { $0.topic == "Café Nube" }!
+        XCTAssertTrue(s.change("删掉了") { try $0.removeMemo(cafe.id) })
+        s.undo()
+        XCTAssertNotNil(s.book.memos.first { $0.id == cafe.id }, "删掉能撤销")
+        // 彻底忘掉：撤销也回不来
+        XCTAssertTrue(s.change("改了别的") { try $0.renameBook(.biz, to: "花店") })
+        s.forget(memo: cafe.id)
+        s.undo()
+        XCTAssertNil(s.book.memos.first { $0.id == cafe.id })
+        XCTAssertEqual(s.book.shopName, "Miora 小店")
+
+        // 分类改成已有的名字 = 并成一个，流水一起改
+        XCTAssertTrue(s.change("并好了") { try $0.editCategory("咖啡", newName: "餐饮", emoji: "☕") })
+        XCTAssertFalse(s.book.categories.contains { $0.name == "咖啡" })
+        XCTAssertEqual(s.book.today.first { $0.place == "Café Nube" }?.name, "餐饮")
+
+        // 账户：改名流水跟着改；有流水的不能删
+        XCTAssertTrue(s.change("存好了") { try $0.editAccount("现金", newName: "钱包", balance: self.eur("90"), secret: false) })
+        XCTAssertEqual(s.book.today.first { $0.place == "Café Nube" }?.account, "钱包")
+        XCTAssertFalse(s.change("删掉了") { try $0.removeAccount("钱包") })
+        XCTAssertEqual(s.toast?.isError, true)
+    }
+
+    func testDeleteEverythingKeepsABackupAndEmptyBookDoesNotBreak() {
+        let s = V3State()
+        let before = s.book
+        let backups = s.backups.count
+        s.deleteEverything()
+        XCTAssertTrue(s.book.isEmpty)
+        XCTAssertEqual(s.backups.count, backups + 1)
+        XCTAssertEqual(s.book.totals.net, .zero)
+        XCTAssertFalse(s.book.memos.isEmpty, "记忆不删")
+        // 空账本上常用的数都能算，不出错
+        _ = s.book.journey.remainingToNext; _ = s.book.journey.position; _ = s.book.journey.overallFraction
+        _ = s.book.journey.monthsToFinish(); _ = s.book.runway.monthsText; _ = s.book.month.perDay; _ = s.book.dailyBreakEven
+        XCTAssertFalse(s.depositAndCelebrate(eur("20")), "空账本里存不了，但不崩")
+        s.restore(s.backups[0].id)
+        XCTAssertEqual(s.book, before)
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

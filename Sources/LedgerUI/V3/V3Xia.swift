@@ -20,7 +20,7 @@ extension V3State {
         guard !sayDismissed.contains(id), id != sayCardID else { return }
         if chatOpen || sheet != nil || showAdd { return }
         // 一页一次只滑下来一句；今天说满三句以后只亮小红点
-        if sayPoppedThisPage || sayPopsToday >= 3 {
+        if !prefs.bubbles || sayPoppedThisPage || sayPopsToday >= prefs.maxPerDay {
             if sayCardID == nil { sayUnreadID = id }
             return
         }

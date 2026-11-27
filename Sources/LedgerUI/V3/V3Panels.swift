@@ -98,104 +98,9 @@ struct V3AddSheet: View {
     private func close() { withAnimation(.snappy(duration: 0.2)) { state.showAdd = false } }
 }
 
-// MARK: - 设置
-
-struct V3SettingsPage: View {
-    @Environment(V3State.self) private var state
-    @State private var toggles: [String: Bool] = [:]
-
-    var body: some View {
-        if state.showLog { V3LogPage() } else { settings }
-    }
-
-    private func bind(_ key: String) -> Binding<Bool> {
-        Binding(get: { toggles[key] ?? true }, set: { v in
-            toggles[key] = v
-            state.say(v ? "打开了：\(key)" : "关掉了：\(key)")
-        })
-    }
-
-    private var settings: some View {
-        V3Cols {
-            VStack(spacing: 16) {
-                V3Card(spacing: 0) {
-                    V3CardTitle("陪你的 AI").padding(.bottom, 4)
-                    let ai = state.ai ?? ""
-                    let outside = !ai.isEmpty && ai != "夏夏自带的"
-                    row(outside ? ai : "还没连别的 AI", outside ? "连上了 · 聊目标、提醒、写信都用它" : "连上以后，聊目标、提醒、写信都用它") {
-                        V3Tag(text: outside ? "在用" : "没连", tone: outside ? .green : .blue)
-                    }
-                    V3Divider()
-                    row("夏夏自带的 AI", "没连别的 AI，或者它连不上时用") { V3Tag(text: outside ? "备用" : "在用", tone: outside ? .blue : .green) }
-                    V3Divider()
-                    row("换一个 AI", "ChatGPT、Gemini、别的") {
-                        Button("去连接") { withAnimation(.snappy) { state.onboardingStep = 4 } }.buttonStyle(.v3(.ghost, .small))
-                    }
-                }
-                V3GrowCard(spacing: 0) {
-                    V3CardTitle("夏夏什么时候开口").padding(.bottom, 4)
-                    toggleRow("目标快到不了时", "说清情况，建议把步子改小"); V3Divider()
-                    toggleRow("到站时写一封信", "收进「沿途风光」"); V3Divider()
-                    toggleRow("该付钱、该还钱之前", "提前 3 天说一声"); V3Divider()
-                    toggleRow("每月小结", "每月 1 日"); V3Divider()
-                    toggleRow("每页的夏夏气泡", "关掉以后页面上只留数字")
-                }
-            }
-        } trailing: {
-            VStack(spacing: 16) {
-                V3Card(spacing: 0) {
-                    V3CardTitle("钱怎么进来").padding(.bottom, 4)
-                    row("流水导入", "上次：今天 · Revolut 52 笔") { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
-                    V3Divider()
-                    toggleRow("手机拍的小票", "自动同步到这台 Mac"); V3Divider()
-                    toggleRow("跟 AI 说一句", "「刚才咖啡 3 块 2」")
-                }
-                V3GrowCard(spacing: 0) {
-                    V3CardTitle("账本").padding(.bottom, 4)
-                    row("生活和生意都管", "关掉就只管自己的钱") {
-                        V3Switch(on: Binding(get: { state.mode != .life }, set: { v in
-                            withAnimation(.snappy) { state.mode = v ? .both : .life }
-                            state.say(v ? "好，生活和生意都管" : "好，只管自己的钱。左边的「生意」收起来了")
-                        }), label: "生活和生意都管")
-                    }
-                    V3Divider()
-                    toggleRow("私房钱", "默认藏起来"); V3Divider()
-                    row("夏夏的记忆", state.wish.isEmpty ? "还没写过想要的" : "「\(state.wish)」等 4 条") {
-                        V3SayButton("看看", state.wish.isEmpty ? "记忆里还没有你写的那句。在引导里可以写" : "你写过：「\(state.wish)」。每条都能改、能删（试用版先只能看）", .ghost)
-                    }
-                    V3Divider()
-                    row("改动记录", "每一次改动都能撤销") { Button("看看") { withAnimation(.snappy) { state.showLog = true } }.buttonStyle(.v3(.ghost, .small)) }
-                    V3Divider()
-                    row("再走一遍开头的引导", "开场动画、管哪边、写一句想要的…") {
-                        Button("从头看") { withAnimation(.snappy) { state.onboardingStep = 0 } }.buttonStyle(.v3(.ghost, .small))
-                    }
-                    V3Divider()
-                    row("给我们提意见", "写好发到邮箱") { V3SayButton("写一句", "试用版先不发邮件。直接告诉做这个 app 的人就行", .ghost) }
-                }
-            }
-        }
-    }
-
-    private func row<Trail: View>(_ title: String, _ sub: String, @ViewBuilder trail: () -> Trail) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(V3.font(14, .bold))
-                Text(sub).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            trail()
-        }
-        .padding(.vertical, 8)
-    }
-
-    private func toggleRow(_ title: String, _ sub: String) -> some View {
-        row(title, sub) { V3Switch(on: bind(title), label: title) }
-    }
-}
-
 // MARK: - 改动记录
 
-private struct V3LogPage: View {
+struct V3LogPage: View {
     static func emoji(_ k: ChangeRecord.Kind) -> String {
         switch k {
         case .add, .capture: "✏️"
@@ -212,7 +117,7 @@ private struct V3LogPage: View {
     }
     @Environment(V3State.self) private var state
     @State private var filter = "全部"
-    private let whos = ["全部", "你", "Claude", "夏夏", "流水导入", "拍小票"]
+    private var whos: [String] { ["全部", state.author, "Claude", "夏夏", "流水导入", "拍小票"] }
 
     var body: some View {
         let items = state.ledger.changes.filter { !$0.undone && (filter == "全部" || $0.author == filter) }
@@ -221,7 +126,6 @@ private struct V3LogPage: View {
                 V3CardTitle(title: "今天") { EmptyView() } trail: {
                     HStack(spacing: 10) {
                         Text("\(items.count) 次改动").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
-                        Button("回设置") { withAnimation(.snappy) { state.showLog = false } }.buttonStyle(.v3(.ghost, .small))
                     }
                 }
                 if items.isEmpty { V3Label("「\(filter)」今天没有改过什么。").padding(.top, 10) }

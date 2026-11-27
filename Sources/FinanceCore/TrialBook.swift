@@ -102,6 +102,36 @@ public struct TrialBook: Equatable, Sendable {
         public init(day: Int, cash: Money, card: Money, state: State) { self.day = day; self.cash = cash; self.card = card; self.state = state }
     }
 
+    /// 夏夏记住的一件事：一个话题，下面几行。
+    public struct Memo: Identifiable, Equatable, Sendable {
+        public enum Kind: Int, Sendable, CaseIterable { case rule, topic, lesson }
+        public var id = UUID()
+        public var kind: Kind
+        public var topic: String
+        public var lines: [String]
+        /// 谁说的：「你说的」「你纠正的」「夏夏看出来的，你确认过」。
+        public var source: String
+        /// 重要：整理时不问。
+        public var important = false
+        public init(id: UUID = UUID(), kind: Kind, topic: String, lines: [String], source: String, important: Bool = false) {
+            self.id = id; self.kind = kind; self.topic = topic; self.lines = lines; self.source = source; self.important = important
+        }
+    }
+
+    public struct Category: Equatable, Sendable {
+        public var emoji: String
+        public var name: String
+        public init(_ emoji: String, _ name: String) { self.emoji = emoji; self.name = name }
+    }
+
+    /// 两本账的名字。
+    public var lifeName = "生活"
+    public var shopName = "Miora 小店"
+    public var categories: [Category] = [
+        .init("🛒", "超市"), .init("🥗", "餐饮"), .init("☕", "咖啡"), .init("🚇", "交通"), .init("🏠", "房租"), .init("🔁", "订阅"),
+        .init("💊", "看病"), .init("🎬", "娱乐"), .init("👕", "衣服"), .init("📱", "话费"), .init("🎁", "送礼"), .init("❓", "还没分"),
+    ]
+    public var memos: [Memo] = []
     // 生活
     public var accounts: [Account]
     public var entries: [Entry]
@@ -234,6 +264,126 @@ public struct TrialBook: Equatable, Sendable {
         accounts[t].balance = accounts[t].balance + amount
     }
 
+    // MARK: 账本、账户、分类的管理
+
+    public mutating func renameBook(_ side: Side, to name: String) throws {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("账本要有个名字") }
+        guard clean.count <= 20 else { throw TrialError("名字短一点，20 个字以内") }
+        if side == .life { lifeName = clean } else { shopName = clean }
+    }
+
+    /// 改账户：名字、现在有多少、是不是私房钱。流水里记的账户名跟着改。
+    public mutating func editAccount(_ name: String, newName: String, balance: Money, secret: Bool) throws {
+        let i = try index(name)
+        let clean = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("先给它起个名字") }
+        guard clean == name || !accounts.contains(where: { $0.name == clean }) else { throw TrialError("已经有一个叫「\(clean)」的账户了") }
+        guard balance >= .zero else { throw TrialError("这里填正数就行") }
+        if secret != (accounts[i].kind == .secret) {
+            guard accounts[i].kind == .own || accounts[i].kind == .secret else { throw TrialError("只有自己的账户能标成私房钱") }
+            guard accounts[i].block != .goal, accounts[i].block != .emergency else { throw TrialError("目标罐和应急钱不能标成私房钱") }
+            accounts[i].kind = secret ? .secret : .own
+            accounts[i].block = secret ? .none : .daily
+        }
+        accounts[i].name = clean
+        accounts[i].balance = balance
+        if clean != name {
+            for k in entries.indices where entries[k].account == name {
+                entries[k].account = clean
+                entries[k].meta = entries[k].place.isEmpty ? clean : "\(entries[k].place) · \(clean)"
+            }
+        }
+    }
+
+    /// 删账户：里面还有流水时不能删。
+    public mutating func removeAccount(_ name: String) throws {
+        let i = try index(name)
+        let n = entries.filter { $0.account == name }.count
+        guard n == 0 else { throw TrialError("「\(name)」里还有 \(n) 笔流水，先把流水删掉或改到别的账户") }
+        guard accounts[i].block != .goal, accounts[i].block != .emergency, accounts[i].kind != .shop else { throw TrialError("「\(name)」别的地方还在用，不能删") }
+        accounts.remove(at: i)
+        upcoming.removeAll { $0.name == name }
+    }
+
+    public func entryCount(category name: String) -> Int { entries.filter { $0.name == name }.count }
+
+    /// 改分类的名字或图标。改成一个已有的名字，就是把两个并成一个，流水一起改。
+    public mutating func editCategory(_ name: String, newName: String, emoji: String) throws {
+        guard let i = categories.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这个分类") }
+        let clean = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("分类要有个名字") }
+        var useEmoji = emoji
+        if clean != name, let other = categories.firstIndex(where: { $0.name == clean }) {
+            useEmoji = categories[other].emoji
+            categories.remove(at: i)
+        } else {
+            categories[i] = Category(emoji, clean)
+        }
+        for k in entries.indices where entries[k].name == name { entries[k].name = clean; entries[k].emoji = useEmoji }
+        for (place, rule) in placeRules where rule.count == 2 && rule[1] == name { placeRules[place] = [useEmoji, clean] }
+    }
+
+    public mutating func addCategory(emoji: String, name: String) throws {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("分类要有个名字") }
+        guard !categories.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个分类了") }
+        categories.insert(Category(emoji, clean), at: max(categories.count - 1, 0))
+    }
+
+    // MARK: 夏夏的记忆
+
+    /// 记一条。已经有这个话题，就加在它下面，不另开一条。返回是不是加在了已有的话题下面。
+    @discardableResult
+    public mutating func remember(_ kind: Memo.Kind, topic: String, line: String, source: String = "你说的") throws -> Bool {
+        let t = topic.trimmingCharacters(in: .whitespacesAndNewlines), l = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { throw TrialError("先写一下话题，比如「工资」") }
+        guard !l.isEmpty else { throw TrialError("要记住什么？写一句就行") }
+        guard l.count <= 200 else { throw TrialError("写短一点，200 个字以内") }
+        if let i = memos.firstIndex(where: { $0.topic == t }) {
+            guard !memos[i].lines.contains(l) else { throw TrialError("这句已经记过了") }
+            memos[i].lines.append(l)
+            return true
+        }
+        memos.insert(Memo(kind: kind, topic: t, lines: [l], source: source), at: 0)
+        return false
+    }
+
+    public mutating func removeMemo(_ id: UUID) throws {
+        guard let i = memos.firstIndex(where: { $0.id == id }) else { throw TrialError("这一条已经不在了") }
+        memos.remove(at: i)
+    }
+
+    public mutating func setMemo(_ id: UUID, important: Bool? = nil, kind: Memo.Kind? = nil) throws {
+        guard let i = memos.firstIndex(where: { $0.id == id }) else { throw TrialError("这一条已经不在了") }
+        if let important { memos[i].important = important }
+        if let kind { memos[i].kind = kind }
+    }
+
+    // MARK: 删除数据
+
+    /// 一共有多少笔流水、多少个计划、多少个订阅（删除前给人看的）。
+    public var counts: (entries: Int, plans: Int, subscriptions: Int) {
+        (entries.count + shopDays.filter { $0.state == .open }.count + purchases.count,
+         (journey.total > .zero ? 1 : 0) + debts.count + lent.count + shopDebts.count, subscriptions.count)
+    }
+
+    public var isEmpty: Bool { entries.isEmpty && subscriptions.isEmpty && journey.total == .zero && shopSalesTotal == .zero }
+
+    /// 删掉全部数据：流水、目标、欠款、订阅都没了；账本和账户留着，里面的钱归零。记忆和设置不动。
+    public mutating func wipe() {
+        entries = []; upcoming = []; subscriptions = []; wanted = []; letters = []; placeRules = [:]
+        accounts.removeAll { $0.kind == .debt || $0.kind == .lent }
+        for i in accounts.indices { accounts[i].balance = .zero; accounts[i].note = "" }
+        month = FreeToSpend(income: .zero, fixed: .zero, forGoals: .zero, spent: .zero, daysLeft: month.daysLeft)
+        journey = Journey(name: "", why: "", stations: [], saved: .zero, monthlyPlan: .zero)
+        monthlyMust = .zero; splitWithEmergency = nil
+        for i in shopDays.indices where shopDays[i].state == .open || shopDays[i].state == .rest {
+            shopDays[i] = ShopDay(day: shopDays[i].day, cash: .zero, card: .zero, state: shopDays[i].day <= todayDay ? .missing : .future)
+        }
+        fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []
+    }
+
     // MARK: 目标
 
     /// 存一笔进目标：从 `from` 挪到目标罐（答应过对半分就一半进应急钱）。返回刚到的站。
@@ -252,6 +402,17 @@ public struct TrialBook: Equatable, Sendable {
         let reached = journey.deposit(toGoal)
         if resisted { journey.resisted += 1 }
         return reached
+    }
+
+    /// 从头定一个目标：拆成四站（一成、四分之一、一半、四分之三）再到终点。
+    public mutating func startGoal(name: String, total: Money) throws {
+        try Self.positive(total, "目标的钱")
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("先写一下想要什么") }
+        guard journey.total == .zero else { throw TrialError("已经有一个目标在走了") }
+        guard total.cents >= 20_00 else { throw TrialError("目标至少 20 €") }
+        let stops = [10, 25, 50, 75, 100].map { Money(cents: total.cents * Int64($0) / 100 / 100 * 100) }
+        journey = Journey(name: clean, stops: stops, saved: sum(.goal))
     }
 
     public mutating func setMonthlyPlan(_ plan: Money) throws {
@@ -433,6 +594,15 @@ public struct TrialLedger: Sendable {
 
     /// 不留记录地改：只给摆示例场景用（启动时、到站的信收进沿途风光）。
     public mutating func patch(_ body: (inout TrialBook) -> Void) { body(&book) }
+
+    /// 彻底忘掉一条记忆：连改动记录里留着的那些「之前的样子」一起抹掉，找不回来，也不能撤销。
+    public mutating func forget(memo id: UUID) throws {
+        guard book.memos.contains(where: { $0.id == id }) || before.values.contains(where: { $0.memos.contains { $0.id == id } }) else {
+            throw TrialError("这一条已经不在了")
+        }
+        book.memos.removeAll { $0.id == id }
+        for key in before.keys { before[key]?.memos.removeAll { $0.id == id } }
+    }
 
     /// 这条能不能撤销：没撤过，而且留着改之前的样子（示例里原来就有的那几条不行）。
     public func canUndo(_ id: UUID) -> Bool {
