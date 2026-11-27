@@ -11,6 +11,8 @@ public enum V3Launch {
         guard let i = args.firstIndex(of: "-XiaxiaV3") else { return false }
         return i + 1 >= args.count || args[i + 1] != "0"
     }
+    /// 内容铺到标题栏下面（V3Scene 用）。这时每页顶上要多留一点地方给三个圆点。
+    nonisolated(unsafe) static var overTitleBar = false
     static func value(_ key: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: key), i + 1 < args.count else { return nil }
@@ -55,6 +57,19 @@ public enum V3Launch {
     }
 }
 
+/// 开发版自己的窗口：没有标题栏那一条，红黄绿三个点直接压在内容上（和设计稿一样）。
+public struct V3Scene: Scene {
+    public init() { V3Launch.overTitleBar = true }
+    public var body: some Scene {
+        Window("夏夏账本", id: "main") {
+            // 系统会给三个圆点那一条另算 28 点高，所以这里写 584，整个窗口最小正好 1000×612。
+            V3RootView().frame(minWidth: 1000, minHeight: 584)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1280, height: 800)
+    }
+}
+
 public struct V3RootView: View {
     @State private var state: V3State
 
@@ -83,6 +98,7 @@ public struct V3RootView: View {
             .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
         }
         .background(V3.bg)
+        .ignoresSafeArea(.container, edges: V3Launch.overTitleBar ? .all : [])
         .environment(state)
         .preferredColorScheme(.light)
         .background(V3WindowSetup())
@@ -109,7 +125,7 @@ private struct V3WindowSetup: NSViewRepresentable {
         private var sized = false
         private func setUp() {
             guard let w = window else { return }
-            if w.styleMask.contains(.fullSizeContentView) { w.styleMask.remove(.fullSizeContentView) }
+            if !V3Launch.overTitleBar, w.styleMask.contains(.fullSizeContentView) { w.styleMask.remove(.fullSizeContentView) }
             if !w.titlebarAppearsTransparent { w.titlebarAppearsTransparent = true }
             if w.titleVisibility != .hidden { w.titleVisibility = .hidden }
             if w.titlebarSeparatorStyle != .none { w.titlebarSeparatorStyle = .none }
@@ -123,7 +139,9 @@ private struct V3WindowSetup: NSViewRepresentable {
                 }
                 if depth < 3 { v.subviews.forEach { hideBackground($0, depth + 1) } }
             }
-            w.contentView?.superview?.subviews.filter { String(describing: type(of: $0)).contains("Titlebar") }.forEach { hideBackground($0, 0) }
+            if !V3Launch.overTitleBar {
+                w.contentView?.superview?.subviews.filter { String(describing: type(of: $0)).contains("Titlebar") }.forEach { hideBackground($0, 0) }
+            }
             w.isMovableByWindowBackground = true
             w.backgroundColor = NSColor(srgbRed: 0.863, green: 0.902, blue: 1, alpha: 1)
             w.minSize = NSSize(width: 1000, height: 612)
@@ -131,7 +149,13 @@ private struct V3WindowSetup: NSViewRepresentable {
             if !sized, let v = V3Launch.value("-XiaxiaWindowSize") {
                 sized = true
                 let parts = v.split(separator: "x").compactMap { Double($0) }
-                if parts.count == 2 { w.setContentSize(NSSize(width: parts[0], height: parts[1])) }
+                if parts.count == 2 {
+                    // 整个窗口（连三个圆点那一条）就是这么大
+                    var f = w.frame
+                    f.origin.y += f.height - parts[1]
+                    f.size = NSSize(width: parts[0], height: parts[1])
+                    w.setFrame(f, display: true)
+                }
             }
         }
     }
@@ -179,7 +203,7 @@ struct V3Shell: View {
                     .id(state.page)
                     .transition(.opacity)
             }
-            .padding(.init(top: 14, leading: 30, bottom: 24, trailing: 30))
+            .padding(.init(top: V3Launch.overTitleBar ? 22 : 14, leading: 30, bottom: 24, trailing: 30))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(V3.bg)
         }
@@ -234,7 +258,7 @@ private struct V3Sidebar: View {
             Spacer(minLength: 8)
             goalCard
         }
-        .padding(.init(top: 26, leading: 16, bottom: 16, trailing: 16))
+        .padding(.init(top: V3Launch.overTitleBar ? 54 : 26, leading: 16, bottom: 16, trailing: 16))
         .frame(width: 232).frame(maxHeight: .infinity, alignment: .top)
         .background(biz ? V3.hex(0xDCEFF3) : V3.side)
     }

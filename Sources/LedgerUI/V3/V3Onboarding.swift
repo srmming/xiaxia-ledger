@@ -23,7 +23,7 @@ struct V3Onboarding: View {
             }
             .id(step)
             .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
-            V3StepBar(step: step).padding(.top, 8)
+            V3StepBar(step: step).padding(.top, V3Launch.overTitleBar ? 22 : 8)
         }
         .clipped()
     }
@@ -151,7 +151,7 @@ private struct V3IntroStep: View {
                 Button(finished ? "再看一遍" : "跳过动画") {
                     if finished { start = Date(); finished = false; scheduleEnd() } else { finished = true }
                 }
-                .buttonStyle(.v3(.ghost, .small)).padding(.top, 8).padding(.trailing, 26)
+                .buttonStyle(.v3(.ghost, .small)).padding(.top, V3Launch.overTitleBar ? 20 : 8).padding(.trailing, 26)
             }
         }
         .onAppear {
@@ -198,7 +198,7 @@ private struct V3ChooseStep: View {
     var body: some View {
         @Bindable var state = state
         VStack(spacing: 0) {
-            V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "选了以后随时能改。").padding(.top, 50)
+            V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "选了以后随时能改。").padding(.top, V3Launch.overTitleBar ? 70 : 50)
             HStack(spacing: 18) {
                 option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
                 option(.biz, "生意为主", "一个人开店的小老板。打开先看「这个月真正赚了多少」。") { V3SceneBiz() }
@@ -366,7 +366,7 @@ private struct V3WishStep: View {
     var body: some View {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         VStack(spacing: 0) {
-            V3StepTitle(title: "随便写一句你想要的", sub: "写得很大可以，很模糊也可以。不想写就跳过。").padding(.top, 62)
+            V3StepTitle(title: "随便写一句你想要的", sub: "写得很大可以，很模糊也可以。不想写就跳过。").padding(.top, V3Launch.overTitleBar ? 82 : 62)
             TextField("比如：三年后不用为钱发愁", text: $text)
                 .textFieldStyle(.plain).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).focused($focused)
                 .padding(.horizontal, 26).padding(.vertical, 20)
@@ -456,7 +456,7 @@ private struct V3AccountsStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            V3StepTitle(title: "先看清你现在有多少", sub: "加上你的账户，填个大概的数就行，以后再对。不想填可以跳过。").padding(.top, 52)
+            V3StepTitle(title: "先看清你现在有多少", sub: "加上你的账户，填个大概的数就行，以后再对。不想填可以跳过。").padding(.top, V3Launch.overTitleBar ? 72 : 52)
             HStack(alignment: .top, spacing: 26) {
                 left.frame(width: 564)
                 right
@@ -613,7 +613,7 @@ private struct V3ConnectStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            V3StepTitle(title: "你平时用哪个 AI？", sub: "它比较了解你，让它来陪你走这条路。不连也行，以后再连。").padding(.top, 56)
+            V3StepTitle(title: "你平时用哪个 AI？", sub: "它比较了解你，让它来陪你走这条路。不连也行，以后再连。").padding(.top, V3Launch.overTitleBar ? 76 : 56)
             HStack(spacing: 12) {
                 ForEach(Self.names, id: \.self) { n in
                     V3Option(picked: state.ai == n) { connect(n) } content: {
