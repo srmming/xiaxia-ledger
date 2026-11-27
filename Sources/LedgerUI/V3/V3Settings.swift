@@ -191,8 +191,8 @@ struct V3SetLink: View {
     var sub = ""
     var value = ""
     var line = true
-    @Environment(\.v3SetNarrow) private var narrow
-    private var showSub: Bool { !narrow }
+    /// 说明不写在行里，鼠标移上去才出来（ming：小字太多）。
+    private var showSub: Bool { false }
     var action: () -> Void
     @State private var hover = false
     var body: some View {
@@ -283,14 +283,13 @@ struct V3SettingsPage: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI 连接").font(V3.font(19, .heavy))
-                            V3Label("在你常用的 AI 里记账、查账。")
                         }
                         Spacer()
                         Button("连接你的 AI") { state.openSettings(.ai) }.buttonStyle(.v3)
                     }
                     .padding(.bottom, 8)
-                    V3SetLink(title: linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、"),
-                              value: "管理连接") { state.openSettings(.ai) }
+                    V3SetLink(title: linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: "管理连接",
+                              value: linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、")) { state.openSettings(.ai) }
                     V3SetRow(title: "🔗 复制配置指令", sub: "复制一段话，粘给任何 AI，它会自己把夏夏账本配好") {
                         Button("复制") { state.copy(V3State.configPrompt, say: "已复制，粘贴给你的 AI 就行") }.buttonStyle(.v3(.ghost, .small))
                     }
@@ -322,7 +321,6 @@ struct V3SettingsPage: View {
                     V3SetLink(title: "更新日志", sub: "每一版改了什么（官网）") { openURL(Changelog.webURL) }
                     V3SetLink(title: "再走一遍开头的引导", sub: "试用版里用来再看一次") { withAnimation(.snappy) { state.onboardingStep = 0 } }
                     Spacer(minLength: 0)
-                    V3Label("界面 v3 试用版 · 只有示例数据", size: 12.5)
                 }
             }
         }
