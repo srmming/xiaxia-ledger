@@ -145,7 +145,6 @@ private struct V3IntroStep: View {
                     .position(x: g.size.width / 2, y: g.size.height * 0.23 + 170)
                 }
             }
-            .overlay(alignment: .bottomTrailing) { V3Xia(width: 190).padding(.trailing, 70).padding(.bottom, 24) }
             .overlay(alignment: .topTrailing) {
                 Button(finished ? "再看一遍" : "跳过动画") {
                     if finished { start = Date(); finished = false; scheduleEnd() } else { finished = true }
@@ -198,14 +197,14 @@ private struct V3ChooseStep: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
-            Spacer(minLength: 0).frame(maxHeight: 60)
+            Spacer(minLength: 0)
             V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "").padding(.top, V3Launch.overTitleBar ? 70 : 50)
             HStack(spacing: 18) {
                 option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
                 option(.biz, "生意为主", "一个人开店的小老板。打开先看「这个月真正赚了多少」。") { V3SceneBiz() }
                 option(.both, "我全要", "自己的钱和店里的钱都管，两边分开记，家底加在一起看。") { V3SceneBoth() }
             }
-            .frame(width: 1100, height: 400).padding(.top, 20)
+            .frame(width: 1100, height: 350).padding(.top, 20)
             V3StepButtons(skipSay: "好，先两边都管，以后随时能改", next: "下一步") {
                 state.say(state.mode == .life ? "好，以生活为主" : state.mode == .biz ? "好，以生意为主" : "小孩子才做选择。两边都管")
                 state.nextStep()
@@ -233,7 +232,7 @@ private struct V3ChooseStep: View {
     }
 }
 
-/// 三张占位的画：用现成的夏夏、小房子、小店拼的，等正式画好再换。
+/// 三张占位的画：小房子、小店、星星瓶拼的。引导里先不放角色（ming 2026-11-27）。
 private struct V3SceneLife: View {
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -241,8 +240,7 @@ private struct V3SceneLife: View {
             V3Wave().fill(V3.hex(0xC9D8FB)).frame(height: 20)
             HStack(alignment: .bottom, spacing: -18) {
                 V3HouseSketch().frame(width: 190, height: 162).padding(.bottom, 12)
-                V3Jar(level: 0.45, width: 56).zIndex(1)
-                V3.image("xia-full").resizable().scaledToFit().frame(height: 176)
+                V3Jar(level: 0.45, width: 72).zIndex(1)
             }
             .padding(.bottom, 12)
         }
@@ -263,7 +261,6 @@ private struct V3SceneBiz: View {
                     }
                 }
                 .zIndex(1)
-                V3.image("xia-full").resizable().scaledToFit().frame(height: 164)
             }
             .padding(.bottom, 12)
         }
@@ -289,8 +286,7 @@ private struct V3SceneBoth: View {
                 V3ShopSketch().frame(width: 96, height: 84).rotationEffect(.degrees(10))
             }
             .padding(.horizontal, 8).offset(y: -4)
-            V3.image("head-celebrate").resizable().scaledToFit().frame(width: 216).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 10)
-            V3Bubble("我全都要！", tone: .good).fixedSize().frame(maxHeight: .infinity, alignment: .top).padding(.top, 10)
+            V3Jar(level: 0.7, width: 84).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 26)
         }
     }
 }
@@ -368,7 +364,7 @@ private struct V3WishStep: View {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
-            Spacer(minLength: 0).frame(maxHeight: 60)
+            Spacer(minLength: 0)
             V3StepTitle(title: "随便写一句你想要的", sub: "").padding(.top, V3Launch.overTitleBar ? 82 : 62)
             TextField("比如：三年后不用为钱发愁", text: $text)
                 .textFieldStyle(.plain).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).focused($focused)
@@ -386,9 +382,7 @@ private struct V3WishStep: View {
             }
             .frame(width: 900).padding(.top, 18)
             HStack(alignment: .center, spacing: 26) {
-                V3Xia(width: 150)
                 VStack(spacing: 12) {
-                    V3Bubble("我先记着，不追问。")
                     HStack(spacing: 12) {
                         V3Ico(emoji: "🧠")
                         VStack(alignment: .leading, spacing: 1) {
@@ -459,7 +453,7 @@ private struct V3AccountsStep: View {
     var body: some View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
-            Spacer(minLength: 0).frame(maxHeight: 60)
+            Spacer(minLength: 0)
             V3StepTitle(title: "先看清你现在有多少", sub: "").padding(.top, V3Launch.overTitleBar ? 72 : 52)
             HStack(alignment: .top, spacing: 26) {
                 left.frame(width: 564)
@@ -598,10 +592,6 @@ private struct V3AccountsStep: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .v3Sticker().v3WaveBottom()
             .animation(.snappy(duration: 0.3), value: totals)
-            HStack(alignment: .bottom, spacing: 10) {
-                V3Xia(width: 110)
-                V3Bubble("每加一个，上面的数就跟着变。").padding(.bottom, 34)
-            }
         }
     }
 }
@@ -617,7 +607,7 @@ private struct V3ConnectStep: View {
     var body: some View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
-            Spacer(minLength: 0).frame(maxHeight: 60)
+            Spacer(minLength: 0)
             V3StepTitle(title: "你平时用哪个 AI？", sub: "").padding(.top, V3Launch.overTitleBar ? 76 : 56)
             HStack(spacing: 12) {
                 ForEach(Self.names, id: \.self) { n in
@@ -649,13 +639,12 @@ private struct V3ConnectStep: View {
             ZStack {
                 if let checking {
                     HStack(spacing: 10) {
-                        V3Face(face: "think", width: 50)
-                        V3Bubble("正在看这台 Mac 上的 \(checking) 连上没有…").fixedSize()
+                        ProgressView().controlSize(.small)
+                        Text("正在看这台 Mac 上的 \(checking) 连上没有…").font(V3.font(15, .bold)).foregroundStyle(V3.ink)
                     }
                 } else if let missing {
                     HStack(alignment: .top, spacing: 10) {
-                        V3Face(face: "worried", width: 50)
-                        V3Bubble(text: "没连上 \(missing)。可能是它还没打开。先用夏夏自带的？", tone: .warn) {
+                        V3Bubble(text: "没连上 \(missing)。可能是它还没打开。先用自带的 AI？", tone: .warn, flat: true) {
                             HStack(spacing: 8) {
                                 Button("用夏夏自带的") {
                                     self.missing = nil
@@ -670,11 +659,11 @@ private struct V3ConnectStep: View {
                     }
                 }
             }
-            .frame(height: 96).padding(.top, 8)
+            .frame(height: checking == nil && missing == nil ? 18 : 96).padding(.top, 8)
             HStack(alignment: .top, spacing: 22) {
-                promise("talk", "把你写的那句变成第一步", "连上以后再聊，不连也能用。")
-                promise("worried", "快到不了时先开口", "说清情况，帮你把步子改小。")
-                promise("celebrate", "到站给你写信", "只写给你一个人的那种。")
+                promise("🧭", "把你写的那句变成第一步", "连上以后再聊，不连也能用。")
+                promise("⏰", "快到不了时先开口", "说清情况，帮你把步子改小。")
+                promise("✉️", "到站给你写信", "只写给你一个人的那种。")
             }
             .padding(24).frame(width: 900).v3Soft()
             V3StepButtons(skipText: nil, next: "出发") {
@@ -687,9 +676,9 @@ private struct V3ConnectStep: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func promise(_ face: String, _ title: String, _ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            V3Face(face: face)
+    private func promise(_ emoji: String, _ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            V3Ico(emoji: emoji, size: 44)
             Text(title).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
         }
         .help(text)
