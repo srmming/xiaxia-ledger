@@ -202,7 +202,7 @@ private struct V3ChooseStep: View {
             HStack(spacing: 18) {
                 option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
                 option(.biz, "生意为主", "一个人开店的小老板。打开先看「这个月真正赚了多少」。") { V3SceneBiz() }
-                option(.both, "我全要", "自己的钱和店里的钱都管，两边分开记，家底加在一起看。") { V3SceneBoth() }
+                option(.both, "两边都管", "自己的钱和店里的钱都管，两边分开记，家底加在一起看。") { V3SceneBoth() }
             }
             .frame(width: 1100, height: 350).padding(.top, 20)
             V3StepButtons(skipSay: "好，先两边都管，以后随时能改", next: "下一步") {
@@ -220,10 +220,9 @@ private struct V3ChooseStep: View {
             withAnimation(.snappy(duration: 0.18)) { state.mode = mode }
         } content: {
             VStack(alignment: .leading, spacing: 8) {
-                scene().frame(height: 270).frame(maxWidth: .infinity)
+                scene().frame(height: 270).frame(maxWidth: .infinity).clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(V3.ink, lineWidth: 2))
-                    .overlay(alignment: .bottomLeading) { V3Tag(text: "草图 · 正式的画还没画", tone: .blue, size: 10.5).padding(8).opacity(0.92) }
                 Text(title).font(V3.font(22, .heavy)).foregroundStyle(V3.ink)
             }
         }
@@ -232,62 +231,25 @@ private struct V3ChooseStep: View {
     }
 }
 
-/// 三张占位的画：小房子、小店、星星瓶拼的。引导里先不放角色（ming 2026-11-27）。
+/// 「管哪边」三张卡上的画：ming 给的三张图。
 private struct V3SceneLife: View {
     var body: some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(colors: [V3.soft, V3.hex(0xF3F6FF)], startPoint: .top, endPoint: .bottom)
-            V3Wave().fill(V3.hex(0xC9D8FB)).frame(height: 20)
-            HStack(alignment: .bottom, spacing: -18) {
-                V3HouseSketch().frame(width: 190, height: 162).padding(.bottom, 12)
-                V3Jar(level: 0.45, width: 72).zIndex(1)
-            }
-            .padding(.bottom, 12)
-        }
-        .overlay(alignment: .topTrailing) { Text("★").font(.system(size: 16)).foregroundStyle(V3.star).padding(.top, 30).padding(.trailing, 40) }
+        // ming 给的画（2026-11-28）。
+        Color.clear.overlay { V3.image("ob-life").resizable().scaledToFill() }
     }
 }
 
 private struct V3SceneBiz: View {
     var body: some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(colors: [V3.tealSoft, V3.hex(0xF1FAFB)], startPoint: .top, endPoint: .bottom)
-            V3Wave().fill(V3.hex(0xB7E0E5)).frame(height: 20)
-            HStack(alignment: .bottom, spacing: -22) {
-                V3ShopSketch().frame(width: 210, height: 180).padding(.bottom, 8)
-                VStack(spacing: -6) {
-                    ForEach(0..<4, id: \.self) { _ in
-                        Ellipse().fill(V3.star).overlay(Ellipse().strokeBorder(V3.ink, lineWidth: 2.5)).frame(width: 34, height: 14)
-                    }
-                }
-                .zIndex(1)
-            }
-            .padding(.bottom, 12)
-        }
+        // ming 给的画（2026-11-28）。
+        Color.clear.overlay { V3.image("ob-biz").resizable().scaledToFill() }
     }
 }
 
 private struct V3SceneBoth: View {
     var body: some View {
-        ZStack {
-            RadialGradient(colors: [V3.hex(0xFFF6DA), V3.hex(0xFDE9B4)], center: UnitPoint(x: 0.5, y: 0.6), startRadius: 0, endRadius: 190)
-            Canvas { ctx, size in
-                let c = CGPoint(x: size.width / 2, y: size.height * 0.56)
-                for a in stride(from: -170.0, through: -10.0, by: 26.6) {
-                    var ray = Path()
-                    ray.move(to: c)
-                    ray.addLine(to: CGPoint(x: c.x + cos(a * .pi / 180) * 320, y: c.y + sin(a * .pi / 180) * 320))
-                    ctx.stroke(ray, with: .color(V3.star.opacity(0.7)), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                }
-            }
-            HStack {
-                V3HouseSketch().frame(width: 92, height: 80).rotationEffect(.degrees(-10))
-                Spacer()
-                V3ShopSketch().frame(width: 96, height: 84).rotationEffect(.degrees(10))
-            }
-            .padding(.horizontal, 8).offset(y: -4)
-            V3Jar(level: 0.7, width: 84).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 26)
-        }
+        // ming 给的画（2026-11-28）。
+        Color.clear.overlay { V3.image("ob-both").resizable().scaledToFill() }
     }
 }
 

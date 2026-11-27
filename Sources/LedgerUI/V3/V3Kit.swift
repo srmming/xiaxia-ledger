@@ -29,8 +29,10 @@ enum V3 {
     static let kai = "Kaiti SC"
 
     static func image(_ name: String) -> Image {
-        if let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "V3"), let img = NSImage(contentsOf: url) {
-            return Image(nsImage: img)
+        for ext in ["png", "webp"] {
+            if let url = Bundle.module.url(forResource: name, withExtension: ext, subdirectory: "V3"), let img = NSImage(contentsOf: url) {
+                return Image(nsImage: img)
+            }
         }
         return Image(systemName: "face.smiling")
     }
