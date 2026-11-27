@@ -135,7 +135,7 @@ struct V3ButtonStyle: ButtonStyle {
         let fill: Color = switch kind { case .primary: V3.navy; case .teal: V3.teal; default: .white }
         let fg: Color = switch kind { case .primary, .teal: .white; case .danger: V3.red; case .ghost: V3.ink }
         let down = configuration.isPressed
-        return configuration.label
+        return V3HoverLift(pressed: down) { configuration.label
             .font(V3.font(size == .big ? 17 : size == .small ? 13 : 14, .bold))
             .foregroundStyle(fg).lineLimit(1).fixedSize()
             .padding(.horizontal, size == .big ? 30 : size == .small ? 13 : 18)
@@ -146,6 +146,21 @@ struct V3ButtonStyle: ButtonStyle {
             .opacity(enabled ? 1 : 0.45)
             .contentShape(Capsule())
             .animation(.easeOut(duration: 0.08), value: down)
+        }
+    }
+}
+
+/// 鼠标移到按钮上：亮一点点。
+private struct V3HoverLift<Content: View>: View {
+    let pressed: Bool
+    @ViewBuilder var content: Content
+    @State private var hover = false
+    @Environment(\.isEnabled) private var enabled
+    var body: some View {
+        content
+            .brightness(hover && enabled && !pressed ? 0.06 : 0)
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.12), value: hover)
     }
 }
 
@@ -157,10 +172,21 @@ extension ButtonStyle where Self == V3ButtonStyle {
 /// 整张卡当按钮：按下去沉一点。
 struct V3SinkStyle: ButtonStyle {
     var depth: CGFloat = 3
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: Configuration) -> some View { V3SinkBody(configuration: configuration, depth: depth) }
+}
+
+struct V3SinkBody: View {
+    let configuration: ButtonStyleConfiguration
+    let depth: CGFloat
+    @State private var hover = false
+    var body: some View {
         configuration.label.contentShape(Rectangle())
-            .offset(y: configuration.isPressed ? depth : 0)
-            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+            // 鼠标移上去：轻轻抬起一点；按下去：沉下去
+            .offset(y: configuration.isPressed ? depth : hover ? -1.5 : 0)
+            .brightness(hover && !configuration.isPressed ? 0.012 : 0)
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.14), value: hover)
     }
 }
 
@@ -188,11 +214,42 @@ struct V3Tag: View {
 struct V3Ico: View {
     let emoji: String
     var size: CGFloat = 38
+
+    /// 设计库的贴纸图标（深蓝描边 + 柔和的颜色）。有对应的就用它，没有的才用表情符号。
+    static let stickers: [String: String] = [
+        "💳": "acct-credit", "🏦": "acct-bank", "⭐": "acct-stash", "💶": "acct-cash", "👛": "acct-wallet",
+        "📱": "phone", "🧑": "loan", "🤝": "debt", "🛒": "grocery", "☕": "coffee", "🥗": "dining", "🍜": "dining",
+        "🏠": "housing", "🔁": "subscription", "🚇": "transport", "🚌": "transport", "🚕": "taxi", "🚗": "taxi", "🎁": "gift",
+        "💼": "salary", "🎬": "movie", "🎵": "music", "✂️": "software", "📦": "delivery", "🥡": "delivery", "☁️": "online",
+        "📰": "books", "💊": "medical", "🏋️": "gym", "🛍": "shopping", "👟": "clothing", "⌚": "shopping", "💡": "utilities",
+        "❓": "uncategorized", "🧾": "uncategorized", "✈️": "flight", "📚": "course",
+    ]
+    nonisolated(unsafe) private static var cache: [String: Image?] = [:]
+    private static let lock = NSLock()
+    static func sticker(_ emoji: String) -> Image? {
+        guard let name = stickers[emoji] else { return nil }
+        lock.lock(); defer { lock.unlock() }
+        if let hit = cache[name] { return hit }
+        var img: Image?
+        if let url = Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "V3/icons"), let ns = NSImage(contentsOf: url) {
+            img = Image(nsImage: ns)
+        }
+        cache[name] = img
+        return img
+    }
+
     var body: some View {
-        Text(emoji).font(.system(size: size * 0.47))
-            .frame(width: size, height: size)
-            .background(Circle().fill(.white).overlay(Circle().strokeBorder(V3.ink, lineWidth: size < 34 ? 1.5 : 2)))
-            .accessibilityHidden(true)
+        Group {
+            if let icon = Self.sticker(emoji) {
+                icon.resizable().interpolation(.high).scaledToFit().padding(size * 0.19)
+            } else {
+                Text(emoji).font(.system(size: size * 0.47))
+            }
+        }
+        .frame(width: size, height: size)
+        .background(Circle().fill(.white).overlay(Circle().strokeBorder(V3.ink, lineWidth: size < 34 ? 1.5 : 2)))
+        .background(Circle().fill(V3.ink).offset(y: size < 34 ? 1.5 : 2))
+        .accessibilityHidden(true)
     }
 }
 
@@ -209,12 +266,25 @@ struct V3Face: View {
 struct V3Xia: View {
     var width: CGFloat = 170
     @State private var bob = false
+    @State private var hop = false
+    @State private var said = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(V3State.self) private var state: V3State?
+    private static let lines = ["我在呢。", "今天也一起把钱看清楚。", "不急，一步一步来。", "想问什么，点右上角「问夏夏」。", "戳我干嘛，去存一笔呀。"]
     var body: some View {
-        V3.image("xia-full").resizable().scaledToFit().frame(width: width)
-            .offset(y: bob ? -3 : 0)
+        V3.image("xia-full").resizable().interpolation(.high).scaledToFit().frame(width: width)
+            .offset(y: (bob ? -3 : 0) + (hop ? -16 : 0))
+            .rotationEffect(.degrees(hop ? -3 : 0), anchor: .bottom)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                state?.say(Self.lines[said % Self.lines.count])
+                said += 1
+                guard !reduceMotion else { return }
+                withAnimation(.spring(duration: 0.18, bounce: 0.2)) { hop = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { withAnimation(.spring(duration: 0.45, bounce: 0.55)) { hop = false } }
+            }
             .onAppear { if !reduceMotion { withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) { bob = true } } }
-            .accessibilityLabel("夏夏")
+            .accessibilityLabel("夏夏").accessibilityAddTraits(.isButton)
     }
 }
 
@@ -319,14 +389,22 @@ struct V3Gold: View {
     var size: CGFloat = 72
     /// 不显示小数（「181 €」）。
     var whole = false
+    @State private var shown: Money?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        let p = amount.v3Parts
+        let value = shown ?? (reduceMotion ? amount : .zero)
+        let p = value.v3Parts
         HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text(p.whole).font(V3.num(size, .heavy)).foregroundStyle(V3.gold).contentTransition(.numericText(value: Double(amount.cents)))
+            Text(p.whole).font(V3.num(size, .heavy)).foregroundStyle(V3.gold).contentTransition(.numericText(value: Double(value.cents)))
             Text(whole ? "\u{00A0}€" : p.rest).font(V3.num(size * 0.42, .bold)).foregroundStyle(V3.ink2)
-                .contentTransition(.numericText(value: Double(amount.cents)))
+                .contentTransition(.numericText(value: Double(value.cents)))
         }
         .lineLimit(1).fixedSize()
+        .onAppear {
+            // 刚出现时从 0 滚到这个数；截图时（-XiaxiaV3Still）直接显示
+            if reduceMotion || V3Launch.still { shown = amount } else { withAnimation(.easeOut(duration: 0.55)) { shown = amount } }
+        }
+        .onChange(of: amount) { _, new in withAnimation(.snappy(duration: 0.35)) { shown = new } }
         .accessibilityElement().accessibilityLabel(amount.v3)
     }
 }

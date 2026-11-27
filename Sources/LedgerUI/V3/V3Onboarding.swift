@@ -198,6 +198,8 @@ private struct V3ChooseStep: View {
     var body: some View {
         @Bindable var state = state
         VStack(spacing: 0) {
+            // 上下各留一样多的空，内容落在窗口中间偏上
+            Spacer(minLength: 0).frame(maxHeight: 60)
             V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "选了以后随时能改。").padding(.top, V3Launch.overTitleBar ? 70 : 50)
             HStack(spacing: 18) {
                 option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
@@ -366,6 +368,8 @@ private struct V3WishStep: View {
     var body: some View {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         VStack(spacing: 0) {
+            // 上下各留一样多的空，内容落在窗口中间偏上
+            Spacer(minLength: 0).frame(maxHeight: 60)
             V3StepTitle(title: "随便写一句你想要的", sub: "写得很大可以，很模糊也可以。不想写就跳过。").padding(.top, V3Launch.overTitleBar ? 82 : 62)
             TextField("比如：三年后不用为钱发愁", text: $text)
                 .textFieldStyle(.plain).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).focused($focused)
@@ -456,6 +460,8 @@ private struct V3AccountsStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 上下各留一样多的空，内容落在窗口中间偏上
+            Spacer(minLength: 0).frame(maxHeight: 60)
             V3StepTitle(title: "先看清你现在有多少", sub: "加上你的账户，填个大概的数就行，以后再对。不想填可以跳过。").padding(.top, V3Launch.overTitleBar ? 72 : 52)
             HStack(alignment: .top, spacing: 26) {
                 left.frame(width: 564)
@@ -613,6 +619,8 @@ private struct V3ConnectStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 上下各留一样多的空，内容落在窗口中间偏上
+            Spacer(minLength: 0).frame(maxHeight: 60)
             V3StepTitle(title: "你平时用哪个 AI？", sub: "它比较了解你，让它来陪你走这条路。不连也行，以后再连。").padding(.top, V3Launch.overTitleBar ? 76 : 56)
             HStack(spacing: 12) {
                 ForEach(Self.names, id: \.self) { n in

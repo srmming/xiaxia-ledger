@@ -64,7 +64,7 @@ struct V3OverviewPage: View {
             .padding(.init(top: 18, leading: 24, bottom: 34, trailing: 24))
             .frame(maxWidth: .infinity, alignment: .leading)
             .v3Sticker().v3WaveBottom()
-            .overlay(alignment: .topTrailing) { V3Xia(width: 150).offset(x: -16, y: -66).allowsHitTesting(false) }
+            .overlay(alignment: .topTrailing) { V3Xia(width: 150).offset(x: -16, y: -66) }
             .accessibilityElement(children: .combine)
 
             HStack(spacing: 14) {
@@ -415,9 +415,15 @@ struct V3GoalsPage: View {
                         Button { state.openMoment(.letter(l)) } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(l.title).font(.custom(V3.kai, size: 16).weight(.bold)).foregroundStyle(V3.ink)
-                                Text(l.quote).font(.custom(V3.kai, size: 13.5)).foregroundStyle(V3.ink2).fixedSize(horizontal: false, vertical: true)
-                                Spacer(minLength: 0)
-                                V3Tag(text: l.date, tone: .gold)
+                                // 信的开头几句，像一张露出半截的信纸
+                                Text(l.paragraphs.dropFirst().joined(separator: "\n")).font(.custom(V3.kai, size: 13.5)).foregroundStyle(V3.ink2)
+                                    .lineSpacing(5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .mask(LinearGradient(stops: [.init(color: .black, location: 0.72), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
+                                HStack(spacing: 4) {
+                                    V3Tag(text: l.date, tone: .gold)
+                                    Spacer(minLength: 0)
+                                    Text("看全文 ›").font(V3.font(11.5, .bold)).foregroundStyle(V3.navy)
+                                }
                             }
                             .padding(.horizontal, 12).padding(.vertical, 10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -16,6 +16,16 @@ for b in "$BIN_DIR"/*.bundle; do
   cp -R "$b" "$STAGE/Contents/Resources/"
   cp -R "$b" "$STAGE/"
 done
+# 图标：用正式版同一套图标图做一个 .icns（只读那几张图，不动正式版）
+ICONSET="$(mktemp -d)/AppIcon.iconset"; mkdir -p "$ICONSET"
+SRC="App/Resources/Assets.xcassets/AppIcon.appiconset"
+if [ -f "$SRC/icon-1024.png" ]; then
+  for sz in 16 32 128 256 512; do
+    sips -z $sz $sz "$SRC/icon-1024.png" --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
+    d=$((sz * 2)); sips -z $d $d "$SRC/icon-1024.png" --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$STAGE/Contents/Resources/AppIcon.icns" || true
+fi
 cat > "$STAGE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -24,6 +34,7 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>com.srmming.xiaxia-ledger.v3demo</string>
   <key>CFBundleName</key><string>夏夏账本 v3 试用</string>
   <key>CFBundleDisplayName</key><string>夏夏账本 v3 试用</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>v3 试用</string>
   <key>CFBundleVersion</key><string>$(git rev-parse --short HEAD)</string>

@@ -15,6 +15,8 @@ public enum V3Launch {
     }
     /// 内容铺到标题栏下面（V3Scene 用）。这时每页顶上要多留一点地方给三个圆点。
     nonisolated(unsafe) static var overTitleBar = false
+    /// 截图用：数字不做滚动，直接显示。
+    static let still = ProcessInfo.processInfo.arguments.contains("-XiaxiaV3Still")
     static func value(_ key: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: key), i + 1 < args.count else { return nil }
@@ -203,7 +205,7 @@ struct V3Shell: View {
                 V3TopBar()
                 pageBody.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .id(state.page)
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 10)), removal: .opacity))
             }
             .padding(.init(top: V3Launch.overTitleBar ? 22 : 14, leading: 30, bottom: 24, trailing: 30))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -255,7 +257,9 @@ private struct V3Sidebar: View {
             if state.mode != .life || biz {
                 sideSwitch.padding(.bottom, 14)
             }
-            ForEach(biz ? V3State.Page.biz : V3State.Page.life) { p in navItem(p) }
+            ForEach(Array((biz ? V3State.Page.biz : V3State.Page.life).enumerated()), id: \.element) { i, p in
+                if i < 9 { navItem(p).keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command) } else { navItem(p) }
+            }
             navItem(.settings).padding(.top, 6)
             Spacer(minLength: 8)
             goalCard
@@ -291,6 +295,7 @@ private struct V3Sidebar: View {
     private func navItem(_ p: V3State.Page) -> some View {
         let on = state.page == p
         return Button { state.go(p) } label: {
+            V3NavRow(on: on) {
             HStack(spacing: 10) {
                 Image(systemName: p.symbol).font(.system(size: 14, weight: .semibold)).frame(width: 18)
                 Text(p.title).font(V3.font(14.5, .semibold))
@@ -298,13 +303,11 @@ private struct V3Sidebar: View {
             }
             .foregroundStyle(on ? (state.side == .biz ? V3.teal : V3.navy) : V3.ink2)
             .padding(.horizontal, 12).padding(.vertical, 8)
-            .background {
-                if on { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white).shadow(color: V3.navy.opacity(0.08), radius: 4, y: 2) }
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(V3SinkStyle(depth: 1))
+        .buttonStyle(V3PlainSink())
         .accessibilityAddTraits(on ? .isSelected : [])
+        .help(p.title)
     }
 
     /// 左边栏最下面一直看得到：目标走到哪了。
@@ -344,6 +347,30 @@ private struct V3Sidebar: View {
     private func strip(_ m: Money) -> String { m.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "") }
 }
 
+/// 左边栏的一行：选中是白底，鼠标移上去是半透明白底。
+private struct V3NavRow<Content: View>: View {
+    let on: Bool
+    @ViewBuilder var content: Content
+    @State private var hover = false
+    var body: some View {
+        content
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                if on { shape.fill(.white).shadow(color: V3.navy.opacity(0.08), radius: 4, y: 2) }
+                else if hover { shape.fill(.white.opacity(0.55)) }
+            }
+            .contentShape(Rectangle())
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.12), value: hover)
+    }
+}
+
+private struct V3PlainSink: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.offset(y: configuration.isPressed ? 1 : 0).animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
 private struct V3TopBar: View {
     @Environment(V3State.self) private var state
 
@@ -353,10 +380,10 @@ private struct V3TopBar: View {
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
             Button("问夏夏") { withAnimation(.snappy(duration: 0.25)) { state.showAsk.toggle() } }.buttonStyle(.v3(.ghost))
-                .keyboardShortcut("k", modifiers: .command)
+                .keyboardShortcut("k", modifiers: .command).help("问夏夏（⌘K）")
             Button("+ 记一笔") { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
                 .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
-                .keyboardShortcut("n", modifiers: .command)
+                .keyboardShortcut("n", modifiers: .command).help("记一笔（⌘N）")
         }
         .frame(height: 48)
     }
