@@ -153,7 +153,7 @@ struct V3OverviewPage: View {
                     }
                     .buttonStyle(V3SinkStyle(depth: 1))
                 }
-                V3Rows(data: b.today) { e in
+                V3Rows(data: Array(b.today.prefix(3))) { e in
                     V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, tag: e.tag, compact: true)
                 }
             }

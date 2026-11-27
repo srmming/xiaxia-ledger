@@ -388,18 +388,19 @@ struct V3Row: View {
     var color: Color = V3.navy
     var tag: String = ""
     var compact = false
+    var tagTone: V3Tag.Tone = .blue
     var body: some View {
         HStack(spacing: compact ? 10 : 12) {
             V3Ico(emoji: emoji, size: compact ? 30 : 38)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Text(name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
-                    if !tag.isEmpty { V3Tag(text: tag) }
+                    if !tag.isEmpty { V3Tag(text: tag, tone: tagTone) }
                 }
                 Text(meta).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             }
             Spacer(minLength: 6)
-            V3Amount(amount, color: color, size: compact ? 14.5 : 15.5)
+            if !amount.isEmpty { V3Amount(amount, color: color, size: compact ? 14.5 : 15.5) }
         }
         .padding(.vertical, compact ? 5 : 9)
         .accessibilityElement(children: .combine)
@@ -577,6 +578,185 @@ struct V3Fit<Content: View>: View {
                 .scaleEffect(s, anchor: .center)
                 .frame(width: g.size.width, height: g.size.height, alignment: alignment)
         }
+    }
+}
+
+// MARK: - 排页面用的
+
+/// 左右两栏，按比例分宽度。
+struct V3Cols<Left: View, Right: View>: View {
+    var left: CGFloat = 1
+    var right: CGFloat = 1
+    var gap: CGFloat = 18
+    @ViewBuilder var leading: Left
+    @ViewBuilder var trailing: Right
+    var body: some View {
+        GeometryReader { g in
+            let w = (g.size.width - gap) * left / (left + right)
+            HStack(alignment: .top, spacing: gap) {
+                leading.frame(width: w).frame(maxHeight: .infinity, alignment: .top)
+                trailing.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+    }
+}
+
+/// 贴纸大卡：小字 + 金色大数字 + 下面的说明，底下一条海浪。
+struct V3KeyCard<Extra: View>: View {
+    let label: String
+    let whole: String
+    var rest: String = ""
+    var size: CGFloat = 72
+    var wave: Color = V3.soft
+    @ViewBuilder var extra: Extra
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            V3Label(label)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(whole).font(V3.num(size, .heavy)).foregroundStyle(V3.gold).contentTransition(.numericText())
+                Text(rest).font(V3.num(size * 0.42, .bold)).foregroundStyle(V3.ink2).contentTransition(.numericText())
+            }
+            .lineLimit(1).fixedSize()
+            extra
+        }
+        .padding(.init(top: 18, leading: 22, bottom: 34, trailing: 22))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .v3Sticker().v3WaveBottom(color: wave)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension V3KeyCard {
+    init(label: String, amount: Money, size: CGFloat = 72, wave: Color = V3.soft, @ViewBuilder extra: () -> Extra) {
+        let p = amount.v3Parts
+        self.init(label: label, whole: p.whole, rest: p.rest, size: size, wave: wave, extra: extra)
+    }
+}
+
+/// 撑满剩下高度的柔和卡。
+struct V3GrowCard<Content: View>: View {
+    var spacing: CGFloat = 10
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) { content }
+            .padding(.horizontal, 20).padding(.vertical, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .v3Soft()
+    }
+}
+
+/// 不撑高的柔和卡。
+struct V3Card<Content: View>: View {
+    var spacing: CGFloat = 10
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) { content }.v3Card()
+    }
+}
+
+/// 设计稿里那种简单的折线图：点按 560×高 的画布给，自动拉伸。
+struct V3Lines: View {
+    struct Line {
+        var points: [(Double, Double)]
+        var color: Color
+        var width: CGFloat = 4
+        var dash: [CGFloat] = []
+        var fill: Color? = nil
+    }
+    var height: Double = 220
+    var grid: [Double] = []
+    var lines: [Line]
+    var dot: (Double, Double)? = nil
+    var body: some View {
+        Canvas { ctx, size in
+            let sx = size.width / 560, sy = size.height / height
+            func pt(_ p: (Double, Double)) -> CGPoint { CGPoint(x: p.0 * sx, y: p.1 * sy) }
+            for y in grid { ctx.fill(Path(CGRect(x: 0, y: y * sy, width: size.width, height: 1)), with: .color(V3.line)) }
+            for l in lines {
+                guard let first = l.points.first, let last = l.points.last else { continue }
+                var path = Path()
+                path.move(to: pt(first))
+                l.points.dropFirst().forEach { path.addLine(to: pt($0)) }
+                if let fill = l.fill {
+                    var area = path
+                    area.addLine(to: CGPoint(x: last.0 * sx, y: size.height)); area.addLine(to: CGPoint(x: first.0 * sx, y: size.height)); area.closeSubpath()
+                    ctx.fill(area, with: .color(fill))
+                }
+                ctx.stroke(path, with: .color(l.color), style: StrokeStyle(lineWidth: l.width, lineCap: .round, lineJoin: .round, dash: l.dash))
+            }
+            if let dot {
+                let c = pt(dot)
+                let circle = Path(ellipseIn: CGRect(x: c.x - 8, y: c.y - 8, width: 16, height: 16))
+                ctx.fill(circle, with: .color(V3.star)); ctx.stroke(circle, with: .color(V3.ink), lineWidth: 3)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// 开关：深蓝描边的小药丸。
+struct V3Switch: View {
+    @Binding var on: Bool
+    var label: String
+    var tint: Color = V3.navy
+    var body: some View {
+        Button { withAnimation(.snappy(duration: 0.18)) { on.toggle() } } label: {
+            Capsule().fill(on ? tint : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2))
+                .frame(width: 44, height: 26)
+                .overlay(alignment: on ? .trailing : .leading) { Circle().fill(on ? .white : V3.ink).frame(width: 18, height: 18).padding(4) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label).accessibilityValue(on ? "开着" : "关着").accessibilityAddTraits(.isButton)
+    }
+}
+
+/// 分期那种一格一格的进度。
+struct V3Periods: View {
+    let total: Int
+    let done: Int
+    var color: Color = V3.navy
+    var height: CGFloat = 16
+    var body: some View {
+        HStack(spacing: total > 20 ? 4 : 5) {
+            ForEach(0..<total, id: \.self) { i in
+                RoundedRectangle(cornerRadius: total > 20 ? 4 : 5).fill(i < done ? color : .white)
+                    .overlay(RoundedRectangle(cornerRadius: total > 20 ? 4 : 5).strokeBorder(V3.ink, lineWidth: total > 20 ? 1.5 : 2))
+                    .frame(height: height)
+            }
+        }
+        .accessibilityElement().accessibilityLabel("\(total) 期还了 \(done) 期")
+    }
+}
+
+/// 圆环进度（回本）。
+struct V3Ring: View {
+    var fraction: Double
+    var size: CGFloat = 86
+    var color: Color = V3.teal
+    var body: some View {
+        ZStack {
+            Circle().stroke(V3.tealSoft, lineWidth: size * 0.14)
+            Circle().trim(from: 0, to: fraction).stroke(color, style: StrokeStyle(lineWidth: size * 0.14, lineCap: .round)).rotationEffect(.degrees(-90))
+            Text("\(Int((fraction * 100).rounded()))%").font(V3.num(size * 0.21, .heavy)).foregroundStyle(V3.ink)
+        }
+        .padding(size * 0.07).frame(width: size, height: size)
+        .accessibilityElement().accessibilityLabel("走了 \(Int((fraction * 100).rounded()))%")
+    }
+}
+
+/// 输入框：药丸形、深蓝描边。
+struct V3Field: View {
+    let prompt: String
+    @Binding var text: String
+    var size: CGFloat = 15
+    var rounded = false
+    var onSubmit: () -> Void = {}
+    var body: some View {
+        TextField(prompt, text: $text).textFieldStyle(.plain)
+            .font(rounded ? V3.num(size, .heavy) : V3.font(size, .bold)).foregroundStyle(V3.ink)
+            .padding(.horizontal, 16).padding(.vertical, 9)
+            .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
+            .onSubmit(onSubmit)
     }
 }
 #endif

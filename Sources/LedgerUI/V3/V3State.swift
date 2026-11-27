@@ -120,6 +120,28 @@ final class V3State {
         var runway: EmergencyRunway { EmergencyRunway(fund: sum(.emergency), monthlyMust: monthlyMust) }
     }
 
+    /// 改动记录里的一条。
+    struct LogItem: Identifiable, Equatable {
+        var id = UUID()
+        var emoji: String
+        var who: String
+        var what: String
+        var when: String
+        /// 这次打开以后你自己做的（能真的撤销）。
+        var mine = false
+    }
+
+    /// 想要清单里的一样。
+    struct Wanted: Identifiable, Equatable {
+        var id = UUID()
+        var emoji: String
+        var name: String
+        var note: String
+        var price: Money
+        var tag = ""
+        var saved = false
+    }
+
     struct Toast: Identifiable, Equatable {
         let id = UUID()
         var text: String
@@ -143,6 +165,25 @@ final class V3State {
     var starDrops = 0
     var secretShown = false
     var showAddAccount = false
+    var showAdd = false
+    var showAsk = false
+    /// 「花钱前想想」里的第二种：大决定。
+    var thinkBig = false
+    /// 设置里点进去的改动记录。
+    var showLog = false
+    var log: [LogItem] = [
+        LogItem(emoji: "🧾", who: "拍小票", what: "记一笔：午饭 12,50 € · 日常卡", when: "今天 13:05"),
+        LogItem(emoji: "🛒", who: "夏夏", what: "「Super Lumi」归进超市，以后这家店都这样", when: "今天 10:42"),
+        LogItem(emoji: "🔁", who: "Claude", what: "把「健身房 29 €」标成像订阅，等你确认", when: "今天 10:41"),
+        LogItem(emoji: "📄", who: "流水导入", what: "导入「Revolut 11 月流水」31 笔，跳过重复 6 笔", when: "今天 10:40"),
+        LogItem(emoji: "☕", who: "Claude", what: "记一笔：咖啡 3,20 € · 现金", when: "今天 09:12"),
+        LogItem(emoji: "⭐", who: "你", what: "存一笔 20 € 进「换新电脑」", when: "今天 08:30"),
+    ]
+    var wanted: [Wanted] = [
+        Wanted(emoji: "⌚", name: "运动手表", note: "还要冷静 21 小时", price: Money(cents: 189_00)),
+        Wanted(emoji: "👟", name: "跑鞋", note: "冷静完了，还想要吗？", price: Money(cents: 95_00), tag: "该回答了"),
+        Wanted(emoji: "🎮", name: "游戏手柄", note: "上周忍住了 · 存进目标", price: Money(cents: 59_00), saved: true),
+    ]
     /// 目标的三个时刻：定第一步、改小步子、到站的信。
     var moment: V3Moment?
 
@@ -165,12 +206,14 @@ final class V3State {
         undoStack.append(book)
         if undoStack.count > 30 { undoStack.removeFirst() }
         withAnimation(.spring(duration: 0.45)) { body(&book) }
+        log.insert(LogItem(emoji: "✏️", who: "你", what: text, when: "刚刚", mine: true), at: 0)
         show(Toast(text: text, canUndo: true))
     }
 
     func undo() {
         guard let last = undoStack.popLast() else { return }
         withAnimation(.spring(duration: 0.45)) { book = last }
+        if let i = log.firstIndex(where: \.mine) { log.remove(at: i) }
         show(Toast(text: "撤销了，回到刚才的样子"))
     }
 
@@ -187,6 +230,7 @@ final class V3State {
     func go(_ p: Page) {
         withAnimation(.snappy(duration: 0.22)) {
             page = p
+            thinkBig = false; showLog = false; showAsk = false
             if Page.biz.contains(p) { side = .biz } else if Page.life.contains(p) { side = .life }
         }
     }
@@ -208,7 +252,15 @@ final class V3State {
             b.month.spent = b.month.spent + amount
             if let i = b.accounts.firstIndex(where: { $0.name == "现金" }) { b.accounts[i].balance = b.accounts[i].balance - amount }
             b.today.insert(Entry(emoji: "☕", name: "咖啡", meta: "Café Nube · 现金", amount: -amount, tag: "刚记的"), at: 0)
-            if b.today.count > 3 { b.today.removeLast() }
+        }
+    }
+
+    /// 记一笔开销（记一笔面板用）。
+    func record(_ q: QuickPhrase, account: String, place: String = "") {
+        change("记好了 · \(q.name) \(q.amount.v3) · \(account)") { b in
+            b.month.spent = b.month.spent + q.amount
+            if let i = b.accounts.firstIndex(where: { $0.name == account }) { b.accounts[i].balance = b.accounts[i].balance - q.amount }
+            b.today.insert(Entry(emoji: q.emoji, name: q.name, meta: (place.isEmpty ? "" : place + " · ") + account, amount: -q.amount, tag: "刚记的"), at: 0)
         }
     }
 

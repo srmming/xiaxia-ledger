@@ -78,4 +78,16 @@ final class JourneyTests: XCTestCase {
         XCTAssertEqual(r.fraction(), 2400.0 / 860.0 / 6.0, accuracy: 0.0001)
         XCTAssertEqual(EmergencyRunway(fund: eur("2400"), monthlyMust: .zero).monthsText, "0,0")
     }
+
+    func testQuickPhrase() {
+        XCTAssertEqual(QuickPhrase.parse("刚才咖啡 3 块 2"), QuickPhrase(name: "咖啡", emoji: "☕", amount: eur("3,20")))
+        XCTAssertEqual(QuickPhrase.parse("午饭12,5"), QuickPhrase(name: "午饭", emoji: "🥗", amount: eur("12,50")))
+        XCTAssertEqual(QuickPhrase.parse("打车 15"), QuickPhrase(name: "打车", emoji: "🚕", amount: eur("15")))
+        XCTAssertEqual(QuickPhrase.parse("买了本书 18.90€"), QuickPhrase(name: "本书", emoji: "🧾", amount: eur("18,90")))
+        XCTAssertEqual(QuickPhrase.parse("花了 20")?.name, "一笔开销")
+        // 没有「块」就不把后面的数字当小数
+        XCTAssertEqual(QuickPhrase.parse("超市 23 2 袋")?.amount, eur("23"))
+        XCTAssertNil(QuickPhrase.parse("刚才喝了杯咖啡"))
+        XCTAssertNil(QuickPhrase.parse("咖啡 0"))
+    }
 }

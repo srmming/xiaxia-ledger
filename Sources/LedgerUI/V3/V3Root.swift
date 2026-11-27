@@ -37,7 +37,17 @@ public enum V3Launch {
                     state.moment = .letter(l)
                 }
             }
+        } else if ["bigdecision", "log", "add", "ask"].contains(p) {
+            state.onboardingStep = nil
+            state.wish = "三年后不用为钱发愁"
+            state.ai = "Claude"
+            if p == "bigdecision" { state.page = .think; state.thinkBig = true }
+            if p == "log" { state.page = .settings; state.showLog = true }
+            if p == "add" { state.showAdd = true }
+            if p == "ask" { state.page = .spending; state.showAsk = true }
         } else if let page = V3State.Page(rawValue: p) {
+            state.wish = "三年后不用为钱发愁"
+            state.ai = "Claude"
             state.onboardingStep = nil
             state.page = page
             state.side = V3State.Page.biz.contains(page) ? .biz : .life
@@ -173,6 +183,16 @@ struct V3Shell: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(V3.bg)
         }
+        .overlay(alignment: .trailing) {
+            if state.showAsk {
+                ZStack(alignment: .trailing) {
+                    V3.ink.opacity(0.18).onTapGesture { withAnimation(.snappy(duration: 0.25)) { state.showAsk = false } }.accessibilityHidden(true)
+                    V3AskPanel().transition(.move(edge: .trailing))
+                }
+                .transition(.opacity)
+            }
+        }
+        .overlay { if state.showAdd { V3AddSheet().transition(.opacity) } }
         .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state) }
     }
 
@@ -181,7 +201,21 @@ struct V3Shell: View {
         case .overview: V3OverviewPage()
         case .goals: V3GoalsPage()
         case .wealth: V3WealthPage()
-        default: V3ComingPage(page: state.page)
+        case .spending: V3SpendingPage()
+        case .trends: V3TrendsPage()
+        case .transactions: V3TransactionsPage()
+        case .think: V3ThinkPage()
+        case .subscriptions: V3SubscriptionsPage()
+        case .debts: V3DebtsPage()
+        case .monthly: V3MonthlyPage()
+        case .settings: V3SettingsPage()
+        case .bizHome: V3BizHomePage()
+        case .sales: V3SalesPage()
+        case .fixed: V3FixedPage()
+        case .payback: V3PaybackPage()
+        case .stock: V3StockPage()
+        case .checkup: V3CheckupPage()
+        case .bizDebts: V3BizDebtsPage()
         }
     }
 }
@@ -289,15 +323,23 @@ private struct V3TopBar: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Text(state.page.title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
+            Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
-            Button("问夏夏") { state.say("夏夏在听，你说") }.buttonStyle(.v3(.ghost))
-            Button("+ 记一笔") { state.quickAddCoffee() }
+            Button("问夏夏") { withAnimation(.snappy(duration: 0.25)) { state.showAsk.toggle() } }.buttonStyle(.v3(.ghost))
+                .keyboardShortcut("k", modifiers: .command)
+            Button("+ 记一笔") { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
                 .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
                 .keyboardShortcut("n", modifiers: .command)
         }
         .frame(height: 48)
+    }
+
+    private var title: String {
+        if state.page == .think, state.thinkBig { return "大决定" }
+        if state.page == .settings, state.showLog { return "改动记录" }
+        if state.page == .monthly { return "10 月小结" }
+        return state.page.title
     }
 
     private var subtitle: String {
@@ -305,27 +347,22 @@ private struct V3TopBar: View {
         case .overview: state.today
         case .goals: "一个大目标，拆成几站慢慢走"
         case .wealth: "你现在一共有多少、欠多少、净剩多少"
-        default: ""
+        case .spending: "11 月 · 钱花到哪了"
+        case .trends: "往后看：月底、下个月、还能撑多久"
+        case .transactions: "钱自己进来，你只管看一眼"
+        case .think: state.thinkBig ? "离职、创业、买大件之前，先算一算" : "买之前算一算，我不替你决定"
+        case .subscriptions: "每个月自己扣走的钱"
+        case .debts: "先还哪个、哪天还完"
+        case .monthly: "每个月一份，11 月 1 日写好"
+        case .settings: state.showLog ? "账本每一次改动都记着是谁改的，都能撤销" : ""
+        case .bizHome: "Miora 小店 · 11 月"
+        case .sales: "每天只记一个总数"
+        case .fixed: "不管开不开门，每个月都要付的"
+        case .payback: "开店投进去的钱，赚回来多少了"
+        case .stock: "不数库存，只估一个总数"
+        case .checkup: "每个季度一次 · 第三季度（7–9 月）"
+        case .bizDebts: "店欠别人的，别人欠店里的"
         }
-    }
-}
-
-/// 还没做到的页：先说清楚，不留点了没反应的入口。
-private struct V3ComingPage: View {
-    let page: V3State.Page
-    @Environment(V3State.self) private var state
-    var body: some View {
-        VStack(spacing: 16) {
-            V3Xia(width: 150)
-            V3Bubble("「\(page.title)」这一页我还在画，下一段就做好。先看看总览、家底和目标？") {
-                HStack(spacing: 8) {
-                    Button("回总览") { state.go(.overview) }.buttonStyle(.v3(.primary, .small))
-                    Button("看目标") { state.go(.goals) }.buttonStyle(.v3(.ghost, .small))
-                }
-            }
-            .frame(width: 420)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
