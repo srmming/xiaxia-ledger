@@ -56,8 +56,9 @@ final class V3State {
             case .checkup: "waveform.path.ecg"
             }
         }
-        static let life: [Page] = [.overview, .goals, .wealth, .spending, .trends, .transactions, .think, .subscriptions, .debts, .monthly]
-        static let biz: [Page] = [.bizHome, .sales, .fixed, .payback, .stock, .checkup, .bizDebts]
+        // 哪页属于哪边写在核心里一处（TrialBook.lifePages / bizPages），这里只是换成页面。
+        static let life: [Page] = TrialBook.lifePages.compactMap(Page.init(rawValue:))
+        static let biz: [Page] = TrialBook.bizPages.compactMap(Page.init(rawValue:))
     }
 
     // 账本里的东西都在核心（FinanceCore/TrialBook.swift）里，这里只起个短名字。
@@ -83,7 +84,30 @@ final class V3State {
     var author = "你"
     var page: Page = .overview
     var side: Side = .life
-    var mode: Mode = .both
+    /// 管哪边（存在账本里：showLife / showBiz）。引导里选的就是给这两个开关设初值，不留改动记录。
+    var mode: Mode {
+        get { book.showLife && book.showBiz ? .both : book.showBiz ? .biz : .life }
+        set { patch { try? $0.setSides(life: newValue != .biz, biz: newValue != .life) }; settleSide() }
+    }
+    var showsLife: Bool { book.showLife }
+    var showsBiz: Bool { book.showBiz }
+
+    /// 设置里改「管哪边」：留改动记录，能撤销。想把最后一个也关掉：不改，返回 false（开关自己弹回去）。
+    @discardableResult
+    func setSides(life: Bool, biz: Bool) -> Bool {
+        guard life || biz else { return false }
+        let text = life && biz ? "好，两边都管" : life ? "好，只管生活。生意的账还在" : "好，只管生意。生活的账还在"
+        let ok = change(text) { try $0.setSides(life: life, biz: biz) }
+        settleSide()
+        return ok
+    }
+
+    /// 正停在被关掉的那一边：换到还开着的那边的第一页。
+    func settleSide() {
+        if side == .biz, !book.showBiz { side = .life }
+        if side == .life, !book.showLife { side = .biz }
+        if !book.shows(page: page.rawValue) { page = side == .biz ? .bizHome : .overview }
+    }
     /// 引导走到第几步（0…4）；nil = 引导走完了。
     var onboardingStep: Int? = 0
     /// 引导里写的那句想要的（存进夏夏的记忆）。
@@ -187,6 +211,7 @@ final class V3State {
         do {
             var n = 0
             try withAnimation(.spring(duration: 0.45)) { n = try ledger.undo(id) }
+            settleSide()
             show(Toast(text: n > 1 ? "撤销了，连后面的 \(n - 1) 步一起" : "撤销了"))
         } catch let e as TrialError { fail(e.message) } catch { fail("没撤成，再试一次") }
     }
@@ -213,6 +238,7 @@ final class V3State {
     }
 
     func go(_ p: Page) {
+        guard book.shows(page: p.rawValue) else { return }
         withAnimation(.snappy(duration: 0.22)) {
             page = p
             thinkBig = false; showLog = false; chatOpen = false; settingsSub = nil
@@ -222,7 +248,7 @@ final class V3State {
     }
 
     func switchSide(_ s: Side) {
-        guard s != side else { return }
+        guard s != side, s == .biz ? book.showBiz : book.showLife else { return }
         withAnimation(.snappy(duration: 0.22)) {
             side = s
             page = s == .biz ? .bizHome : .overview

@@ -33,8 +33,9 @@ extension V3State {
         withAnimation(.snappy(duration: 0.3)) {
             if let s = onboardingStep { onboardingStep = s >= 4 ? nil : s + 1 }
         }
-        // 连上了 AI：进去第一件事，是把写的那句话变成第一步。
-        if onboardingStep == nil, ai != nil, moment == nil { openMoment(.firstStep) }
+        if onboardingStep == nil { settleSide() }
+        // 连上了 AI：进去第一件事，是把写的那句话变成第一步（只管生意时没有生活那条目标路，不出）。
+        if onboardingStep == nil, ai != nil, moment == nil, showsLife { openMoment(.firstStep) }
     }
     func previousStep() {
         withAnimation(.snappy(duration: 0.3)) {

@@ -35,6 +35,16 @@ final class V3RenderTests: XCTestCase {
         empty.patch { $0.wipe() }
         empty.sayCardID = "想省事？把银行流水拖进来，我帮你填"
         try write(V3Shell().environment(empty), "overview-empty", to: dir)
+        // 管哪边：只管生活、只管生意、设置里的两个开关
+        for (mode, name) in [(V3State.Mode.life, "sides-life"), (.biz, "sides-biz")] {
+            let s = V3State()
+            s.onboardingStep = nil
+            s.mode = mode
+            try write(V3Shell().environment(s), name, to: dir)
+        }
+        let set = V3State()
+        set.onboardingStep = nil; set.page = .settings; set.settingsSub = .business
+        try write(V3Shell().environment(set), "sides-settings", to: dir)
     }
 }
 #endif

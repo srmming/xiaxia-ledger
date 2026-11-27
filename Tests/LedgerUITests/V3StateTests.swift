@@ -212,6 +212,37 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.capitalTotal, eur("32000"))
     }
 
+    func testWhichSidesShow() {
+        // 三种选择各自的导航清单
+        let s = V3State()
+        XCTAssertEqual(s.book.visiblePages, TrialBook.lifePages + TrialBook.bizPages)
+        s.mode = .life
+        XCTAssertEqual(s.book.visiblePages, TrialBook.lifePages)
+        XCTAssertNil(s.ledger.lastUndoable, "引导里选的只是设初值，不留记录")
+        s.go(.payback)
+        XCTAssertEqual(s.page, .overview, "关着的那边去不了")
+        s.mode = .biz
+        XCTAssertEqual(s.book.visiblePages, TrialBook.bizPages)
+        XCTAssertEqual(s.side, .biz)
+        XCTAssertEqual(s.page, .bizHome, "正停在被关掉的那边：跳到还开着的那边第一页")
+
+        // 至少开一个：最后一个关不掉，什么都不变
+        XCTAssertFalse(s.setSides(life: false, biz: false))
+        XCTAssertEqual(s.mode, .biz)
+        XCTAssertThrowsError(try { var b = s.book; try b.setSides(life: false, biz: false) }())
+
+        // 关了再开，数据还在；设置里改的能撤销
+        let shop = s.book.shopDays, entries = s.book.entries
+        XCTAssertTrue(s.setSides(life: true, biz: false))
+        XCTAssertEqual(s.page, .overview)
+        XCTAssertEqual(s.book.shopDays, shop)
+        XCTAssertTrue(s.setSides(life: true, biz: true))
+        XCTAssertEqual(s.book.shopDays, shop)
+        XCTAssertEqual(s.book.entries, entries)
+        s.undo()
+        XCTAssertEqual(s.mode, .life)
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

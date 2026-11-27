@@ -66,7 +66,7 @@ extension V3State {
             case .privacy: "隐私与语言"
             case .author: "记账人"
             case .books: "账本与账户"
-            case .business: "生意模式"
+            case .business: "管哪边"
             case .money: "钱怎么进来"
             case .sync: "同步与币种"
             case .data: "数据"
@@ -309,8 +309,8 @@ struct V3SettingsPage: View {
         } trailing: {
             VStack(spacing: 14) {
                 V3SetGroup(title: "账本") {
-                    V3SetLink(title: "账本与账户", sub: "账本、账户、分类", value: "\(state.mode == .life ? 1 : 2) 个账本 · \(b.accounts.count) 个账户", line: false) { state.openSettings(.books) }
-                    V3SetLink(title: "生意模式", sub: "首页分生活、生意两边", value: state.mode == .life ? "关着" : "开着 · \(b.shopName)") { state.openSettings(.business) }
+                    V3SetLink(title: "账本与账户", sub: "账本、账户、分类", value: "\(state.mode == .both ? 2 : 1) 个账本 · \(b.accounts.count) 个账户", line: false) { state.openSettings(.books) }
+                    V3SetLink(title: "管哪边", sub: "生活、生意各一个开关", value: state.mode == .both ? "生活 + 生意" : state.showsBiz ? "只管生意" : "只管生活") { state.openSettings(.business) }
                     V3SetLink(title: "钱怎么进来", sub: "流水、小票、跟 AI 说一句", value: "上次：今天") { state.openSettings(.money) }
                     V3SetLink(title: "同步与币种", sub: "账本放在哪、更新、汇率", value: "● 试用账本 · 欧元 €") { state.openSettings(.sync) }
                     V3SetLink(title: "改动记录", sub: "每一次改动都能撤销", value: "今天 \(today) 次") { withAnimation(.snappy(duration: 0.2)) { state.showLog = true } }
@@ -636,13 +636,13 @@ private struct V3SetBooksPage: View {
         let shop = b.entries.filter { $0.side == .biz }.count + b.shopOpenDays
         V3SetColumn {
             V3SetGroup(title: "账本", note: "每个账本有自己的收支和小结。", grow: true) {
-                V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts.filter { $0.kind != .shop }.count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) }
-                if state.mode != .life {
+                if state.showsLife { V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts.filter { $0.kind != .shop }.count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) } }
+                if state.showsBiz {
                     V3SetRow(title: "🏪 \(b.shopName)", detail: "\(shop) 笔流水 · \(b.accounts.filter { $0.kind == .shop }.count) 个账户") { V3Tag(text: "生意", tone: .teal) }
                 }
             }
             V3SetGroup(title: "管理", grow: true) {
-                V3SetLink(title: "管理账本", sub: "改名", value: "\(state.mode == .life ? 1 : 2) 个", line: false) { state.open(.books) }
+                V3SetLink(title: "管理账本", sub: "改名", value: "\(state.mode == .both ? 2 : 1) 个", line: false) { state.open(.books) }
                 V3SetLink(title: "管理账户", sub: "加、改、删，标成私房钱", value: "\(b.accounts.count) 个") { state.open(.accounts) }
                 V3SetLink(title: "管理分类", sub: "换图标、改名、把两个并成一个", value: "\(b.categories.count) 个") { state.open(.categories) }
             }
@@ -656,18 +656,23 @@ private struct V3SetBusinessPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
         let b = state.book
-        let on = state.mode != .life
+        let on = state.showsBiz
         V3SetColumn {
             VStack(spacing: 14) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("生意模式").font(V3.font(19, .heavy))
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("生活").font(V3.font(17, .heavy))
+                        Spacer()
+                        V3Switch(on: Binding(get: { state.showsLife }, set: { v in state.setSides(life: v, biz: state.showsBiz) }), label: "生活")
                     }
-                    Spacer()
-                    V3Switch(on: Binding(get: { on }, set: { v in
-                        withAnimation(.snappy) { state.mode = v ? .both : .life; if !v { state.side = .life } }
-                        state.say(v ? "打开了。左上角多了「生活｜生意」" : "关掉了。店里的账还在，再打开一样")
-                    }), label: "生意模式", tint: V3.teal)
+                    .padding(.vertical, 8)
+                    V3Divider()
+                    HStack {
+                        Text("生意").font(V3.font(17, .heavy))
+                        Spacer()
+                        V3Switch(on: Binding(get: { state.showsBiz }, set: { v in state.setSides(life: state.showsLife, biz: v) }), label: "生意", tint: V3.teal)
+                    }
+                    .padding(.vertical, 8)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 16).v3Sticker()
                 if on {
@@ -684,7 +689,7 @@ private struct V3SetBusinessPage: View {
                     EmptyView()
                 }
             }
-            V3SetGroup(title: "两边怎么算", note: "关掉生意模式不会丢账：店里的流水还在原来的账本里，再打开一样。", grow: true) {
+            V3SetGroup(title: "两边怎么算", note: "关掉的那边只是不显示，账还在，再打开一样。", grow: true) {
                 V3SetRow(title: "给自己发工资", sub: "从店里拿回家的钱，扣掉它才算真赚", line: false) {
                     Text(b.fixedCosts.first { $0.name.contains("工资") }.map { "\($0.note) · \($0.amount.v3Short)" } ?? "还没定").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                 }
@@ -1006,11 +1011,11 @@ struct V3BooksSheet: View {
         V3SheetBox(width: 520, title: "管理账本", hint: "试用版只有这两本，不能新建和删除。", primary: "存好", save: {
             var ok = true
             if life != state.book.lifeName { ok = state.change("改好了：\(state.book.lifeName) → \(life)") { try $0.renameBook(.life, to: life) } }
-            if ok, state.mode != .life, shop != state.book.shopName { ok = state.change("改好了：\(state.book.shopName) → \(shop)") { try $0.renameBook(.biz, to: shop) } }
+            if ok, state.showsBiz, shop != state.book.shopName { ok = state.change("改好了：\(state.book.shopName) → \(shop)") { try $0.renameBook(.biz, to: shop) } }
             if ok { state.closeSheet() }
         }) {
             V3FormField(label: "🏠 生活这本叫什么", prompt: "生活", text: $life, focus: true)
-            if state.mode != .life { V3FormField(label: "🏪 生意这本叫什么", prompt: "Miora 小店", text: $shop) }
+            if state.showsBiz { V3FormField(label: "🏪 生意这本叫什么", prompt: "Miora 小店", text: $shop) }
         }
         .onAppear { life = state.book.lifeName; shop = state.book.shopName }
     }

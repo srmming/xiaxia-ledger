@@ -138,6 +138,29 @@ public struct TrialBook: Equatable, Sendable {
         public init(_ emoji: String, _ name: String) { self.emoji = emoji; self.name = name }
     }
 
+    /// 管哪边：生活、生意各一个开关，至少开一个。关掉的那边只是不显示，数据不动。
+    public var showLife = true
+    public var showBiz = true
+
+    /// 哪些页面属于哪一边（页面的名字和界面里的一样）。界面的导航只读这里。
+    public static let lifePages = ["overview", "goals", "wealth", "spending", "trends", "transactions", "think", "subscriptions", "debts", "monthly"]
+    public static let bizPages = ["bizHome", "sales", "fixed", "payback", "stock", "checkup", "bizDebts"]
+
+    /// 现在导航里该出现的页面（不含设置）。
+    public var visiblePages: [String] { (showLife ? Self.lifePages : []) + (showBiz ? Self.bizPages : []) }
+
+    public func shows(page: String) -> Bool {
+        if Self.lifePages.contains(page) { return showLife }
+        if Self.bizPages.contains(page) { return showBiz }
+        return true
+    }
+
+    /// 改「管哪边」。两个都关不行。
+    public mutating func setSides(life: Bool, biz: Bool) throws {
+        guard life || biz else { throw TrialError("生活和生意至少管一边") }
+        showLife = life; showBiz = biz
+    }
+
     /// 两本账的名字。
     public var lifeName = "生活"
     public var shopName = "Miora 小店"

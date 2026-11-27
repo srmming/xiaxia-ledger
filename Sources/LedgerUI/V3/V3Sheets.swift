@@ -301,7 +301,7 @@ private struct V3ManualSheet: View {
                 V3FormPick(label: kind == 1 ? "进到哪个账户" : "怎么付的", options: names, pick: $account)
                 HStack(alignment: .top, spacing: 12) {
                     V3FormPick(label: "哪天", options: ["今天", "昨天"], pick: $day)
-                    if state.mode != .life { V3FormPick(label: "记在哪边", options: ["生活", "生意"], pick: $side) }
+                    if state.mode == .both { V3FormPick(label: "记在哪边", options: ["生活", "生意"], pick: $side) }
                 }
                 V3FormField(label: "备注", prompt: "可不填", text: $note)
             }

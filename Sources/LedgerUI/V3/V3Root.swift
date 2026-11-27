@@ -264,7 +264,7 @@ private struct V3Sidebar: View {
     var body: some View {
         let biz = state.side == .biz
         VStack(alignment: .leading, spacing: 4) {
-            if state.mode != .life || biz {
+            if state.mode == .both {
                 sideSwitch.padding(.bottom, 14)
             }
             ForEach(Array((biz ? V3State.Page.biz : V3State.Page.life).enumerated()), id: \.element) { i, p in
