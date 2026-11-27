@@ -29,7 +29,7 @@ let package = Package(
         .target(name: "LedgerUI", dependencies: ["FinanceCore"],
                 // 夏夏和 AI 伙伴的形象图（design/mascot/build.py 生成）
                 // 更新日志（官网、Mac 更新窗口、app「这次更新了什么」共用一份，见 scripts/changelog.py）
-                resources: [.copy("Resources/Mascot"), .copy("Resources/Changelog.json")]),
+                resources: [.copy("Resources/Mascot"), .copy("Resources/V3"), .copy("Resources/Changelog.json")]),
         // Mac 开发版：swift run XiaxiaLedgerApp 直接看界面
         .executableTarget(name: "XiaxiaLedgerApp", dependencies: ["LedgerUI"]),
         .testTarget(name: "FinanceCoreTests", dependencies: ["FinanceCore"]),

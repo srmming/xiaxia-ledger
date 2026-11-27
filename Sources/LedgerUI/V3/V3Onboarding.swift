@@ -1,0 +1,715 @@
+#if os(macOS)
+import FinanceCore
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// 引导 5 步：为什么 → 管哪边 → 想要的 → 有多少 → 连接 AI。每一步都能跳过，前四步不用 AI。
+struct V3Onboarding: View {
+    @Environment(V3State.self) private var state
+
+    var body: some View {
+        let step = state.onboardingStep ?? 0
+        ZStack(alignment: .top) {
+            LinearGradient(stops: [.init(color: V3.soft, location: 0), .init(color: V3.bg, location: 0.55), .init(color: .white, location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            Group {
+                switch step {
+                case 0: V3IntroStep()
+                case 1: V3ChooseStep()
+                case 2: V3WishStep()
+                case 3: V3AccountsStep()
+                default: V3ConnectStep()
+                }
+            }
+            .id(step)
+            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+            V3StepBar(step: step).padding(.top, 8)
+        }
+        .clipped()
+    }
+}
+
+extension V3State {
+    func nextStep() {
+        withAnimation(.snappy(duration: 0.3)) {
+            if let s = onboardingStep { onboardingStep = s >= 4 ? nil : s + 1 }
+        }
+        // 连上了 AI：进去第一件事，是把写的那句话变成第一步。
+        if onboardingStep == nil, ai != nil, moment == nil { openMoment(.firstStep) }
+    }
+    func previousStep() {
+        withAnimation(.snappy(duration: 0.3)) {
+            if let s = onboardingStep, s > 0 { onboardingStep = s - 1 }
+        }
+    }
+}
+
+private struct V3StepBar: View {
+    let step: Int
+    static let names = ["为什么", "管哪边", "想要的", "有多少", "连接 AI"]
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(Self.names.enumerated()), id: \.offset) { i, name in
+                Text((i < step ? "✓ " : "") + name).font(V3.font(13, .bold))
+                    .foregroundStyle(i == step ? .white : i < step ? V3.navy : V3.ink2)
+                    .padding(.horizontal, 12).padding(.vertical, 4)
+                    .background(Capsule().fill(i == step ? V3.navy : .white.opacity(0.7)))
+            }
+        }
+        .accessibilityElement().accessibilityLabel("第 \(step + 1) 步，共 5 步：\(Self.names[step])")
+    }
+}
+
+/// 引导每一步下面那排按钮。
+private struct V3StepButtons: View {
+    @Environment(V3State.self) private var state
+    var back = true
+    var skipText: String? = "跳过"
+    var skipSay = "好，先跳过"
+    let next: String
+    var nextEnabled = true
+    var onNext: () -> Void
+    var body: some View {
+        HStack(spacing: 12) {
+            if back { Button("返回") { state.previousStep() }.buttonStyle(.v3(.ghost, .big)) }
+            if let skipText {
+                Button(skipText) { state.say(skipSay); state.nextStep() }.buttonStyle(.v3(.ghost, .big))
+            }
+            Button(next, action: onNext).buttonStyle(.v3(.primary, .big)).disabled(!nextEnabled).keyboardShortcut(.defaultAction)
+        }
+    }
+}
+
+private struct V3StepTitle: View {
+    let title: String
+    let sub: String
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(title).font(V3.font(34, .heavy)).foregroundStyle(V3.ink).multilineTextAlignment(.center)
+            Text(sub).font(V3.font(16, .regular)).foregroundStyle(V3.ink2).multilineTextAlignment(.center)
+        }
+    }
+}
+
+// MARK: - 1 开场动画
+
+private struct V3IntroStep: View {
+    @Environment(V3State.self) private var state
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var start = Date()
+    @State private var finished = false
+
+    private static let thoughts: [(String, CGFloat, CGFloat, Int)] = [
+        ("想换台电脑", -380, -215, 1), ("月底总是不够", 300, -235, 0), ("钱到底花哪了", -455, -70, 2), ("想早点还完信用卡", 410, -95, 3),
+        ("想给爸妈换个沙发", -340, 105, 0), ("想有底气辞职", 395, 75, 1), ("存下第一个一万", -80, -285, 2), ("不想再为钱吵架", 130, 170, 3),
+        ("想清楚自己有多少", -140, 205, 1), ("想去一次冰岛", 20, -170, 0), ("想财务自由", -500, 235, 3), ("想赚 100 万", 470, 215, 2),
+        ("无所谓，先看看", -250, -120, 0), ("不想被账单吓到", 250, -10, 1),
+    ]
+    private static let chipColors: [Color] = [.white, V3.soft, V3.goodBG, V3.hex(0xFCE4EA)]
+    private static let answerDelays: [Double] = [5.5, 6.6, 7.8, 8.8, 9.2]
+
+    var body: some View {
+        GeometryReader { g in
+            TimelineView(.animation(minimumInterval: 1.0 / 60, paused: finished)) { timeline in
+                let t = finished ? 99 : timeline.date.timeIntervalSince(start)
+                ZStack {
+                    // 念头一个个冒出来，再往中间靠拢
+                    ForEach(Array(Self.thoughts.enumerated()), id: \.offset) { i, th in
+                        let p = min(max((t - Double(i) * 0.09) / 7, 0), 1)
+                        let k = Self.kf(p, [(0, 1.15), (0.12, 1), (0.55, 0.93), (0.78, 0.15), (0.86, 0), (1, 0)])
+                        Text(th.0).font(V3.font(16, .bold)).foregroundStyle(V3.ink).fixedSize()
+                            .padding(.horizontal, 18).padding(.vertical, 9)
+                            .background(Capsule().fill(Self.chipColors[th.3]).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
+                            .background(Capsule().fill(V3.ink).offset(y: 3))
+                            .scaleEffect(Self.kf(p, [(0, 0.8), (0.12, 1), (0.55, 1), (0.78, 0.5), (0.86, 0.2), (1, 0.2)]))
+                            .opacity(Self.kf(p, [(0, 0), (0.12, 1), (0.55, 1), (0.78, 0.5), (0.86, 0), (1, 0)]))
+                            .position(x: g.size.width / 2 + th.1 * k,
+                                      y: g.size.height * 0.44 + th.2 * k + Self.kf(p, [(0, 0), (0.12, 0), (0.55, -8), (0.78, 0), (1, 0)]))
+                            .accessibilityHidden(true)
+                    }
+                    Text("你为什么想管钱？").font(V3.font(40, .heavy)).foregroundStyle(V3.ink)
+                        .opacity(Self.kf(min(t / 7, 1), [(0, 0), (0.08, 1), (0.62, 1), (0.78, 0), (1, 0)]))
+                        .position(x: g.size.width / 2, y: g.size.height * 0.36 + 28)
+                    // 一句一句出字，落到使命那句
+                    VStack(spacing: 0) {
+                        line("分清什么才是你真正想要的，", t, 0).padding(.bottom, 6)
+                        line("剩下的，就随它去。", t, 1).padding(.bottom, 20)
+                        (Text("找到你") + Text("真正想要的生活").foregroundColor(V3.gold) + Text("，\n再让钱一步步带你过去。"))
+                            .font(V3.font(52, .heavy)).foregroundStyle(V3.ink).multilineTextAlignment(.center).lineSpacing(4)
+                            .modifier(Appear(p: Self.appear(t, 2))).padding(.bottom, 14)
+                        Text("还没想好？没关系。先用着，慢慢找。").font(V3.font(19, .regular)).foregroundStyle(V3.ink2)
+                            .modifier(Appear(p: Self.appear(t, 3))).padding(.bottom, 26)
+                        Button("开始") { state.say("好，我们聊聊"); state.nextStep() }
+                            .buttonStyle(.v3(.primary, .big)).keyboardShortcut(.defaultAction)
+                            .modifier(Appear(p: Self.appear(t, 4))).allowsHitTesting(Self.appear(t, 4) > 0.5)
+                    }
+                    .position(x: g.size.width / 2, y: g.size.height * 0.23 + 170)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) { V3Xia(width: 190).padding(.trailing, 70).padding(.bottom, 24) }
+            .overlay(alignment: .topTrailing) {
+                Button(finished ? "再看一遍" : "跳过动画") {
+                    if finished { start = Date(); finished = false; scheduleEnd() } else { finished = true }
+                }
+                .buttonStyle(.v3(.ghost, .small)).padding(.top, 8).padding(.trailing, 26)
+            }
+        }
+        .onAppear {
+            if reduceMotion || V3Launch.value("-XiaxiaV3Intro") == "end" { finished = true } else { scheduleEnd() }
+        }
+    }
+
+    private func scheduleEnd() {
+        let began = start
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.4) { if start == began { finished = true } }
+    }
+
+    private func line(_ text: String, _ t: Double, _ i: Int) -> some View {
+        Text(text).font(V3.font(24, .bold)).foregroundStyle(V3.ink2).modifier(Appear(p: Self.appear(t, i)))
+    }
+
+    private static func appear(_ t: Double, _ i: Int) -> Double { min(max((t - answerDelays[i]) / 0.7, 0), 1) }
+
+    private struct Appear: ViewModifier {
+        let p: Double
+        func body(content: Content) -> some View { content.opacity(p).offset(y: 14 * (1 - p)) }
+    }
+
+    /// 关键帧之间平滑过渡。
+    static func kf(_ t: Double, _ pts: [(Double, Double)]) -> Double {
+        guard let first = pts.first, let last = pts.last else { return 0 }
+        if t <= first.0 { return first.1 }
+        if t >= last.0 { return last.1 }
+        for i in 1..<pts.count where t <= pts[i].0 {
+            let a = pts[i - 1], b = pts[i]
+            let u = (t - a.0) / max(b.0 - a.0, 0.0001)
+            let e = u * u * (3 - 2 * u)
+            return a.1 + (b.1 - a.1) * e
+        }
+        return last.1
+    }
+}
+
+// MARK: - 2 管哪边
+
+private struct V3ChooseStep: View {
+    @Environment(V3State.self) private var state
+
+    var body: some View {
+        @Bindable var state = state
+        VStack(spacing: 0) {
+            V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "选了以后随时能改。").padding(.top, 50)
+            HStack(spacing: 18) {
+                option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
+                option(.biz, "生意为主", "一个人开店的小老板。打开先看「这个月真正赚了多少」。") { V3SceneBiz() }
+                option(.both, "我全要", "自己的钱和店里的钱都管，两边分开记，家底加在一起看。") { V3SceneBoth() }
+            }
+            .frame(width: 1100, height: 400).padding(.top, 20)
+            V3StepButtons(skipSay: "好，先两边都管，以后随时能改", next: "下一步") {
+                state.say(state.mode == .life ? "好，以生活为主" : state.mode == .biz ? "好，以生意为主" : "小孩子才做选择。两边都管")
+                state.nextStep()
+            }
+            .padding(.top, 22)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func option<Scene: View>(_ mode: V3State.Mode, _ title: String, _ text: String, @ViewBuilder scene: () -> Scene) -> some View {
+        V3Option(picked: state.mode == mode) {
+            withAnimation(.snappy(duration: 0.18)) { state.mode = mode }
+        } content: {
+            VStack(alignment: .leading, spacing: 8) {
+                scene().frame(height: 270).frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(V3.ink, lineWidth: 2))
+                    .overlay(alignment: .bottomLeading) { V3Tag(text: "草图 · 正式的画还没画", tone: .blue, size: 10.5).padding(8).opacity(0.92) }
+                Text(title).font(V3.font(22, .heavy)).foregroundStyle(V3.ink)
+                Text(text).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityLabel("\(title)。\(text)")
+    }
+}
+
+/// 三张占位的画：用现成的夏夏、小房子、小店拼的，等正式画好再换。
+private struct V3SceneLife: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: [V3.soft, V3.hex(0xF3F6FF)], startPoint: .top, endPoint: .bottom)
+            V3Wave().fill(V3.hex(0xC9D8FB)).frame(height: 20)
+            HStack(alignment: .bottom, spacing: -18) {
+                V3HouseSketch().frame(width: 190, height: 162).padding(.bottom, 12)
+                V3Jar(level: 0.45, width: 56).zIndex(1)
+                V3.image("xia-full").resizable().scaledToFit().frame(height: 176)
+            }
+            .padding(.bottom, 12)
+        }
+        .overlay(alignment: .topTrailing) { Text("★").font(.system(size: 16)).foregroundStyle(V3.star).padding(.top, 30).padding(.trailing, 40) }
+    }
+}
+
+private struct V3SceneBiz: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: [V3.tealSoft, V3.hex(0xF1FAFB)], startPoint: .top, endPoint: .bottom)
+            V3Wave().fill(V3.hex(0xB7E0E5)).frame(height: 20)
+            HStack(alignment: .bottom, spacing: -22) {
+                V3ShopSketch().frame(width: 210, height: 180).padding(.bottom, 8)
+                VStack(spacing: -6) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        Ellipse().fill(V3.star).overlay(Ellipse().strokeBorder(V3.ink, lineWidth: 2.5)).frame(width: 34, height: 14)
+                    }
+                }
+                .zIndex(1)
+                V3.image("xia-full").resizable().scaledToFit().frame(height: 164)
+            }
+            .padding(.bottom, 12)
+        }
+    }
+}
+
+private struct V3SceneBoth: View {
+    var body: some View {
+        ZStack {
+            RadialGradient(colors: [V3.hex(0xFFF6DA), V3.hex(0xFDE9B4)], center: UnitPoint(x: 0.5, y: 0.6), startRadius: 0, endRadius: 190)
+            Canvas { ctx, size in
+                let c = CGPoint(x: size.width / 2, y: size.height * 0.56)
+                for a in stride(from: -170.0, through: -10.0, by: 26.6) {
+                    var ray = Path()
+                    ray.move(to: c)
+                    ray.addLine(to: CGPoint(x: c.x + cos(a * .pi / 180) * 320, y: c.y + sin(a * .pi / 180) * 320))
+                    ctx.stroke(ray, with: .color(V3.star.opacity(0.7)), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                }
+            }
+            HStack {
+                V3HouseSketch().frame(width: 92, height: 80).rotationEffect(.degrees(-10))
+                Spacer()
+                V3ShopSketch().frame(width: 96, height: 84).rotationEffect(.degrees(10))
+            }
+            .padding(.horizontal, 8).offset(y: -4)
+            V3.image("head-celebrate").resizable().scaledToFit().frame(width: 216).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 10)
+            V3Bubble("我全都要！", tone: .good).fixedSize().frame(maxHeight: .infinity, alignment: .top).padding(.top, 10)
+        }
+    }
+}
+
+private struct V3HouseSketch: View {
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.scaleBy(x: size.width / 200, y: size.height / 170)
+            let ink = GraphicsContext.Shading.color(V3.ink)
+            var house = Path()
+            house.move(to: CGPoint(x: 34, y: 76)); house.addLine(to: CGPoint(x: 34, y: 160)); house.addLine(to: CGPoint(x: 166, y: 160))
+            house.addLine(to: CGPoint(x: 166, y: 76)); house.addLine(to: CGPoint(x: 100, y: 26)); house.closeSubpath()
+            ctx.fill(house, with: .color(.white)); ctx.stroke(house, with: ink, style: StrokeStyle(lineWidth: 4, lineJoin: .round))
+            var roof = Path()
+            roof.move(to: CGPoint(x: 20, y: 84)); roof.addLine(to: CGPoint(x: 100, y: 22)); roof.addLine(to: CGPoint(x: 180, y: 84))
+            ctx.stroke(roof, with: ink, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+            let win = Path(roundedRect: CGRect(x: 52, y: 96, width: 38, height: 34), cornerRadius: 4)
+            ctx.fill(win, with: .color(V3.soft)); ctx.stroke(win, with: ink, lineWidth: 3.5)
+            var cross = Path()
+            cross.move(to: CGPoint(x: 71, y: 96)); cross.addLine(to: CGPoint(x: 71, y: 130))
+            cross.move(to: CGPoint(x: 52, y: 113)); cross.addLine(to: CGPoint(x: 90, y: 113))
+            ctx.stroke(cross, with: ink, lineWidth: 2.5)
+            let door = Path(roundedRect: CGRect(x: 112, y: 104, width: 34, height: 56), cornerRadius: 4)
+            ctx.fill(door, with: .color(V3.sky)); ctx.stroke(door, with: ink, lineWidth: 3.5)
+            ctx.fill(Path(ellipseIn: CGRect(x: 135, y: 131, width: 6, height: 6)), with: ink)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct V3ShopSketch: View {
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.scaleBy(x: size.width / 200, y: size.height / 170)
+            let ink = GraphicsContext.Shading.color(V3.ink)
+            let body = Path(roundedRect: CGRect(x: 22, y: 62, width: 156, height: 100), cornerRadius: 6)
+            ctx.fill(body, with: .color(.white)); ctx.stroke(body, with: ink, lineWidth: 4)
+            var awning = Path()
+            awning.move(to: CGPoint(x: 12, y: 30)); awning.addLine(to: CGPoint(x: 188, y: 30)); awning.addLine(to: CGPoint(x: 196, y: 64))
+            awning.addLine(to: CGPoint(x: 4, y: 64)); awning.closeSubpath()
+            ctx.fill(awning, with: .color(.white))
+            for (a, b, c, d) in [(34.0, 56.0, 52.0, 28.0), (78, 100, 100, 78), (122, 144, 148, 126), (166, 188, 196, 174)] {
+                var stripe = Path()
+                stripe.move(to: CGPoint(x: a, y: 30)); stripe.addLine(to: CGPoint(x: b, y: 30)); stripe.addLine(to: CGPoint(x: c, y: 64))
+                stripe.addLine(to: CGPoint(x: d, y: 64)); stripe.closeSubpath()
+                ctx.fill(stripe, with: .color(V3.teal))
+            }
+            ctx.stroke(awning, with: ink, style: StrokeStyle(lineWidth: 4, lineJoin: .round))
+            var scallop = Path()
+            scallop.move(to: CGPoint(x: 4, y: 64))
+            for i in 0..<6 { scallop.addQuadCurve(to: CGPoint(x: 4 + Double(i + 1) * 32, y: 64), control: CGPoint(x: 20 + Double(i) * 32, y: 80)) }
+            ctx.fill(scallop, with: .color(.white)); ctx.stroke(scallop, with: ink, lineWidth: 4)
+            let win = Path(roundedRect: CGRect(x: 36, y: 92, width: 52, height: 42), cornerRadius: 4)
+            ctx.fill(win, with: .color(V3.tealSoft)); ctx.stroke(win, with: ink, lineWidth: 3.5)
+            let door = Path(roundedRect: CGRect(x: 116, y: 92, width: 40, height: 70), cornerRadius: 4)
+            ctx.fill(door, with: .color(V3.hex(0xA9D9DF))); ctx.stroke(door, with: ink, lineWidth: 3.5)
+            ctx.fill(Path(ellipseIn: CGRect(x: 145, y: 127, width: 6, height: 6)), with: ink)
+            let sign = Path(roundedRect: CGRect(x: 44, y: 140, width: 36, height: 14), cornerRadius: 4)
+            ctx.fill(sign, with: .color(V3.goodBG)); ctx.stroke(sign, with: ink, lineWidth: 2.5)
+            ctx.draw(Text("营业中").font(.system(size: 9, weight: .heavy)).foregroundColor(V3.ink), at: CGPoint(x: 62, y: 147))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - 3 随便写一句想要的
+
+private struct V3WishStep: View {
+    @Environment(V3State.self) private var state
+    @State private var text = ""
+    @FocusState private var focused: Bool
+    private static let examples = ["三年后不用为钱发愁", "想财务自由", "赚到 100 万", "换台好电脑", "把信用卡还清", "开一家自己的店", "无所谓，先看看"]
+
+    var body: some View {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        VStack(spacing: 0) {
+            V3StepTitle(title: "随便写一句你想要的", sub: "写得很大可以，很模糊也可以。不想写就跳过。").padding(.top, 62)
+            TextField("比如：三年后不用为钱发愁", text: $text)
+                .textFieldStyle(.plain).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).focused($focused)
+                .padding(.horizontal, 26).padding(.vertical, 20)
+                .frame(width: 760).v3Sticker().padding(.top, 26)
+                .onSubmit { if !clean.isEmpty { save(clean) } }
+                .accessibilityLabel("你想要的")
+            HStack(spacing: 8) {
+                ForEach(Self.examples, id: \.self) { e in
+                    V3Chip(text: e, size: 14.5) {
+                        withAnimation(.snappy(duration: 0.15)) { text = e }
+                        state.say("填好了：\(e)")
+                    }
+                }
+            }
+            .frame(width: 900).padding(.top, 18)
+            HStack(alignment: .center, spacing: 26) {
+                V3Xia(width: 150)
+                VStack(spacing: 12) {
+                    V3Bubble("我先替你记着，不追问。以后给你提建议的时候，会想着这句话。")
+                    HStack(spacing: 12) {
+                        V3Ico(emoji: "🧠")
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("存进夏夏的记忆").font(V3.font(14, .bold)).foregroundStyle(V3.ink)
+                            Text(clean.isEmpty ? "写了以后会存在这里 · 随时能改、能删" : "「\(clean)」· 今天记下 · 随时能改、能删")
+                                .font(V3.font(13.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                        }
+                        Spacer(minLength: 6)
+                        V3Tag(text: "只留在这台 Mac", tone: .green)
+                    }
+                    .v3Card(h: 18, v: 14)
+                }
+            }
+            .frame(width: 760).padding(.top, 30)
+            V3StepButtons(skipSay: "好，先跳过。哪天想到了再写", next: "记下，下一步", nextEnabled: !clean.isEmpty) { save(clean) }
+                .padding(.top, 28)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear { text = state.wish }
+    }
+
+    private func save(_ clean: String) {
+        state.wish = clean
+        state.say("记下了：「\(clean)」")
+        state.nextStep()
+    }
+}
+
+// MARK: - 4 先看清你现在有多少
+
+private struct V3AccountsStep: View {
+    @Environment(V3State.self) private var state
+
+    struct Item: Identifiable, Equatable {
+        var id = UUID()
+        var emoji: String
+        var name: String
+        var sub: String
+        var text: String
+        var debt = false
+        var amount: Money? {
+            guard let m = Money(parsing: text), m >= .zero else { return nil }
+            return m
+        }
+    }
+
+    @State private var items: [Item] = [
+        Item(emoji: "💳", name: "日常卡", sub: "银行卡 · 平时花钱用的", text: "1.500"),
+        Item(emoji: "💶", name: "现金", sub: "钱包里", text: "85"),
+        Item(emoji: "💳", name: "信用卡", sub: "欠的钱 · 下个月要还", text: "640", debt: true),
+    ]
+    @State private var more: [Item] = [
+        Item(emoji: "🏦", name: "储蓄", sub: "存着不动的", text: "2.400"),
+        Item(emoji: "⭐", name: "存钱罐", sub: "为某件事存的", text: "500"),
+        Item(emoji: "📱", name: "分期", sub: "欠的钱 · 每月还", text: "1.200", debt: true),
+        Item(emoji: "🧑", name: "借给别人的", sub: "别人欠我", text: "120"),
+        Item(emoji: "🤝", name: "跟别人借的", sub: "欠的钱", text: "300", debt: true),
+    ]
+    @State private var importRead = 0
+    @State private var importing = false
+    @State private var dropHover = false
+    private let importTotal = 52
+
+    private var totals: HouseholdTotals {
+        HouseholdTotals(holdings: items.filter { !$0.debt }.compactMap(\.amount), debts: items.filter(\.debt).compactMap(\.amount))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            V3StepTitle(title: "先看清你现在有多少", sub: "加上你的账户，填个大概的数就行，以后再对。不想填可以跳过。").padding(.top, 52)
+            HStack(alignment: .top, spacing: 26) {
+                left.frame(width: 564)
+                right
+            }
+            .frame(width: 1040).padding(.top, 22)
+            V3StepButtons(skipSay: "好，先跳过。进去以后在「家底」里随时能加", next: "下一步") {
+                state.say("好，记下了 \(items.count) 个账户")
+                state.nextStep()
+            }
+            .padding(.top, 20)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var left: some View {
+        VStack(spacing: 10) {
+            let two = items.count > 4
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: two ? 2 : 1), spacing: 10) {
+                ForEach($items) { $item in row($item, compact: two) }
+            }
+            if items.contains(where: { $0.amount == nil }) {
+                V3Label("有一个数我没看懂。写成 1500 或者 1.500,00 这样就行，没看懂的先不算。", size: 13, color: V3.red, weight: .semibold)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !more.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("再加一个").font(V3.font(14, .bold))
+                    HStack(spacing: 6) {
+                        ForEach(more) { m in
+                            V3Chip(text: "\(m.emoji) \(m.name)", size: 13) {
+                                withAnimation(.spring(duration: 0.35)) {
+                                    more.removeAll { $0.id == m.id }
+                                    items.append(m)
+                                }
+                                state.say("加好了：\(m.name)")
+                            }
+                        }
+                    }
+                }
+                .v3Card(h: 16, v: 12, radius: 18)
+            }
+            dropZone
+        }
+    }
+
+    private func row(_ item: Binding<Item>, compact: Bool) -> some View {
+        let it = item.wrappedValue
+        return HStack(spacing: 10) {
+            V3Ico(emoji: it.emoji, size: compact ? 30 : 38)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(it.name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
+                if !compact { Text(it.sub).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
+            }
+            Spacer(minLength: 4)
+            TextField("0", text: item.text)
+                .textFieldStyle(.plain).multilineTextAlignment(.trailing)
+                .font(V3.num(compact ? 17 : 21, .heavy)).foregroundStyle(it.amount == nil ? V3.ink2 : it.debt ? V3.red : V3.navy)
+                .frame(width: compact ? 78 : 120)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 9).fill(V3.bg.opacity(0.9)))
+                .accessibilityLabel("\(it.name)\(it.debt ? "欠多少" : "有多少")")
+            Text("€").font(V3.num(compact ? 15 : 18)).foregroundStyle(it.debt ? V3.red : V3.navy)
+            Button {
+                withAnimation(.spring(duration: 0.3)) { items.removeAll { $0.id == it.id } }
+                state.say("拿掉了：\(it.name)")
+            } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 20, height: 20) }
+                .buttonStyle(.plain).accessibilityLabel("拿掉\(it.name)")
+        }
+        .padding(.horizontal, compact ? 12 : 16).padding(.vertical, compact ? 8 : 11)
+        .v3Soft(radius: 18, fill: it.debt ? V3.hex(0xFFF6F5) : .white)
+    }
+
+    private var dropZone: some View {
+        Button { playImport() } label: {
+            HStack(spacing: 14) {
+                Text("📄").font(.system(size: 30))
+                VStack(alignment: .leading, spacing: 3) {
+                    if importing || importRead > 0 {
+                        Text(importing ? "正在读流水… 已读 \(importRead) / \(importTotal) 笔" : "读完了：\(importTotal) 笔，跳过 3 笔重复的")
+                            .font(V3.font(14, .bold)).foregroundStyle(V3.ink).contentTransition(.numericText())
+                        V3Bar(fraction: Double(importRead) / Double(importTotal), height: 9)
+                    } else {
+                        Text("嫌一个个填麻烦？把银行流水拖到这里").font(V3.font(14, .bold)).foregroundStyle(V3.ink)
+                        Text("余额和每一笔流水一起进来，重复的自动去掉。也可以点一下，先用示例流水试试。")
+                            .font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 18).padding(.vertical, 12)
+            .v3Sticker(fill: dropHover ? V3.goodBG : V3.soft, dashed: true)
+        }
+        .buttonStyle(V3SinkStyle())
+        .onDrop(of: [UTType.fileURL], isTargeted: $dropHover) { _ in
+            // 试用版不读放进来的文件，只用示例流水演示一遍。
+            playImport(dropped: true)
+            return true
+        }
+        .padding(.bottom, 4)
+    }
+
+    /// 导入时数字一笔一笔跳（示例）。
+    private func playImport(dropped: Bool = false) {
+        guard !importing else { return }
+        importing = true
+        importRead = 0
+        Task { @MainActor in
+            for n in 1...importTotal {
+                try? await Task.sleep(for: .milliseconds(45))
+                withAnimation(.linear(duration: 0.04)) { importRead = n }
+                if n % 4 == 0, let i = items.firstIndex(where: { $0.name == "日常卡" }) {
+                    withAnimation(.snappy(duration: 0.1)) { items[i].text = Money(cents: 1_500_00 - Int64(n) * 6).formatted.replacingOccurrences(of: " €", with: "") }
+                }
+            }
+            if let i = items.firstIndex(where: { $0.name == "日常卡" }) {
+                withAnimation(.snappy) { items[i].text = "1.496,61" }
+            }
+            importing = false
+            state.say(dropped ? "这是试用版：没读你放进来的文件，用示例流水演示了一遍" : "读完了：52 笔，跳过 3 笔重复的。日常卡按流水改成 1.496,61 €")
+        }
+    }
+
+    private var right: some View {
+        VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                V3Label("净剩（真正是你的）")
+                V3Gold(amount: totals.net, size: 72, whole: totals.net.cents % 100 == 0)
+                HStack(spacing: 26) {
+                    V3KV(value: totals.have.v3Short, label: "一共有")
+                    V3KV(value: totals.owe.v3Short, label: "欠别人", color: V3.red)
+                }
+                .padding(.top, 4)
+            }
+            .padding(.init(top: 20, leading: 24, bottom: 34, trailing: 24))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .v3Sticker().v3WaveBottom()
+            .animation(.snappy(duration: 0.3), value: totals)
+            HStack(alignment: .bottom, spacing: 10) {
+                V3Xia(width: 110)
+                V3Bubble("每加一个，上面的数马上跟着变。你的家底就是这三个数。").padding(.bottom, 34)
+            }
+        }
+    }
+}
+
+// MARK: - 5 连接 AI
+
+private struct V3ConnectStep: View {
+    @Environment(V3State.self) private var state
+    @State private var checking: String?
+    @State private var missing: String?
+    private static let names = ["Claude", "ChatGPT", "Gemini", "别的"]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            V3StepTitle(title: "你平时用哪个 AI？", sub: "它比较了解你，让它来陪你走这条路。不连也行，以后再连。").padding(.top, 56)
+            HStack(spacing: 12) {
+                ForEach(Self.names, id: \.self) { n in
+                    V3Option(picked: state.ai == n) { connect(n) } content: {
+                        VStack(spacing: 4) {
+                            Text(n).font(V3.font(16, .bold)).foregroundStyle(V3.ink)
+                            if state.ai == n { Text("✓ 连上了").font(V3.font(13, .bold)).foregroundStyle(V3.green) }
+                            else if checking == n { Text("正在看…").font(V3.font(13, .regular)).foregroundStyle(V3.navy) }
+                            else { Text("点一下连接").font(V3.font(13, .regular)).foregroundStyle(V3.ink2) }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .frame(width: 150, height: 74)
+                }
+                V3Option(picked: state.ai == "夏夏自带的") {
+                    checking = nil; missing = nil
+                    withAnimation(.snappy) { state.ai = "夏夏自带的" }
+                    state.say("好，就用夏夏自带的")
+                } content: {
+                    VStack(spacing: 4) {
+                        Text("还没用过").font(V3.font(16, .bold)).foregroundStyle(V3.ink)
+                        Text("用夏夏自带的就行").font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(width: 210, height: 74)
+            }
+            .padding(.top, 26)
+            ZStack {
+                if let checking {
+                    HStack(spacing: 10) {
+                        V3Face(face: "think", width: 50)
+                        V3Bubble("正在看这台 Mac 上的 \(checking) 连上没有…").fixedSize()
+                    }
+                } else if let missing {
+                    HStack(alignment: .top, spacing: 10) {
+                        V3Face(face: "worried", width: 50)
+                        V3Bubble(text: "没连上 \(missing)。可能是它还没打开。先用夏夏自带的？", tone: .warn) {
+                            HStack(spacing: 8) {
+                                Button("用夏夏自带的") {
+                                    self.missing = nil
+                                    withAnimation(.snappy) { state.ai = "夏夏自带的" }
+                                    state.say("好，就用夏夏自带的")
+                                }
+                                .buttonStyle(.v3(.primary, .small))
+                                Button("再试一次") { let m = missing; self.missing = nil; connect(m, retry: true) }.buttonStyle(.v3(.ghost, .small))
+                            }
+                        }
+                        .frame(width: 440)
+                    }
+                }
+            }
+            .frame(height: 96).padding(.top, 8)
+            HStack(alignment: .top, spacing: 22) {
+                promise("talk", "把你写的那句变成第一步", "连上以后再聊，不连也能用。")
+                promise("worried", "快到不了时先开口", "说清情况，帮你把步子改小。")
+                promise("celebrate", "到站给你写信", "只写给你一个人的那种。")
+            }
+            .padding(24).frame(width: 900).v3Soft()
+            V3Label("你的账本留在这台 Mac 上。").padding(.top, 16)
+            V3StepButtons(skipText: nil, next: "出发") {
+                state.say(state.ai == nil ? "出发！AI 以后随时能连" : "出发！")
+                state.nextStep()
+            }
+            .padding(.top, 18)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func promise(_ face: String, _ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            V3Face(face: face)
+            Text(title).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
+            Text(text).font(V3.font(13.5, .regular)).foregroundStyle(V3.ink2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 试用版里连接是演出来的：不碰这台 Mac 上任何 AI 的设置。Gemini 第一次故意连不上，看看出错时怎么说。
+    private func connect(_ name: String, retry: Bool = false) {
+        guard checking == nil else { return }
+        if name == "别的" {
+            missing = nil
+            state.say("别的 AI 也行：进去以后在「设置」里连")
+            return
+        }
+        missing = nil
+        withAnimation(.snappy) { checking = name; if state.ai == name { state.ai = nil } }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            withAnimation(.snappy) {
+                checking = nil
+                if name == "Gemini" && !retry { missing = name } else { state.ai = name }
+            }
+            if state.ai == name { state.say("连上 \(name) 了") }
+        }
+    }
+}
+#endif
