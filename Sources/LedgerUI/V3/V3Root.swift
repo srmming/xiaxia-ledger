@@ -7,6 +7,8 @@ import SwiftUI
 /// `-XiaxiaV3Page overview / goals / wealth / ob1…ob5` 直接打开某一页（截图用）。
 public enum V3Launch {
     public static var enabled: Bool {
+        // 「夏夏账本 v3 试用.app」：包里写了 XiaxiaV3，双击就是 v3，不用带参数。
+        if Bundle.main.object(forInfoDictionaryKey: "XiaxiaV3") as? Bool == true { return true }
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: "-XiaxiaV3") else { return false }
         return i + 1 >= args.count || args[i + 1] != "0"
@@ -61,7 +63,7 @@ public enum V3Launch {
 public struct V3Scene: Scene {
     public init() { V3Launch.overTitleBar = true }
     public var body: some Scene {
-        Window("夏夏账本", id: "main") {
+        Window("夏夏账本 v3 试用", id: "main") {
             // 系统会给三个圆点那一条另算 28 点高，所以这里写 584，整个窗口最小正好 1000×612。
             V3RootView().frame(minWidth: 1000, minHeight: 584)
         }
