@@ -1,6 +1,7 @@
 #if os(macOS)
 import FinanceCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 // 每一页除了「有数据」以外的三种样子（规格稿）：没数据、在读、出错。
 // 没数据：一句话 + 该点的按钮；在读：灰块占住位置；出错：说人话，告诉你账没丢。
@@ -15,6 +16,16 @@ extension V3State {
             try? await Task.sleep(for: .seconds(0.9))
             withAnimation(.easeOut(duration: 0.2)) { self?.forced = nil }
             self?.say("读好了，是最新的")
+        }
+    }
+
+    /// 导入流水。试用版不读真文件：进来的是示例里的那几笔，重复的跳过，整批能撤销。
+    func importSample(dropped: Bool = false) {
+        let rows = Self.demoBook.entries
+        var result = (added: 0, skipped: 0)
+        let ok = change("导入好了", kind: .importBatch) { result = try $0.importEntries(rows) }
+        if ok {
+            say("导入了 \(result.added) 笔\(result.skipped > 0 ? "，跳过重复 \(result.skipped) 笔" : "")（试用版用的是示例流水）") { [weak self] in self?.undo() }
         }
     }
 
@@ -46,7 +57,7 @@ struct V3EmptyPage: View {
 
     private var content: (String, String, [Act]) {
         let addAccount = Act(title: "加一个账户") { $0.showAddAccount = true }
-        let drop = Act(title: "拖流水进来") { $0.go(.transactions); $0.say("把银行流水拖进窗口就行（试用版不读真文件，会用示例演示）") }
+        let drop = Act(title: "拖流水进来") { $0.go(.transactions) }
         let record = Act(title: "记一笔") { s in withAnimation(.snappy(duration: 0.2)) { s.showAdd = true } }
         let today = Act(title: "记今天的账") { $0.open(.shopDay($0.book.todayDay)) }
         switch page {
@@ -55,7 +66,7 @@ struct V3EmptyPage: View {
         case .wealth: return ("还没有账户里的钱", "加一个银行卡、现金或者信用卡，这里就能算出你的家底。", [addAccount, drop])
         case .spending: return ("这个月还没有花销", "记一笔，或者把银行流水拖进来。", [record, drop])
         case .trends: return ("再等几天", "要有两个星期的流水，我才看得出花钱的速度。", [drop])
-        case .transactions: return ("一笔都还没有", "把银行流水拖到窗口里，一个月的账一次进来。", [record, Act(title: "换回示例数据") { $0.openSettings(.data); $0.page = .settings }])
+        case .transactions: return ("一笔都还没有", "把银行流水拖到窗口里，一个月的账一次进来。", [Act(title: "导入流水") { $0.importSample() }, record])
         case .subscriptions: return ("还没发现订阅", "导入两三个月的流水，每月都扣的那些我会自己找出来。", [Act(title: "自己加一个") { $0.open(.subscription) }, drop])
         case .debts: return ("你不欠钱", "挺好的。借给别人的、分期买的，也可以记在这里。", [Act(title: "记一笔欠款") { $0.open(.debt) }])
         case .monthly: return ("第一份小结下个月 1 日写好", "要有一整个月的账才写得出来。", [])
@@ -88,6 +99,21 @@ struct V3EmptyPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .v3Soft()
+        .onDrop(of: [.fileURL], isTargeted: nil) { _ in
+            // 流水页空着时：把文件拖进来就导入（试用版不读真文件，用示例流水）。
+            guard page == .transactions else { return false }
+            state.importSample(dropped: true)
+            return true
+        }
+        .background {
+            // 刚进来、还没有流水：夏夏在顶上说一句，点开就去导入（引导里不再放拖流水）。
+            if page == .overview, state.book.entries.isEmpty {
+                V3Ask(face: "happy", text: "想省事？把银行流水拖进来，我帮你填") {
+                    Button("去导入") { state.closeChat(); state.go(.transactions) }.buttonStyle(.v3(.primary, .small))
+                }
+                .frame(width: 0, height: 0).hidden()
+            }
+        }
         .accessibilityElement(children: .contain)
     }
 }

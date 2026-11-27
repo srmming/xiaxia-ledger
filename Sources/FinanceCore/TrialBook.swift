@@ -278,6 +278,26 @@ public struct TrialBook: Equatable, Sendable {
         accounts[t].balance = accounts[t].balance + amount
     }
 
+    /// 导入一份流水（试用版：示例的几笔）。同一天、同一家店、同一金额的算重复，跳过。返回新进来几笔、跳过几笔。
+    @discardableResult
+    public mutating func importEntries(_ rows: [Entry]) throws -> (added: Int, skipped: Int) {
+        guard !rows.isEmpty else { throw TrialError("这份流水里一笔都没有") }
+        var added = 0, skipped = 0
+        for r in rows {
+            if entries.contains(where: { $0.daysAgo == r.daysAgo && $0.place == r.place && $0.amount == r.amount }) { skipped += 1; continue }
+            var e = r
+            e.id = UUID(); e.tag = "流水导入"
+            entries.append(e)
+            if e.side == .life {
+                if e.amount.cents < 0 { month.spent = month.spent - e.amount } else { month.income = month.income + e.amount }
+            }
+            added += 1
+        }
+        guard added > 0 else { throw TrialError("这 \(skipped) 笔都导过了，没有新的") }
+        entries.sort { $0.daysAgo < $1.daysAgo }
+        return (added, skipped)
+    }
+
     // MARK: 账本、账户、分类的管理
 
     public mutating func renameBook(_ side: Side, to name: String) throws {

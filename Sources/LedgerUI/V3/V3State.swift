@@ -135,13 +135,20 @@ final class V3State {
     let spentLessThanLastMonth = Money(cents: 86_00)
 
     private var toastTask: Task<Void, Never>?
+    private var localUndo: (() -> Void)?
     private var secretTask: Task<Void, Never>?
 
     init() { ledger = TrialLedger(book: Self.demoBook, changes: Self.demoChanges) }
 
     // MARK: 做一件事：马上有回应，能撤销
 
-    func say(_ text: String) { show(Toast(text: text)) }
+    func say(_ text: String) { localUndo = nil; show(Toast(text: text)) }
+
+    /// 不进账本的小改动（引导里删一行账户）：提示条也带「撤销」，点了就做 `undo`。
+    func say(_ text: String, undo: @escaping () -> Void) {
+        localUndo = undo
+        show(Toast(text: text, canUndo: true))
+    }
 
     /// 没做成时说人话：不带撤销，停 5 秒。
     func fail(_ text: String) { show(Toast(text: text, isError: true)) }
@@ -152,6 +159,7 @@ final class V3State {
     func change(_ text: String, kind: ChangeRecord.Kind = .edit, _ body: (inout Book) throws -> Void) -> Bool {
         do {
             try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
+            localUndo = nil
             show(Toast(text: text, canUndo: true))
             return true
         } catch let e as TrialError {
@@ -164,6 +172,12 @@ final class V3State {
 
     /// 撤销最近一次改动（⌥⌘Z、提示条上的「撤销」）。
     func undo() {
+        if let local = localUndo {
+            localUndo = nil
+            withAnimation(.spring(duration: 0.3)) { local() }
+            show(Toast(text: "撤销了"))
+            return
+        }
         guard let last = ledger.lastUndoable else { say("没有能撤销的了"); return }
         undo(change: last.id)
     }

@@ -1,7 +1,6 @@
 #if os(macOS)
 import FinanceCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// 引导 5 步：为什么 → 管哪边 → 想要的 → 有多少 → 连接 AI。每一步都能跳过，前四步不用 AI。
 struct V3Onboarding: View {
@@ -60,7 +59,7 @@ private struct V3StepBar: View {
     }
 }
 
-/// 引导每一步下面那排按钮。
+/// 引导每一步下面那排按钮：中间只有一个实心的主按钮（旁边可以有「跳过」），「返回」是左边的文字按钮。五步都一样。
 private struct V3StepButtons: View {
     @Environment(V3State.self) private var state
     var back = true
@@ -70,13 +69,23 @@ private struct V3StepButtons: View {
     var nextEnabled = true
     var onNext: () -> Void
     var body: some View {
-        HStack(spacing: 12) {
-            if back { Button("返回") { state.previousStep() }.buttonStyle(.v3(.ghost, .big)) }
-            if let skipText {
-                Button(skipText) { state.say(skipSay); state.nextStep() }.buttonStyle(.v3(.ghost, .big))
+        ZStack {
+            HStack(spacing: 12) {
+                if let skipText {
+                    Button(skipText) { state.say(skipSay); state.nextStep() }.buttonStyle(.v3(.ghost, .big))
+                }
+                Button(next, action: onNext).buttonStyle(.v3(.primary, .big)).disabled(!nextEnabled).keyboardShortcut(.defaultAction)
             }
-            Button(next, action: onNext).buttonStyle(.v3(.primary, .big)).disabled(!nextEnabled).keyboardShortcut(.defaultAction)
+            if back {
+                Button { state.previousStep() } label: {
+                    Label("返回", systemImage: "chevron.left").font(V3.font(15, .bold)).foregroundStyle(V3.ink2)
+                        .padding(.horizontal, 6).padding(.vertical, 8).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .frame(width: 1040)
     }
 }
 
@@ -377,184 +386,166 @@ private struct V3WishStep: View {
 
 private struct V3AccountsStep: View {
     @Environment(V3State.self) private var state
+    /// 账户单子：哪些算有的、哪些算欠的、合计怎么算，都在核心（FinanceCore/StartingAccounts.swift）里。
+    @State private var list = StartingAccounts.sample
+    @FocusState private var focus: UUID?
 
-    struct Item: Identifiable, Equatable {
-        var id = UUID()
-        var emoji: String
-        var name: String
-        var sub: String
-        var text: String
-        var debt = false
-        var amount: Money? {
-            guard let m = Money(parsing: text), m >= .zero else { return nil }
-            return m
-        }
-    }
-
-    @State private var items: [Item] = [
-        Item(emoji: "💳", name: "日常卡", sub: "银行卡 · 平时花钱用的", text: "1.500"),
-        Item(emoji: "💶", name: "现金", sub: "钱包里", text: "85"),
-        Item(emoji: "💳", name: "信用卡", sub: "欠的钱 · 下个月要还", text: "640", debt: true),
+    static let symbols: [StartingAccounts.Kind: String] = [
+        .daily: "creditcard", .cash: "banknote", .savings: "building.columns", .jar: "star", .lent: "arrow.down.left.circle",
+        .credit: "creditcard.and.123", .installment: "calendar", .borrowed: "arrow.up.right.circle", .custom: "plus",
     ]
-    @State private var more: [Item] = [
-        Item(emoji: "🏦", name: "储蓄", sub: "存着不动的", text: "2.400"),
-        Item(emoji: "⭐", name: "存钱罐", sub: "为某件事存的", text: "500"),
-        Item(emoji: "📱", name: "分期", sub: "欠的钱 · 每月还", text: "1.200", debt: true),
-        Item(emoji: "🧑", name: "借给别人的", sub: "别人欠我", text: "120"),
-        Item(emoji: "🤝", name: "跟别人借的", sub: "欠的钱", text: "300", debt: true),
-    ]
-    @State private var importRead = 0
-    @State private var importing = false
-    @State private var dropHover = false
-    private let importTotal = 52
-
-    private var totals: HouseholdTotals {
-        HouseholdTotals(holdings: items.filter { !$0.debt }.compactMap(\.amount), debts: items.filter(\.debt).compactMap(\.amount))
-    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0)
-            V3StepTitle(title: "先看清你现在有多少", sub: "").padding(.top, V3Launch.overTitleBar ? 72 : 52)
+            V3StepTitle(title: "先看清你现在有多少", sub: "")
             HStack(alignment: .top, spacing: 26) {
-                left.frame(width: 564)
+                left.frame(width: 640)
                 right
             }
-            .frame(width: 1040).padding(.top, 22)
+            .frame(width: 1040).fixedSize(horizontal: false, vertical: true).padding(.top, 22)
             V3StepButtons(skipSay: "好，先跳过。进去以后在「家底」里随时能加", next: "下一步") {
-                state.say("好，记下了 \(items.count) 个账户")
+                state.say(list.rows.isEmpty ? "好，先空着" : "好，记下了 \(list.rows.count) 个账户")
                 state.nextStep()
             }
-            .padding(.top, 20)
+            .padding(.top, 22)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var left: some View {
-        VStack(spacing: 10) {
-            let two = items.count > 4
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: two ? 2 : 1), spacing: 10) {
-                ForEach($items) { $item in row($item, compact: two) }
-            }
-            if items.contains(where: { $0.amount == nil }) {
-                V3Label("有一个数我没看懂。写成 1500 或者 1.500,00 这样就行，没看懂的先不算。", size: 13, color: V3.red, weight: .semibold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if !more.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("再加一个").font(V3.font(14, .bold))
-                    HStack(spacing: 6) {
-                        ForEach(more) { m in
-                            V3Chip(text: "\(m.emoji) \(m.name)", size: 13) {
-                                withAnimation(.spring(duration: 0.35)) {
-                                    more.removeAll { $0.id == m.id }
-                                    items.append(m)
-                                }
-                                state.say("加好了：\(m.name)")
-                            }
-                        }
-                    }
+        VStack(spacing: 12) {
+            if !list.rows.isEmpty {
+                let two = list.rows.count > 4
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: two ? 2 : 1), spacing: two ? 8 : 10) {
+                    ForEach(list.rows) { r in row(r, compact: two) }
                 }
-                .v3Card(h: 16, v: 12, radius: 18)
             }
-            dropZone
+            if list.hasUnreadable {
+                V3Label("有一个数没看懂，写成 1500 这样就行。", size: 13, color: V3.red, weight: .semibold).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                group("我有的", StartingAccounts.Kind.have, trailing: nil)
+                group("我欠的", StartingAccounts.Kind.owe, trailing: .custom)
+            }
+            .v3Card(h: 16, v: 14, radius: 18)
         }
     }
 
-    private func row(_ item: Binding<Item>, compact: Bool) -> some View {
-        let it = item.wrappedValue
-        return HStack(spacing: 10) {
-            V3Ico(emoji: it.emoji, size: compact ? 30 : 38)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(it.name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
-
+    /// 一组按钮：小标题 + 一行五格等宽的按钮（不够五个的空着；最后一格可以放「自己起名」）。
+    private func group(_ title: String, _ kinds: [StartingAccounts.Kind], trailing: StartingAccounts.Kind?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(V3.font(13, .heavy)).foregroundStyle(V3.ink2)
+            HStack(spacing: 8) {
+                ForEach(0..<5, id: \.self) { i in
+                    if i < kinds.count { addButton(kinds[i]) }
+                    else if i == 4, let trailing { addButton(trailing) }
+                    else { Color.clear.frame(maxWidth: .infinity).frame(height: 1) }
+                }
             }
-            Spacer(minLength: 4)
-            TextField("0", text: item.text)
+        }
+    }
+
+    private func addButton(_ kind: StartingAccounts.Kind) -> some View {
+        Button { add(kind) } label: {
+            VStack(spacing: 4) {
+                Image(systemName: Self.symbols[kind] ?? "plus").font(.system(size: 17, weight: .semibold)).frame(height: 20)
+                Text(kind.title).font(V3.font(12.5, .bold)).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            .foregroundStyle(V3.navy)
+            .frame(maxWidth: .infinity).frame(height: 54)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white)
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(V3.ink, style: StrokeStyle(lineWidth: 1.5, dash: kind == .custom ? [5, 4] : []))))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(V3SinkStyle(depth: 2))
+        .accessibilityLabel("加一个\(kind.title)")
+    }
+
+    private func add(_ kind: StartingAccounts.Kind) {
+        do {
+            var id: UUID?
+            try withAnimation(.spring(duration: 0.35)) { id = try list.add(kind) }
+            // 新加的那一行：要自己填名字的先填名字，别的直接填金额
+            focus = id
+        } catch let e as TrialError { state.fail(e.message) } catch { state.fail("没加上，再试一次") }
+    }
+
+    private func row(_ r: StartingAccounts.Row, compact: Bool) -> some View {
+        let name = Binding(get: { r.name }, set: { list.rename(r.id, to: $0) })
+        let text = Binding(get: { r.text }, set: { list.setText(r.id, $0) })
+        return HStack(spacing: 8) {
+            V3Ico(emoji: r.kind.emoji, size: compact ? 28 : 36)
+            TextField(r.kind.namePrompt, text: name)
+                .textFieldStyle(.plain).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
+                .frame(minWidth: 40)
+                .accessibilityLabel("名字")
+                .modifier(V3NameFocus(focus: $focus, id: r.id, on: r.kind.asksName))
+            if r.kind == .custom {
+                HStack(spacing: 0) {
+                    side("有的", !r.owes) { list.setOwes(r.id, false) }
+                    side("欠的", r.owes) { list.setOwes(r.id, true) }
+                }
+                .overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)).clipShape(Capsule())
+            }
+            Spacer(minLength: 2)
+            TextField("0", text: text)
                 .textFieldStyle(.plain).multilineTextAlignment(.trailing)
-                .font(V3.num(compact ? 17 : 21, .heavy)).foregroundStyle(it.amount == nil ? V3.ink2 : it.debt ? V3.red : V3.navy)
-                .frame(width: compact ? 78 : 120)
+                .font(V3.num(compact ? 17 : 21, .heavy)).foregroundStyle(r.amount == nil ? V3.ink2 : r.owes ? V3.red : V3.navy)
+                .frame(width: compact ? 74 : 120)
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(RoundedRectangle(cornerRadius: 9).fill(V3.bg.opacity(0.9)))
-                .accessibilityLabel("\(it.name)\(it.debt ? "欠多少" : "有多少")")
-            Text("€").font(V3.num(compact ? 15 : 18)).foregroundStyle(it.debt ? V3.red : V3.navy)
-            Button {
-                withAnimation(.spring(duration: 0.3)) { items.removeAll { $0.id == it.id } }
-                state.say("拿掉了：\(it.name)")
-            } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 20, height: 20) }
-                .buttonStyle(.plain).accessibilityLabel("拿掉\(it.name)")
+                .accessibilityLabel("\(r.displayName)\(r.owes ? "欠多少" : "有多少")")
+                .modifier(V3NameFocus(focus: $focus, id: r.id, on: !r.kind.asksName))
+            Text("€").font(V3.num(compact ? 15 : 18)).foregroundStyle(r.owes ? V3.red : V3.navy)
+            Button { remove(r) } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 20, height: 20) }
+                .buttonStyle(.plain).accessibilityLabel("删掉\(r.displayName)")
         }
-        .padding(.horizontal, compact ? 12 : 16).padding(.vertical, compact ? 8 : 11)
-        .v3Soft(radius: 18, fill: it.debt ? V3.hex(0xFFF6F5) : .white)
+        .padding(.horizontal, compact ? 12 : 16).padding(.vertical, compact ? 7 : 11)
+        .v3Soft(radius: 18, fill: r.owes ? V3.hex(0xFFF6F5) : .white)
     }
 
-    private var dropZone: some View {
-        Button { playImport() } label: {
-            HStack(spacing: 14) {
-                Text("📄").font(.system(size: 30))
-                VStack(alignment: .leading, spacing: 3) {
-                    if importing || importRead > 0 {
-                        Text(importing ? "正在读流水… 已读 \(importRead) / \(importTotal) 笔" : "读完了：\(importTotal) 笔，跳过 3 笔重复的")
-                            .font(V3.font(14, .bold)).foregroundStyle(V3.ink).contentTransition(.numericText())
-                        V3Bar(fraction: Double(importRead) / Double(importTotal), height: 9)
-                    } else {
-                        Text("嫌一个个填麻烦？把银行流水拖到这里").font(V3.font(14, .bold)).foregroundStyle(V3.ink)
-                        EmptyView()
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 18).padding(.vertical, 12)
-            .v3Sticker(fill: dropHover ? V3.goodBG : V3.soft, dashed: true)
+    private func side(_ title: String, _ on: Bool, _ pick: @escaping () -> Void) -> some View {
+        Button { withAnimation(.snappy(duration: 0.15)) { pick() } } label: {
+            Text(title).font(V3.font(11.5, .bold)).foregroundStyle(on ? .white : V3.ink)
+                .padding(.horizontal, 8).padding(.vertical, 4).background(on ? (title == "欠的" ? V3.red : V3.navy) : .white)
         }
-        .buttonStyle(V3SinkStyle())
-        .onDrop(of: [UTType.fileURL], isTargeted: $dropHover) { _ in
-            // 试用版不读放进来的文件，只用示例流水演示一遍。
-            playImport(dropped: true)
-            return true
-        }
-        .padding(.bottom, 4)
+        .buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    /// 导入时数字一笔一笔跳（示例）。
-    private func playImport(dropped: Bool = false) {
-        guard !importing else { return }
-        importing = true
-        importRead = 0
-        Task { @MainActor in
-            for n in 1...importTotal {
-                try? await Task.sleep(for: .milliseconds(45))
-                withAnimation(.linear(duration: 0.04)) { importRead = n }
-                if n % 4 == 0, let i = items.firstIndex(where: { $0.name == "日常卡" }) {
-                    withAnimation(.snappy(duration: 0.1)) { items[i].text = Money(cents: 1_500_00 - Int64(n) * 6).formatted.replacingOccurrences(of: " €", with: "") }
-                }
-            }
-            if let i = items.firstIndex(where: { $0.name == "日常卡" }) {
-                withAnimation(.snappy) { items[i].text = "1.496,61" }
-            }
-            importing = false
-            state.say(dropped ? "这是试用版：没读你放进来的文件，用示例流水演示了一遍" : "读完了：52 笔，跳过 3 笔重复的。日常卡按流水改成 1.496,61 €")
-        }
+    private func remove(_ r: StartingAccounts.Row) {
+        var gone: (row: StartingAccounts.Row, index: Int)?
+        withAnimation(.spring(duration: 0.3)) { gone = list.remove(r.id) }
+        guard let gone else { return }
+        state.say("删掉了 \(gone.row.displayName)") { list.restore(gone.row, at: gone.index) }
     }
 
     private var right: some View {
-        VStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                V3Label("净剩")
-                V3Gold(amount: totals.net, size: 72, whole: totals.net.cents % 100 == 0)
-                HStack(spacing: 26) {
-                    V3KV(value: totals.have.v3Short, label: "一共有")
-                    V3KV(value: totals.owe.v3Short, label: "欠别人", color: V3.red)
-                }
-                .padding(.top, 4)
+        let totals = list.totals
+        return VStack(alignment: .leading, spacing: 6) {
+            V3Label("净剩")
+            V3Gold(amount: totals.net, size: 64, whole: totals.net.cents % 100 == 0)
+            HStack(spacing: 26) {
+                V3KV(value: totals.have.v3Short, label: "一共有")
+                V3KV(value: totals.owe.v3Short, label: "欠别人", color: V3.red)
             }
-            .padding(.init(top: 20, leading: 24, bottom: 34, trailing: 24))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .v3Sticker().v3WaveBottom()
-            .animation(.snappy(duration: 0.3), value: totals)
+            .padding(.top, 4)
         }
+        .padding(.init(top: 20, leading: 24, bottom: 34, trailing: 24))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .v3Sticker().v3WaveBottom()
+        .animation(.snappy(duration: 0.3), value: totals)
+    }
+}
+
+/// 新加的一行：把光标放进该先填的那一格。
+private struct V3NameFocus: ViewModifier {
+    var focus: FocusState<UUID?>.Binding
+    let id: UUID
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.focused(focus, equals: id) } else { content }
     }
 }
 
@@ -564,87 +555,87 @@ private struct V3ConnectStep: View {
     @Environment(V3State.self) private var state
     @State private var checking: String?
     @State private var missing: String?
-    private static let names = ["Claude", "ChatGPT", "Gemini", "别的"]
+    private static let options: [(name: String, symbol: String)] = [
+        ("Claude", "sparkles"), ("ChatGPT", "bubble.left.and.bubble.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"), ("还没用过", "leaf"),
+    ]
+    /// 选项下面那一行放三段还是只放一句（离屏对比用：XIAXIA_OB5=three）。
+    static var threeParts: Bool { ProcessInfo.processInfo.environment["XIAXIA_OB5"] == "three" }
+
+    private func picked(_ n: String) -> Bool { n == "还没用过" ? state.ai == "夏夏自带的" : state.ai == n }
 
     var body: some View {
         VStack(spacing: 0) {
-            // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0)
-            V3StepTitle(title: "你平时用哪个 AI？", sub: "").padding(.top, V3Launch.overTitleBar ? 76 : 56)
-            HStack(spacing: 12) {
-                ForEach(Self.names, id: \.self) { n in
-                    V3Option(picked: state.ai == n) { connect(n) } content: {
-                        VStack(spacing: 4) {
-                            Text(n).font(V3.font(16, .bold)).foregroundStyle(V3.ink)
-                            if state.ai == n { Text("✓ 连上了").font(V3.font(13, .bold)).foregroundStyle(V3.green) }
-                            else if checking == n { Text("正在看…").font(V3.font(13, .regular)).foregroundStyle(V3.navy) }
-
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .frame(width: 150, height: 56)
-                }
-                V3Option(picked: state.ai == "夏夏自带的") {
-                    checking = nil; missing = nil
-                    withAnimation(.snappy) { state.ai = "夏夏自带的" }
-                    state.say("好，就用夏夏自带的")
-                } content: {
-                    VStack(spacing: 4) {
-                        Text("还没用过").font(V3.font(16, .bold)).foregroundStyle(V3.ink)
-
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .frame(width: 210, height: 56)
+            V3StepTitle(title: "你平时用哪个 AI？", sub: "")
+            HStack(spacing: 14) {
+                ForEach(Self.options, id: \.name) { o in card(o.name, o.symbol) }
             }
-            .padding(.top, 26)
+            .padding(.top, 30)
             ZStack {
                 if let checking {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("正在看这台 Mac 上的 \(checking) 连上没有…").font(V3.font(15, .bold)).foregroundStyle(V3.ink)
+                        Text("正在看 \(checking) 连上没有…").font(V3.font(15, .bold)).foregroundStyle(V3.ink)
                     }
                 } else if let missing {
-                    HStack(alignment: .top, spacing: 10) {
-                        V3Bubble(text: "没连上 \(missing)。可能是它还没打开。先用自带的 AI？", tone: .warn, flat: true) {
-                            HStack(spacing: 8) {
-                                Button("用夏夏自带的") {
-                                    self.missing = nil
-                                    withAnimation(.snappy) { state.ai = "夏夏自带的" }
-                                    state.say("好，就用夏夏自带的")
-                                }
-                                .buttonStyle(.v3(.primary, .small))
-                                Button("再试一次") { let m = missing; self.missing = nil; connect(m, retry: true) }.buttonStyle(.v3(.ghost, .small))
-                            }
-                        }
-                        .frame(width: 440)
+                    HStack(spacing: 12) {
+                        Text("没连上 \(missing)，可能它还没打开。").font(V3.font(15, .bold)).foregroundStyle(V3.red)
+                        Button("再试一次") { let m = missing; self.missing = nil; connect(m, retry: true) }.buttonStyle(.v3(.ghost, .small))
                     }
+                } else if Self.threeParts {
+                    HStack(spacing: 44) {
+                        part("flag", "把那句话变成第一步")
+                        part("bell", "快到不了时先开口")
+                        part("envelope", "到站给你写信")
+                    }
+                } else {
+                    Text("连上以后，夏夏会帮你把那句话变成第一步").font(V3.font(15, .bold)).foregroundStyle(V3.ink2)
                 }
             }
-            .frame(height: checking == nil && missing == nil ? 18 : 96).padding(.top, 8)
-            HStack(alignment: .top, spacing: 22) {
-                promise("🧭", "把你写的那句变成第一步", "连上以后再聊，不连也能用。")
-                promise("⏰", "快到不了时先开口", "说清情况，帮你把步子改小。")
-                promise("✉️", "到站给你写信", "只写给你一个人的那种。")
-            }
-            .padding(24).frame(width: 900).v3Soft()
+            .frame(height: 36).padding(.top, 30)
             V3StepButtons(skipText: nil, next: "出发") {
-                state.say(state.ai == nil ? "出发！AI 以后随时能连" : "出发！")
+                // 没选也能走：等于「还没用过」
+                if state.ai == nil { state.ai = "夏夏自带的" }
+                state.say("出发！")
                 state.nextStep()
             }
-            .padding(.top, 18)
+            .padding(.top, 30)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func promise(_ emoji: String, _ title: String, _ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            V3Ico(emoji: emoji, size: 44)
-            Text(title).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
+    private func part(_ symbol: String, _ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(V3.navy)
+            Text(text).font(V3.font(14.5, .bold)).foregroundStyle(V3.ink)
         }
-        .help(text)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func card(_ name: String, _ symbol: String) -> some View {
+        let on = picked(name)
+        return Button {
+            if name == "还没用过" {
+                checking = nil; missing = nil
+                withAnimation(.snappy) { state.ai = "夏夏自带的" }
+            } else { connect(name) }
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: symbol).font(.system(size: 26, weight: .semibold)).frame(height: 32)
+                Text(name).font(V3.font(16, .bold)).lineLimit(1)
+            }
+            .foregroundStyle(on ? .white : V3.navy)
+            .frame(width: 168, height: 124)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(on ? V3.navy : .white)
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(V3.ink, lineWidth: 2.5)))
+            .overlay(alignment: .topTrailing) {
+                if on { Image(systemName: "checkmark.circle.fill").font(.system(size: 18, weight: .bold)).foregroundStyle(.white).padding(10) }
+                else if checking == name { ProgressView().controlSize(.small).padding(10) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(V3SinkStyle(depth: 3))
+        .accessibilityLabel(name).accessibilityAddTraits(on ? .isSelected : [])
     }
 
     /// 试用版里连接是演出来的：不碰这台 Mac 上任何 AI 的设置。Gemini 第一次故意连不上，看看出错时怎么说。
