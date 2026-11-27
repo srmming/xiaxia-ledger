@@ -419,11 +419,7 @@ struct V3GoalsPage: View {
                                 Text(l.paragraphs.dropFirst().joined(separator: "\n")).font(.custom(V3.kai, size: 13.5)).foregroundStyle(V3.ink2)
                                     .lineSpacing(5).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                     .mask(LinearGradient(stops: [.init(color: .black, location: 0.72), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
-                                HStack(spacing: 4) {
-                                    V3Tag(text: l.date, tone: .gold)
-                                    Spacer(minLength: 0)
-                                    Text("看全文 ›").font(V3.font(11.5, .bold)).foregroundStyle(V3.navy)
-                                }
+                                V3Tag(text: l.date + " ›", tone: .gold)
                             }
                             .padding(.horizontal, 12).padding(.vertical, 10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
