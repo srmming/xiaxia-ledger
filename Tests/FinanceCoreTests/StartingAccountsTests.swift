@@ -20,6 +20,7 @@ final class StartingAccountsTests: XCTestCase {
 
     func testDeleteThenAddBackAndUndo() throws {
         var s = StartingAccounts.sample
+        let original = s
         let daily = s.rows[0]
         let removed = s.remove(daily.id)
         XCTAssertEqual(removed?.index, 0)
@@ -30,7 +31,7 @@ final class StartingAccountsTests: XCTestCase {
         s.remove(again)
         // 撤销：回到原来的位置
         s.restore(removed!.row, at: removed!.index)
-        XCTAssertEqual(s, .sample)
+        XCTAssertEqual(s, original)
     }
 
     func testLentCountsAsHaveBorrowedAsOwe() throws {
