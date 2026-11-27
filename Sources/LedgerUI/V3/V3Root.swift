@@ -395,26 +395,12 @@ private struct V3TopBar: View {
         return state.page.title
     }
 
+    /// 标题旁边只留「数据」：今天几号、哪家店。解释这页是干什么的那句话不放（ming 2026-11-27：小字太多）。
     private var subtitle: String {
         switch state.page {
         case .overview: state.today
-        case .goals: "一个大目标，拆成几站慢慢走"
-        case .wealth: "你现在一共有多少、欠多少、净剩多少"
-        case .spending: "11 月 · 钱花到哪了"
-        case .trends: "往后看：月底、下个月、还能撑多久"
-        case .transactions: "钱自己进来，你只管看一眼"
-        case .think: state.thinkBig ? "离职、创业、买大件之前，先算一算" : "买之前算一算，我不替你决定"
-        case .subscriptions: "每个月自己扣走的钱"
-        case .debts: "先还哪个、哪天还完"
-        case .monthly: "每个月一份，11 月 1 日写好"
-        case .settings: state.showLog ? "账本每一次改动都记着是谁改的，都能撤销" : ""
         case .bizHome: "Miora 小店 · 11 月"
-        case .sales: "每天只记一个总数"
-        case .fixed: "不管开不开门，每个月都要付的"
-        case .payback: "开店投进去的钱，赚回来多少了"
-        case .stock: "不数库存，只估一个总数"
-        case .checkup: "每个季度一次 · 第三季度（7–9 月）"
-        case .bizDebts: "店欠别人的，别人欠店里的"
+        default: ""
         }
     }
 }
@@ -458,7 +444,6 @@ struct V3AddAccountSheet: View {
                 V3Label("这个数我没看懂。写成 1500 或者 1.500,00 这样就行。", color: V3.red, weight: .semibold)
             }
             HStack {
-                V3Label(k.kind == .debt ? "欠的钱用红色，会从净剩里减掉。" : k.kind == .lent ? "别人欠你的用蓝色，收回来之前不算进「一共有」。" : "加上以后，家底的数马上跟着变。")
                 Spacer()
                 Button("先不加") { dismiss() }.buttonStyle(.v3(.ghost)).keyboardShortcut(.cancelAction)
                 Button("加上") {

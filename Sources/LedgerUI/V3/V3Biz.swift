@@ -17,7 +17,7 @@ struct V3BizHomePage: View {
             VStack(spacing: 16) {
                 V3Ask(face: "think", text: "周六收得最多，一天顶平时两天。固定开销已经赚回来了，后面收的都是你的。", kicker: "每周一句")
                     .frame(maxWidth: 560).frame(maxWidth: .infinity, alignment: .leading)
-                V3KeyCard(label: "11 月 · 真正赚了（已扣掉给自己发的 1.000 € 工资）", amount: Money(cents: 1_520_26), wave: V3.tealSoft) {
+                V3KeyCard(label: "11 月 · 真正赚了", amount: Money(cents: 1_520_26), wave: V3.tealSoft) {
                     V3Label("比上个月同期多 140 €", size: 14, color: V3.green, weight: .bold)
                 }
                 V3GrowCard {
@@ -47,7 +47,6 @@ struct V3BizHomePage: View {
                         }
                         .buttonStyle(.v3(.teal))
                     }
-                    V3Label("每天只记一个总数，不用记每一单。")
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
                 V3Card {
@@ -58,7 +57,6 @@ struct V3BizHomePage: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 V3Label("本钱还差")
                                 V3Amount("15.442,00\u{00A0}€", color: V3.ink, size: 26, weight: .heavy)
-                                V3Label("回本那天，也有一封信")
                             }
                             Spacer(minLength: 0)
                         }
@@ -67,7 +65,7 @@ struct V3BizHomePage: View {
                     .buttonStyle(V3SinkStyle(depth: 2))
                 }
                 V3GrowCard {
-                    V3CardTitle("给自己发工资", note: "每月 1 日")
+                    V3CardTitle("给自己发工资")
                     V3RowList(rows: [.init("🏠", "11 月已经发了", "拿回家算「给自己发了」", "1.000,00 €", V3.teal)])
                     V3SayButton("多拿一点回家", "拿多少？我先算算店里够不够（试用版先不真的动钱）", .ghost)
                 }
@@ -131,7 +129,7 @@ struct V3SalesPage: View {
                     V3Ask(face: "happy", text: day16 == 0 ? "好，16 号算休息。这个月每天都对上了。" : "补上了：16 号收了 \(day16!) €。这个月每天都对上了。", tone: .good)
                 }
                 V3KeyCard(label: "11 月营业额", whole: Money(cents: Int64(total) * 100).v3Parts.whole, rest: ",00\u{00A0}€", size: 56, wave: V3.tealSoft) {
-                    V3Label("\(count) 个营业日 · 平均每天 \(total / max(count, 1)) € · 每天先收 60 € 才够付固定开销")
+                    V3Label("\(count) 个营业日 · 平均每天 \(total / max(count, 1)) €")
                 }
                 V3GrowCard {
                     V3CardTitle("一周里哪天最旺")
@@ -153,7 +151,7 @@ struct V3SalesPage: View {
             }
         } trailing: {
             V3GrowCard {
-                V3CardTitle("11 月每天收了多少", note: "颜色越深收得越多")
+                V3CardTitle("11 月每天收了多少")
                 Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                     GridRow {
                         ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { d in
@@ -239,7 +237,6 @@ struct V3FixedPage: View {
                 V3GrowCard {
                     V3CardTitle("如果停掉可省的")
                     V3Amount("每月省 120,00\u{00A0}€", color: V3.green, size: 28, weight: .heavy)
-                    V3Label("广告和预约软件都停掉：每天开门要先收的，从 60 € 变成 56 €")
                 }
             }
         } trailing: {
@@ -255,7 +252,6 @@ struct V3FixedPage: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     V3SayButton("加一样", "好，叫什么、每月多少？（试用版先不能加）", .teal)
-                    V3Label("流水里连着 3 个月都有的，我会问你要不要加进来。")
                 }
             }
         }
@@ -279,7 +275,7 @@ struct V3PaybackPage: View {
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).v3Sticker()
                 V3GrowCard {
-                    V3CardTitle("一点点赚回来的", note: "虚线是照现在的速度")
+                    V3CardTitle("一点点赚回来的")
                     V3Lines(height: 200, grid: [100, 199], lines: [
                         .init(points: [(0, 14), (560, 14)], color: V3.gold, width: 2.5, dash: [7, 6]),
                         .init(points: [(0, 196), (50, 186), (100, 172), (150, 160), (200, 142), (250, 128), (290, 104)], color: V3.teal, fill: V3.tealSoft),
@@ -344,7 +340,7 @@ struct V3StockPage: View {
                     }
                 }
                 V3KeyCard(label: "店里的货，大约值", amount: value, wave: V3.tealSoft) {
-                    V3Label("\(when) · 不用一样一样数，估个总数就行")
+                    V3Label(when)
                 }
                 V3GrowCard {
                     V3CardTitle("上个季度用掉和损耗了多少")
@@ -359,7 +355,6 @@ struct V3StockPage: View {
                         .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 14).fill(V3.goodBG))
                     }
-                    V3Label("其中大约 210 € 是过期、打碎这类损耗（按你标的算）。")
                 }
             }
         } trailing: {
@@ -395,8 +390,7 @@ struct V3CheckupPage: View {
     var body: some View {
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "值不值得继续开？换算下来，你每小时赚", amount: Money(cents: 10_49), wave: V3.tealSoft) {
-                    V3Label("去店里打工大概每小时 9 € · 你多赚一点，店还是你自己的")
+                V3KeyCard(label: "你每小时赚", amount: Money(cents: 10_49), wave: V3.tealSoft) {
                 }
                 V3Card {
                     V3CardTitle("营业额每 100 € 去哪了")
@@ -422,7 +416,7 @@ struct V3CheckupPage: View {
         } trailing: {
             VStack(spacing: 16) {
                 V3GrowCard(spacing: 6) {
-                    V3CardTitle("怎么多赚一点", note: "按规则算的，不是瞎猜")
+                    V3CardTitle("怎么多赚一点")
                     V3RowList(rows: [
                         .init("🕑", "周六多开 2 小时", "周六一小时收的是平时的 2 倍", "大约 +160 € / 月", V3.green),
                         .init("📣", "停掉广告试一个月", "每月 80 €，看不出带来客人", "+80 € / 月", V3.green),
@@ -467,12 +461,12 @@ struct V3BizDebtsPage: View {
                 }
                 V3GrowCard {
                     V3CardTitle("还贷款怎么算")
-                    V3Label("每月还的 350 € 里，本金 310 € 不算开销，利息 40 € 才算。所以「真正赚了」只扣利息，「手里实际多了」两样都扣。")
+                    V3Label("每月 350 €：本金 310 € 不算开销，利息 40 € 才算。")
                 }
             }
         } trailing: {
             V3GrowCard(spacing: 8) {
-                V3CardTitle("先还哪个", note: "拖了有后果的排前面")
+                V3CardTitle("先还哪个")
                 V3RowList(rows: [
                     paid ? .init("📦", "供货商赊账", "刚还清", "0,00 €", V3.green, tag: "还清了", tone: .green)
                          : .init("📦", "供货商赊账", "12 月 3 日到期", "320,00 €", V3.red, tag: "先还这个", tone: .red),

@@ -86,7 +86,7 @@ private struct V3StepTitle: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(title).font(V3.font(34, .heavy)).foregroundStyle(V3.ink).multilineTextAlignment(.center)
-            Text(sub).font(V3.font(16, .regular)).foregroundStyle(V3.ink2).multilineTextAlignment(.center)
+            if !sub.isEmpty { Text(sub).font(V3.font(16, .regular)).foregroundStyle(V3.ink2).multilineTextAlignment(.center) }
         }
     }
 }
@@ -137,8 +137,7 @@ private struct V3IntroStep: View {
                         (Text("找到你") + Text("真正想要的生活").foregroundColor(V3.gold) + Text("，\n再让钱一步步带你过去。"))
                             .font(V3.font(52, .heavy)).foregroundStyle(V3.ink).multilineTextAlignment(.center).lineSpacing(4)
                             .modifier(Appear(p: Self.appear(t, 2))).padding(.bottom, 14)
-                        Text("还没想好？没关系。先用着，慢慢找。").font(V3.font(19, .regular)).foregroundStyle(V3.ink2)
-                            .modifier(Appear(p: Self.appear(t, 3))).padding(.bottom, 26)
+                        Color.clear.frame(height: 12)
                         Button("开始") { state.say("好，我们聊聊"); state.nextStep() }
                             .buttonStyle(.v3(.primary, .big)).keyboardShortcut(.defaultAction)
                             .modifier(Appear(p: Self.appear(t, 4))).allowsHitTesting(Self.appear(t, 4) > 0.5)
@@ -200,7 +199,7 @@ private struct V3ChooseStep: View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0).frame(maxHeight: 60)
-            V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "选了以后随时能改。").padding(.top, V3Launch.overTitleBar ? 70 : 50)
+            V3StepTitle(title: "你想让我帮你管哪边的钱？", sub: "").padding(.top, V3Launch.overTitleBar ? 70 : 50)
             HStack(spacing: 18) {
                 option(.life, "生活为主", "工资、日常花销、存钱、欠款。打开先看「这个月还能随便花多少」。") { V3SceneLife() }
                 option(.biz, "生意为主", "一个人开店的小老板。打开先看「这个月真正赚了多少」。") { V3SceneBiz() }
@@ -227,9 +226,9 @@ private struct V3ChooseStep: View {
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(V3.ink, lineWidth: 2))
                     .overlay(alignment: .bottomLeading) { V3Tag(text: "草图 · 正式的画还没画", tone: .blue, size: 10.5).padding(8).opacity(0.92) }
                 Text(title).font(V3.font(22, .heavy)).foregroundStyle(V3.ink)
-                Text(text).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).fixedSize(horizontal: false, vertical: true)
             }
         }
+        .help(text)
         .accessibilityLabel("\(title)。\(text)")
     }
 }
@@ -370,7 +369,7 @@ private struct V3WishStep: View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0).frame(maxHeight: 60)
-            V3StepTitle(title: "随便写一句你想要的", sub: "写得很大可以，很模糊也可以。不想写就跳过。").padding(.top, V3Launch.overTitleBar ? 82 : 62)
+            V3StepTitle(title: "随便写一句你想要的", sub: "").padding(.top, V3Launch.overTitleBar ? 82 : 62)
             TextField("比如：三年后不用为钱发愁", text: $text)
                 .textFieldStyle(.plain).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).focused($focused)
                 .padding(.horizontal, 26).padding(.vertical, 20)
@@ -394,8 +393,7 @@ private struct V3WishStep: View {
                         V3Ico(emoji: "🧠")
                         VStack(alignment: .leading, spacing: 1) {
                             Text("存进夏夏的记忆").font(V3.font(14, .bold)).foregroundStyle(V3.ink)
-                            Text(clean.isEmpty ? "写了以后会存在这里 · 随时能改、能删" : "「\(clean)」· 今天记下 · 随时能改、能删")
-                                .font(V3.font(13.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                            if !clean.isEmpty { Text("「\(clean)」").font(V3.font(13.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
                         }
                         Spacer(minLength: 6)
                         V3Tag(text: "只留在这台 Mac", tone: .green)
@@ -462,7 +460,7 @@ private struct V3AccountsStep: View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0).frame(maxHeight: 60)
-            V3StepTitle(title: "先看清你现在有多少", sub: "加上你的账户，填个大概的数就行，以后再对。不想填可以跳过。").padding(.top, V3Launch.overTitleBar ? 72 : 52)
+            V3StepTitle(title: "先看清你现在有多少", sub: "").padding(.top, V3Launch.overTitleBar ? 72 : 52)
             HStack(alignment: .top, spacing: 26) {
                 left.frame(width: 564)
                 right
@@ -515,7 +513,7 @@ private struct V3AccountsStep: View {
             V3Ico(emoji: it.emoji, size: compact ? 30 : 38)
             VStack(alignment: .leading, spacing: 0) {
                 Text(it.name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
-                if !compact { Text(it.sub).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
+
             }
             Spacer(minLength: 4)
             TextField("0", text: item.text)
@@ -547,8 +545,7 @@ private struct V3AccountsStep: View {
                         V3Bar(fraction: Double(importRead) / Double(importTotal), height: 9)
                     } else {
                         Text("嫌一个个填麻烦？把银行流水拖到这里").font(V3.font(14, .bold)).foregroundStyle(V3.ink)
-                        Text("余额和每一笔流水一起进来，重复的自动去掉。也可以点一下，先用示例流水试试。")
-                            .font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
+                        EmptyView()
                     }
                 }
                 Spacer(minLength: 0)
@@ -589,7 +586,7 @@ private struct V3AccountsStep: View {
     private var right: some View {
         VStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                V3Label("净剩（真正是你的）")
+                V3Label("净剩")
                 V3Gold(amount: totals.net, size: 72, whole: totals.net.cents % 100 == 0)
                 HStack(spacing: 26) {
                     V3KV(value: totals.have.v3Short, label: "一共有")
@@ -621,7 +618,7 @@ private struct V3ConnectStep: View {
         VStack(spacing: 0) {
             // 上下各留一样多的空，内容落在窗口中间偏上
             Spacer(minLength: 0).frame(maxHeight: 60)
-            V3StepTitle(title: "你平时用哪个 AI？", sub: "它比较了解你，让它来陪你走这条路。不连也行，以后再连。").padding(.top, V3Launch.overTitleBar ? 76 : 56)
+            V3StepTitle(title: "你平时用哪个 AI？", sub: "").padding(.top, V3Launch.overTitleBar ? 76 : 56)
             HStack(spacing: 12) {
                 ForEach(Self.names, id: \.self) { n in
                     V3Option(picked: state.ai == n) { connect(n) } content: {
@@ -629,11 +626,11 @@ private struct V3ConnectStep: View {
                             Text(n).font(V3.font(16, .bold)).foregroundStyle(V3.ink)
                             if state.ai == n { Text("✓ 连上了").font(V3.font(13, .bold)).foregroundStyle(V3.green) }
                             else if checking == n { Text("正在看…").font(V3.font(13, .regular)).foregroundStyle(V3.navy) }
-                            else { Text("点一下连接").font(V3.font(13, .regular)).foregroundStyle(V3.ink2) }
+
                         }
                         .frame(maxWidth: .infinity)
                     }
-                    .frame(width: 150, height: 74)
+                    .frame(width: 150, height: 56)
                 }
                 V3Option(picked: state.ai == "夏夏自带的") {
                     checking = nil; missing = nil
@@ -642,11 +639,11 @@ private struct V3ConnectStep: View {
                 } content: {
                     VStack(spacing: 4) {
                         Text("还没用过").font(V3.font(16, .bold)).foregroundStyle(V3.ink)
-                        Text("用夏夏自带的就行").font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
+
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .frame(width: 210, height: 74)
+                .frame(width: 210, height: 56)
             }
             .padding(.top, 26)
             ZStack {
@@ -680,7 +677,6 @@ private struct V3ConnectStep: View {
                 promise("celebrate", "到站给你写信", "只写给你一个人的那种。")
             }
             .padding(24).frame(width: 900).v3Soft()
-            V3Label("你的账本留在这台 Mac 上。").padding(.top, 16)
             V3StepButtons(skipText: nil, next: "出发") {
                 state.say(state.ai == nil ? "出发！AI 以后随时能连" : "出发！")
                 state.nextStep()
@@ -695,8 +691,8 @@ private struct V3ConnectStep: View {
         VStack(alignment: .leading, spacing: 4) {
             V3Face(face: face)
             Text(title).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
-            Text(text).font(V3.font(13.5, .regular)).foregroundStyle(V3.ink2)
         }
+        .help(text)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

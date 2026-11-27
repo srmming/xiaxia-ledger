@@ -21,7 +21,6 @@ struct V3AddSheet: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     Text("记一笔").font(V3.font(22, .heavy))
-                    V3Label("一个动作就记完，记错能撤销")
                     Spacer()
                     Button { close() } label: { Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 26, height: 26) }
                         .buttonStyle(.plain).keyboardShortcut(.cancelAction).accessibilityLabel("关掉")
@@ -45,7 +44,7 @@ struct V3AddSheet: View {
                             V3Ico(emoji: q.emoji, size: 48)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(q.name == "咖啡" ? "咖啡 · Café Nube" : q.name).font(V3.font(17, .heavy))
-                                V3Label("今天 · 分类是 app 自己认的，没网也行")
+                                V3Label("今天")
                             }
                             Spacer()
                             V3Amount((-q.amount).v3, size: 26, weight: .heavy)

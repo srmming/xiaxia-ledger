@@ -94,7 +94,7 @@ struct V3SpendingPage: View {
                       tone: diff >= .zero ? .good : .plain)
                 V3KeyCard(label: "11 月到今天花掉", amount: m.spentTotal, size: 56) {
                     HStack(spacing: 26) {
-                        V3KV(value: m.fixed.v3, label: "固定要付的（房租、订阅、分期）")
+                        V3KV(value: m.fixed.v3, label: "固定要付的")
                         V3KV(value: m.spent.v3, label: "平时花的")
                     }
                 }
@@ -127,7 +127,7 @@ struct V3SpendingPage: View {
             }
         } trailing: {
             V3GrowCard(spacing: 0) {
-                V3CardTitle("花得最多的", note: "竖线是上个月同期").padding(.bottom, 6)
+                V3CardTitle("花得最多的").padding(.bottom, 6)
                 ForEach(Array(top.enumerated()), id: \.offset) { _, t in
                     HStack(spacing: 12) {
                         V3Ico(emoji: t.0)
@@ -208,12 +208,12 @@ struct V3TrendsPage: View {
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
-                V3CardTitle("12 月要付的", note: "按日子排")
+                V3CardTitle("12 月要付的")
                 V3RowList(rows: [
                     .init("🏠", "房租", "12 月 1 日 · 固定", "650,00 €"), .init("💳", "信用卡", "12 月 5 日 · 固定", "640,00 €", V3.red),
                     .init("📱", "手机分期", "12 月 8 日 · 第 7 / 12 期", "200,00 €", V3.red), .init("🔁", "订阅 5 个", "2 日到 21 日陆续扣", "42,00 €"),
                 ] + (gym == true ? [.init("🏋️", "健身房", "刚算进来的", "29,00 €")] : []), compact: true)
-                V3CardTitle("平时花的", note: "按最近 3 个月平均").padding(.top, 6)
+                V3CardTitle("平时花的").padding(.top, 6)
                 V3RowList(rows: [.init("🛒", "吃饭和超市", "大概", "310,00 €"), .init("🚇", "交通和别的", "大概", "140,00 €")], compact: true)
                 V3CardTitle("提前知道的大开销").padding(.top, 6)
                 V3RowList(rows: [.init("🎁", "过年礼物", "去年 12 月花了 180 €", "大概 180 €", tag: "去年有过", tone: .gold)], compact: true)
@@ -265,7 +265,7 @@ struct V3TransactionsPage: View {
                         Text(read >= total ? "「Revolut 11 月流水」读完了 · \(total) 笔" : "\(paused ? "先停下了" : "正在读")「Revolut 11 月流水」· 已读 \(read) / \(total) 笔")
                             .font(V3.font(14, .bold)).contentTransition(.numericText())
                         V3Bar(fraction: Double(read) / Double(total))
-                        V3Label("新的 \(max(read - 6, 0)) 笔 · 重复的 6 笔已跳过 · 把别的流水也拖到这里就行", size: 13)
+                        V3Label("新的 \(max(read - 6, 0)) 笔 · 跳过重复 6 笔", size: 13)
                     }
                     if read < total {
                         Button(paused ? "接着读" : "先停下") {
@@ -439,7 +439,7 @@ struct V3ThinkPage: View {
             }
         } trailing: {
             V3GrowCard {
-                V3CardTitle("想要清单", note: "忍住也算数")
+                V3CardTitle("想要清单")
                 VStack(spacing: 0) {
                     ForEach(Array(state.wanted.prefix(5).enumerated()), id: \.element.id) { i, w in
                         if i > 0 { V3Divider() }
@@ -514,7 +514,7 @@ private struct V3BigDecision: View {
                     V3Label(frugal && pick == 0 ? "到 2027 年 10 月。" : k.4)
                 }
                 V3GrowCard {
-                    V3CardTitle("钱一个月一个月怎么少下去", note: "虚线是应急钱，不碰")
+                    V3CardTitle("钱一个月一个月怎么少下去")
                     V3Lines(height: 200, grid: [50, 100, 199], lines: [
                         .init(points: [(0, 20), (70, 42), (140, 64), (210, 86), (280, 108), (350, 128), (420, 146), (518, 150)], color: V3.navy, fill: V3.soft),
                         .init(points: [(0, 150), (560, 150)], color: V3.red, width: 2.5, dash: [7, 6]),
@@ -571,7 +571,7 @@ struct V3SubscriptionsPage: View {
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "订阅每月一共", amount: monthly) {
-                    V3Label("一年是 \(Money(cents: monthly.cents * 12).v3Short) · 等于电脑那条路的三分之一")
+                    V3Label("一年是 \(Money(cents: monthly.cents * 12).v3Short)")
                 }
                 if keepAll || (dropCloud && dropVideo) {
                     V3Ask(face: "happy", text: keepAll ? "好，都留着。哪天想退再说。" : "两个都记下了：12 月 2 日前退云盘，12 月 4 日前退视频会员。到日子我提醒你。", tone: .good)
@@ -638,12 +638,12 @@ struct V3DebtsPage: View {
                     V3CardTitle("还完的那天")
                     V3Amount(moved ? "2027 年 6 月 8 日" : "2027 年 5 月 8 日", size: 30, weight: .heavy)
                     V3Bar(fraction: paidFraction, height: 14)
-                    V3Label("已经还掉 \(Int((paidFraction * 100).rounded()))%。还完那天，也有一封信。")
+                    V3Label("已经还掉 \(Int((paidFraction * 100).rounded()))%")
                 }
             }
         } trailing: {
             V3GrowCard(spacing: 8) {
-                V3CardTitle("先还哪个", note: "拖了要加钱的排前面")
+                V3CardTitle("先还哪个")
                 V3RowList(rows: [
                     card > .zero ? .init("💳", "信用卡", "12 月 5 日 · 拖了要收利息", card.v3, V3.red, tag: "先还这个", tone: .red)
                                  : .init("💳", "信用卡", "这个月的还清了", "0,00 €", V3.green, tag: "还清了", tone: .green),
@@ -712,7 +712,6 @@ struct V3MonthlyPage: View {
                 V3GrowCard(spacing: 4) {
                     V3CardTitle("11 月提前知道")
                     V3RowList(rows: [.init("🚗", "车险", "11 月 25 日 · 一年一次", "310,00 €", tag: "大开销", tone: .gold)])
-                    V3Label("这笔已经算进 11 月「能随便花」里了。")
                 }
             }
         }

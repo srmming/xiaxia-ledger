@@ -197,7 +197,7 @@ struct V3WealthPage: View {
                 VStack(alignment: .leading, spacing: 4) { V3Label("一共有"); V3Amount(b.totals.have.v3, size: 25, weight: .heavy) }.v3Card(h: 18, v: 14)
                 VStack(alignment: .leading, spacing: 4) { V3Label("欠别人"); V3Amount(b.totals.owe.v3, color: V3.red, size: 25, weight: .heavy) }.v3Card(h: 18, v: 14)
                 VStack(alignment: .leading, spacing: 2) {
-                    V3Label("净剩（真正是你的）")
+                    V3Label("净剩")
                     V3Gold(amount: b.totals.net, size: 36)
                     Text(delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)")
                         .font(V3.font(13.5, .bold)).foregroundStyle(delta >= .zero ? V3.green : V3.navy).contentTransition(.numericText())
@@ -212,7 +212,7 @@ struct V3WealthPage: View {
                 ForEach(b.owned) { a in card(a) }
                 if let s = b.accounts.first(where: { $0.kind == .secret }) { secret(s) }
             }
-            V3CardTitle("欠的和借出去的", note: "欠的是红色，别人欠我的是蓝色")
+            V3CardTitle("欠的和借出去的")
             LazyVGrid(columns: cols3, spacing: 12) {
                 ForEach(b.debts + b.lent) { a in card(a) }
             }
@@ -303,7 +303,6 @@ struct V3WealthPage: View {
                     }
                     .frame(height: 16)
                 }
-                V3Label("每月必须花 \(b.monthlyMust.v3Short)：房租、吃饭、分期、话费。")
                 Spacer(minLength: 0)
                 switch b.splitWithEmergency {
                 case nil:
@@ -345,7 +344,7 @@ struct V3GoalsPage: View {
         let j = state.book.journey
         return VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 0) {
-                V3CardTitle("\(j.name)的路", note: "走了 76 天 · 已存 \(j.saved.v3Short) / \(j.total.v3Short)", size: 19) {
+                V3CardTitle("\(j.name)的路", note: "\(j.saved.v3Short) / \(j.total.v3Short)", size: 19) {
                     if !j.why.isEmpty { V3Tag(text: j.why, tone: .gold) }
                 }
                 V3Road(journey: j, captions: state.roadCaptions).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -409,7 +408,7 @@ struct V3GoalsPage: View {
             .v3Card()
 
             VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle("沿途风光", note: "到站时收到的信")
+                V3CardTitle("沿途风光")
                 HStack(spacing: 10) {
                     ForEach(state.book.letters.suffix(2)) { l in
                         Button { state.openMoment(.letter(l)) } label: {

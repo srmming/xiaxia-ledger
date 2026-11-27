@@ -100,7 +100,7 @@ private struct V3FirstStepPage: View {
                 V3Tag(text: state.wish.isEmpty ? "🧠 你还没写过想要的，先从眼前的一件事开始" : "🧠 你写过：「\(state.wish)」", size: 13).padding(.top, 34)
                 Text(state.wish.isEmpty ? "先定一个小的：换台电脑，\(total.v3Short)。" : "那句话有点远。先定一个小的：换台电脑，\(total.v3Short)。")
                     .font(V3.font(34, .heavy)).foregroundStyle(V3.ink).padding(.top, 10)
-                Text("第一步越小越好。做到了，再加。").font(V3.font(16, .regular)).foregroundStyle(V3.ink2).padding(.top, 4)
+                EmptyView()
                 V3Road(journey: fresh, captions: [1: "第一步 · 两周", 5: "电脑到手"], markerText: "从这儿出发")
                     .frame(width: 980).frame(maxHeight: .infinity).padding(.top, 2)
                 HStack(spacing: 14) {
@@ -123,7 +123,6 @@ private struct V3FirstStepPage: View {
                 }
                 .frame(width: 860)
                 HStack(spacing: 14) {
-                    V3Label("每到一站，我给你写一封信。")
                     Button("以后再说") { state.say("好，哪天想定了再来"); state.closeMoment() }.buttonStyle(.v3(.ghost, .big))
                     Button("就从 \(choices[pick].0.v3Short) 开始") {
                         state.say("好，第一步是 \(choices[pick].0.v3Short)")
@@ -154,7 +153,6 @@ private struct V3SmallerStepSheet: View {
                     V3Face(face: "worried")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("这个月的 \(plan.v3Short)，大概到不了。没关系。").font(V3.font(24, .heavy)).foregroundStyle(V3.ink)
-                        V3Label("我先说说我看到的，再一起改。")
                     }
                 }
                 HStack(spacing: 10) {
@@ -186,7 +184,7 @@ private struct V3SmallerStepSheet: View {
                 }
                 .frame(height: 96)
                 HStack(spacing: 12) {
-                    V3Label("改小不算失败。一直在走，比走得快要紧。做到了随时能加回去。")
+                    V3Label("改小不算失败。")
                     Spacer(minLength: 4)
                     Button("过几天再说") { state.say("好，过几天再说"); state.closeMoment() }.buttonStyle(.v3(.ghost)).keyboardShortcut(.cancelAction)
                     Button(pick < smaller.count ? "就这么改" : "好，不改") {
@@ -256,9 +254,6 @@ private struct V3LetterPage: View {
                                     V3Tile(label: f.last ?? "", value: f.first ?? "", valueFirst: true)
                                 }
                             }
-                            V3Label(state.ai == nil || state.ai == "夏夏自带的"
-                                    ? "这封信是夏夏自带的 AI 写的。连上你常用的 AI 以后，由它来写，它更知道你这一路的事。"
-                                    : "这封信是你连着的 \(state.ai ?? "AI") 写的，它知道你这一路的事。没连 AI 时，由夏夏自带的 AI 来写。", size: 13)
                         }
                         .v3Card()
                         HStack(spacing: 10) {
