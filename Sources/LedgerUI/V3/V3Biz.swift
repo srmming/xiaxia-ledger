@@ -226,6 +226,10 @@ struct V3FixedPage: View {
                 V3GrowCard {
                     V3CardTitle("如果停掉可省的")
                     V3Amount("每月省 \(canSave.v3)", color: V3.green, size: 28, weight: .heavy)
+                    V3RowList(rows: b.fixedCosts.filter { $0.flag && !$0.off }.prefix(4).map { c in
+                        .init(c.emoji, c.name, c.note, c.amount.v3, action: { state.open(.fixedEdit(c.name)) })
+                    }, fill: true)
+                    Spacer(minLength: 0)
                 }
             }
         } trailing: {
@@ -234,7 +238,7 @@ struct V3FixedPage: View {
                 V3RowList(rows: b.fixedCosts.prefix(7).map { c in
                     .init(c.emoji, c.name, c.off ? "先停着" : c.note, c.off ? "0,00 €" : c.amount.v3, c.name.contains("工资") ? V3.teal : V3.navy,
                           tag: c.off ? "停着" : c.tag, tone: c.flag ? .gold : .teal, action: { state.open(.fixedEdit(c.name)) })
-                }, compact: b.fixedCosts.count > 5)
+                }, compact: b.fixedCosts.count > 5, fill: true)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     Button("加一样") { state.open(.fixed) }.buttonStyle(.v3(.teal, .small))
@@ -282,7 +286,7 @@ struct V3PaybackPage: View {
         } trailing: {
             V3GrowCard(spacing: 6) {
                 V3CardTitle("本钱是这几样", note: "一共 \(b.capitalTotal.v3Short)")
-                V3RowList(rows: b.capital.prefix(6).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: b.capital.count > 4)
+                V3RowList(rows: b.capital.prefix(6).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: b.capital.count > 4, fill: true)
                 HStack(spacing: 26) {
                     V3KV(value: back.v3Short, label: "已经赚回来", color: V3.teal)
                     V3KV(value: left.v3Short, label: "还差", color: V3.gold)
@@ -347,19 +351,17 @@ struct V3StockPage: View {
                         .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 14).fill(V3.goodBG))
                     }
+                    V3CardTitle("每次估的").padding(.top, 8)
+                    V3RowList(rows: b.stockEstimates.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, fill: true)
+                    Spacer(minLength: 0)
                 }
             }
         } trailing: {
-            VStack(spacing: 16) {
-                V3Card(spacing: 6) {
-                    V3CardTitle("这个季度进的货", note: "\(b.purchases.count) 次 · \(b.purchases.map(\.amount).reduce(.zero, +).v3Short)")
-                    V3RowList(rows: b.purchases.prefix(4).map { .init($0.emoji, $0.name, $0.note, (-$0.amount).v3) }, compact: true)
-                    Button("记一次进货") { state.open(.purchase) }.buttonStyle(.v3(.teal, .small))
-                }
-                V3GrowCard(spacing: 6) {
-                    V3CardTitle("每次估的")
-                    V3RowList(rows: b.stockEstimates.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: true)
-                }
+            V3GrowCard(spacing: 6) {
+                V3CardTitle("这个季度进的货", note: "\(b.purchases.count) 次 · \(b.purchases.map(\.amount).reduce(.zero, +).v3Short)")
+                V3RowList(rows: b.purchases.prefix(5).map { .init($0.emoji, $0.name, $0.note, (-$0.amount).v3) }, fill: true)
+                Spacer(minLength: 0)
+                Button("记一次进货") { state.open(.purchase) }.buttonStyle(.v3(.teal, .small))
             }
         }
     }
@@ -411,7 +413,8 @@ struct V3CheckupPage: View {
                         .init("🕑", "周六多开 2 小时", "周六一小时收的是平时的 2 倍", "大约 +160 € / 月", V3.green),
                         .init("📣", "停掉广告试一个月", "每月 80 €，看不出带来客人", "+80 € / 月", V3.green),
                         .init("📦", "进货少囤一点", "上季度损耗 210 €", "大约 +70 € / 月", V3.green),
-                    ])
+                    ], fill: true)
+                    Spacer(minLength: 0)
                 }
                 V3Card {
                     V3CardTitle("和上个季度比")
@@ -454,8 +457,17 @@ struct V3BizDebtsPage: View {
                     V3Ask(face: "happy", text: "赊的账都清了。", tone: .good)
                 }
                 V3GrowCard {
-                    V3CardTitle("还贷款怎么算")
-                    V3Label("每月 350 €：本金 310 € 不算开销，利息 40 € 才算。")
+                    V3CardTitle("还贷款怎么算", note: "每月 350 €")
+                    GeometryReader { g in
+                        HStack(spacing: 0) {
+                            Rectangle().fill(V3.teal).frame(width: g.size.width * 310 / 350)
+                            Rectangle().fill(V3.star)
+                        }
+                    }
+                    .frame(height: 22).clipShape(Capsule()).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2.5))
+                    V3RowList(rows: [.init("🏦", "本金", "不算开销", "310,00 €", V3.teal), .init("💸", "利息", "才算开销", "40,00 €", V3.gold),
+                                     .init("📅", "还剩 24 期", "2028 年 11 月还完", "")], fill: true)
+                    Spacer(minLength: 0)
                 }
             }
         } trailing: {
@@ -465,11 +477,11 @@ struct V3BizDebtsPage: View {
                     d.off ? .init(d.emoji, d.name, d.note, "0,00 €", V3.green, tag: "还清了", tone: .green)
                           : .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, tag: d.id == first?.id ? "先还这个" : "", tone: .red)
                 } + [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "350,00 € / 月", V3.red, tag: "按月还就行")],
-                          compact: owe.count > 2)
+                          compact: owe.count > 2, fill: true)
                 V3Periods(total: 36, done: 12, color: V3.teal, height: 14)
                 V3Label("装修贷款 · 36 期还了 12 期")
                 V3CardTitle("别人欠店里的").padding(.top, 6)
-                V3RowList(rows: owed.prefix(3).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: owed.count > 1)
+                V3RowList(rows: owed.prefix(3).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: owed.count > 1, fill: true)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     Button("记一笔欠款") { state.open(.shopDebt) }.buttonStyle(.v3(.teal, .small))

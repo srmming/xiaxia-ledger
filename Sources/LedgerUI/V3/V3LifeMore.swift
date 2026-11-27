@@ -69,16 +69,22 @@ struct V3RowData: Identifiable {
 struct V3RowList: View {
     let rows: [V3RowData]
     var compact = false
+    /// 把卡片剩下的高度分给每一行（每行最高 120），不让下半张卡空着。
+    var fill = false
     var body: some View {
         V3Rows(data: rows) { r in
-            if let action = r.action {
-                Button(action: action) {
-                    V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone).contentShape(Rectangle())
+            Group {
+                if let action = r.action {
+                    Button(action: action) {
+                        V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone)
+                            .frame(maxHeight: fill ? .infinity : nil).contentShape(Rectangle())
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 1))
+                } else {
+                    V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone)
                 }
-                .buttonStyle(V3SinkStyle(depth: 1))
-            } else {
-                V3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount, color: r.color, tag: r.tag, compact: compact, tagTone: r.tone)
             }
+            .frame(maxHeight: fill ? 120 : nil)
         }
     }
 }
@@ -658,6 +664,11 @@ struct V3DebtsPage: View {
                     V3Amount(moved ? "2027 年 6 月 8 日" : "2027 年 5 月 8 日", size: 30, weight: .heavy)
                     V3Bar(fraction: paidFraction, height: 14)
                     V3Label("已经还掉 \(Int((paidFraction * 100).rounded()))%")
+                    V3CardTitle("接下来要还的").padding(.top, 8)
+                    V3RowList(rows: (card > .zero ? [V3RowData("💳", "信用卡", "12 月 5 日", card.v3, V3.red)] : [])
+                              + (phone > .zero ? [V3RowData("📱", "手机分期", moved ? "1 月 8 日" : "12 月 8 日", "200,00 €", V3.red),
+                                                 V3RowData("📱", "手机分期", moved ? "2 月 8 日" : "1 月 8 日", "200,00 €", V3.red)] : []), fill: true)
+                    Spacer(minLength: 0)
                 }
             }
         } trailing: {
@@ -667,11 +678,11 @@ struct V3DebtsPage: View {
                     card > .zero ? .init("💳", "信用卡", "12 月 5 日 · 拖了要收利息", card.v3, V3.red, tag: "先还这个", tone: .red, action: { state.open(.repay("信用卡")) })
                                  : .init("💳", "信用卡", "这个月的还清了", "0,00 €", V3.green, tag: "还清了", tone: .green),
                     .init("📱", "手机分期", moved ? "这一期挪到 1 月 8 日 · 还剩 \(periodsLeft) 期" : "每月 8 日 · 还剩 \(periodsLeft) 期", "200,00 € / 月", V3.red, tag: "按月还就行"),
-                ] + others.prefix(2).map { d in .init(d.emoji, d.name, d.note, d.balance.v3, d.balance > .zero ? V3.red : V3.green, action: d.balance > .zero ? { state.open(.repay(d.name)) } : nil) }, compact: !others.isEmpty)
+                ] + others.prefix(2).map { d in .init(d.emoji, d.name, d.note, d.balance.v3, d.balance > .zero ? V3.red : V3.green, action: d.balance > .zero ? { state.open(.repay(d.name)) } : nil) }, compact: !others.isEmpty, fill: true)
                 V3Periods(total: 12, done: 12 - periodsLeft)
                 V3Label("手机分期 · 12 期还了 \(12 - periodsLeft) 期")
                 V3CardTitle("别人欠我的").padding(.top, 6)
-                V3RowList(rows: b.lent.prefix(3).map { .init($0.emoji, $0.name.replacingOccurrences(of: "借给", with: ""), $0.note, $0.balance.v3) }, compact: b.lent.count > 1)
+                V3RowList(rows: b.lent.prefix(3).map { .init($0.emoji, $0.name.replacingOccurrences(of: "借给", with: ""), $0.note, $0.balance.v3) }, compact: b.lent.count > 1, fill: true)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
                     Button("记一笔还款") {

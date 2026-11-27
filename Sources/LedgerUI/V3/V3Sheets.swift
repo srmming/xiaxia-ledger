@@ -18,6 +18,8 @@ enum V3Sheet: Equatable {
             "sheet-manual": (.overview, .life, .manual), "sheet-save": (.goals, .life, .save),
             "sheet-sub": (.subscriptions, .life, .subscription), "sheet-debt": (.debts, .life, .debt),
             "sheet-repay": (.debts, .life, .repay("信用卡")),
+            "sheet-plan": (.goals, .life, .monthlyPlan), "sheet-subinfo": (.subscriptions, .life, .subscriptionInfo("云盘 Plus")),
+            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")),
             "sheet-daily": (.bizHome, .biz, .shopDay(18)), "sheet-fixed": (.fixed, .biz, .fixed),
             "sheet-purchase": (.stock, .biz, .purchase), "sheet-stock": (.stock, .biz, .stock),
             "sheet-capital": (.payback, .biz, .capital), "sheet-transfer": (.bizHome, .biz, .transfer),
@@ -99,6 +101,8 @@ struct V3SheetBox<Content: View, Extra: View>: View {
     let title: String
     var sub = ""
     var foot = ""
+    /// 不占地方的说明：鼠标移到主按钮上才出来。
+    var hint = ""
     var primary = "记好"
     var teal = false
     var danger = false
@@ -125,7 +129,7 @@ struct V3SheetBox<Content: View, Extra: View>: View {
                 Spacer(minLength: 8)
                 Button("取消") { state.closeSheet() }.buttonStyle(.v3(.ghost))
                 extra
-                Button(primary, action: save).buttonStyle(.v3(danger ? .danger : teal ? .teal : .primary)).disabled(!canSave).keyboardShortcut(.defaultAction)
+                Button(primary, action: save).buttonStyle(.v3(danger ? .danger : teal ? .teal : .primary)).disabled(!canSave).keyboardShortcut(.defaultAction).help(hint)
             }
             .padding(.top, 2)
         }
@@ -137,9 +141,9 @@ struct V3SheetBox<Content: View, Extra: View>: View {
 }
 
 extension V3SheetBox where Extra == EmptyView {
-    init(width: CGFloat = 540, title: String, sub: String = "", foot: String = "", primary: String = "记好", teal: Bool = false, danger: Bool = false,
+    init(width: CGFloat = 540, title: String, sub: String = "", foot: String = "", hint: String = "", primary: String = "记好", teal: Bool = false, danger: Bool = false,
          canSave: Bool = true, save: @escaping () -> Void, @ViewBuilder content: () -> Content) {
-        self.init(width: width, title: title, sub: sub, foot: foot, primary: primary, teal: teal, danger: danger, canSave: canSave, save: save,
+        self.init(width: width, title: title, sub: sub, foot: foot, hint: hint, primary: primary, teal: teal, danger: danger, canSave: canSave, save: save,
                   extra: { EmptyView() }, content: content)
     }
 }
@@ -669,7 +673,7 @@ private struct V3SimpleSheet: View {
         let m = V3Form.amount(amount)
         let shop = state.book.accounts.first { $0.kind == .shop }
         let short = kind == .purchase && (m ?? .zero) > (shop?.balance ?? .zero)
-        V3SheetBox(width: 520, title: title, sub: sub, foot: foot, primary: kind == .stock ? "记下" : "记好", teal: true, canSave: m != nil && !short,
+        V3SheetBox(width: 520, title: title, hint: [sub, foot].filter { !$0.isEmpty }.joined(separator: "。"), primary: kind == .stock ? "记下" : "记好", teal: true, canSave: m != nil && !short,
                    save: {
                        guard let m else { return }
                        let ok: Bool
@@ -708,7 +712,7 @@ struct V3CapitalTotalSheet: View {
     var body: some View {
         let m = V3Form.amount(amount)
         let many = state.book.capital.count > 1
-        V3SheetBox(width: 520, title: "开店本钱", foot: many ? "改了总数，下面的几样会合成一行。改错了能撤销。" : "本钱改了，回本的进度马上重算。", primary: "存好", teal: true,
+        V3SheetBox(width: 520, title: "开店本钱", hint: many ? "改了总数，下面的几样会合成一行。改错了能撤销。" : "本钱改了，回本的进度马上重算。", primary: "存好", teal: true,
                    canSave: m != nil && m != state.book.capitalTotal,
                    save: {
                        guard let m else { return }
@@ -749,7 +753,7 @@ struct V3SubscriptionInfoSheet: View {
     @Environment(V3State.self) private var state
     var body: some View {
         let x = state.book.subscriptions.first { $0.name == name }
-        V3SheetBox(width: 480, title: name, sub: x?.note ?? "", foot: "app 不能替你去退，到日子叫你。", primary: "好了", save: { state.closeSheet() },
+        V3SheetBox(width: 480, title: name, sub: x?.note ?? "", hint: "app 不能替你去退，到日子叫你。", primary: "好了", save: { state.closeSheet() },
                    extra: {
                        if let x {
                            Button(x.off ? "还是留着" : "标成要退") {

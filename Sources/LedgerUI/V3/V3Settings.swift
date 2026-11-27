@@ -128,23 +128,44 @@ struct V3SetGroup<Content: View>: View {
     var note = ""
     var grow = false
     @ViewBuilder var content: Content
+    @Environment(\.v3SetNarrow) private var narrow
     var body: some View {
+        // 说明不占地方：鼠标移到这一组上才出来（ming：小字太多）。
+        let tall = grow && !narrow
         VStack(alignment: .leading, spacing: 0) {
             Text(title).font(V3.font(15, .heavy)).padding(.bottom, 4)
             content
-            if !note.isEmpty { V3Label(note, size: 12.5).padding(.top, 8) }
-            if grow { Spacer(minLength: 0) }
+            if tall { Spacer(minLength: 0) }
         }
         .padding(.horizontal, 20).padding(.vertical, 16)
-        .frame(maxWidth: .infinity, maxHeight: grow ? .infinity : nil, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: tall ? .infinity : nil, alignment: .topLeading)
         .v3Soft()
+        .help(note)
     }
 }
 
-/// 设置里的一行：左边标题和一句话，右边放开关、按钮或者一个值。
+private struct V3SetNarrowKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var v3SetNarrow: Bool { get { self[V3SetNarrowKey.self] } set { self[V3SetNarrowKey.self] = newValue } }
+}
+
+/// 内容不多的设置子页：一栏，居中，收窄，卡片有多少内容就多高。
+struct V3SetColumn<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(spacing: 14) { content }
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .environment(\.v3SetNarrow, true)
+    }
+}
+
+/// 设置里的一行：左边标题，右边放开关、按钮或者一个值。
+/// `sub` 是解释，鼠标移上去才出来；`detail` 是这一行自己的数据（几笔、哪天），直接写在标题下面。
 struct V3SetRow<Trail: View>: View {
     let title: String
     var sub = ""
+    var detail = ""
     var line = true
     @ViewBuilder var trail: Trail
     var body: some View {
@@ -153,13 +174,14 @@ struct V3SetRow<Trail: View>: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title).font(V3.font(14, .bold)).lineLimit(1)
-                    if !sub.isEmpty { Text(sub).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
+                    if !detail.isEmpty { Text(detail).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
                 }
                 Spacer(minLength: 8)
                 trail
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, detail.isEmpty ? 11 : 8)
         }
+        .help(sub)
     }
 }
 
@@ -169,11 +191,13 @@ struct V3SetLink: View {
     var sub = ""
     var value = ""
     var line = true
+    @Environment(\.v3SetNarrow) private var narrow
+    private var showSub: Bool { !narrow }
     var action: () -> Void
     @State private var hover = false
     var body: some View {
         Button(action: action) {
-            V3SetRow(title: title, sub: sub, line: line) {
+            V3SetRow(title: title, sub: sub, detail: showSub ? sub : "", line: line) {
                 HStack(spacing: 6) {
                     if !value.isEmpty { Text(value).font(V3.font(13, .semibold)).foregroundStyle(V3.ink2).lineLimit(1) }
                     Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).foregroundStyle(V3.ink2)
@@ -310,10 +334,10 @@ struct V3SettingsPage: View {
 private struct V3SetAIPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
-        V3Cols(left: 1.2, right: 1) {
+        V3SetColumn {
             V3SetGroup(title: "这台 Mac 上的 AI", note: "「用过账本」是这个 AI 最近一次打开账本的时间。", grow: true) {
                 ForEach(Array(state.aiLinks.enumerated()), id: \.element.id) { i, a in
-                    V3SetRow(title: a.id, sub: a.note, line: i > 0) {
+                    V3SetRow(title: a.id, detail: a.note, line: i > 0) {
                         HStack(spacing: 8) {
                             switch a.state {
                             case .using: V3Tag(text: "在用", tone: .green)
@@ -333,11 +357,9 @@ private struct V3SetAIPage: View {
                 }
                 V3SetRow(title: "\(state.prefs.xiaName)自带的 AI", sub: "没连别的 AI，或者它连不上时用") { V3Tag(text: "备用", tone: .blue) }
             }
-        } trailing: {
             VStack(spacing: 14) {
-                V3SetGroup(title: "再连一个") {
-                    V3Label("Claude、Codex、Hermes 点一下就连好；别的 AI 复制一段话粘过去。")
-                    Button("走一遍连接的步骤") { withAnimation(.snappy) { state.onboardingStep = 4 } }.buttonStyle(.v3(.primary, .small)).padding(.top, 10)
+                V3SetGroup(title: "再连一个", note: "Claude、Codex、Hermes 点一下就连好；别的 AI 复制一段话粘过去。") {
+                    V3SetRow(title: "走一遍连接的步骤", line: false) { Button("开始") { withAnimation(.snappy) { state.onboardingStep = 4 } }.buttonStyle(.v3(.primary, .small)) }
                 }
                 V3SetGroup(title: "试一句", note: "AI 第一次用账本时可能会问「允许使用夏夏账本吗」，选允许。记错了在改动记录里撤销。", grow: true) {
                     Text(V3State.trySentence).font(V3.font(14, .bold))
@@ -370,7 +392,7 @@ private struct V3SetXiaPage: View {
 
     var body: some View {
         @Bindable var s = state
-        V3Cols {
+        V3SetColumn {
             VStack(spacing: 14) {
                 V3SetGroup(title: "内置\(state.prefs.xiaName)", note: "打开后借你电脑上的 AI 回答；关掉后「问\(state.prefs.xiaName)」会把问题复制好，交给你自己的 AI。") {
                     V3SetRow(title: "内置\(state.prefs.xiaName)", sub: "点「问\(state.prefs.xiaName)」时打开一整页对话", line: false) { V3Switch(on: $s.prefs.builtIn, label: "内置夏夏") }
@@ -392,7 +414,6 @@ private struct V3SetXiaPage: View {
                     }
                 }
             }
-        } trailing: {
             VStack(spacing: 14) {
                 V3SetGroup(title: "\(state.prefs.xiaName)出不出现") {
                     V3SetRow(title: "大事的时候显示\(state.prefs.xiaName)", sub: "到站、月底小结。关掉后只是不出现人物", line: false) { V3Switch(on: $s.prefs.showXia, label: "显示夏夏") }
@@ -449,7 +470,6 @@ private struct V3SetMemoryPage: View {
                     VStack(spacing: 10) {
                         V3Face(face: "think", width: 84)
                         Text("\(state.prefs.xiaName)还没记住什么").font(V3.font(20, .heavy))
-                        V3Label("聊天时说一句「记住：转给妈妈的钱不算支出」，她就会记在这里。").multilineTextAlignment(.center)
                         Button("记一条") { state.open(.memoAdd) }.buttonStyle(.v3)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity).v3Soft()
@@ -468,21 +488,19 @@ private struct V3SetMemoryPage: View {
                 if !stale.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("该整理了").font(V3.font(15, .heavy))
-                        V3Label("有 \(stale.count) 条可能用不上了。我不会自己删。")
-                        Button("看一看") { state.open(.memoTidy) }.buttonStyle(.v3(.primary, .small))
+                        HStack {
+                            V3Label("\(stale.count) 条可能用不上了")
+                            Spacer()
+                            Button("看一看") { state.open(.memoTidy) }.buttonStyle(.v3(.primary, .small))
+                        }
                     }
                     .padding(.horizontal, 20).padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 22).fill(V3.goodBG))
                 }
-                V3SetGroup(title: "让\(state.prefs.xiaName)先认识我") {
-                    V3Label("她翻一遍流水，把看出来的规律一条条问你，你说对的才记。")
-                    Button("开始") { state.open(.memoMeet) }.buttonStyle(.v3(.ghost, .small)).padding(.top, 10)
+                V3SetGroup(title: "让\(state.prefs.xiaName)先认识我", note: "她翻一遍流水，把看出来的规律一条条问你，你说对的才记。你说的直接记；金额、卡号、密码不记。") {
+                    V3SetRow(title: "翻一遍流水，一条条问你", line: false) { Button("开始") { state.open(.memoMeet) }.buttonStyle(.v3(.ghost, .small)) }
                 }
-                V3SetGroup(title: "\(state.prefs.xiaName)是怎么记的", grow: true) {
-                    V3Label("你说的直接记；她自己看出来的先问你。金额、卡号、密码不记。")
-                    Spacer(minLength: 0)
-                    V3Label("\(state.prefs.xiaName)和你连上的 AI 都读这一份。", size: 12.5)
-                }
+                Spacer(minLength: 0)
             }
         }
     }
@@ -528,7 +546,7 @@ private struct V3SetSpeakPage: View {
 
     var body: some View {
         @Bindable var s = state
-        V3Cols(left: 1.2, right: 1) {
+        V3SetColumn {
             V3SetGroup(title: "她会主动说的", grow: true) {
                 ForEach(Array(Self.items.enumerated()), id: \.offset) { i, item in
                     V3SetRow(title: item.0, sub: item.1, line: i > 0) {
@@ -542,7 +560,6 @@ private struct V3SetSpeakPage: View {
                     }
                 }
             }
-        } trailing: {
             VStack(spacing: 14) {
                 V3SetGroup(title: "她怎么出现", note: "一次只说一件事。同一件事你点了叉，当天不再提。") {
                     V3SetRow(title: "页面顶上滑下来的那句话", sub: "关掉以后页面上只留数字", line: false) { V3Switch(on: $s.prefs.bubbles, label: "夏夏的消息") }
@@ -550,9 +567,8 @@ private struct V3SetSpeakPage: View {
                         V3SetMenu(options: ["1 件", "2 件", "3 件", "5 件"], pick: Binding(get: { [1, 2, 3, 5].firstIndex(of: state.prefs.maxPerDay) ?? 2 }, set: { state.prefs.maxPerDay = [1, 2, 3, 5][$0] }))
                     }
                 }
-                V3SetGroup(title: "再看一次效果", grow: true) {
-                    V3Label("试用版里用：把今天说过的次数清零，回到总览再看她说一句。")
-                    Button("让她再说一次") { state.sayAgain(); state.go(.overview) }.buttonStyle(.v3(.ghost, .small)).padding(.top, 10)
+                V3SetGroup(title: "试用", note: "把今天说过的次数清零，回到总览再看她说一句。") {
+                    V3SetRow(title: "让她再说一次", line: false) { Button("去看") { state.sayAgain(); state.go(.overview) }.buttonStyle(.v3(.ghost, .small)) }
                 }
             }
         }
@@ -567,11 +583,10 @@ private struct V3SetPrivacyPage: View {
 
     var body: some View {
         @Bindable var s = state
-        V3Cols {
+        V3SetColumn {
             V3SetGroup(title: "隐私", note: "AI 给别人看的小结里，也不会提私房钱。", grow: true) {
                 V3SetRow(title: "一直显示私房钱", sub: "关着时家底页点一下才显示，3 秒后自己藏回去", line: false) { V3Switch(on: $s.secretPinned, label: "一直显示私房钱") }
             }
-        } trailing: {
             V3SetGroup(title: "语言", note: "试用版只有中文。英文和西班牙语还在翻译，选了以后没翻到的地方先显示中文。", grow: true) {
                 V3SetRow(title: "界面语言", line: false) {
                     V3SetMenu(options: Self.languages, pick: Binding(get: { state.prefs.language }, set: { v in
@@ -591,14 +606,13 @@ private struct V3SetAuthorPage: View {
     @State private var name = ""
 
     var body: some View {
-        V3Cols {
+        V3SetColumn {
             V3SetGroup(title: "记账的人", note: "回车或离开这一页就存好。以后你在 app 里记的、改的，都写这个名字。", grow: true) {
                 V3SetRow(title: "名字", line: false) { V3SetText(prompt: "你", text: $name) { commit() } }
             }
-        } trailing: {
             V3SetGroup(title: "改动记录里长这样", note: "AI 记的写 AI 的名字，你记的写你的名字。", grow: true) {
-                V3SetRow(title: "存一笔 20 € 进「换新电脑」", sub: "今天 08:30", line: false) { V3Tag(text: name.trimmingCharacters(in: .whitespaces).isEmpty ? "你" : name, tone: .blue) }
-                V3SetRow(title: "记一笔：咖啡 3,20 € · 现金", sub: "今天 09:12") { V3Tag(text: "Claude", tone: .gold) }
+                V3SetRow(title: "存一笔 20 € 进「换新电脑」", detail: "今天 08:30", line: false) { V3Tag(text: name.trimmingCharacters(in: .whitespaces).isEmpty ? "你" : name, tone: .blue) }
+                V3SetRow(title: "记一笔：咖啡 3,20 € · 现金", detail: "今天 09:12") { V3Tag(text: "Claude", tone: .gold) }
             }
         }
         .onAppear { name = state.author }
@@ -622,14 +636,13 @@ private struct V3SetBooksPage: View {
         let b = state.book
         let life = b.entries.filter { $0.side == .life }.count
         let shop = b.entries.filter { $0.side == .biz }.count + b.shopOpenDays
-        V3Cols {
+        V3SetColumn {
             V3SetGroup(title: "账本", note: "每个账本有自己的收支和小结。", grow: true) {
-                V3SetRow(title: "🏠 \(b.lifeName)", sub: "\(life) 笔流水 · \(b.accounts.filter { $0.kind != .shop }.count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) }
+                V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts.filter { $0.kind != .shop }.count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) }
                 if state.mode != .life {
-                    V3SetRow(title: "🏪 \(b.shopName)", sub: "\(shop) 笔流水 · \(b.accounts.filter { $0.kind == .shop }.count) 个账户") { V3Tag(text: "生意", tone: .teal) }
+                    V3SetRow(title: "🏪 \(b.shopName)", detail: "\(shop) 笔流水 · \(b.accounts.filter { $0.kind == .shop }.count) 个账户") { V3Tag(text: "生意", tone: .teal) }
                 }
             }
-        } trailing: {
             V3SetGroup(title: "管理", grow: true) {
                 V3SetLink(title: "管理账本", sub: "改名", value: "\(state.mode == .life ? 1 : 2) 个", line: false) { state.open(.books) }
                 V3SetLink(title: "管理账户", sub: "加、改、删，标成私房钱", value: "\(b.accounts.count) 个") { state.open(.accounts) }
@@ -646,12 +659,11 @@ private struct V3SetBusinessPage: View {
     var body: some View {
         let b = state.book
         let on = state.mode != .life
-        V3Cols {
+        V3SetColumn {
             VStack(spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("生意模式").font(V3.font(19, .heavy))
-                        V3Label("首页分生活、生意两边；店里的账算利润和回本。")
                     }
                     Spacer()
                     V3Switch(on: Binding(get: { on }, set: { v in
@@ -663,7 +675,7 @@ private struct V3SetBusinessPage: View {
                 if on {
                     V3SetGroup(title: "开店本钱", grow: true) {
                         if b.capitalTotal > .zero {
-                            V3SetRow(title: b.capitalTotal.v3, sub: "\(b.capital.count) 样 · 已经赚回 \(Int((Double(16_728_00) / Double(max(b.capitalTotal.cents, 1)) * 100).rounded()))%", line: false) {
+                            V3SetRow(title: b.capitalTotal.v3, detail: "\(b.capital.count) 样 · 已经赚回 \(Int((Double(16_728_00) / Double(max(b.capitalTotal.cents, 1)) * 100).rounded()))%", line: false) {
                                 Button("改本钱…") { state.open(.capitalTotal) }.buttonStyle(.v3(.ghost, .small))
                             }
                         } else {
@@ -671,12 +683,9 @@ private struct V3SetBusinessPage: View {
                         }
                     }
                 } else {
-                    V3SetGroup(title: "现在关着", grow: true) {
-                        V3Label("打开后左上角会多出「生活｜生意」，店里的账单独算利润和回本。")
-                    }
+                    EmptyView()
                 }
             }
-        } trailing: {
             V3SetGroup(title: "两边怎么算", note: "关掉生意模式不会丢账：店里的流水还在原来的账本里，再打开一样。", grow: true) {
                 V3SetRow(title: "给自己发工资", sub: "从店里拿回家的钱，扣掉它才算真赚", line: false) {
                     Text(b.fixedCosts.first { $0.name.contains("工资") }.map { "\($0.note) · \($0.amount.v3Short)" } ?? "还没定").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
@@ -694,13 +703,12 @@ private struct V3SetMoneyPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
         @Bindable var s = state
-        V3Cols {
+        V3SetColumn {
             V3SetGroup(title: "流水导入", note: "导错了能在改动记录里整批撤销。", grow: true) {
-                V3SetRow(title: "上次导入", sub: "今天 10:40 · Revolut 11 月流水 · 新的 31 笔，跳过重复 6 笔", line: false) { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
-                V3SetRow(title: "认得哪些银行", sub: "Revolut、N26、CaixaBank、imagin") { EmptyView() }
+                V3SetRow(title: "上次导入", detail: "今天 10:40 · Revolut 11 月流水 · 新的 31 笔，跳过重复 6 笔", line: false) { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
+                V3SetRow(title: "认得哪些银行", detail: "Revolut、N26、CaixaBank、imagin") { EmptyView() }
                 V3SetRow(title: "重复的流水", sub: "同一天、同一金额、同一家店的只留一笔") { V3Switch(on: $s.prefs.dedupe, label: "跳过重复的流水") }
             }
-        } trailing: {
             VStack(spacing: 14) {
                 V3SetGroup(title: "手机拍的小票") {
                     V3SetRow(title: "自动传到这台 Mac", sub: "手机上拍，几秒钟后出现在「记一笔」里", line: false) { V3Switch(on: $s.prefs.phoneReceipts, label: "小票自动传过来") }
@@ -723,7 +731,7 @@ private struct V3SetSyncPage: View {
     @Environment(V3State.self) private var state
     @Environment(\.openURL) private var openURL
     var body: some View {
-        V3Cols {
+        V3SetColumn {
             VStack(spacing: 14) {
                 V3SetGroup(title: "同步", note: "试用版的账本只在内存里，关掉 app 就没了，不碰你真的账本。") {
                     V3SetRow(title: "状态", line: false) { Text("● 试用账本 · 示例数据").font(V3.font(13, .bold)).foregroundStyle(V3.green) }
@@ -735,11 +743,10 @@ private struct V3SetSyncPage: View {
                     V3SetLink(title: "更新日志", sub: "每一版改了什么（官网）") { openURL(Changelog.webURL) }
                 }
             }
-        } trailing: {
             V3SetGroup(title: "币种", note: "取汇率只下载欧洲央行的公开数据，不上传你的任何东西。", grow: true) {
                 V3SetRow(title: "主币种", sub: "总览、小结里的总数都换成它", line: false) { Button("欧元 €  ›") { state.open(.baseCurrency) }.buttonStyle(.v3(.ghost, .small)) }
                 V3SetRow(title: "金额写法") { Text("1.234,56 €").font(V3.num(14)).foregroundStyle(V3.ink2) }
-                V3SetRow(title: "汇率", sub: "欧洲央行 · 11 月 \(state.prefs.ratesDay) 日的") {
+                V3SetRow(title: "汇率", detail: "欧洲央行 · 11 月 \(state.prefs.ratesDay) 日的") {
                     Button("更新汇率") { state.prefs.ratesDay = 18; state.say("试用版没有真的去取：正式版会下载欧洲央行当天的汇率") }.buttonStyle(.v3(.ghost, .small))
                 }
                 V3SetRow(title: "外币账户") { Text("没有，用不到").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2) }
@@ -754,7 +761,7 @@ private struct V3SetDataPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
         let c = state.book.counts
-        V3Cols {
+        V3SetColumn {
             VStack(spacing: 14) {
                 V3SetGroup(title: "演示数据", note: "试用版里一直是演示数据：都是编的，随便点、随便改，都不会进你自己的账本。") {
                     V3SetRow(title: "正在看演示数据", sub: "你自己的账本没动，好好地放着", line: false) {
@@ -769,16 +776,15 @@ private struct V3SetDataPage: View {
                     }
                 }
                 V3SetGroup(title: "删除数据", note: "删之前会自动留一份备份。夏夏的名字、口吻、记忆这些不会删。", grow: true) {
-                    V3SetRow(title: "删掉全部数据", sub: state.book.isEmpty ? "现在已经是空的了" : "\(c.entries) 笔流水、\(c.plans) 个目标和欠款、\(c.subscriptions) 个订阅", line: false) {
+                    V3SetRow(title: "删掉全部数据", detail: state.book.isEmpty ? "现在已经是空的了" : "\(c.entries) 笔流水、\(c.plans) 个目标和欠款、\(c.subscriptions) 个订阅", line: false) {
                         Button("删除…") { state.open(.deleteAsk) }.buttonStyle(.v3(.danger, .small)).disabled(state.book.isEmpty)
                     }
                 }
             }
-        } trailing: {
             V3SetGroup(title: "从备份恢复", note: "每次删除前、恢复前自动留的备份，只留最近 10 份。", grow: true) {
                 if state.backups.isEmpty { V3Label("还没有备份。") }
                 ForEach(Array(state.backups.prefix(7).enumerated()), id: \.element.id) { i, b in
-                    V3SetRow(title: b.title, sub: "里面有 \(b.ledger.book.counts.entries) 笔", line: i > 0) {
+                    V3SetRow(title: b.title, detail: "里面有 \(b.ledger.book.counts.entries) 笔", line: i > 0) {
                         Button("恢复") { state.open(.restore(b.id)) }.buttonStyle(.v3(.ghost, .small))
                     }
                 }
@@ -945,7 +951,7 @@ struct V3BaseCurrencySheet: View {
     @Environment(V3State.self) private var state
     var body: some View {
         V3SheetBox(width: 480, title: "主币种", sub: "试用版只有欧元", primary: "知道了", save: { state.closeSheet() }) {
-            V3ConfirmBody(text: "正式版里可以换成美元、人民币等：已经记的每一笔金额都不变，只是总览、小结里的总数换成新的币种，改错了能撤销。\n试用版的示例数据全是欧元，这里先不能换。")
+            V3ConfirmBody(text: "试用版的示例数据全是欧元，先不能换。")
         }
     }
 }
@@ -999,7 +1005,7 @@ struct V3BooksSheet: View {
     @State private var life = ""
     @State private var shop = ""
     var body: some View {
-        V3SheetBox(width: 520, title: "管理账本", sub: "每个账本有自己的收支和小结", foot: "试用版只有这两本，不能新建和删除。", primary: "存好", save: {
+        V3SheetBox(width: 520, title: "管理账本", hint: "试用版只有这两本，不能新建和删除。", primary: "存好", save: {
             var ok = true
             if life != state.book.lifeName { ok = state.change("改好了：\(state.book.lifeName) → \(life)") { try $0.renameBook(.life, to: life) } }
             if ok, state.mode != .life, shop != state.book.shopName { ok = state.change("改好了：\(state.book.shopName) → \(shop)") { try $0.renameBook(.biz, to: shop) } }
@@ -1025,7 +1031,7 @@ struct V3AccountsSheet: View {
         let m = V3Form.amountOrZero(amount)
         let n = state.book.entries.filter { $0.account == pick }.count
         let canSecret = a.map { ($0.kind == .own && $0.block == .daily) || $0.kind == .secret } ?? false
-        V3SheetBox(width: 820, title: "管理账户", foot: "导入流水时，没见过的账户会自己建好。", primary: "保存", canSave: a != nil && m != nil,
+        V3SheetBox(width: 820, title: "管理账户", hint: "导入流水时，没见过的账户会自己建好。", primary: "保存", canSave: a != nil && m != nil,
                    save: {
                        guard let m else { return }
                        if state.change("存好了：\(name)", kind: .account, { try $0.editAccount(pick, newName: name, balance: m, secret: secret) }) { pick = name.trimmingCharacters(in: .whitespaces) }
@@ -1057,12 +1063,12 @@ struct V3AccountsSheet: View {
                     if canSecret { V3FormSwitch(title: "这是私房钱", sub: "默认藏着，不算进家底的三个数", on: $secret) }
                     V3Divider()
                     HStack {
-                        V3Label(n > 0 ? "里面还有 \(n) 笔流水，先删掉或改到别的账户才能删。" : "里面没有流水，可以删。删错了能撤销。", size: 12.5)
+                        V3Label(n > 0 ? "里面还有 \(n) 笔流水" : "", size: 12.5)
                         Spacer()
                         Button("删除这个账户") {
                             if state.change("删掉了账户：\(pick)", kind: .remove, { try $0.removeAccount(pick) }), let first = state.book.accounts.first { load(first) }
                         }
-                        .buttonStyle(.v3(.danger, .small)).disabled(n > 0)
+                        .buttonStyle(.v3(.danger, .small)).disabled(n > 0).help(n > 0 ? "先把流水删掉或改到别的账户才能删" : "删错了能撤销")
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -1101,7 +1107,7 @@ struct V3CategoriesSheet: View {
         let c = cats.first { $0.name == pick }
         let target = name.trimmingCharacters(in: .whitespaces)
         let merge = target != pick && cats.contains { $0.name == target }
-        V3SheetBox(width: 820, title: "管理分类", sub: "点一个分类，改名或换图标", foot: "改成一个已有的名字，就是把两个分类并成一个，流水一起改。", primary: "完成", save: { state.closeSheet() }) {
+        V3SheetBox(width: 820, title: "管理分类", hint: "改成一个已有的名字，就是把两个分类并成一个，流水一起改。", primary: "完成", save: { state.closeSheet() }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(cats.prefix(14).enumerated()), id: \.offset) { _, cat in
