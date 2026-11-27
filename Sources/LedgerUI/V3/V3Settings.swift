@@ -355,6 +355,25 @@ private struct V3SetAIPage: View {
                 }
                 V3SetRow(title: "\(state.prefs.xiaName)自带的 AI", sub: "没连别的 AI，或者它连不上时用") { V3Tag(text: "备用", tone: .blue) }
             }
+            V3SetGroup(title: "自己的 API", note: "密钥只存在这台 Mac 的钥匙串里。试用版只管存、换、删，不会拿它去连 AI。") {
+                let _ = state.keyRevision
+                if let p = state.apiProvider {
+                    V3SetRow(title: p.shortTitle, detail: p.needsAddress ? state.apiAddress : "", line: false) {
+                        HStack(spacing: 8) {
+                            V3Tag(text: "已填", tone: .green)
+                            Button("换") { state.open(.apiKey) }.buttonStyle(.v3(.ghost, .small))
+                            Button("删") { state.deleteAPIKey() }.buttonStyle(.v3(.danger, .small))
+                        }
+                    }
+                } else {
+                    V3SetRow(title: "密钥", line: false) {
+                        HStack(spacing: 8) {
+                            V3Tag(text: "没填", tone: .blue)
+                            Button("填…") { state.open(.apiKey) }.buttonStyle(.v3(.primary, .small))
+                        }
+                    }
+                }
+            }
             VStack(spacing: 14) {
                 V3SetGroup(title: "再连一个", note: "Claude、Codex、Hermes 点一下就连好；别的 AI 复制一段话粘过去。") {
                     V3SetRow(title: "走一遍连接的步骤", line: false) { Button("开始") { withAnimation(.snappy) { state.onboardingStep = 4 } }.buttonStyle(.v3(.primary, .small)) }

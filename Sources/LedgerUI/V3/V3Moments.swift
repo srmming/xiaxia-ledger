@@ -5,7 +5,6 @@ import SwiftUI
 // 目标的三个时刻：连上 AI 后定第一步、快到不了时把步子改小、到站时的一封信。
 
 enum V3Moment: Equatable {
-    case firstStep
     case smallerStep
     case letter(V3State.Letter)
 }
@@ -83,71 +82,9 @@ struct V3MomentLayer: View {
     var body: some View {
         ZStack {
             switch state.moment {
-            case .firstStep: V3FirstStepPage().transition(.opacity)
             case .smallerStep: V3SmallerStepSheet().transition(.opacity)
             case .letter(let l): V3LetterPage(letter: l).transition(.opacity)
             case nil: EmptyView()
-            }
-        }
-    }
-}
-
-// MARK: - 连上 AI 以后：把那句话变成第一步
-
-private struct V3FirstStepPage: View {
-    @Environment(V3State.self) private var state
-    @State private var pick = 1
-    private let choices: [(Money, String)] = [
-        (Money(cents: 20_00), ""), (Money(cents: 50_00), "大概是少点 3 次外卖"), (Money(cents: 100_00), "这个月会有点紧"),
-    ]
-
-    private var fresh: Journey {
-        Journey(name: state.book.journey.name, why: state.book.journey.why,
-                stations: [.init(id: 0, target: .zero, title: "出发"), .init(id: 1, target: choices[pick].0, title: "第一步 · 两周"),
-                           .init(id: 2, target: Money(cents: 200_00)), .init(id: 3, target: Money(cents: 700_00)),
-                           .init(id: 4, target: Money(cents: 1_050_00)), .init(id: 5, target: Money(cents: 1_400_00), title: "电脑到手")])
-    }
-
-    var body: some View {
-        let total = state.book.journey.total
-        ZStack(alignment: .top) {
-            LinearGradient(stops: [.init(color: V3.soft, location: 0), .init(color: V3.bg, location: 0.55), .init(color: .white, location: 1)],
-                           startPoint: .top, endPoint: .bottom)
-            VStack(spacing: 0) {
-                V3Tag(text: state.wish.isEmpty ? "🧠 你还没写过想要的，先从眼前的一件事开始" : "🧠 你写过：「\(state.wish)」", size: 13).padding(.top, 34)
-                Text(state.wish.isEmpty ? "先定一个小的：换台电脑，\(total.v3Short)。" : "那句话有点远。先定一个小的：换台电脑，\(total.v3Short)。")
-                    .font(V3.font(34, .heavy)).foregroundStyle(V3.ink).padding(.top, 10)
-                EmptyView()
-                V3Road(journey: fresh, captions: [1: "第一步 · 两周", 5: "电脑到手"], markerText: "从这儿出发")
-                    .frame(width: 980).frame(maxHeight: .infinity).padding(.top, 2)
-                HStack(spacing: 14) {
-                    ForEach(Array(choices.enumerated()), id: \.offset) { i, c in
-                        V3Option(picked: pick == i) {
-                            withAnimation(.snappy(duration: 0.2)) { pick = i }
-                            state.say("第一步：两周存 \(c.0.v3Short)")
-                        } content: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Text("先存 \(c.0.v3Short)").font(V3.num(16)).foregroundStyle(V3.ink)
-                                    if i == 1 { V3Tag(text: "夏夏推荐", tone: .gold) }
-                                }
-                                Text("两周 · " + (c.1.isEmpty ? "每天少花 \(Money(cents: (c.0.cents + 7) / 14).v3Short)" : c.1))
-                                    .font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
-                            }
-                        }
-                        .frame(height: 74)
-                    }
-                }
-                .frame(width: 860)
-                HStack(spacing: 14) {
-                    Button("以后再说") { state.say("好，哪天想定了再来"); state.closeMoment() }.buttonStyle(.v3(.ghost, .big))
-                    Button("就从 \(choices[pick].0.v3Short) 开始") {
-                        state.say("好，第一步是 \(choices[pick].0.v3Short)")
-                        state.closeMoment()
-                    }
-                    .buttonStyle(.v3(.primary, .big)).keyboardShortcut(.defaultAction)
-                }
-                .padding(.top, 18).padding(.bottom, 30)
             }
         }
     }

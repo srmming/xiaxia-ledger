@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String)
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -86,6 +86,7 @@ struct V3SheetHost: View {
                 case .monthlyPlan: V3MonthlyPlanSheet()
                 case .subscriptionInfo(let n): V3SubscriptionInfoSheet(name: n)
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
+                case .apiKey: V3APIKeySheet()
                 }
             }
             .accessibilityAddTraits(.isModal)

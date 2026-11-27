@@ -74,7 +74,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.totals.have, eur("8420"), "借出去的收回来之前不算进一共有")
     }
 
-    func testOnboardingStepsAndFirstStepMoment() {
+    func testOnboardingStepsGoStraightIn() {
         let s = V3State()
         XCTAssertEqual(s.onboardingStep, 0)
         for _ in 0..<4 { s.nextStep() }
@@ -83,12 +83,17 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.onboardingStep, 3)
         s.nextStep(); s.nextStep()
         XCTAssertNil(s.onboardingStep)
-        XCTAssertNil(s.moment, "没连 AI：直接进总览")
+        XCTAssertNil(s.moment, "直接进总览")
 
         let t = V3State()
         t.ai = "Claude"
         for _ in 0..<5 { t.nextStep() }
-        XCTAssertEqual(t.moment, .firstStep, "连了 AI：进去先定第一步")
+        XCTAssertNil(t.moment, "连了 AI 也直接进总览，不再先定目标")
+        XCTAssertEqual(t.page, .overview)
+        let b = V3State()
+        b.mode = .biz
+        for _ in 0..<5 { b.nextStep() }
+        XCTAssertEqual(b.page, .bizHome, "只管生意的进生意首页")
     }
 
     func testMonthNames() {
@@ -241,6 +246,33 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.entries, entries)
         s.undo()
         XCTAssertEqual(s.mode, .life)
+    }
+
+    /// 只用编的假密钥和内存里的假钥匙串，不碰真的钥匙串。
+    func testOwnAPIKeySaveSwapDelete() {
+        let s = V3State()
+        let store = MemorySecretStore()
+        s.keyStore = store
+        XCTAssertNil(s.apiProvider)
+        XCTAssertFalse(s.saveAPIKey("   ", provider: .anthropic))
+        XCTAssertEqual(s.toast?.isError, true)
+        XCTAssertTrue(s.saveAPIKey(" sk-demo-000 ", provider: .anthropic))
+        XCTAssertEqual(s.apiProvider, .anthropic)
+        XCTAssertEqual(s.ai, V3State.aiOwnAPI)
+        XCTAssertEqual(store.peek("anthropic"), "sk-demo-000")
+        // 密钥不进账本、不进改动记录、不进提示条
+        XCTAssertNil(s.ledger.lastUndoable)
+        XCTAssertFalse(s.ledger.changes.contains { $0.summary.contains("sk-demo") })
+        XCTAssertFalse(s.toast?.text.contains("sk-demo") ?? true)
+        // 换一家：原来那家的删掉
+        XCTAssertFalse(s.saveAPIKey("sk-demo-111", provider: .custom, address: "http://example.com"), "自定义地址要 https")
+        XCTAssertTrue(s.saveAPIKey("sk-demo-111", provider: .custom, address: "https://api.example.com/v1"))
+        XCTAssertEqual(s.apiProvider, .custom)
+        XCTAssertNil(store.peek("anthropic"))
+        s.deleteAPIKey()
+        XCTAssertNil(s.apiProvider)
+        XCTAssertNil(store.peek("custom"))
+        XCTAssertNil(s.ai)
     }
 
     func testGoingToBizSwitchesSide() {

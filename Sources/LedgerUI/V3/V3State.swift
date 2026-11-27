@@ -141,6 +141,10 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 放 AI 密钥的地方（app 里是钥匙串）。密钥存进去以后不再读出来。
+    var keyStore: SecretStore = V3State.defaultKeyStore()
+    /// 密钥存了 / 删了就加一，让界面重新问一次「有没有」。
+    var keyRevision = 0
     /// 从别的页点过来：流水页要选中哪一笔、先搜什么；管理账户先选中谁；自己填先填好什么。
     var txFocus: UUID?
     var txQuery: String?

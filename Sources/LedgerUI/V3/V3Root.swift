@@ -29,11 +29,10 @@ public enum V3Launch {
         guard let p = value("-XiaxiaV3Page") else { return }
         if p.hasPrefix("ob"), let n = Int(p.dropFirst(2)), (1...5).contains(n) {
             state.onboardingStep = n - 1
-        } else if ["firststep", "smallerstep", "letter"].contains(p) {
+        } else if ["smallerstep", "letter"].contains(p) {
             state.onboardingStep = nil
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
-            if p == "firststep" { state.moment = .firstStep }
             if p == "smallerstep" { state.page = .goals; state.moment = .smallerStep }
             if p == "letter" {
                 state.page = .goals

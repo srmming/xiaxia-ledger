@@ -33,9 +33,8 @@ extension V3State {
         withAnimation(.snappy(duration: 0.3)) {
             if let s = onboardingStep { onboardingStep = s >= 4 ? nil : s + 1 }
         }
+        // 走完直接进总览（只管生意的进生意首页）。不替人定目标，想定自己去「目标」页（ming 2026-11-28）。
         if onboardingStep == nil { settleSide() }
-        // 连上了 AI：进去第一件事，是把写的那句话变成第一步（只管生意时没有生活那条目标路，不出）。
-        if onboardingStep == nil, ai != nil, moment == nil, showsLife { openMoment(.firstStep) }
     }
     func previousStep() {
         withAnimation(.snappy(duration: 0.3)) {
@@ -378,6 +377,8 @@ private struct V3WishStep: View {
 
     private func save(_ clean: String) {
         state.wish = clean
+        // 存进夏夏的记忆，不追问。
+        state.patch { try? $0.remember(.topic, topic: "我想要的", line: clean) }
         state.say("记下了：「\(clean)」")
         state.nextStep()
     }
@@ -557,12 +558,19 @@ private struct V3ConnectStep: View {
     @State private var checking: String?
     @State private var missing: String?
     private static let options: [(name: String, symbol: String)] = [
-        ("Claude", "sparkles"), ("ChatGPT", "bubble.left.and.bubble.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"), ("还没用过", "leaf"),
+        ("Claude", "sparkles"), ("ChatGPT", "bubble.left.and.bubble.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"),
+        (V3State.aiOwnAPI, "key"), ("还没用过", "leaf"),
     ]
-    /// 选项下面那一行放三段还是只放一句（离屏对比用：XIAXIA_OB5=three）。
-    static var threeParts: Bool { ProcessInfo.processInfo.environment["XIAXIA_OB5"] == "three" }
+    /// 点了「自己的 API」：下面那一行换成填密钥的。
+    @State private var ownOpen = false
+    @State private var provider = AIKeyProvider.anthropic
+    @State private var key = ""
+    @State private var address = ""
 
-    private func picked(_ n: String) -> Bool { n == "还没用过" ? state.ai == "夏夏自带的" : state.ai == n }
+    private func picked(_ n: String) -> Bool {
+        if n == V3State.aiOwnAPI { return ownOpen || state.ai == n }
+        return !ownOpen && (n == "还没用过" ? state.ai == "夏夏自带的" : state.ai == n)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -583,20 +591,30 @@ private struct V3ConnectStep: View {
                         Text("没连上 \(missing)，可能它还没打开。").font(V3.font(15, .bold)).foregroundStyle(V3.red)
                         Button("再试一次") { let m = missing; self.missing = nil; connect(m, retry: true) }.buttonStyle(.v3(.ghost, .small))
                     }
-                } else if Self.threeParts {
-                    HStack(spacing: 44) {
-                        part("flag", "把那句话变成第一步")
-                        part("bell", "快到不了时先开口")
-                        part("envelope", "到站给你写信")
+                } else if ownOpen || state.ai == V3State.aiOwnAPI {
+                    let _ = state.keyRevision
+                    if let saved = state.apiProvider {
+                        HStack(spacing: 10) {
+                            V3Tag(text: "已填", tone: .green)
+                            Text(saved.shortTitle).font(V3.font(15, .bold)).foregroundStyle(V3.ink)
+                            Button("删掉") { state.deleteAPIKey() }.buttonStyle(.v3(.ghost, .small))
+                        }
+                    } else {
+                        HStack(spacing: 10) {
+                            V3APIKeyFields(provider: $provider, key: $key, address: $address) { saveKey() }
+                            Button("存好") { saveKey() }.buttonStyle(.v3(.primary, .small)).disabled(key.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
                     }
                 } else {
-                    Text("连上以后，夏夏会帮你把那句话变成第一步").font(V3.font(15, .bold)).foregroundStyle(V3.ink2)
+                    Text("连上以后，记账、查账都能直接问它").font(V3.font(15, .bold)).foregroundStyle(V3.ink2)
                 }
             }
-            .frame(height: 36).padding(.top, 30)
+            .frame(height: 40).padding(.top, 30)
             V3StepButtons(skipText: nil, next: "出发") {
                 // 没选也能走：等于「还没用过」
-                if state.ai == nil { state.ai = "夏夏自带的" }
+                // 「自己的 API」没存密钥也不卡人：当成还没用过，进去以后在设置里再填
+                if state.ai == nil || (state.ai == V3State.aiOwnAPI && state.apiProvider == nil) { state.ai = "夏夏自带的" }
+                key = ""
                 state.say("出发！")
                 state.nextStep()
             }
@@ -606,27 +624,27 @@ private struct V3ConnectStep: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func part(_ symbol: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(V3.navy)
-            Text(text).font(V3.font(14.5, .bold)).foregroundStyle(V3.ink)
-        }
+    private func saveKey() {
+        if state.saveAPIKey(key, provider: provider, address: address) { key = "" }
     }
 
     private func card(_ name: String, _ symbol: String) -> some View {
         let on = picked(name)
         return Button {
-            if name == "还没用过" {
+            if name == V3State.aiOwnAPI {
                 checking = nil; missing = nil
-                withAnimation(.snappy) { state.ai = "夏夏自带的" }
-            } else { connect(name) }
+                withAnimation(.snappy) { ownOpen = true; if state.apiProvider != nil { state.ai = name } }
+            } else if name == "还没用过" {
+                checking = nil; missing = nil
+                withAnimation(.snappy) { ownOpen = false; state.ai = "夏夏自带的" }
+            } else { ownOpen = false; connect(name) }
         } label: {
             VStack(spacing: 10) {
                 Image(systemName: symbol).font(.system(size: 26, weight: .semibold)).frame(height: 32)
                 Text(name).font(V3.font(16, .bold)).lineLimit(1)
             }
             .foregroundStyle(on ? .white : V3.navy)
-            .frame(width: 168, height: 124)
+            .frame(width: 156, height: 124)
             .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(on ? V3.navy : .white)
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(V3.ink, lineWidth: 2.5)))
             .overlay(alignment: .topTrailing) {

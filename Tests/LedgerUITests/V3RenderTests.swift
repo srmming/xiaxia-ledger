@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import FinanceCore
 import SwiftUI
 import XCTest
 @testable import LedgerUI
@@ -29,6 +30,24 @@ final class V3RenderTests: XCTestCase {
         let picked = V3State()
         picked.onboardingStep = 4; picked.ai = "Claude"
         try write(V3Onboarding().environment(picked).environment(\.v3InlineXia, true), "ob5-picked", to: dir)
+        // 「自己的 API」已经填了的样子（假密钥，内存里的假钥匙串）
+        let own = V3State()
+        own.onboardingStep = 4
+        own.keyStore = MemorySecretStore()
+        own.saveAPIKey("sk-demo-000", provider: .anthropic)
+        own.toast = nil
+        try write(V3Onboarding().environment(own).environment(\.v3InlineXia, true), "ob5-own-api", to: dir)
+        own.onboardingStep = nil; own.page = .settings; own.settingsSub = .ai
+        try write(V3Shell().environment(own), "set-ai-own-api", to: dir)
+        // 走完引导直接到总览；目标页空着的样子
+        let done = V3State()
+        done.onboardingStep = 4; done.ai = "Claude"
+        done.nextStep(); done.toast = nil
+        XCTAssertNil(done.moment)
+        try write(V3Shell().environment(done), "after-onboarding", to: dir)
+        let nogoal = V3State()
+        nogoal.onboardingStep = nil; nogoal.patch { $0.wipe() }; nogoal.page = .goals
+        try write(V3Shell().environment(nogoal), "goals-empty", to: dir)
         // 刚进总览、还没有流水：顶上夏夏说一句去导入
         let empty = V3State()
         empty.onboardingStep = nil
