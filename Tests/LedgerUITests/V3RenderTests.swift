@@ -34,6 +34,9 @@ final class V3RenderTests: XCTestCase {
         s.page = .settings
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model
+        try write(V3TrendsPage().padding(20).environment(s), "real-trends", to: dir)
+        let demo = V3State(); demo.onboardingStep = nil
+        try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
     }
 
     func testRenderOnboardingOffscreen() throws {

@@ -187,6 +187,13 @@ public enum LedgerBridge {
             d.have = have; d.owe = owe; d.net = have - owe
             // 那个月花到「和今天同一天」时花了多少（比上月同期用）
             if k == 1 { d.sameDaySpent = month(ym, upTo: LocalDate(year: ym.year, month: ym.month, day: min(today.day, 28))).expense }
+            // 那个月每天花了多少（趋势页画「上个月」那条线用）
+            var perDay = [Money](repeating: .zero, count: daysInMonth(LocalDate(year: ym.year, month: ym.month, day: 1)))
+            for t in lifeTx where t.date.yearMonth == ym && t.amount < .zero && !t.isTransfer && t.date.day <= perDay.count {
+                perDay[t.date.day - 1] = perDay[t.date.day - 1] + ledger.baseAmount(t).magnitude
+            }
+            d.daily = perDay
+            d.weekly = stride(from: 0, to: perDay.count, by: 7).map { perDay[$0..<min($0 + 7, perDay.count)].reduce(.zero, +) }
             // 那个月记的几笔（最大的几笔），和店里收的、花的
             d.entries = lifeTx.filter { $0.date.yearMonth == ym && $0.amount < .zero && !$0.isTransfer }.sorted { $0.amount < $1.amount }.prefix(8).map { t in
                 .init(id: t.id, emoji: emoji(t.category), name: t.category ?? "还没分", meta: "\(t.description) · \(names[t.accountID] ?? t.accountID)", amount: ledger.baseAmount(t),

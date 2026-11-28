@@ -673,8 +673,8 @@ private struct V3SetBooksPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
         let b = state.book
-        let life = b.entries.filter { $0.side == .life }.count
-        let shop = b.entries.filter { $0.side == .biz }.count + b.shopOpenDays
+        let life = b.entryCounts.life
+        let shop = b.entryCounts.shop
         V3SetColumn {
             V3SetGroup(title: "账本", note: "每个账本有自己的收支和小结。", grow: true) {
                 if state.showsLife { V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts(on: .life).count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) } }

@@ -251,6 +251,39 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(l, keep)
     }
 
+    /// 店里的固定开销 = 自己加的规则 + 从流水里认出来的，同一样只出现一次；停掉的、说过「不算」的不算；
+    /// 不亏线用的就是这一份合计。
+    func testShopFixedCostsListEachOnceAndFeedTheBreakEvenLine() throws {
+        var l = ledger
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(Set(b.fixedCosts.map(\.name)).count, b.fixedCosts.count, "同一样不出现两次")
+        let rules = LedgerBridge.shopFixedRules(l), guesses = Outlook.fixedGuesses(l, side: .business, today: today)
+        XCTAssertFalse(rules.isEmpty, "示例账本里店有自己加的固定开销（店租、工资）")
+        // 合计 = 规则（没停的）+ 认出来的（规则没管到的），一分不差
+        let expect = rules.filter { !$0.paused }.map { $0.template.amount.magnitude }.reduce(.zero, +)
+            + guesses.filter { g in !rules.contains { $0.template.description == g.name } }.map(\.amount).reduce(.zero, +)
+        XCTAssertEqual(b.fixedTotal, expect)
+        // 认出来的和规则不是同一笔钱：每个认出来的「账户|分类」都不在规则里
+        for g in guesses { XCTAssertFalse(rules.contains { "\($0.template.accountID)|\($0.template.category ?? "")" == g.key }, g.name) }
+        // 不亏线 = (固定开销合计 + 贷款月供 + 这个月进货) ÷ 打算开门的天数，往上取整到 1 €
+        let need = b.fixedTotal + b.shopLoanMonthly + b.shopMonth().purchases
+        XCTAssertEqual(b.dailyBreakEven.cents, (need.cents / Int64(b.plannedOpenDays) + 99) / 100 * 100)
+        // 停掉一样：合计少这么多
+        var paused = rules[0]; paused.paused = true
+        try l.updateRecurring(paused, author: "测试")
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b2.fixedTotal, b.fixedTotal - rules[0].template.amount.magnitude)
+        XCTAssertEqual(b2.fixedCosts.first { $0.name == rules[0].template.description }?.off, true)
+        XCTAssertLessThan(b2.dailyBreakEven, b.dailyBreakEven)
+        // 说过「不算」的：不在列表里，合计也少这么多
+        if let g = guesses.first {
+            l.markNotFixed(g.key, name: g.name, author: "测试")
+            let b3 = LedgerBridge.snapshot(of: l, today: today)
+            XCTAssertNil(b3.fixedCosts.first { $0.name == g.name })
+            XCTAssertEqual(b3.fixedTotal, b2.fixedTotal - g.amount)
+        }
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)
