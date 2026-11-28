@@ -239,6 +239,9 @@ final class V3State {
         guard firstRun, var l = real else { return }
         firstRun = false
         let list = startingAccounts ?? StartingAccounts(rows: [])
+        // 引导里选了也管生意：走完以后把生意那一边打开（界面上的选择先记下来，下面重新算数时会被盖掉）
+        let wantsBiz = book.showBiz
+        defer { if wantsBiz, model?.businessOn == false { setBusiness(on: true); toast = nil } }
         do {
             var records: [ChangeRecord] = []
             if let model {

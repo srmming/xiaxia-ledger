@@ -677,6 +677,19 @@ private struct V3ConnectStep: View {
             return
         }
         missing = nil
+        // 接着正式账本：不演。真去看这台 Mac 上有没有这个 AI，有就真的连（和设置里「连接」是同一套），没有就直说
+        if let model = state.model {
+            guard let app = AIApp.from(clientName: name), let connector = model.aiConnector, connector.isInstalled(app) else {
+                withAnimation(.snappy) { if state.ai == name { state.ai = nil }; missing = name }
+                return
+            }
+            do {
+                try AISetup(connector: connector).connect(app)
+                withAnimation(.snappy) { state.ai = name }
+                state.say("\(app.name) 连好了。把它关掉重开一次就能用")
+            } catch { state.fail((error as? LocalizedError)?.errorDescription ?? "没连上，它的设置没动") }
+            return
+        }
         withAnimation(.snappy) { checking = name; if state.ai == name { state.ai = nil } }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.2))

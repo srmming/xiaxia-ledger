@@ -821,14 +821,30 @@ final class V3StateTests: XCTestCase {
         // 账本改名
         XCTAssertTrue(s.change("改好了") { try $0.renameBook(.life, to: "我的日子") })
         XCTAssertEqual(model.ledger.books.first { !$0.isBusiness }?.name, "我的日子")
-        // 还没接上的：直说，不开演示页，账本不动
+        // 试用版里演的那几个动作（假连接、假删除）在正式账本上不生效，账本不动
         let before = model.ledger
-        s.openSettings(.ai); XCTAssertNil(s.settingsSub)
-        s.openSettings(.data); XCTAssertNil(s.settingsSub)
         s.deleteEverything()
         s.connect("Claude 桌面版")
         XCTAssertEqual(model.ledger, before)
-        s.openSettings(.memory); XCTAssertEqual(s.settingsSub, .memory)
+        // 五页设置都能开（接的是 app 的账本模型）
+        for sub in [V3State.SettingsSub.ai, .business, .money, .sync, .data, .memory] { s.openSettings(sub); XCTAssertEqual(s.settingsSub, sub) }
+        // 管哪边：关掉生意那一边，生意的账还在；再打开
+        XCTAssertTrue(model.businessOn); XCTAssertTrue(s.showsBiz)
+        let shopTx = model.ledger.transactions.count
+        XCTAssertTrue(s.setBusiness(on: false))
+        XCTAssertFalse(model.businessOn); XCTAssertEqual(model.ledger.transactions.count, shopTx, "生意的账还在")
+        XCTAssertEqual(s.side, .life)
+        XCTAssertTrue(s.setBusiness(on: true))
+        XCTAssertTrue(model.businessOn)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小晴")
+        // 主币种
+        s.setBaseCurrency("USD")
+        XCTAssertEqual(model.ledger.baseCurrency, "USD")
+        s.setBaseCurrency("EUR")
+        // 删掉全部数据（内存里的示例账本，没有文件，所以也没有备份）
+        s.wipeEverything()
+        XCTAssertTrue(model.ledger.transactions.isEmpty)
+        XCTAssertTrue(s.book.entries.isEmpty)
     }
 
     /// 新用户：空账本自动进引导；走完之前账本一个字不动；走完把填的写进去；有数据的账本不进引导。
@@ -849,6 +865,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(model.ledger, before, "走完之前账本不动")
         s.nextStep()
         XCTAssertNil(s.onboardingStep); XCTAssertFalse(s.firstRun)
+        XCTAssertFalse(model.businessOn, "没选生意就不开生意那一边")
         XCTAssertEqual(model.ledger.accounts.map(\.name), ["日常卡", "现金"])
         XCTAssertEqual(s.book.inHand, eur("1260"))
         XCTAssertEqual(s.book.memos.first?.lines, ["三年后不用为钱发愁"])
@@ -862,6 +879,12 @@ final class V3StateTests: XCTestCase {
         let empty = m2.ledger
         for _ in 0..<5 { s2.nextStep() }
         XCTAssertNil(s2.onboardingStep); XCTAssertEqual(m2.ledger, empty)
+        // 引导里选了「两边都管」：走完以后生意那一边是开着的
+        let m3 = LedgerModel.empty()
+        let s3 = V3State(model: m3)
+        s3.nextStep(); s3.mode = .both
+        for _ in 0..<4 { s3.nextStep() }
+        XCTAssertTrue(m3.businessOn); XCTAssertTrue(s3.showsBiz)
         // 有数据的账本不进引导
         XCTAssertNil(V3State(model: LedgerModel.demo()).onboardingStep)
     }

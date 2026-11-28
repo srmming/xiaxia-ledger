@@ -35,6 +35,12 @@ final class V3RenderTests: XCTestCase {
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model
         try write(V3TrendsPage().padding(20).environment(s), "real-trends", to: dir)
+        // 设置里接正式账本的五页（内存里的示例账本：不碰任何真文件，AI 那页看的是临时文件夹里的假设置）
+        for sub in [V3State.SettingsSub.ai, .business, .money, .sync, .data] {
+            s.settingsSub = sub
+            try write(V3SettingsPage().environment(s), "real-set-\(sub.rawValue)", to: dir)
+        }
+        s.settingsSub = nil
         let demo = V3State(); demo.onboardingStep = nil
         try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
     }

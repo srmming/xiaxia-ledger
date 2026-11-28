@@ -81,7 +81,8 @@ extension V3State {
     static let notWiredSettings: Set<SettingsSub> = [.ai, .sync, .data, .money, .business]
 
     func openSettings(_ sub: SettingsSub) {
-        if real != nil, Self.notWiredSettings.contains(sub) { fail("「\(sub.title)」在新界面里还没接上，先回旧界面的设置里改"); return }
+        // 这五页接正式账本要靠 app 的账本模型；只拿到一份账本副本（没有模型）时开不了
+        if real != nil, model == nil, Self.notWiredSettings.contains(sub) { fail("「\(sub.title)」要在 app 里才能用"); return }
         openSettingsPage(sub)
     }
 
@@ -271,7 +272,7 @@ struct V3SettingsPage: View {
         if state.showLog { V3LogPage() } else {
             switch state.settingsSub {
             case nil: home
-            case .ai: V3SetAIPage()
+            case .ai: if state.model != nil { V3RealAIPage() } else { V3SetAIPage() }
             case .decision: V3SetDecisionPage()
             case .xia: V3SetXiaPage()
             case .memory: V3SetMemoryPage()
@@ -279,10 +280,10 @@ struct V3SettingsPage: View {
             case .privacy: V3SetPrivacyPage()
             case .author: V3SetAuthorPage()
             case .books: V3SetBooksPage()
-            case .business: V3SetBusinessPage()
-            case .money: V3SetMoneyPage()
-            case .sync: V3SetSyncPage()
-            case .data: V3SetDataPage()
+            case .business: if state.model != nil { V3RealSidesPage() } else { V3SetBusinessPage() }
+            case .money: if state.model != nil { V3RealMoneyPage() } else { V3SetMoneyPage() }
+            case .sync: if state.model != nil { V3RealSyncPage() } else { V3SetSyncPage() }
+            case .data: if state.model != nil { V3RealDataPage() } else { V3SetDataPage() }
             }
         }
     }
@@ -304,7 +305,7 @@ struct V3SettingsPage: View {
                         Button("连接你的 AI") { state.openSettings(.ai) }.buttonStyle(.v3)
                     }
                     .padding(.bottom, 8)
-                    V3SetLink(title: state.real != nil ? "管理连接" : (state.ai == nil && !state.hasOpenRouterKey) || linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: state.real != nil ? "先在旧界面的设置里管" : "管理连接",
+                    V3SetLink(title: state.real != nil ? "管理连接" : (state.ai == nil && !state.hasOpenRouterKey) || linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: "管理连接",
                               value: state.real != nil ? "" : linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、")) { state.openSettings(.ai) }
                     V3SetRow(title: "🔗 复制配置指令", sub: "复制一段话，粘给任何 AI，它会自己把夏夏账本配好") {
                         Button("复制") { state.copy(V3State.configPrompt, say: "已复制，粘贴给你的 AI 就行") }.buttonStyle(.v3(.ghost, .small))
