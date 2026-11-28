@@ -529,31 +529,71 @@ private struct V3SaveSheet: View {
 }
 
 /// 加一个小目标，或者改一个。
+/// 新目标的钱放哪：新开一个存钱罐（默认），或者放进一个已有的「存起来的」账户。大目标、小目标共用。
+struct V3GoalPlacePick: View {
+    let goal: String
+    /// 0 是新开存钱罐，后面是已有账户。
+    @Binding var pick: Int
+    @Environment(V3State.self) private var state
+
+    static func place(_ pick: Int, in book: TrialBook) -> TrialBook.GoalPlace {
+        let c = book.goalPlaceCandidates
+        return pick > 0 && c.indices.contains(pick - 1) ? .existing(c[pick - 1].name) : .newJar
+    }
+
+    var body: some View {
+        let c = state.book.goalPlaceCandidates
+        let clean = goal.trimmingCharacters(in: .whitespaces)
+        V3FormPick(label: "钱单独放在哪", options: ["新开一个存钱罐"] + c.map { "放进\($0.name)" }, pick: $pick)
+        if pick > 0, c.indices.contains(pick - 1) {
+            let a = c[pick - 1]
+            V3FormPreview(text: "「\(a.name)」里现在的钱，算这个目标已经存的", amount: a.balance.v3)
+        } else {
+            V3FormPreview(text: "新开一个账户「\(TrialBook.jarName(clean.isEmpty ? "目标" : clean))」，从 0 开始存", amount: "0,00\u{00A0}€")
+        }
+    }
+}
+
+/// 加一个小目标，或者改一个。新加分两步：先填名字和金额，再选钱放哪。
 struct V3SmallGoalSheet: View {
     let id: UUID?
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
     @State private var due = ""
+    @State private var step = 0
+    @State private var place = 0
     var body: some View {
         let m = V3Form.amount(amount)
         let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
-        V3SheetBox(width: 520, title: id == nil ? "加一个小目标" : "改小目标", primary: id == nil ? "加上" : "改好", canSave: ok,
+        V3SheetBox(width: 560, title: id == nil ? (step == 0 ? "加一个小目标" : "「\(name)」的钱放哪") : "改小目标",
+                   primary: id != nil ? "改好" : step == 0 ? "下一步" : "加上", canSave: ok,
                    save: {
                        guard let m else { return }
-                       let done = id.map { gid in state.change("改好了：\(name)", kind: .goal) { try $0.editSmallGoal(gid, name: name, target: m, due: due) } }
-                           ?? state.change("加上了：\(name) \(m.v3Short)", kind: .goal) { try $0.addSmallGoal(name: name, target: m, due: due) }
-                       if done { state.closeSheet() }
-                   }) {
-            V3FormField(label: "想要什么", prompt: "周末短途旅行", text: $name, focus: true)
-            HStack(alignment: .top, spacing: 12) {
-                V3FormField(label: "一共要多少", prompt: "300", text: $amount, big: true)
-                V3FormField(label: "想哪天前存够", prompt: "可不填，比如：明年 3 月前", text: $due)
+                       if let gid = id {
+                           if state.change("改好了：\(name)", kind: .goal, { try $0.editSmallGoal(gid, name: name, target: m, due: due) }) { state.closeSheet() }
+                       } else if step == 0 {
+                           withAnimation(.snappy(duration: 0.2)) { step = 1 }
+                       } else {
+                           let where_ = V3GoalPlacePick.place(place, in: state.book)
+                           if state.change("加上了：\(name) \(m.v3Short)", kind: .goal, { try $0.addSmallGoal(name: name, target: m, due: due, place: where_) }) { state.closeSheet() }
+                       }
+                   },
+                   extra: { if id == nil, step == 1 { Button("上一步") { withAnimation(.snappy(duration: 0.2)) { step = 0 } }.buttonStyle(.v3(.ghost)) } }) {
+            if step == 0 || id != nil {
+                V3FormField(label: "想要什么", prompt: "周末短途旅行", text: $name, focus: true)
+                HStack(alignment: .top, spacing: 12) {
+                    V3FormField(label: "一共要多少", prompt: "300", text: $amount, big: true)
+                    V3FormField(label: "想哪天前存够", prompt: "可不填，比如：明年 3 月前", text: $due)
+                }
+                V3AmountHint(text: amount)
+            } else {
+                V3GoalPlacePick(goal: name, pick: $place)
             }
-            V3AmountHint(text: amount)
         }
         .onAppear {
             if let id, let g = state.book.smallGoals.first(where: { $0.id == id }) { name = g.name; amount = V3Form.plain(g.target); due = g.due }
+            if state.goalSheetStep == 1 { name = "周末看海"; amount = "240"; step = 1; state.goalSheetStep = 0 }
         }
     }
 }
@@ -572,8 +612,11 @@ struct V3GoalDeleteSheet: View {
         let name = small?.name ?? b.journey.name
         let saved = small?.saved ?? b.journey.saved
         // 能去的地方：自己的账户在前（默认第一个），然后是别的目标
+        let owned = small?.ownsAccount ?? b.bigGoalOwnsAccount
+        let home = b.accounts.first { $0.id == (small?.account ?? b.bigGoalAccount) }
         let places: [(title: String, to: TrialBook.GoalMoney)] =
-            b.goalMoneyAccounts.map { ("放回\($0.name)", TrialBook.GoalMoney.account($0.name)) }
+            (owned ? [] : [("留在\(home?.name ?? "原账户")", TrialBook.GoalMoney.stay)])
+            + b.goalMoneyAccounts.map { ("放回\($0.name)", TrialBook.GoalMoney.account($0.name)) }
             + (id != nil && b.journey.total > .zero ? [("挪给「\(b.journey.name)」", TrialBook.GoalMoney.bigGoal)] : [])
             + b.smallGoals.filter { $0.id != id }.map { ("挪给「\($0.name)」", TrialBook.GoalMoney.smallGoal($0.id)) }
         let to = places.indices.contains(pick) ? places[pick] : nil

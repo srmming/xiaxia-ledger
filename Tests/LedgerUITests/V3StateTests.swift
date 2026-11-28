@@ -223,6 +223,59 @@ final class V3StateTests: XCTestCase {
         XCTAssertNil(hit(2, 2), "环外面")
     }
 
+    func testOneGoalOneAccount() {
+        let s = V3State()
+        XCTAssertTrue(s.book.goalAccountsAreConsistent, "示例：每个目标各有一个存钱罐，已存 = 余额")
+        XCTAssertEqual(s.book.accounts.filter { $0.block == .goal }.map(\.balance), [eur("519"), eur("120"), eur("60"), eur("15")])
+        XCTAssertFalse(s.book.accounts.contains { $0.name == "目标罐" }, "合在一起的那个目标罐没了")
+        XCTAssertEqual(s.book.goalPlaceCandidates.map(\.name), ["储蓄"], "已有账户只列存起来的，不列日常卡、现金、信用卡、别的目标的")
+        var plain = V3State.demoBook; plain.lifePins = []
+        XCTAssertEqual(plain.pinned(on: .life).map(\.name), ["日常卡", "换新电脑 存钱罐"], "默认置顶日常卡和大目标那张")
+        var have = s.book.totals.have
+        // 存一笔 = 从日常卡转到这个目标的账户，总数不变
+        XCTAssertTrue(s.change("存") { _ = try $0.deposit(self.eur("30"), from: "日常卡") })
+        XCTAssertEqual(s.book.bigGoalHome?.balance, eur("549")); XCTAssertEqual(s.book.totals.have, have)
+        XCTAssertFalse(s.change("存") { _ = try $0.deposit(self.eur("5"), from: "新跑鞋 存钱罐") }, "不能拿别的目标的钱来存")
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        // 在管理账户里改目标账户的余额：目标已存跟着变
+        XCTAssertTrue(s.change("改") { try $0.editAccount("换新电脑 存钱罐", newName: "换新电脑 存钱罐", balance: self.eur("600"), secret: false) })
+        XCTAssertEqual(s.book.journey.saved, eur("600"))
+        have = s.book.totals.have   // 手动把余额改多了 51，后面拿这个数当基准
+        // 小目标满了先删一个，再加一个放进已有账户的：储蓄里的 2.400 算已存，储蓄不再能给别的目标用
+        let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
+        XCTAssertTrue(s.change("删") { try $0.removeSmallGoal(shoes.id, moneyTo: .account("日常卡")) })
+        XCTAssertNil(s.book.account("新跑鞋 存钱罐"), "为它新开的存钱罐跟着删")
+        XCTAssertEqual(s.book.totals.have, have)
+        XCTAssertFalse(s.change("加") { try $0.addSmallGoal(name: "攒个底", target: self.eur("3000"), place: .existing("日常卡")) }, "日常卡不能拿来放目标的钱")
+        XCTAssertTrue(s.change("加") { try $0.addSmallGoal(name: "攒个底", target: self.eur("3000"), place: .existing("储蓄")) })
+        let base = s.book.smallGoals.first { $0.name == "攒个底" }!
+        XCTAssertEqual(base.saved, eur("2400")); XCTAssertFalse(base.ownsAccount)
+        XCTAssertTrue(s.book.goalPlaceCandidates.isEmpty, "一个账户只能对一个目标")
+        XCTAssertFalse(s.change("定") { try $0.addSmallGoal(name: "x", target: self.eur("50"), place: .existing("储蓄")) })
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        XCTAssertEqual(s.book.totals.have, have)
+        // 删这个目标：钱留在原账户，储蓄留着、只是不再算目标的
+        XCTAssertTrue(s.change("删") { try $0.removeSmallGoal(base.id, moneyTo: .stay) })
+        XCTAssertEqual(s.book.account("储蓄")?.balance, eur("2400")); XCTAssertEqual(s.book.account("储蓄")?.block, .emergency)
+        XCTAssertEqual(s.book.goalPlaceCandidates.map(\.name), ["储蓄"])
+        XCTAssertFalse(s.change("删") { try $0.removeBigGoal(moneyTo: .stay) }, "新开的存钱罐会删，钱不能留在里面")
+        // 换大目标：账户跟着目标走
+        let trip = s.book.smallGoals.first { $0.name == "周末短途旅行" }!
+        XCTAssertTrue(s.change("换") { try $0.promoteSmallGoal(trip.id) })
+        XCTAssertEqual(s.book.bigGoalHome?.name, "周末短途旅行 存钱罐")
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        // 改名：存钱罐跟着改名
+        XCTAssertTrue(s.change("改") { try $0.editBigGoal(name: "去海边", total: self.eur("300")) })
+        XCTAssertEqual(s.book.bigGoalHome?.name, "去海边 存钱罐")
+        // 删大目标：钱回日常卡，存钱罐删掉；再定一个新的放进储蓄
+        XCTAssertTrue(s.change("删") { try $0.removeBigGoal() })
+        XCTAssertNil(s.book.account("去海边 存钱罐"))
+        XCTAssertTrue(s.change("定") { try $0.startGoal(name: "攒首付", total: self.eur("9000"), place: .existing("储蓄")) })
+        XCTAssertEqual(s.book.journey.saved, eur("2400")); XCTAssertFalse(s.book.bigGoalOwnsAccount)
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        XCTAssertEqual(s.book.totals.have, have, "怎么折腾，总数都不变")
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
@@ -257,7 +310,8 @@ final class V3StateTests: XCTestCase {
         let net = s.book.totals.net
         XCTAssertTrue(s.deposit().isEmpty)
         XCTAssertEqual(s.book.journey.saved, eur("539"))
-        XCTAssertEqual(s.book.accounts.first { $0.block == .goal }?.balance, eur("734"), "目标罐 = 大目标 539 + 小目标 195")
+        XCTAssertEqual(s.book.bigGoalHome?.balance, eur("539"), "大目标的钱在它自己的存钱罐里")
+        XCTAssertEqual(s.book.sum(.goal), eur("734"), "四个存钱罐一共 = 大目标 539 + 小目标 195")
         XCTAssertEqual(s.book.accounts.first { $0.name == "日常卡" }?.balance, eur("1476,61"))
         XCTAssertEqual(s.book.totals.net, net, "自己账户之间挪钱，净剩不变")
         XCTAssertEqual(s.starDrops, 1)
@@ -273,8 +327,8 @@ final class V3StateTests: XCTestCase {
         let s = V3State()
         s.change("好，以后存钱自动对半分") { $0.splitWithEmergency = true }
         s.deposit(eur("20"))
-        XCTAssertEqual(s.book.journey.saved, eur("529"))
-        XCTAssertEqual(s.book.sum(.emergency), eur("2410"))
+        XCTAssertEqual(s.book.journey.saved, eur("539"), "应急钱去掉以后不再对半分：存多少进多少")
+        XCTAssertEqual(s.book.sum(.emergency), eur("2400"))
     }
 
     func testAddAccountChangesTotals() {
@@ -512,7 +566,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(s.change("设好了") { try $0.setEmergency(accounts: ["储蓄", "现金"], months: 6) })
         XCTAssertEqual(s.book.sum(.emergency), eur("2485"))
         XCTAssertEqual(s.book.emergencyGoalMonths, 6)
-        XCTAssertFalse(s.change("设好了") { try $0.setEmergency(accounts: ["目标罐"], months: 3) })
+        XCTAssertFalse(s.change("设好了") { try $0.setEmergency(accounts: ["换新电脑 存钱罐"], months: 3) })
         s.undo()
         XCTAssertEqual(s.book.emergencyAccounts.map(\.name), ["储蓄"])
     }
@@ -537,17 +591,17 @@ final class V3StateTests: XCTestCase {
     func testTransferReadsAsFromTo() {
         let s = V3State()
         let net = s.book.totals.net
-        XCTAssertEqual(s.book.transferShortcuts.map(\.title), ["存进储蓄", "还信用卡", "取现金", "放进目标罐"])
+        XCTAssertEqual(s.book.transferShortcuts.map(\.title), ["存进储蓄", "还信用卡", "取现金", "放进换新电脑 存钱罐"])
         XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("100"), from: "日常卡", to: "储蓄") })
         XCTAssertEqual(s.book.account("储蓄")?.balance, eur("2500"))
         XCTAssertEqual(s.book.totals.net, net, "自己账户之间转，净剩不变")
         XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("640"), from: "日常卡", to: "信用卡") }, "转给信用卡就是还款")
         XCTAssertEqual(s.book.account("信用卡")?.balance, .zero)
         let saved = s.book.journey.saved
-        XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("20"), from: "现金", to: "目标罐") }, "转进目标罐就是存一笔")
+        XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("20"), from: "现金", to: "换新电脑 存钱罐") }, "转进目标的账户就是存一笔")
         XCTAssertEqual(s.book.journey.saved, saved + eur("20"))
         XCTAssertFalse(s.change("转好了") { try $0.transfer(self.eur("20"), from: "现金", to: "现金") }, "从和到不能是同一个")
-        XCTAssertFalse(s.change("转好了") { try $0.transfer(self.eur("20"), from: "目标罐", to: "现金") }, "目标罐里的钱不能这样转出来")
+        XCTAssertFalse(s.change("转好了") { try $0.transfer(self.eur("20"), from: "换新电脑 存钱罐", to: "现金") }, "目标罐里的钱不能这样转出来")
     }
 
     func testSpendSlices() {

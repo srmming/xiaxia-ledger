@@ -42,6 +42,8 @@ enum V3CardLook {
 struct V3BankCard: View {
     let account: V3State.Account
     var width: CGFloat = 222
+    /// 这是哪个目标的账户（不是就没有）。
+    var goal: (name: String, saved: Money, target: Money, big: Bool)?
     static let ratio: CGFloat = 1.586
 
     var body: some View {
@@ -55,8 +57,13 @@ struct V3BankCard: View {
                 Image(systemName: V3CardLook.symbol(account)).font(.system(size: 13, weight: .bold)).foregroundStyle(ink.opacity(0.9))
                     .frame(width: 30, height: 30).background(Circle().fill(ink.opacity(look.dark ? 0.08 : 0.18)))
             }
-            Text(V3CardLook.kind(account)).font(V3.font(12, .semibold)).foregroundStyle(ink.opacity(0.72)).lineLimit(1).padding(.top, -6)
+            Text(goal.map { "存给「\($0.name)」" } ?? V3CardLook.kind(account)).font(V3.font(12, .semibold)).foregroundStyle(ink.opacity(0.72)).lineLimit(1).padding(.top, -6)
             Spacer(minLength: 0)
+            if let goal {
+                // 目标的进度小条
+                V3Bar(fraction: goal.target > .zero ? min(Double(goal.saved.cents) / Double(goal.target.cents), 1) : 0, height: 7, color: look.dark ? V3.navy : .white)
+                    .padding(.bottom, 6)
+            }
             HStack {
                 Spacer(minLength: 0)
                 V3Amount(account.balance.v3, color: money, size: 23, weight: .heavy).lineLimit(1).minimumScaleFactor(0.7)
@@ -87,7 +94,7 @@ struct V3PinnedCards: View {
         let cards = state.book.pinned(on: side)
         HStack(spacing: gap) {
             ForEach(Array(cards.enumerated()), id: \.element.id) { i, a in
-                V3BankCard(account: a, width: w)
+                V3BankCard(account: a, width: w, goal: state.book.goal(of: a.id))
                     .offset(x: dragging == a.name ? shift : 0)
                     .zIndex(dragging == a.name ? 1 : 0)
                     .scaleEffect(dragging == a.name ? 1.03 : 1)
@@ -188,7 +195,13 @@ struct V3AccountList: View {
                 V3Ico(emoji: a.emoji, size: 34)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(a.name).font(V3.font(14, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
-                    if V3CardLook.kind(a) != a.name { Text(V3CardLook.kind(a)).font(V3.font(12, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
+                    if let g = state.book.goal(of: a.id) {
+                        // 目标的账户：带目标名和进度小条
+                        HStack(spacing: 6) {
+                            Text("存给「\(g.name)」").font(V3.font(12, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                            V3Bar(fraction: g.target > .zero ? min(Double(g.saved.cents) / Double(g.target.cents), 1) : 0, height: 6, color: V3.star).frame(width: 54)
+                        }
+                    } else if V3CardLook.kind(a) != a.name { Text(V3CardLook.kind(a)).font(V3.font(12, .regular)).foregroundStyle(V3.ink2).lineLimit(1) }
                 }
                 .frame(minHeight: 34)
                 Spacer(minLength: 6)

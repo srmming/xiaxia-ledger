@@ -121,6 +121,8 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var showAddAccount = false
+    /// 出图用：新建目标的弹窗直接停在第二步（选钱放哪）。用一次就清掉。
+    var goalSheetStep = 0
     // 决策模型（OpenRouter）
     var transport: V3Transport = V3State.defaultTransport()
     var decisionPrefs = V3DecisionPrefs.load()
@@ -327,7 +329,7 @@ final class V3State {
         let text = resisted ? "算你忍住一次 +\(amount.v3Short)" : "存好了 +\(amount.v3Short) · 瓶里多了一颗星"
         let ok = change(text, kind: .goalDeposit) { b in
             reached = try b.deposit(amount, from: from, resisted: resisted)
-            if let i = b.accounts.firstIndex(where: { $0.block == .goal }) { b.accounts[i].note = Self.goalNote(b.journey) }
+            if let i = b.accounts.firstIndex(where: { $0.id == b.bigGoalAccount }) { b.accounts[i].note = Self.goalNote(b.journey) }
         }
         if ok { starDrops += 1 }
         return ok ? reached : []
@@ -371,7 +373,10 @@ final class V3State {
             accounts: [
                 Account(emoji: "💳", name: "日常卡", note: "晴空银行 · 今天刚导入", balance: eur("1496,61")),
                 Account(emoji: "🏦", name: "储蓄", note: "存着 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄"),
-                Account(emoji: "⭐", name: "目标罐", note: goalNote(j), balance: eur("714"), block: .goal),
+                Account(emoji: "⭐", name: "换新电脑 存钱罐", note: goalNote(j), balance: eur("519"), block: .goal),
+                Account(emoji: "🧳", name: "周末短途旅行 存钱罐", note: "存给「周末短途旅行」", balance: eur("120"), block: .goal),
+                Account(emoji: "👟", name: "新跑鞋 存钱罐", note: "存给「新跑鞋」", balance: eur("60"), block: .goal),
+                Account(emoji: "🎁", name: "给妈妈的生日礼物 存钱罐", note: "存给「给妈妈的生日礼物」", balance: eur("15"), block: .goal),
                 Account(emoji: "💶", name: "现金", note: "钱包里 · 上次点数 11 月 10 日", balance: eur("85")),
                 Account(emoji: "🏪", name: "小店账户", note: "店的银行卡 · 晴空银行", balance: eur("3679,39"), kind: .shop, block: .shop),
                 Account(emoji: "💶", name: "店里现金", note: "收银抽屉里", balance: eur("240"), kind: .shop, block: .shop),
@@ -415,6 +420,9 @@ final class V3State {
             .init(name: "新跑鞋", target: eur("95"), saved: eur("60"), due: "12 月底前"),
             .init(name: "给妈妈的生日礼物", target: eur("80"), saved: eur("15"), due: "明年 2 月 9 日前"),
         ]
+        // 一个目标对一个账户：各自的存钱罐
+        b.bigGoalAccount = b.account("换新电脑 存钱罐")?.id
+        for i in b.smallGoals.indices { b.smallGoals[i].account = b.account(TrialBook.jarName(b.smallGoals[i].name))?.id }
         b.spendByCategory = [
             .init(emoji: "🏠", name: "房租", amount: eur("650"), lastMonth: eur("650")), .init(emoji: "📱", name: "手机分期", amount: eur("200"), lastMonth: eur("200")),
             .init(emoji: "🛒", name: "超市", amount: eur("142,19"), lastMonth: eur("162")), .init(emoji: "🥗", name: "餐饮", amount: eur("68,40"), lastMonth: eur("104")),
@@ -507,7 +515,7 @@ final class V3State {
                   weekly: [eur("130"), eur("162"), eur("121"), eur("158,30")], shopIn: eur("3890"), shopOut: eur("2790"), net: eur("1980,20")),
         ]
         // 置顶成卡片的几张
-        for n in ["日常卡", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
+        for n in ["日常卡", "换新电脑 存钱罐", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b
     }
 
