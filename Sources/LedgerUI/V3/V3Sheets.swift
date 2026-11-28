@@ -9,6 +9,8 @@ import SwiftUI
 enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
+    /// 删目标（nil 是大目标）、改大目标
+    case goalDelete(UUID?), goalEdit
     // 设置里的
     case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, smallGoal(UUID?), holdBack, shopAccount
 
@@ -88,6 +90,8 @@ struct V3SheetHost: View {
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 case .apiKey: V3APIKeySheet()
                 case .smallGoal(let id): V3SmallGoalSheet(id: id)
+                case .goalDelete(let id): V3GoalDeleteSheet(id: id)
+                case .goalEdit: V3GoalEditSheet()
                 case .holdBack: V3HoldBackSheet()
                 case .shopAccount: V3ShopAccountSheet()
                 }
@@ -537,6 +541,65 @@ struct V3SmallGoalSheet: View {
 }
 
 /// 忍住了一笔：没买的那样东西和它的钱，存进大目标。默认填你最近最常买的小东西；流水里看不出来就空着。
+/// 删一个目标：一次问清里面已经存的钱去哪。
+struct V3GoalDeleteSheet: View {
+    /// nil 是大目标。
+    let id: UUID?
+    @Environment(V3State.self) private var state
+    @State private var pick = 0
+
+    var body: some View {
+        let b = state.book
+        let small = id.flatMap { id in b.smallGoals.first { $0.id == id } }
+        let name = small?.name ?? b.journey.name
+        let saved = small?.saved ?? b.journey.saved
+        // 能去的地方：自己的账户在前（默认第一个），然后是别的目标
+        let places: [(title: String, to: TrialBook.GoalMoney)] =
+            b.goalMoneyAccounts.map { ("放回\($0.name)", TrialBook.GoalMoney.account($0.name)) }
+            + (id != nil && b.journey.total > .zero ? [("挪给「\(b.journey.name)」", TrialBook.GoalMoney.bigGoal)] : [])
+            + b.smallGoals.filter { $0.id != id }.map { ("挪给「\($0.name)」", TrialBook.GoalMoney.smallGoal($0.id)) }
+        let to = places.indices.contains(pick) ? places[pick] : nil
+        V3SheetBox(width: 560, title: "删掉「\(name)」", primary: "删掉", danger: true, canSave: saved == .zero || to != nil,
+                   save: {
+                       let text = saved > .zero ? "已删掉：\(name) · \(saved.v3) \(to?.title ?? "")" : "已删掉：\(name)"
+                       let ok = state.change(text, kind: .remove) {
+                           if let id { try $0.removeSmallGoal(id, moneyTo: saved > .zero ? to?.to : nil) } else { try $0.removeBigGoal(moneyTo: saved > .zero ? to?.to : nil) }
+                       }
+                       if ok { state.closeSheet() }
+                   }) {
+            if saved > .zero {
+                V3FormPick(label: "里面存的 \(saved.v3) 放到哪", options: places.map(\.title), pick: $pick)
+            } else {
+                V3Label("里面还没存钱，删掉不动别的。", size: 14)
+            }
+        }
+    }
+}
+
+/// 改大目标：名字、一共要存多少。
+struct V3GoalEditSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var name = ""
+    @State private var amount = ""
+    var body: some View {
+        let j = state.book.journey
+        let m = V3Form.amount(amount)
+        V3SheetBox(width: 520, title: "改大目标", primary: "存好", canSave: m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty,
+                   save: {
+                       guard let m else { return }
+                       if state.change("改好了：\(name) · 一共 \(m.v3)", kind: .goal, { try $0.editBigGoal(name: name, total: m) }) { state.closeSheet() }
+                   }) {
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "叫什么", text: $name, focus: true)
+                V3FormField(label: "一共要存多少", prompt: "1400", text: $amount).frame(width: 180)
+            }
+            V3AmountHint(text: amount)
+            if let m, m <= j.saved { V3FormPreview(text: "已经存了 \(j.saved.v3)，改成这个数就算存够了。") }
+        }
+        .onAppear { name = j.name; amount = V3Form.plain(j.total) }
+    }
+}
+
 struct V3HoldBackSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""

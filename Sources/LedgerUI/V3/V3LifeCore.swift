@@ -266,10 +266,38 @@ struct V3GoalsPage: View {
         GeometryReader { g in
             let leftW = (g.size.width - 18) * 1.45 / 2.45
             HStack(alignment: .top, spacing: 18) {
-                left(width: leftW).frame(width: leftW)
+                Group {
+                    if state.book.journey.total > .zero { left(width: leftW) } else { noBigGoal }
+                }
+                .frame(width: leftW)
                 right
             }
         }
+    }
+
+    /// 没有大目标时，路卡是空的：一句话 + 两个按钮。
+    private var noBigGoal: some View {
+        let small = state.book.smallGoals
+        return VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            Image(systemName: "flag").font(.system(size: 34, weight: .semibold)).foregroundStyle(V3.dash)
+            Text("现在没有大目标").font(V3.font(22, .heavy)).foregroundStyle(V3.ink)
+            HStack(spacing: 10) {
+                if !small.isEmpty {
+                    Menu {
+                        ForEach(small) { g in
+                            Button("「\(g.name)」") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
+                        }
+                    } label: { Text("从小目标里挑一个").font(V3.font(14, .bold)).foregroundStyle(V3.ink).padding(.horizontal, 16).padding(.vertical, 9)
+                        .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2))) }
+                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                }
+                Button("定一个新的大目标") { state.open(.goalNew) }.buttonStyle(.v3)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .v3Sticker()
     }
 
     // 左边：大目标那条路。「这一站还差」写在卡头，「这个月的计划」和收到的信在卡底一行。
@@ -284,6 +312,13 @@ struct V3GoalsPage: View {
                     HStack(spacing: 8) {
                         if !j.isFinished { Text("这一站还差").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2) }
                         Text(j.isFinished ? "都存够了" : j.remainingToNext.v3Short).font(V3.num(22, .heavy)).foregroundStyle(V3.gold).contentTransition(.numericText())
+                        // 「…」：改、换、删这个大目标
+                        Menu { bigGoalMenu } label: {
+                            Image(systemName: "ellipsis").font(.system(size: 14, weight: .bold)).foregroundStyle(V3.ink)
+                                .frame(width: 30, height: 30).background(Circle().fill(V3.bg)).contentShape(Circle())
+                        }
+                        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                        .help("改、换、删这个大目标").accessibilityLabel("大目标的更多操作")
                     }
                 }
                 V3Road(journey: j, captions: state.roadCaptions).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -315,6 +350,7 @@ struct V3GoalsPage: View {
             .padding(.init(top: 16, leading: 20, bottom: 26, trailing: 20))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .v3Sticker().v3WaveBottom()
+            .contextMenu { bigGoalMenu }
             Group {
                 if j.isFinished {
                     V3Ask(face: "celebrate", text: "走完了！\(j.total.v3Short) 都存够了。", tone: .good)
@@ -330,6 +366,21 @@ struct V3GoalsPage: View {
             }
             .frame(width: width * 0.86).frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// 大目标的菜单（右上「…」和右键是同一个）。
+    @ViewBuilder private var bigGoalMenu: some View {
+        let b = state.book
+        Button("改名字、金额…") { state.open(.goalEdit) }
+        if !b.smallGoals.isEmpty {
+            Menu("换掉这个大目标") {
+                ForEach(b.smallGoals) { g in
+                    Button("换成「\(g.name)」") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
+                }
+            }
+        }
+        Divider()
+        Button("删掉这个目标…", role: .destructive) { state.open(.goalDelete(nil)) }
     }
 
     // 右边：最多 3 个小目标；下面是「先放着想想的」。
@@ -383,7 +434,7 @@ struct V3GoalsPage: View {
             Button("设成大目标") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
             Button("改名字、金额、日子…") { state.open(.smallGoal(g.id)) }
             Divider()
-            Button("删掉（存的钱回日常卡）") { state.change("删掉了：\(g.name)", kind: .remove) { try $0.removeSmallGoal(g.id) } }
+            Button("删掉…", role: .destructive) { state.open(.goalDelete(g.id)) }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {

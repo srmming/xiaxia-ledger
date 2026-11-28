@@ -97,6 +97,41 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: "日常卡") })
     }
 
+    func testDeleteAndEditGoals() {
+        let s = V3State()
+        let have = s.book.totals.have, daily = s.book.account("日常卡")!.balance, jar = s.book.sum(.goal)
+        let small = s.book.smallGoals[0]
+        // 改大目标：名字、金额；已存的不变
+        XCTAssertTrue(s.change("改") { try $0.editBigGoal(name: "换新笔记本", total: self.eur("1600")) })
+        XCTAssertEqual(s.book.journey.name, "换新笔记本")
+        XCTAssertEqual(s.book.journey.total, eur("1600"))
+        XCTAssertEqual(s.book.journey.saved, eur("519"))
+        XCTAssertFalse(s.change("改") { try $0.editBigGoal(name: small.name, total: self.eur("1600")) }, "不能和小目标重名")
+        // 删大目标，钱挪给一个小目标：钱还在目标罐里
+        XCTAssertFalse(s.change("删") { try $0.removeBigGoal(moneyTo: .bigGoal) })
+        XCTAssertTrue(s.change("删") { try $0.removeBigGoal(moneyTo: .smallGoal(small.id)) })
+        XCTAssertEqual(s.book.journey.total, .zero, "删完没有大目标")
+        XCTAssertEqual(s.book.smallGoals[0].saved, small.saved + eur("519"))
+        XCTAssertEqual(s.book.sum(.goal), jar)
+        XCTAssertEqual(s.book.totals.have, have, "钱只是换了地方")
+        XCTAssertFalse(s.change("删") { try $0.removeBigGoal() }, "没有大目标了")
+        // 撤销：大目标回来
+        s.undo()
+        XCTAssertEqual(s.book.journey.saved, eur("519"))
+        // 删大目标，钱放回账户（不说放哪，就是第一个日常能用的）
+        XCTAssertTrue(s.change("删") { try $0.removeBigGoal() })
+        XCTAssertEqual(s.book.account("日常卡")?.balance, daily + eur("519"))
+        XCTAssertEqual(s.book.sum(.goal), jar - eur("519"))
+        XCTAssertEqual(s.book.totals.have, have)
+        XCTAssertFalse(s.change("删") { try $0.removeSmallGoal(small.id, moneyTo: .bigGoal) }, "没有大目标，挪不过去")
+        XCTAssertFalse(s.change("删") { try $0.removeSmallGoal(small.id, moneyTo: .smallGoal(small.id)) }, "不能挪给自己")
+        XCTAssertFalse(s.change("删") { try $0.removeSmallGoal(small.id, moneyTo: .account("小店账户")) }, "不能放进店里的账户")
+        let other = s.book.smallGoals[1]
+        XCTAssertTrue(s.change("删") { try $0.removeSmallGoal(small.id, moneyTo: .smallGoal(other.id)) })
+        XCTAssertEqual(s.book.smallGoals.first { $0.id == other.id }?.saved, other.saved + small.saved)
+        XCTAssertEqual(s.book.smallGoals.count, 2)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")

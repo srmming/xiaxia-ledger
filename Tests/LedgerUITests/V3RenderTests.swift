@@ -91,6 +91,9 @@ final class V3RenderTests: XCTestCase {
         try shell("biz-debts") { $0.side = .biz; $0.page = .bizDebts }
         try shell("sheet-transfer-life") { $0.page = .overview; $0.manualStartKind = 2; $0.sheet = .manual }
         try shell("sheet-transfer-biz") { $0.side = .biz; $0.page = .bizHome; $0.manualStartKind = 2; $0.sheet = .manual }
+        try shell("sheet-goal-delete") { $0.page = .goals; $0.sheet = .goalDelete(nil) }
+        try shell("sheet-goal-edit") { $0.page = .goals; $0.sheet = .goalEdit }
+        try shell("goals-no-big") { s in s.page = .goals; s.change("删") { try $0.removeBigGoal(moneyTo: .account("日常卡")) } }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

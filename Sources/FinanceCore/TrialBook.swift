@@ -814,15 +814,74 @@ public struct TrialBook: Equatable, Sendable {
         smallGoals[i].name = clean; smallGoals[i].target = target; smallGoals[i].due = due.trimmingCharacters(in: .whitespaces)
     }
 
-    /// 删一个小目标：里面存的钱回到日常的账户（目标罐里拿出来）。
-    public mutating func removeSmallGoal(_ id: UUID) throws {
-        guard let i = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
-        let g = smallGoals.remove(at: i)
-        if g.saved > .zero, let jar = accounts.firstIndex(where: { $0.block == .goal }), let daily = accounts.firstIndex(where: { $0.kind == .own && $0.block == .daily }) {
-            let back = min(g.saved, accounts[jar].balance)
-            accounts[jar].balance = accounts[jar].balance - back
-            accounts[daily].balance = accounts[daily].balance + back
+    /// 删目标时，里面已经存的钱去哪。
+    public enum GoalMoney: Equatable, Sendable {
+        /// 放回一个自己的账户（从目标罐里拿出来）。
+        case account(String)
+        /// 挪给一个小目标（钱还在目标罐里）。
+        case smallGoal(UUID)
+        /// 挪给大目标。
+        case bigGoal
+    }
+
+    /// 删目标时钱能放回哪些账户：生活这边自己的、不是目标罐的。默认是第一个日常能用的。
+    public var goalMoneyAccounts: [Account] { owned.filter { $0.block != .goal } }
+
+    /// 把从一个目标里拿出来的钱放到别处。`skip` 是正在删的那个小目标。
+    private mutating func moveGoalMoney(_ amount: Money, to: GoalMoney?, skip: UUID? = nil) throws {
+        guard amount > .zero else { return }
+        switch to ?? goalMoneyAccounts.first.map({ GoalMoney.account($0.name) }) {
+        case .account(let name)?:
+            guard let a = accounts.firstIndex(where: { $0.name == name }), goalMoneyAccounts.contains(where: { $0.name == name }) else { throw TrialError("选一个自己的账户来放这笔钱") }
+            if let jar = accounts.firstIndex(where: { $0.block == .goal }) {
+                let back = min(amount, accounts[jar].balance)
+                accounts[jar].balance = accounts[jar].balance - back
+                accounts[a].balance = accounts[a].balance + back
+            }
+        case .smallGoal(let id)?:
+            guard id != skip, let k = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+            smallGoals[k].saved = smallGoals[k].saved + amount
+        case .bigGoal?:
+            guard journey.total > .zero else { throw TrialError("现在没有大目标") }
+            journey.saved = journey.saved + amount
+        case nil:
+            throw TrialError("先选一下这笔钱放到哪")
         }
+    }
+
+    /// 删掉大目标。里面已经存的钱放回一个账户，或者挪给一个小目标。删完就没有大目标了。
+    public mutating func removeBigGoal(moneyTo: GoalMoney? = nil) throws {
+        guard journey.total > .zero else { throw TrialError("现在没有大目标") }
+        guard moneyTo != .bigGoal else { throw TrialError("钱不能放回正在删的这个目标") }
+        let saved = journey.saved
+        try moveGoalMoney(saved, to: moneyTo)
+        journey = Journey(name: "", stops: [])
+        if let i = accounts.firstIndex(where: { $0.block == .goal }) { accounts[i].note = "" }
+    }
+
+    /// 改大目标的名字和一共要存多少。站按新的金额重排，已经存的不变。
+    public mutating func editBigGoal(name: String, total: Money) throws {
+        guard journey.total > .zero else { throw TrialError("现在没有大目标") }
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("目标要有个名字") }
+        guard clean == journey.name || !smallGoals.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个目标了") }
+        guard total.cents >= 20_00 else { throw TrialError("目标至少 20 €") }
+        if total != journey.total {
+            let stops = [10, 25, 50, 75, 100].map { Money(cents: max(total.cents * Int64($0) / 100 / 100 * 100, 100)) }
+            var next = Journey(name: clean, why: journey.why, stops: stops, saved: journey.saved, monthlyPlan: journey.monthlyPlan)
+            next.savedThisMonth = journey.savedThisMonth; next.resisted = journey.resisted
+            journey = next
+        } else {
+            journey.name = clean
+        }
+    }
+
+    /// 删一个小目标：里面存的钱放回一个账户（不说就是第一个日常能用的），或者挪给大目标、别的小目标。
+    public mutating func removeSmallGoal(_ id: UUID, moneyTo: GoalMoney? = nil) throws {
+        guard let i = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+        let g = smallGoals[i]
+        try moveGoalMoney(g.saved, to: moneyTo, skip: id)
+        smallGoals.removeAll { $0.id == id }
     }
 
     /// 往一个小目标里存一笔：钱从账户挪进目标罐。

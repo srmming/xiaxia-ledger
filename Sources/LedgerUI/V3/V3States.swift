@@ -55,7 +55,7 @@ extension V3State {
         let noMoney = b.owned.allSatisfy { $0.balance == .zero } && b.entries.isEmpty
         switch p {
         case .overview, .wealth: return noMoney
-        case .goals: return b.journey.total == .zero
+        case .goals: return b.journey.total == .zero && b.smallGoals.isEmpty
         case .transactions where importProgress != nil: return false
         case .spending, .trends, .transactions, .monthly: return b.entries.filter { $0.side == .life }.isEmpty && noMoney
         case .settings: return false
