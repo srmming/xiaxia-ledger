@@ -282,6 +282,13 @@ final class V3State {
     /// 正式账本上最近一次还能撤销的改动。
     private var realUndo: [[UUID]] = []
 
+    /// 接着的正式账本按哪一天算。
+    var bookToday: LocalDate { realToday }
+    /// 记下一步能撤销的正式账本改动（不走 `change` 的那些写入用）。
+    func noteRealUndo(_ ids: [UUID]) { realUndo.append(ids); localUndo = nil }
+    /// 底部提示条：做好了，带「撤销」。
+    func sayDone(_ text: String) { show(Toast(text: text, canUndo: true)) }
+
     /// 正式账本变了以后，界面上的数重新现算一遍。
     private func resnapshot() {
         guard let real else { return }

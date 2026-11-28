@@ -889,6 +889,29 @@ final class V3StateTests: XCTestCase {
         XCTAssertNil(V3State(model: LedgerModel.demo()).onboardingStep)
     }
 
+    /// 正式账本上「这笔算固定的吗」是真的问：算 → 多一条每月自动记的规则；不算 → 进「不算」的名单；都不再问，能撤销。
+    func testRealLedgerAsksAboutGuessedFixedCosts() throws {
+        let model = LedgerModel.demo()
+        model.author = "小满"
+        let s = V3State(model: model)
+        let guesses = s.fixedGuesses
+        guard let g = guesses.first else { throw XCTSkip("示例账本里生活这边没有认出来的固定开销") }
+        let rules = model.ledger.recurring.count
+        XCTAssertTrue(s.answerFixedGuess(g, fixed: true))
+        XCTAssertEqual(model.ledger.recurring.count, rules + 1)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        XCTAssertFalse(s.fixedGuesses.contains { $0.key == g.key }, "答过了就不再问")
+        s.undo()
+        XCTAssertEqual(model.ledger.recurring.count, rules)
+        XCTAssertTrue(s.fixedGuesses.contains { $0.key == g.key })
+        XCTAssertTrue(s.answerFixedGuess(g, fixed: false))
+        XCTAssertEqual(model.ledger.profile.notFixed?.contains(g.key), true)
+        XCTAssertFalse(s.fixedGuesses.contains { $0.key == g.key })
+        XCTAssertEqual(model.ledger.recurring.count, rules)
+        // 试用数字里没有这回事
+        XCTAssertTrue(V3State().fixedGuesses.isEmpty)
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

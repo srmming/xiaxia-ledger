@@ -375,7 +375,15 @@ struct V3TrendsPage: View {
                 }
                 .accessibilityLabel(pace.slower == nil ? "花钱速度" : pace.slower == true ? "花钱速度比上个月同期慢" : "花钱速度比上个月同期快")
                 if !demo {
-                    EmptyView()
+                    // 正式账本：真的问。认出来的固定开销里挑最大的一笔，问算不算（和旧界面趋势页是同一套认法、同一个写法）
+                    if let g = state.fixedGuesses.max(by: { $0.amount < $1.amount }) {
+                        V3Ask(face: "think", text: "\(g.name) \(g.amount.v3Short) 每月 \(g.day) 号左右都有，算固定的吗？") {
+                            HStack(spacing: 8) {
+                                Button("算") { state.answerFixedGuess(g, fixed: true) }.buttonStyle(.v3(.primary, .small))
+                                Button("不算") { state.answerFixedGuess(g, fixed: false) }.buttonStyle(.v3(.ghost, .small))
+                            }
+                        }
+                    }
                 } else if let gym {
                     V3Ask(face: "happy", text: gym ? "算进去了，12 月要付 1.561 €。" : "好，不算，不再问了。", tone: .good)
                 } else {
