@@ -570,7 +570,12 @@ public struct XiaxiaScene: Scene {
         #else
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
-        if useDemo || V3Launch.enabled {
+        #if os(macOS)
+        let v3 = V3Launch.enabled
+        #else
+        let v3 = PhoneV3Launch.enabled
+        #endif
+        if useDemo || v3 {
             // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
             let persona = args.firstIndex(of: "-XiaxiaPersona").flatMap { $0 + 1 < args.count ? Persona(rawValue: args[$0 + 1]) : nil }
             model = LedgerModel.demo(persona: persona)
@@ -704,8 +709,13 @@ public struct XiaxiaScene: Scene {
         }
         #else
         WindowGroup(tr("夏夏账本")) {
-            RootView()
-                .environment(model)
+            if PhoneV3Launch.enabled {
+                // iPhone 界面 v3（-XiaxiaV3 1，或包里写了 XiaxiaV3）：只用编的示例数字，不打开任何账本。
+                PhoneV3Root()
+            } else {
+                RootView()
+                    .environment(model)
+            }
         }
         #endif
     }
