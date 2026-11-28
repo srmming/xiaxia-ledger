@@ -13,6 +13,13 @@ enum P3Permissions {
     /// 设置里选的停顿：说完停多久自动发（VoiceRules 的第几个）。
     static var pauseIndex: Int { UserDefaults.standard.object(forKey: "p3.voicePause") as? Int ?? VoiceRules.defaultIndex }
     static var autoSend: Bool { VoiceRules.pause(pauseIndex) != nil }
+    /// 设置里选的听写语言（VoiceRules.languages 的第几个，和 Mac 同一张表）。
+    static var languageIndex: Int { UserDefaults.standard.object(forKey: "p3.voiceLanguage") as? Int ?? VoiceRules.defaultLanguageIndex }
+    /// 开始听之前：按设置定好停多久、听哪种话。
+    @MainActor static func prepare(_ voice: SpeechDictation) {
+        voice.pause = VoiceRules.pause(pauseIndex).map { Duration.seconds($0) }
+        voice.localeID = VoiceRules.localeID(languageIndex)
+    }
 }
 
 /// 麦克风按钮：点一下开始说，再点一下（或停顿）就说完。说的时候按钮变红、轻轻跳。
@@ -23,7 +30,7 @@ struct P3MicButton: View {
     let done: (String) -> Void
     var body: some View {
         Button {
-            voice.pause = VoiceRules.pause(P3Permissions.pauseIndex).map { Duration.seconds($0) }
+            P3Permissions.prepare(voice)
             voice.toggle(live: live, done: done)
         } label: {
             Image(systemName: voice.listening ? "waveform" : "mic")

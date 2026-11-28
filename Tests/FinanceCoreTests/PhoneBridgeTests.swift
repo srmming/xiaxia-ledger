@@ -21,3 +21,4 @@ final class PhoneBridgeTests: XCTestCase {
         XCTAssertEqual(back.shopMonth(back.thisMonth).income, earnedBefore)
     }
 }
+

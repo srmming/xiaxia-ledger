@@ -292,7 +292,7 @@ struct P3ChatView: View {
         switch i {
         case .camera: Task { _ = await P3Permissions.camera(); camera = true }
         case .voice:
-            voice.pause = VoiceRules.pause(P3Permissions.pauseIndex).map { Duration.seconds($0) }
+            P3Permissions.prepare(voice)
             voice.toggle(live: { text = $0 }) { said in
                 if P3Permissions.autoSend { state.chatSend(said); text = "" } else { text = said }
             }

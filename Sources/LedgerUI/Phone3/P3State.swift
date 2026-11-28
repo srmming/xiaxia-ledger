@@ -159,7 +159,14 @@ final class P3State {
 
     private func resnapshot() {
         guard let real else { return }
-        ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true), changes: Array(real.changes.suffix(50).reversed()))
+        var b = LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true)
+        // 「管哪边」在正式账本里没有地方存：存在这台手机上，每次整理完照着关
+        if let keep = UserDefaults.standard.array(forKey: Self.sidesKey) as? [Bool], keep.count == 2, keep[0] || keep[1] {
+            b.showLife = keep[0]
+            b.showBiz = keep[1] && b.showBiz
+            if !b.showLife && !b.showBiz { b.showLife = true }
+        }
+        ledger = TrialLedger(book: b, changes: Array(real.changes.suffix(50).reversed()))
     }
 
     /// 生活这边日常能用的第一个账户（示例里是「日常卡」，正式账本里是你自己的名字）。
@@ -329,9 +336,18 @@ final class P3State {
         if side == .life, !book.showLife { side = .biz }
     }
 
+    static let sidesKey = "p3.sides"
+
     func setSides(life: Bool, biz: Bool) {
         guard life || biz else { fail("至少要管一边"); return }
         let text = life && biz ? "好，两边都管" : life ? "好，只管生活。生意的账还在" : "好，只管生意。生活的账还在"
+        if isReal {
+            UserDefaults.standard.set([life, biz], forKey: Self.sidesKey)
+            withAnimation(.snappy(duration: 0.2)) { resnapshot() }
+            settleSide()
+            say(text)
+            return
+        }
         change(text) { try $0.setSides(life: life, biz: biz) }
         settleSide()
     }

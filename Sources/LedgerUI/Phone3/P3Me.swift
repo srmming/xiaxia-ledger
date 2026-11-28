@@ -7,6 +7,7 @@ import SwiftUI
 struct P3MePage: View {
     @Environment(P3State.self) private var state
     @AppStorage("p3.voicePause") private var voicePause = VoiceRules.defaultIndex
+    @AppStorage("p3.voiceLanguage") private var voiceLanguage = VoiceRules.defaultLanguageIndex
 
     var body: some View {
         @Bindable var state = state
@@ -41,6 +42,17 @@ struct P3MePage: View {
                                 Spacer()
                                 Picker("", selection: $voicePause) {
                                     ForEach(VoiceRules.pauses.indices, id: \.self) { Text(VoiceRules.title($0)).tag($0) }
+                                }
+                                .labelsHidden().tint(P3.ink2)
+                            }
+                            .padding(.horizontal, 14).frame(minHeight: 50)
+                            P3Divider().padding(.leading, 52)
+                            HStack(spacing: 12) {
+                                Image(systemName: "character.bubble").font(.system(size: 17, weight: .semibold)).foregroundStyle(state.side == .biz ? P3.teal : P3.navy).frame(width: 26)
+                                Text("说话用哪种语言").font(P3.font(15.5, .bold)).foregroundStyle(P3.ink)
+                                Spacer()
+                                Picker("", selection: $voiceLanguage) {
+                                    ForEach(VoiceRules.languages.indices, id: \.self) { Text(VoiceRules.languageTitle($0)).tag($0) }
                                 }
                                 .labelsHidden().tint(P3.ink2)
                             }
