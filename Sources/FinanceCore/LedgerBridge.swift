@@ -501,7 +501,8 @@ extension LedgerBridge {
         for a in after.accounts where was[a.id] == nil && (a.kind == .lent || (a.kind == .debt && !a.isCreditCard)) {
             let lent = a.kind == .lent
             let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
-            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            // 在店那边记的（店的贷款、欠供应商的）记在生意账本上；别的记在生活账本上
+            let book = (a.side == .biz ? work.books.first { $0.isBusiness }?.id : nil) ?? work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
             // 借出去的同时有一个账户正好少了这么多（「借给小李 50」）：钱是从那个账户出去的，一起记上
             // 向别人借的同时有一个账户正好多了这么多：钱是进了那个账户
             let change1 = moved.count == 1 ? moved[0].balance - (was[moved[0].id]?.balance ?? .zero) : .zero

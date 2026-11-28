@@ -43,6 +43,8 @@ final class V3RenderTests: XCTestCase {
             st.manualStartKind = k
             try write(V3ManualSheet(startKind: k).environment(st), "manual-\(k)", to: dir)
         }
+        let shopAcc = V3State(); shopAcc.onboardingStep = nil; shopAcc.side = .biz
+        try write(V3ShopAccountSheet().environment(shopAcc), "shop-account-sheet", to: dir)
         let goalsDemo = V3State(); goalsDemo.onboardingStep = nil
         try write(V3GoalsPage().padding(20).environment(goalsDemo), "demo-goals", to: dir)
         let subs = V3State(); subs.onboardingStep = nil
