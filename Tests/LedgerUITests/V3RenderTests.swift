@@ -71,6 +71,8 @@ final class V3RenderTests: XCTestCase {
             _ = s.addAccount(emoji: "💳", name: "第二张卡", note: "", balance: Money(cents: 120_00), kind: .own)
             s.sheet = .subscription
         }
+        try shell("goals-big-and-small") { $0.page = .goals }
+        try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }

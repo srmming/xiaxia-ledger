@@ -32,7 +32,7 @@ extension V3State {
         if ok { starDrops += 1; celebrate(reached) }
     }
 
-    private func celebrate(_ reached: [Journey.Station]) {
+    func celebrate(_ reached: [Journey.Station]) {
         guard let st = reached.last else { return }
         let letter = arrivalLetter(for: st)
         patch { $0.letters.append(letter) }

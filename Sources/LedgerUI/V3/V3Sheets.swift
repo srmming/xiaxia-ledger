@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency, smallGoal(UUID?), holdBack
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -19,7 +19,7 @@ enum V3Sheet: Equatable {
             "sheet-sub": (.subscriptions, .life, .subscription), "sheet-debt": (.debts, .life, .debt),
             "sheet-repay": (.debts, .life, .repay("信用卡")),
             "sheet-plan": (.goals, .life, .monthlyPlan), "sheet-subinfo": (.subscriptions, .life, .subscriptionInfo("云盘 Plus")),
-            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")), "sheet-emergency": (.wealth, .life, .emergency),
+            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")), "sheet-emergency": (.wealth, .life, .emergency), "sheet-holdback": (.overview, .life, .holdBack), "sheet-smallgoal": (.goals, .life, .smallGoal(nil)),
             "sheet-daily": (.bizHome, .biz, .shopDay(18)), "sheet-fixed": (.fixed, .biz, .fixed),
             "sheet-purchase": (.stock, .biz, .purchase), "sheet-stock": (.stock, .biz, .stock),
             "sheet-capital": (.payback, .biz, .capital), "sheet-transfer": (.bizHome, .biz, .transfer),
@@ -88,6 +88,8 @@ struct V3SheetHost: View {
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 case .apiKey: V3APIKeySheet()
                 case .emergency: V3EmergencySheet()
+                case .smallGoal(let id): V3SmallGoalSheet(id: id)
+                case .holdBack: V3HoldBackSheet()
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -476,29 +478,104 @@ private struct V3SaveSheet: View {
     @Environment(V3State.self) private var state
     @State private var amount = "20"
     @State private var account = 0
+    /// 存进哪个目标：0 是大目标，后面是小目标。
+    @State private var goal = 0
 
     var body: some View {
         let j = state.book.journey
+        let small = state.book.activeSmallGoals
         let accounts = state.book.accounts(for: .moveOut).filter { $0.kind == .own }
         let m = V3Form.amount(amount)
         let from = accounts.indices.contains(account) ? accounts[account] : nil
         let enough = m.map { ($0) <= (from?.balance ?? .zero) } ?? true
-        let afterGap = j.remainingToNext - (m ?? .zero)
-        V3SheetBox(width: 520, title: "存一笔", sub: "存进「\(j.name)」", foot: "只是从一个账户挪到目标罐，不算花掉。", primary: "存好",
+        let picked = goal > 0 && small.indices.contains(goal - 1) ? small[goal - 1] : nil
+        let gap = (picked.map { $0.target - $0.saved } ?? j.remainingToNext) - (m ?? .zero)
+        V3SheetBox(width: 540, title: "存一笔", primary: "存好",
                    canSave: m != nil && enough && from != nil,
-                   save: { if let m, let from, state.depositAndCelebrate(m, from: from.name) { state.closeSheet() } }) {
+                   save: {
+                       guard let m, let from else { return }
+                       if let picked {
+                           if state.change("存好了 +\(m.v3Short) · \(picked.name)", kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) { state.closeSheet() }
+                       } else if state.depositAndCelebrate(m, from: from.name) { state.closeSheet() }
+                   }) {
+            if !small.isEmpty { V3FormPick(label: "存进哪个目标", options: [j.name] + small.map(\.name), pick: $goal) }
             V3FormField(label: "存多少", prompt: "20", text: $amount, big: true, focus: true)
             V3AmountHint(text: amount)
             HStack(spacing: 6) {
                 ForEach([10, 20, 50], id: \.self) { n in V3Chip(text: "\(n) €", size: 13) { amount = "\(n)" } }
-                if j.remainingToNext > .zero { V3Chip(text: "这一站差的 \(j.remainingToNext.v3Short)", size: 13) { amount = V3Form.plain(j.remainingToNext) } }
+                if picked == nil, j.remainingToNext > .zero { V3Chip(text: "这一站差的 \(j.remainingToNext.v3Short)", size: 13) { amount = V3Form.plain(j.remainingToNext) } }
+                if let picked, picked.target > picked.saved { V3Chip(text: "还差的 \((picked.target - picked.saved).v3Short)", size: 13) { amount = V3Form.plain(picked.target - picked.saved) } }
             }
             V3FormPick(label: "从哪个账户拿", options: accounts.map { "\($0.name) · \($0.balance.v3)" }, pick: $account)
             if !enough, let from {
                 V3FormPreview(text: "\(from.name)里只有 \(from.balance.v3)，不够存这么多。", good: false)
             } else if m != nil {
-                V3FormPreview(text: afterGap > .zero ? "存完这一站还差" : "这一笔存完就到站了", amount: afterGap > .zero ? afterGap.v3Short : "⭐")
+                V3FormPreview(text: gap > .zero ? (picked == nil ? "存完这一站还差" : "存完还差") : (picked == nil ? "这一笔存完就到站了" : "这一笔存完就够了"), amount: gap > .zero ? gap.v3Short : "⭐")
             }
+        }
+        .onAppear {
+            if let t = state.saveTarget, let i = small.firstIndex(where: { $0.id == t }) { goal = i + 1 }
+            state.saveTarget = nil
+        }
+    }
+}
+
+/// 加一个小目标，或者改一个。
+struct V3SmallGoalSheet: View {
+    let id: UUID?
+    @Environment(V3State.self) private var state
+    @State private var name = ""
+    @State private var amount = ""
+    @State private var due = ""
+    var body: some View {
+        let m = V3Form.amount(amount)
+        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
+        V3SheetBox(width: 520, title: id == nil ? "加一个小目标" : "改小目标", primary: id == nil ? "加上" : "改好", canSave: ok,
+                   save: {
+                       guard let m else { return }
+                       let done = id.map { gid in state.change("改好了：\(name)", kind: .goal) { try $0.editSmallGoal(gid, name: name, target: m, due: due) } }
+                           ?? state.change("加上了：\(name) \(m.v3Short)", kind: .goal) { try $0.addSmallGoal(name: name, target: m, due: due) }
+                       if done { state.closeSheet() }
+                   }) {
+            V3FormField(label: "想要什么", prompt: "周末短途旅行", text: $name, focus: true)
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "一共要多少", prompt: "300", text: $amount, big: true)
+                V3FormField(label: "想哪天前存够", prompt: "可不填，比如：明年 3 月前", text: $due)
+            }
+            V3AmountHint(text: amount)
+        }
+        .onAppear {
+            if let id, let g = state.book.smallGoals.first(where: { $0.id == id }) { name = g.name; amount = V3Form.plain(g.target); due = g.due }
+        }
+    }
+}
+
+/// 忍住了一笔：没买的那样东西和它的钱，存进大目标。默认填你最近最常买的小东西；流水里看不出来就空着。
+struct V3HoldBackSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var name = ""
+    @State private var amount = ""
+    var body: some View {
+        let m = V3Form.amount(amount)
+        let j = state.book.journey
+        V3SheetBox(width: 500, title: "忍住了一笔", sub: j.total > .zero ? "存进「\(j.name)」" : "", primary: "存进去", canSave: m != nil,
+                   save: {
+                       guard let m else { return }
+                       var reached: [Journey.Station] = []
+                       let what = name.trimmingCharacters(in: .whitespaces)
+                       if state.change("算你忍住一次 +\(m.v3Short)\(what.isEmpty ? "" : " · \(what)")", kind: .goalDeposit, { reached = try $0.holdBack(name: name, amount: m) }) {
+                           state.starDrops += 1
+                           state.closeSheet()
+                           state.celebrate(reached)
+                       }
+                   }) {
+            V3FormField(label: "忍住了什么", prompt: "可不填", text: $name)
+            V3FormField(label: "多少钱", prompt: "3", text: $amount, big: true, focus: true)
+            V3AmountHint(text: amount)
+            HStack(spacing: 6) { ForEach([3, 10, 30], id: \.self) { n in V3Chip(text: "\(n) €", size: 13) { amount = "\(n)" } } }
+        }
+        .onAppear {
+            if let h = state.book.smallHabit { name = h.name; amount = V3Form.plain(h.typical) }
         }
     }
 }

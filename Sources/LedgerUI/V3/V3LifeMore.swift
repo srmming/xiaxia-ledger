@@ -107,7 +107,7 @@ struct V3SpendingPage: View {
         V3Cols(left: 1.1, right: 1) {
             VStack(spacing: 16) {
                 V3Ask(face: diff >= .zero ? "happy" : "calm",
-                      text: diff >= .zero ? "比上月同期少花 \(diff.v3Short)，咖啡少 4 杯。" : "比上月同期多花 \(diff.magnitude.v3Short)，跟你说一声。",
+                      text: diff >= .zero ? "比上月同期少花 \(diff.v3Short)\(state.book.savedPhrase(diff).isEmpty ? "" : "，" + state.book.savedPhrase(diff))。" : "比上月同期多花 \(diff.magnitude.v3Short)，跟你说一声。",
                       tone: diff >= .zero ? .good : .plain)
                 V3KeyCard(label: "11 月到今天花掉", amount: m.spentTotal, size: 56) {
                     HStack(spacing: 26) {
@@ -599,7 +599,7 @@ struct V3MonthlyPage: View {
             VStack(spacing: 16) {
                 V3Card(spacing: 4) {
                     V3CardTitle("做得好的 3 件")
-                    V3RowList(rows: [.init("⭐", "过了一站", "10 月 12 日存到 200 €", ""), .init("⭐", "咖啡少了 6 杯", "省下 19,20 €，都进了目标", ""),
+                    V3RowList(rows: [.init("⭐", "过了一站", "10 月 12 日存到 200 €", ""), .init("⭐", "小东西少买了 6 次", "省下 19,20 €，都进了目标", ""),
                                      .init("⭐", "信用卡按时还清", "没有多付一分利息", "")])
                 }
                 V3Card(spacing: 4) {

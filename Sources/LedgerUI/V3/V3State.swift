@@ -140,6 +140,8 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 「存一笔」小窗先选中哪个小目标（nil = 大目标）。
+    var saveTarget: UUID?
     /// 正在导入的那份流水读到第几笔了（没在导入是 nil）。
     var importProgress: (name: String, read: Int, total: Int)?
     var importTask: Task<Void, Never>?
@@ -384,6 +386,11 @@ final class V3State {
             splitWithEmergency: nil,
             monthlyMust: eur("860"))
         b.usualDailySpend = eur("31")
+        b.smallGoals = [
+            .init(name: "周末短途旅行", target: eur("300"), saved: eur("120"), due: "明年 3 月前"),
+            .init(name: "新跑鞋", target: eur("95"), saved: eur("60"), due: "12 月底前"),
+            .init(name: "给妈妈的生日礼物", target: eur("80"), saved: eur("15"), due: "明年 2 月 9 日前"),
+        ]
         b.spendByCategory = [
             .init(emoji: "🏠", name: "房租", amount: eur("650"), lastMonth: eur("650")), .init(emoji: "📱", name: "手机分期", amount: eur("200"), lastMonth: eur("200")),
             .init(emoji: "🛒", name: "超市", amount: eur("142,19"), lastMonth: eur("162")), .init(emoji: "🥗", name: "餐饮", amount: eur("68,40"), lastMonth: eur("104")),

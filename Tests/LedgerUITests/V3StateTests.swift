@@ -363,6 +363,51 @@ final class V3StateTests: XCTestCase {
         }
     }
 
+    func testOneBigGoalAndUpToThreeSmallOnes() {
+        let s = V3State()
+        XCTAssertEqual(s.book.smallGoals.count, 3)
+        XCTAssertFalse(s.book.canAddSmallGoal)
+        XCTAssertFalse(s.change("加上了") { try $0.addSmallGoal(name: "第四个", target: self.eur("50")) }, "最多 3 个小目标")
+        XCTAssertTrue(s.toast?.text.contains("目标不在多") ?? false)
+        // 存进小目标：钱从账户进目标罐，大目标不动
+        let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
+        let saved = s.book.journey.saved
+        XCTAssertTrue(s.change("存好了") { try $0.depositSmall(shoes.id, amount: self.eur("35"), from: "日常卡") })
+        XCTAssertTrue(s.book.smallGoals.first { $0.id == shoes.id }!.isDone)
+        XCTAssertEqual(s.book.journey.saved, saved)
+        XCTAssertTrue(s.book.canAddSmallGoal, "存够了的不算，位置空出来了")
+        // 设成大目标：原来的大目标变成小目标
+        let trip = s.book.smallGoals.first { $0.name == "周末短途旅行" }!
+        XCTAssertTrue(s.change("换好了") { try $0.promoteSmallGoal(trip.id) })
+        XCTAssertEqual(s.book.journey.name, "周末短途旅行")
+        XCTAssertEqual(s.book.journey.saved, eur("120"))
+        XCTAssertTrue(s.book.smallGoals.contains { $0.name == "换新电脑" && $0.saved == saved })
+        s.undo()
+        XCTAssertEqual(s.book.journey.name, "换新电脑")
+        // 删小目标：存的钱回日常卡
+        let daily = s.book.account("日常卡")!.balance
+        let gift = s.book.smallGoals.first { $0.name == "给妈妈的生日礼物" }!
+        XCTAssertTrue(s.change("删掉了") { try $0.removeSmallGoal(gift.id) })
+        XCTAssertEqual(s.book.account("日常卡")?.balance, daily + eur("15"))
+    }
+
+    func testHoldBackAndSavedPhraseDoNotAssumeCoffee() {
+        let s = V3State()
+        XCTAssertNil(s.book.smallHabit, "示例流水里没有买过 3 次以上的小东西：不瞎猜")
+        XCTAssertEqual(s.book.savedPhrase(eur("86")), "等于少花 3 天的零花")
+        // 常买奶茶的人，说的就是奶茶
+        s.patch { b in
+            for d in [1, 3, 5, 8] { _ = try? b.record(name: "奶茶", emoji: "🧋", amount: self.eur("4,50"), account: "现金", place: "茶铺", daysAgo: d) }
+        }
+        XCTAssertEqual(s.book.smallHabit?.name, "茶铺")
+        XCTAssertEqual(s.book.savedPhrase(eur("18")), "等于少买 4 次茶铺")
+        let saved = s.book.journey.saved, resisted = s.book.journey.resisted
+        XCTAssertTrue(s.change("算你忍住一次") { try $0.holdBack(name: "", amount: self.eur("4,50")) })
+        XCTAssertEqual(s.book.journey.saved, saved + eur("4,50"))
+        XCTAssertEqual(s.book.journey.resisted, resisted + 1)
+        XCTAssertEqual(s.book.wanted.first?.tag, "忍住了")
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

@@ -178,6 +178,7 @@ public struct TrialBook: Equatable, Sendable {
         .init("💰", "工资"), .init("🎉", "奖金"), .init("💼", "兼职"), .init("↩️", "退款"), .init("🤝", "别人还我"),
         .init("🧧", "红包礼金"), .init("📦", "卖二手"), .init("🏦", "利息"), .init("❓", "其他"),
     ]
+    public var smallGoals: [SmallGoal] = []
     public var memos: [Memo] = []
     // 生活
     public var accounts: [Account]
@@ -504,7 +505,7 @@ public struct TrialBook: Equatable, Sendable {
         for i in shopDays.indices where shopDays[i].state == .open || shopDays[i].state == .rest {
             shopDays[i] = ShopDay(day: shopDays[i].day, cash: .zero, card: .zero, state: shopDays[i].day <= todayDay ? .missing : .future)
         }
-        fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []; nextGoals = []
+        fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []; nextGoals = []; smallGoals = []
     }
 
     /// 能把钱转出去的账户：自己的钱（不含目标罐、私房钱），加上店里的。
@@ -660,6 +661,122 @@ public struct TrialBook: Equatable, Sendable {
     public mutating func removeWanted(_ id: UUID) throws {
         guard let i = wanted.firstIndex(where: { $0.id == id }) else { throw TrialError("清单里没有这一样了") }
         wanted.remove(at: i)
+    }
+
+    // MARK: 小目标（1 个大目标 + 最多 3 个小目标，规则和正式版 PiggyBank.swift 里的一样）
+
+    public struct SmallGoal: Identifiable, Equatable, Sendable {
+        public var id = UUID()
+        public var name: String
+        public var target: Money
+        public var saved: Money
+        /// 想哪天前存够（一句话，比如「明年 3 月」；可以空着）。
+        public var due: String
+        public var isDone: Bool { saved >= target }
+        public var fraction: Double { target > .zero ? min(1, Double(saved.cents) / Double(target.cents)) : 0 }
+        public init(id: UUID = UUID(), name: String, target: Money, saved: Money = .zero, due: String = "") {
+            self.id = id; self.name = name; self.target = target; self.saved = saved; self.due = due
+        }
+    }
+
+    /// 还在存的小目标有几个（存够了的不算）。
+    public var activeSmallGoals: [SmallGoal] { smallGoals.filter { !$0.isDone } }
+    public var canAddSmallGoal: Bool { activeSmallGoals.count < Plans.maxSmallGoals }
+
+    public mutating func addSmallGoal(name: String, target: Money, due: String = "") throws {
+        try Self.positive(target, "目标的钱")
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("先写一下想要什么") }
+        guard clean != journey.name, !smallGoals.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个目标了") }
+        guard canAddSmallGoal else { throw TrialError(Plans.goalLimitSentence + "先完成或删掉一个。") }
+        smallGoals.append(SmallGoal(name: clean, target: target, due: due.trimmingCharacters(in: .whitespaces)))
+    }
+
+    public mutating func editSmallGoal(_ id: UUID, name: String, target: Money, due: String) throws {
+        try Self.positive(target, "目标的钱")
+        guard let i = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw TrialError("目标要有个名字") }
+        guard clean == smallGoals[i].name || (clean != journey.name && !smallGoals.contains(where: { $0.name == clean })) else { throw TrialError("已经有「\(clean)」这个目标了") }
+        smallGoals[i].name = clean; smallGoals[i].target = target; smallGoals[i].due = due.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 删一个小目标：里面存的钱回到日常的账户（目标罐里拿出来）。
+    public mutating func removeSmallGoal(_ id: UUID) throws {
+        guard let i = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+        let g = smallGoals.remove(at: i)
+        if g.saved > .zero, let jar = accounts.firstIndex(where: { $0.block == .goal }), let daily = accounts.firstIndex(where: { $0.kind == .own && $0.block == .daily }) {
+            let back = min(g.saved, accounts[jar].balance)
+            accounts[jar].balance = accounts[jar].balance - back
+            accounts[daily].balance = accounts[daily].balance + back
+        }
+    }
+
+    /// 往一个小目标里存一笔：钱从账户挪进目标罐。
+    public mutating func depositSmall(_ id: UUID, amount: Money, from: String) throws {
+        try Self.positive(amount, "存的钱")
+        guard let g = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+        let f = try index(from)
+        guard accounts[f].balance >= amount else { throw TrialError("\(from)里只有 \(accounts[f].balance.formatted)") }
+        accounts[f].balance = accounts[f].balance - amount
+        if let jar = accounts.firstIndex(where: { $0.block == .goal }) { accounts[jar].balance = accounts[jar].balance + amount }
+        smallGoals[g].saved = smallGoals[g].saved + amount
+    }
+
+    /// 把一个小目标设成大目标：原来的大目标变成小目标。小目标已经满了、原来的大目标又没存够，就换不了。
+    public mutating func promoteSmallGoal(_ id: UUID) throws {
+        guard let i = smallGoals.firstIndex(where: { $0.id == id }) else { throw TrialError("这个小目标已经不在了") }
+        let g = smallGoals[i]
+        let old = journey
+        smallGoals.remove(at: i)
+        if old.total > .zero {
+            guard old.isFinished || canAddSmallGoal else {
+                smallGoals.insert(g, at: i)
+                throw TrialError(Plans.goalLimitSentence + "先完成或删掉一个小目标。")
+            }
+            smallGoals.insert(SmallGoal(name: old.name, target: old.total, saved: old.saved), at: 0)
+        }
+        let stops = [10, 25, 50, 75, 100].map { Money(cents: max(g.target.cents * Int64($0) / 100 / 100 * 100, 100)) }
+        journey = Journey(name: g.name, stops: Array(Set(stops)).sorted(), saved: g.saved, monthlyPlan: old.monthlyPlan)
+        nextGoals.removeAll { $0.name == g.name }
+    }
+
+    // MARK: 忍住了一笔（规则和正式版一样：最近 60 天最常买的 0,50–15 € 小东西）
+
+    /// 最近 60 天里买得最多的小东西（一次 0,50–15 €，至少 3 次）。流水里没找到就是 nil，不瞎猜。
+    public var smallHabit: SmallHabit? {
+        let small = entries.filter { $0.side == .life && $0.daysAgo <= 60 && $0.amount.cents <= -50 && $0.amount.cents >= -1500 }
+        let groups = Dictionary(grouping: small) { $0.place.isEmpty ? $0.name : $0.place }
+        guard let best = groups.filter({ $0.value.count >= 3 }).max(by: { ($0.value.count, $1.key) < ($1.value.count, $0.key) }) else { return nil }
+        let sorted = best.value.map { -$0.amount.cents }.sorted()
+        let typical = Money(cents: sorted[sorted.count / 2])
+        return SmallHabit(name: best.key, typical: typical, count60: best.value.count,
+                          lastWeek: best.value.filter { (7..<14).contains($0.daysAgo) }.count, thisWeek: best.value.filter { $0.daysAgo < 7 }.count, isGuess: false)
+    }
+
+    /// 把省下的一笔钱说成人话：常买什么就说什么（「等于少买 4 次 Café Nube」）；流水里看不出来就说「等于少花 N 天的零花」；都不知道就不说。
+    public func savedPhrase(_ amount: Money) -> String {
+        guard amount > .zero else { return "" }
+        if let h = smallHabit, h.typical > .zero {
+            let n = Int((Double(amount.cents) / Double(h.typical.cents)).rounded())
+            if n >= 1 { return "等于少买 \(n) 次\(h.name)" }
+        }
+        if usualDailySpend > .zero {
+            let n = Int((Double(amount.cents) / Double(usualDailySpend.cents)).rounded())
+            if n >= 1 { return "等于少花 \(n) 天的零花" }
+        }
+        return ""
+    }
+
+    /// 忍住了一笔：这笔钱从日常的账户存进大目标，流水里留一条带「忍住了」标签的记号（金额不算花）。
+    @discardableResult
+    public mutating func holdBack(name: String, amount: Money) throws -> [Journey.Station] {
+        try Self.positive(amount)
+        guard journey.total > .zero else { throw TrialError("还没有大目标，先去定一个") }
+        let reached = try deposit(amount, resisted: true)
+        let what = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        wanted.insert(Item(emoji: "✋", name: what.isEmpty ? "忍住了一笔" : what, note: "忍住了 · 存进\(journey.name)", amount: amount, tag: "忍住了", off: true), at: 0)
+        return reached
     }
 
     // MARK: 应急钱
