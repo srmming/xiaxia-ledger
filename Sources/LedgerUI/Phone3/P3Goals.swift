@@ -328,6 +328,8 @@ struct P3SmallerStepSheet: View {
         let options = plan > .zero ? Journey.smallerSteps(from: plan) : [Money(cents: 50_00), Money(cents: 100_00), Money(cents: 200_00)]
         VStack(alignment: .leading, spacing: 12) {
             Text(plan > .zero ? "每月存多少？现在是 \(plan.p3Short)" : "每月给「\(j.name)」存多少？").font(P3.font(17, .heavy)).foregroundStyle(P3.ink)
+            // 进账比平时少时说一句（和 Mac 同一句，算不出来就不说）
+            if let note = state.book.incomeDropNote { Text(note).font(P3.font(13.5, .regular)).foregroundStyle(P3.ink2) }
             VStack(spacing: 0) {
                 ForEach(Array(options.enumerated()), id: \.offset) { i, s in
                     if i > 0 { P3Divider() }

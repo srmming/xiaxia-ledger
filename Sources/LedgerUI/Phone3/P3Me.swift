@@ -377,6 +377,7 @@ struct P3SubscriptionsPage: View {
                 }
             }
             .padding(.horizontal, 14).p3Group()
+            if let ask = b.subscriptionsQuestion { Text(ask).font(P3.font(13.5, .bold)).foregroundStyle(P3.ink) }
             Text("点一行标成「要退」，再点一下取消。").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
         }
     }
