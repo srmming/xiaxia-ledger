@@ -40,8 +40,8 @@ struct P3GoalsPage: View {
             .scrollIndicators(.hidden)
         }
         .confirmationDialog("删掉大目标「\(j.name)」？", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("删掉，存的 \(j.saved.p3Short) 回日常卡", role: .destructive) {
-                state.change("删掉了大目标：\(j.name)。\(j.saved.p3Short) 回到日常卡", kind: .remove) { try $0.removeBigGoal() }
+            Button("删掉，存的 \(j.saved.p3Short) 回\(state.dailyName)", role: .destructive) {
+                state.change("删掉了大目标：\(j.name)。\(j.saved.p3Short) 回到\(state.dailyName)", kind: .remove) { try $0.removeBigGoal() }
             }
             Button("算了", role: .cancel) {}
         } message: {
@@ -52,7 +52,7 @@ struct P3GoalsPage: View {
                 Button("存一笔") { state.sheet = .save(g.id) }
                 Button("设成大目标") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
                 Button("改名字、金额、日子") { state.sheet = .smallGoal(g.id) }
-                Button("删掉（存的钱回日常卡）", role: .destructive) { state.change("删掉了：\(g.name)", kind: .remove) { try $0.removeSmallGoal(g.id) } }
+                Button("删掉（存的钱回\(state.dailyName)）", role: .destructive) { state.change("删掉了：\(g.name)", kind: .remove) { try $0.removeSmallGoal(g.id) } }
             }
         }
     }
@@ -79,10 +79,11 @@ struct P3GoalsPage: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     P3Label(j.isFinished ? "都存够了" : "这一站还差")
                     Text(j.isFinished ? j.total.p3Short : j.remainingToNext.p3Short).font(P3.num(34, .heavy)).foregroundStyle(P3.gold)
+                        .lineLimit(1).minimumScaleFactor(0.6).layoutPriority(1)
                         .contentTransition(.numericText())
-                    Spacer()
-                    Text("一共 \(j.saved.p3Short) / \(j.total.p3Short)").font(P3.num(13.5)).foregroundStyle(P3.navy)
+                    Spacer(minLength: 0)
                 }
+                Text("一共存了 \(j.saved.p3Short) / \(j.total.p3Short)").font(P3.num(13.5)).foregroundStyle(P3.navy)
                 P3Road(journey: j).frame(height: 70)
                 if j.monthlyPlan > .zero {
                     Button { state.sheet = .smallerStep } label: {
@@ -268,7 +269,10 @@ struct P3SaveSheet: View {
             .buttonStyle(.p3(.primary, .wide))
         }
         .padding(16).padding(.top, 12)
-        .onAppear { target = smallID ?? (b.journey.total > .zero ? nil : b.smallGoals.first?.id) }
+        .onAppear {
+            target = smallID ?? (b.journey.total > .zero ? nil : b.smallGoals.first?.id)
+            if !sources.contains(where: { $0.name == from }) { from = sources.first?.name ?? "" }
+        }
         .presentationDetents([.medium])
     }
 
@@ -292,7 +296,7 @@ struct P3HoldBackSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("忍住了一笔").font(P3.font(20, .heavy)).foregroundStyle(P3.ink)
-            Text("没买的那笔钱，从日常卡存进大目标。").font(P3.font(14, .regular)).foregroundStyle(P3.ink2)
+            Text("没买的那笔钱，从\(state.dailyName)存进大目标。").font(P3.font(14, .regular)).foregroundStyle(P3.ink2)
             TextField("忍住没买什么，比如「一杯咖啡」", text: $what).p3Field()
             TextField("多少钱", text: $amount).keyboardType(.decimalPad).p3Field()
             if let m = Money(parsing: amount), m > .zero {

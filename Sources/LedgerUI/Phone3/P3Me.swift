@@ -597,9 +597,11 @@ struct P3ShopDebtsPage: View {
     var body: some View {
         let b = state.book
         P3SubPage(title: "店的欠款") {
-            P3AccountGroup(title: "店欠的（卡、贷款）· 点一下还一笔", accounts: b.shopOwedAccounts, repay: true)
+            if !b.shopOwedAccounts.isEmpty {
+                P3AccountGroup(title: "店欠的（卡、贷款）· 点一下还一笔", accounts: b.shopOwedAccounts, repay: true)
+            }
             VStack(alignment: .leading, spacing: 6) {
-                P3Label("赊账和挂账").padding(.horizontal, 4)
+                P3Label("分期、赊账和挂账").padding(.horizontal, 4)
                 VStack(spacing: 0) {
                     ForEach(Array(b.shopDebts.enumerated()), id: \.element.id) { i, d in
                         if i > 0 { P3Divider().padding(.leading, 48) }

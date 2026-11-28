@@ -90,8 +90,8 @@ extension P3State {
         if side == .biz { q.shop = true }
         let b = book
         let shop = q.shop && b.showBiz
-        let pay = shop ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .pay, side: .life).first?.name ?? "日常卡")
-        let receive = shop ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .receive, side: .life).first?.name ?? "日常卡")
+        let pay = shop ? (b.shopHeld.first?.name ?? "") : dailyName
+        let receive = shop ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .receive, side: .life).first?.name ?? dailyName)
         let text: String
         let account: String
         switch q.kind {
@@ -354,8 +354,9 @@ struct P3ChatView: View {
                         .buttonStyle(.p3(.primary, .small))
                     }
                     Button("买了，记一笔") {
-                        if state.change("记好了 · \(c.name) \(c.price.p3) · 日常卡", kind: .add, {
-                            try $0.record(name: c.name, emoji: "🛍", amount: c.price, account: "日常卡", tag: "问过夏夏")
+                        let from = state.dailyName
+                        if state.change("记好了 · \(c.name) \(c.price.p3) · \(from)", kind: .add, {
+                            try $0.record(name: c.name, emoji: "🛍", amount: c.price, account: from, tag: "问过夏夏")
                         }) { state.chatMark(m.id, "记好了") }
                     }
                     .buttonStyle(.p3(.ghost, .small))

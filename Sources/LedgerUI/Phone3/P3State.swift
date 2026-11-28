@@ -153,11 +153,22 @@ final class P3State {
         author = model.author
         resnapshot()
         settleSide()
+        // 正式账本：开头那句不用示例里的话，换成按真数算的一句
+        let m = book.month
+        chat.messages = [.init(who: .xia, text: m.left > .zero
+            ? "这个月现在还能随便花 \(m.left.p3)，到月底还有 \(m.daysLeft) 天。想买什么先问我。"
+            : "这个月能随便花的已经用完了，到月底还有 \(m.daysLeft) 天。花钱前先问我一句。")]
     }
 
     private func resnapshot() {
         guard let real else { return }
         ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true), changes: Array(real.changes.suffix(50).reversed()))
+    }
+
+    /// 生活这边日常能用的第一个账户（示例里是「日常卡」，正式账本里是你自己的名字）。
+    var dailyName: String {
+        book.accounts(for: .moveOut, side: .life).first { $0.block != .goal && $0.kind == .own }?.name
+            ?? book.accounts(for: .pay, side: .life).first?.name ?? "日常能用的账户"
     }
 
     /// 账本在别处变了（AI、命令行、Mac、旧界面）：界面上的数重新算一遍。
