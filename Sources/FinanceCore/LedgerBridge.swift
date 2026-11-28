@@ -55,7 +55,7 @@ public enum LedgerBridge {
         let bizBooks = Set(ledger.books.filter(\.isBusiness).map(\.id))
         let bizAccounts = WealthBreakdown.businessAccounts(ledger)
         // 目标页只管生活这边的目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标。店里账本的目标不在这一页（它的账户照常算店里的）
-        let ordered = ledger.goals.filter { !bizBooks.contains($0.bookID) }
+        let ordered = ledger.goals.filter { !bizBooks.contains($0.bookID) && !$0.isFinished }
             .sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }
         let shownGoals = Array(ordered.prefix(1 + Plans.maxSmallGoals))
         let goalAccounts = Set(shownGoals.compactMap(\.savingsAccountID)).subtracting(bizAccounts)
@@ -159,6 +159,9 @@ public enum LedgerBridge {
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
         b.memos = memos(of: ledger)
+        b.finishedGoals = ledger.finishedGoals.filter { !bizBooks.contains($0.bookID) }.map { g in
+            .init(id: g.id, name: g.name, total: g.target, date: g.finishedOn.map { "\($0.year) 年 \($0.month) 月" } ?? "", small: !g.pinned)
+        }
         b.smallGoals = small
         b.bigGoalAccount = bigAccount
         b.bigGoalOwnsAccount = false
@@ -405,8 +408,9 @@ extension LedgerBridge {
         }
         let was = list(before), now = list(after)
         guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
-        let notYet = TrialError("目标走完收起来、从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
-        guard before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
+        let notYet = TrialError("这一步在接正式账本的这一版里还没接上，账本没动")
+        let finishing = after.finishedGoals.count == before.finishedGoals.count + 1
+        guard finishing || before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
         var records: [ChangeRecord] = []
         // 换大目标：原来的一个小目标现在是大目标，原来的大目标变成小目标。正式账本里就是「把它设成大目标」
         if let ob = was.first(where: \.big), let nb = now.first(where: \.big), ob.name != nb.name,
@@ -420,6 +424,28 @@ extension LedgerBridge {
             guard gone.count == 1, now.count == was.count - 1, let o = gone.first else { throw notYet }
             guard let g = (o.big ? work.goals.first { $0.name == o.name } : work.goals.first { $0.id.uuidString == o.key } ?? work.goals.first { $0.name == o.name }) else {
                 throw TrialError("「\(o.name)」在正式账本里找不到了")
+            }
+            if finishing {
+                // 走完收起来：目标留着、标成走完；里面的钱转到界面上放回去的那个账户。
+                // 最后一笔存进去正好存够的：钱从哪个账户来的先照样存进去，再整罐转走。
+                guard let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name else {
+                    throw TrialError("「\(g.name)」还没有自己的账户，先做一次迁移")
+                }
+                func delta(_ a: TrialBook.Account) -> Money { a.balance - (before.accounts.first { $0.id == a.id }?.balance ?? .zero) }
+                let others = after.accounts.filter { $0.name != jarName && $0.kind == .own }
+                if let from = others.first(where: { delta($0) < .zero }) {
+                    guard let src = work.accounts.first(where: { $0.name == from.name }) else { throw TrialError("「\(from.name)」不是正式账本里的账户") }
+                    records.append(try work.deposit(goalID: g.id, amount: delta(from).magnitude, fromAccount: src.id, date: today, author: who))
+                }
+                let inJar = Plans.goals(work).first { $0.id == g.id }?.saved ?? .zero
+                // 界面上钱放回了别的账户才转；留在原来那个账户里的（它以后就是一个普通的账户）不用动
+                if inJar > .zero, let to = others.first(where: { delta($0) > .zero }) {
+                    guard let dest = work.accounts.first(where: { $0.name == to.name }) else { throw TrialError("「\(to.name)」不是正式账本里的账户") }
+                    records.append(try work.addAccountTransfer(amount: inJar, from: jarID, to: dest.id, date: today, bookID: g.bookID,
+                                                                note: "「\(g.name)」走完了，钱放回\(dest.name)", author: who))
+                }
+                records.append(try work.finishGoal(g.id, today: today, author: who))
+                return records
             }
             if o.saved > .zero, let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name {
                 // 钱去了哪：删之后余额多了这么多的那个账户（不是它自己的账户）。没有就是留在原账户

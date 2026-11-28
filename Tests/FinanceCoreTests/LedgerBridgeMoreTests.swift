@@ -135,6 +135,74 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(LedgerBridge.emoji("我自己起的名字"), LedgerBridge.fallbackEmoji)
     }
 
+    /// 目标走完收起来：目标留在账本里、标上哪天走完；钱转回账户；在走的目标（含最多几个的上限）不再算它；能撤销。
+    func testFinishingGoalsKeepsThemButStopsCountingThem() throws {
+        var l = ledger
+        try l.removeGoal(l.goals.last!.id, author: "测试")
+        try l.giveEveryGoalItsOwnAccount(today: today, author: "迁移")
+        // 把每个目标的金额改成「再存 10 就够」，好试走完
+        for s in Plans.goals(l) {
+            var g = l.goals.first { $0.id == s.id }!
+            g.target = s.saved + Money(cents: 10_00)
+            _ = try? l.updateGoal(g, author: "测试")
+        }
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        let total = before.inHand
+        let active = l.activeGoalIDs().count
+        let pay = before.accounts(for: .moveOut, side: .life).first { $0.kind == .own && $0.block == .daily && $0.balance > Money(cents: 100_00) }!.name
+        // 小目标：最后一笔存进去正好存够，自己收进「走完的路」
+        let small = try XCTUnwrap(before.smallGoals.first)
+        var after = before
+        try after.depositSmall(small.id, amount: Money(cents: 10_00), from: pay)
+        XCTAssertEqual(after.finishedGoals.first?.name, small.name)
+        let records = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        let done = try XCTUnwrap(l.goals.first { $0.id == small.id }, "目标还留在账本里")
+        XCTAssertEqual(done.finishedOn, today)
+        XCTAssertEqual(l.activeGoalIDs().count, active - 1, "不再算在走的目标")
+        XCTAssertFalse(Plans.goals(l).contains { $0.id == small.id })
+        XCTAssertTrue(Plans.goals(l, includeFinished: true).contains { $0.id == small.id })
+        XCTAssertTrue(records.allSatisfy { $0.author == "小晴" })
+        let now = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(now.finishedGoals.map(\.name), [small.name])
+        XCTAssertFalse(now.smallGoals.contains { $0.name == small.name })
+        XCTAssertEqual(now.inHand, total, "钱只是挪了地方，总数不变")
+        XCTAssertEqual(now.account(pay)?.balance, after.account(pay)?.balance, "界面上算的和正式账本一致")
+        XCTAssertEqual(l.accountBalances()[done.savingsAccountID!]?.base, now.account(before.accounts.first { $0.id == small.account }!.name)?.balance, "那个账户里的钱和界面上一致")
+        // 走完的不占位置：还能再定一个新目标
+        XCTAssertNoThrow(try l.addGoal(name: "新的心愿", bookID: done.bookID, target: Money(cents: 500_00), today: today, author: "小晴"))
+        // 整步撤回：目标回到在走
+        for r in (records + [l.changes.last!]).reversed() { try l.undo(changeID: r.id, author: "小晴") }
+        XCTAssertNil(l.goals.first { $0.id == small.id }?.finishedOn)
+        XCTAssertEqual(l.activeGoalIDs().count, active)
+        // 大目标：存够以后点「收起来」
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        var a2 = b2
+        _ = try a2.deposit(Money(cents: 10_00), from: pay)
+        try LedgerBridge.apply(before: b2, after: a2, to: &l, today: today, author: "小晴")
+        let b3 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertTrue(b3.journey.isFinished)
+        var a3 = b3
+        try a3.archiveBigGoal()
+        try LedgerBridge.apply(before: b3, after: a3, to: &l, today: today, author: "小晴")
+        let big = try XCTUnwrap(l.goals.first { $0.name == b3.journey.name })
+        XCTAssertEqual(big.finishedOn, today)
+        let b4 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b4.finishedGoals.first?.name, big.name)
+        XCTAssertNotEqual(b4.journey.name, big.name, "大目标的位置让出来了")
+        XCTAssertEqual(b4.inHand, total)
+        XCTAssertTrue(b4.goalAccountsAreConsistent)
+    }
+
+    /// 老账本的目标没有「哪天走完的」：读出来都是在走的；新字段存一遍读回来还在。
+    func testFinishedOnIsOptionalAndSurvivesSaving() throws {
+        var g = Goal(name: "旅行", bookID: "personal", target: Money(cents: 100_00))
+        let old = try JSONEncoder().encode(g)
+        XCTAssertFalse(String(data: old, encoding: .utf8)!.contains("finishedOn"), "没走完的不多写一个字段")
+        XCTAssertNil(try JSONDecoder().decode(Goal.self, from: old).finishedOn)
+        g.finishedOn = today
+        XCTAssertEqual(try JSONDecoder().decode(Goal.self, from: JSONEncoder().encode(g)).finishedOn, today)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)
