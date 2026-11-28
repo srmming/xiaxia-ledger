@@ -31,6 +31,12 @@ final class V3RenderTests: XCTestCase {
             if let c = done.confirm { V3ConfirmCard(message: done, confirm: c).frame(width: 460) }
         }
         try write(cards.environment(s), "real-statement-card", to: dir)
+        // 夏夏滑下来的那条消息：像聊天列表里的一行
+        let says = VStack(spacing: 20) {
+            V3SayCard(saying: V3Saying(id: "a", face: "happy", text: "比上月同期少花 126 €，照这样月底能多存一点。", tone: 0, extra: AnyView(EmptyView())))
+            V3SayCard(saying: V3Saying(id: "b", face: "worried", text: "信用卡 5 号要还 640 €，日常卡里够。", tone: 2, extra: AnyView(EmptyView())), muteKind: "card")
+        }
+        try write(says.environment(V3State()), "say-card", to: dir)
         s.page = .settings
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model
