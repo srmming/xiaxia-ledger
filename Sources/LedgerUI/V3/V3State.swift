@@ -141,6 +141,8 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 查到的新版本号（没有就是 nil）。试用版不会真的去查，用 `-XiaxiaV3FakeUpdate` 演示。
+    var updateVersion: String?
     /// 放 AI 密钥的地方（app 里是钥匙串）。密钥存进去以后不再读出来。
     var keyStore: SecretStore = V3State.defaultKeyStore()
     /// 密钥存了 / 删了就加一，让界面重新问一次「有没有」。

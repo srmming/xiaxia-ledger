@@ -45,6 +45,8 @@ final class V3RenderTests: XCTestCase {
         done.nextStep(); done.toast = nil
         XCTAssertNil(done.moment)
         try write(V3Shell().environment(done), "after-onboarding", to: dir)
+        done.updateVersion = "0.3.1"
+        try write(V3Shell().environment(done), "sidebar-update", to: dir)
         let nogoal = V3State()
         nogoal.onboardingStep = nil; nogoal.patch { $0.wipe() }; nogoal.page = .goals
         try write(V3Shell().environment(nogoal), "goals-empty", to: dir)

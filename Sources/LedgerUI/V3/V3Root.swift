@@ -25,6 +25,7 @@ public enum V3Launch {
     @MainActor static func apply(to state: V3State) {
         // `-XiaxiaV3Data empty`：从一本空账本开始，看每页没数据时的样子。
         if value("-XiaxiaV3Data") == "empty" { state.patch { $0.wipe() } }
+        if ProcessInfo.processInfo.arguments.contains("-XiaxiaV3FakeUpdate") { state.updateVersion = "0.3.1" }
         if let f = value("-XiaxiaV3State") { state.forced = V3State.Forced(rawValue: f) }
         guard let p = value("-XiaxiaV3Page") else { return }
         if p.hasPrefix("ob"), let n = Int(p.dropFirst(2)), (1...5).contains(n) {
@@ -319,42 +320,56 @@ private struct V3Sidebar: View {
         .help(p.title)
     }
 
-    /// 左边栏最下面一直看得到：目标走到哪了。
-    @ViewBuilder private var goalCard: some View {
-        if state.side == .biz ? state.book.capital.isEmpty : state.book.journey.total == .zero {
-            EmptyView()
-        } else if state.side == .biz {
-            Button { state.go(.payback) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("店的这条路 · 回本").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
-                    let total = state.book.capitalTotal, back = Money(cents: 16_728_00)
-                    let frac = min(1, Double(back.cents) / Double(max(total.cents, 1)))
-                    Text(total > back ? "还差 \((total - back).v3Short)" : "回本了").font(V3.num(14.5)).foregroundStyle(V3.ink).contentTransition(.numericText())
-                    V3Bar(fraction: frac, color: V3.teal)
-                    Text("走了 \(Int((frac * 100).rounded()))%").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+    /// 左边栏最下面：AI 连着没有、今天改了几次。（目标那张卡总览里已经有了，这里不再放一遍，ming 2026-11-28。）
+    private var goalCard: some View {
+        let ai = state.ai ?? ""
+        let linked = !ai.isEmpty && ai != "夏夏自带的"
+        let changes = state.ledger.changes.filter { !$0.undone }.count
+        return VStack(spacing: 8) {
+            // 有新版本时才出现；平时没有这一行。
+            if let v = state.updateVersion {
+                Button { state.page = .settings; state.openSettings(.sync) } label: {
+                    HStack(spacing: 6) {
+                        Circle().fill(V3.red).frame(width: 8, height: 8)
+                        Text("有新版本 \(v) · 更新").font(V3.font(12.5, .bold)).foregroundStyle(V3.ink).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Capsule().fill(V3.goodBG).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                    .contentShape(Capsule())
                 }
-                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
+                .buttonStyle(V3SinkStyle(depth: 2)).help("账本不动，只换 app 本身")
             }
-            .buttonStyle(V3SinkStyle(depth: 2))
-        } else {
-            let j = state.book.journey
-            let next = j.nextStation?.target ?? j.total
-            Button { state.go(.goals) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("我的目标 · \(j.name)").font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
-                    Text(j.isFinished ? "走完了 \(j.total.v3Short)" : "这一站 \(strip(j.saved)) / \(next.v3Short)")
-                        .font(V3.num(14.5)).foregroundStyle(V3.ink).contentTransition(.numericText())
-                    V3Bar(fraction: next > .zero ? Double(j.saved.cents) / Double(next.cents) : 1)
-                    Text(j.isFinished ? "电脑到手" : "还差 \(j.remainingToNext.v3Short) · 12 月 20 日前")
-                        .font(V3.font(12, .regular)).foregroundStyle(V3.ink2).contentTransition(.numericText())
-                }
-                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
-            }
-            .buttonStyle(V3SinkStyle(depth: 2))
-            .accessibilityLabel("我的目标，\(j.name)，到这一站还差 \(j.remainingToNext.v3Short)")
+            statusCard(linked: linked, ai: ai, changes: changes)
         }
+    }
+
+    private func statusCard(linked: Bool, ai: String, changes: Int) -> some View {
+        VStack(spacing: 0) {
+            statusRow(dot: linked ? V3.green : V3.dash, title: linked ? "\(ai) 连着" : "还没连 AI", help: "管理 AI 连接") {
+                state.page = .settings; state.openSettings(.ai)
+            }
+            V3Divider()
+            statusRow(symbol: "clock.arrow.circlepath", title: "今天改了 \(changes) 次", help: "改动记录：谁改的，都能撤销") {
+                withAnimation(.snappy(duration: 0.2)) { state.page = .settings; state.settingsSub = nil; state.showLog = true }
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
+    }
+
+    private func statusRow(dot: Color? = nil, symbol: String = "", title: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let dot { Circle().fill(dot).frame(width: 9, height: 9).frame(width: 16) }
+                else { Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(V3.ink2).frame(width: 16) }
+                Text(title).font(V3.font(13, .bold)).foregroundStyle(V3.ink).lineLimit(1).contentTransition(.numericText())
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(V3.ink2)
+            }
+            .padding(.vertical, 9).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).help(help)
     }
 
     private func strip(_ m: Money) -> String { m.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "") }

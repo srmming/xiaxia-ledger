@@ -761,7 +761,9 @@ private struct V3SetSyncPage: View {
                     V3SetRow(title: "重新读取账本", sub: "另一台设备刚改过、这边没变时点一下") { Button("重新读取") { state.reload() }.buttonStyle(.v3(.ghost, .small)) }
                 }
                 V3SetGroup(title: "更新", grow: true) {
-                    V3SetRow(title: "现在的版本", sub: "界面 v3 试用版，不会自己更新", line: false) { EmptyView() }
+                    V3SetRow(title: "现在的版本", sub: "界面 v3 试用版，不会自己更新", detail: state.updateVersion.map { "有新版本 \($0)" } ?? "", line: false) {
+                        if state.updateVersion != nil { Button("更新") { state.say("试用版不会自己更新，这里只是演示有新版本时的样子") }.buttonStyle(.v3(.primary, .small)) }
+                    }
                     V3SetLink(title: "更新日志", sub: "每一版改了什么（官网）") { openURL(Changelog.webURL) }
                 }
             }
