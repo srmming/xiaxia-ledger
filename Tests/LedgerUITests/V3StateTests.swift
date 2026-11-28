@@ -353,7 +353,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, before)
         // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
+        XCTAssertFalse(s.change("改") { try $0.setSides(life: false, biz: true) })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
@@ -917,7 +917,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(model.ledger.transactions.contains { $0.description == "La Tasca" && $0.amount == Money(cents: -12_50) })
         // 做不了的改动：模型一个字不动
         let before = model.ledger
-        XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
+        XCTAssertFalse(s.change("改") { try $0.setSides(life: false, biz: true) })
         XCTAssertEqual(model.ledger, before)
         // 默认还是旧界面
         XCTAssertFalse(V3Launch.newLook)

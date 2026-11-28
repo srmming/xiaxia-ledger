@@ -442,6 +442,50 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertFalse(patched.shopFlowIsTotalsOnly(in: oct)); XCTAssertEqual(patched.shopFlow(in: oct).count, 1)
     }
 
+    /// 每月打算存多少：存在大目标上（可选字段），新界面读它、能改、能撤销；这个月留给目标的钱按它算。
+    func testMonthlyPlanLivesOnTheBigGoal() throws {
+        var l = ledger
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(before.journey.monthlyPlan, .zero, "老账本没定过")
+        var after = before
+        try after.setMonthlyPlan(Money(cents: 150_00))
+        let records = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        let big = try XCTUnwrap(l.goals.first { $0.name == before.journey.name })
+        XCTAssertEqual(big.monthlyPlan, Money(cents: 150_00)); XCTAssertEqual(records.first?.author, "小晴")
+        let now = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(now.journey.monthlyPlan, Money(cents: 150_00))
+        XCTAssertGreaterThanOrEqual(now.month.forGoals, Money(cents: 150_00), "这个月先给目标留出这么多")
+        try l.undo(changeID: records[0].id, author: "小晴")
+        XCTAssertNil(l.goals.first { $0.id == big.id }?.monthlyPlan)
+        // 老数据里没有这个字段照样读得出来；没定的时候不多写一个字段
+        let old = try JSONEncoder().encode(Goal(name: "旅行", bookID: "personal", target: Money(cents: 100_00)))
+        XCTAssertFalse(String(data: old, encoding: .utf8)!.contains("monthlyPlan"))
+        XCTAssertNil(try JSONDecoder().decode(Goal.self, from: old).monthlyPlan)
+    }
+
+    /// 小结里「过了一站」：那个月里大目标存的钱跨过了哪一站，从存钱的流水现算。
+    func testStationsPassedInAMonthAreComputed() throws {
+        // 试用数字：十月从 239 存到 439，路上 300 那一站在中间（示例的站：0、100、300…）
+        let demo = TrialBook.demo
+        let oct = TrialBook.MonthKey(2026, 10)
+        let start = demo.pastMonths[1].goalSavedEnd!, end = demo.pastMonths[0].goalSavedEnd!
+        let crossed = demo.journey.stations.filter { $0.target > start && $0.target <= end }
+        XCTAssertEqual(demo.monthGood(oct).contains { $0.title.hasPrefix("过了") }, !crossed.isEmpty)
+        if let last = crossed.last { XCTAssertTrue(demo.monthGood(oct).first { $0.title.hasPrefix("过了") }!.detail.contains(last.target.formatted)) }
+        // 正式账本：每个月底大目标存了多少 = 它那个账户到那个月底的余额，一个月不比上个月少（示例里只存不取）
+        var l = ledger
+        try l.removeGoal(l.goals.last!.id, author: "测试")
+        try l.giveEveryGoalItsOwnAccount(today: today, author: "迁移")
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        let ends = b.pastMonths.sorted { $0.key < $1.key }.compactMap(\.goalSavedEnd)
+        XCTAssertFalse(ends.isEmpty)
+        XCTAssertLessThanOrEqual(ends.last!, b.journey.saved)
+        // 没有上个月的数：不写这一句，不编
+        var alone = demo
+        alone.pastMonths.removeAll { $0.key != oct }
+        XCTAssertFalse(alone.monthGood(oct).contains { $0.title.hasPrefix("过了") })
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

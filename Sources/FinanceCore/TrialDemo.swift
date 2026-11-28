@@ -187,6 +187,9 @@ extension TrialBook {
         b.pastMonths[1].have = eur("4240,20"); b.pastMonths[1].owe = eur("2140")
         // 到那两个月底一共赚回来多少（回本页那条线）：10 月底就是「以前赚回来的」，9 月底再减掉 10 月赚的
         b.pastMonths[0].shopBack = b.shopBackBefore
+        // 到那两个月底大目标存了多少：10 月底 = 现在的减掉这个月存的，9 月底再减掉 10 月存的 200
+        b.pastMonths[0].goalSavedEnd = b.journey.saved - b.journey.savedThisMonth
+        b.pastMonths[1].goalSavedEnd = b.journey.saved - b.journey.savedThisMonth - eur("200")
         b.pastMonths[1].shopBack = b.shopBackBefore - (eur("4210") - eur("2874"))
         // 10 月的两笔意外开销（看牙、手机换屏幕）：金额都没到规则那条线（一个月花销的一成），是之前标成意外开销的
         for e in b.pastMonths.first?.entries ?? [] where e.name == "看病" || e.place == "手机换屏幕" { b.surpriseMarks[e.id] = true }

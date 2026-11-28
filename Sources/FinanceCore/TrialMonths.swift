@@ -37,6 +37,8 @@ extension TrialBook {
         public var owe: Money = .zero
         /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
         public var sameDaySpent: Money?
+        /// 到那个月底，大目标一共存了多少（小结里「过了哪一站」用）。没存就是 nil。
+        public var goalSavedEnd: Money?
         /// 那个月店里一笔笔的流水（从正式账本整理过来时带上）。只有合计、没有逐笔的月份是空的。
         public var shopRows: [ShopFlowRow] = []
         /// 到那个月底，开店本钱一共赚回来多少（回本页那条线用）。没存就是 nil。
@@ -213,6 +215,15 @@ extension TrialBook {
         var out: [MonthNote] = []
         let net = clampMonth(key) == thisMonth ? netMoreThanLastMonth : netChange(in: key)
         if let net, net > .zero { out.append(.init(emoji: "⭐", title: "家底多了", detail: "月底的净剩比上个月多", amount: "+" + net.formatted)) }
+        // 过了哪一站：那个月里大目标存的钱跨过了路上的哪几站（站的位置是目标金额算出来的，不用另存）
+        let end: Money? = clampMonth(key) == thisMonth ? journey.saved : pastMonths.first { $0.key == clampMonth(key) }?.goalSavedEnd
+        if let end, let start = prev?.goalSavedEnd, end > start {
+            let passed = journey.stations.filter { $0.target > start && $0.target <= end }
+            if let last = passed.last {
+                out.append(.init(emoji: "⭐", title: passed.count > 1 ? "过了 \(passed.count) 站" : "过了一站",
+                                 detail: "「\(journey.name)」存到 \(last.target.formatted)" + (last.title.isEmpty ? "" : " · \(last.title)"), amount: ""))
+            }
+        }
         if d.forGoals > .zero { out.append(.init(emoji: "⭐", title: "存进了目标", detail: "先存下来，再花剩下的", amount: d.forGoals.formatted)) }
         if let prev, prev.spentTotal > d.spentTotal, d.spentTotal > .zero {
             out.append(.init(emoji: "⭐", title: "比上个月少花了", detail: "一共花掉 \(d.spentTotal.formatted)", amount: "−" + (prev.spentTotal - d.spentTotal).formatted))

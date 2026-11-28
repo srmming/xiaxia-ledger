@@ -128,7 +128,10 @@ public enum LedgerBridge {
         let saved = ledger.transactions.filter { $0.flow == .saving && $0.date.yearMonth == today.yearMonth && $0.amount < .zero && !hidden.contains($0.accountID) }
             .map { ledger.baseAmount($0).magnitude }.reduce(.zero, +)
         let daysLeft = max(daysInMonth(today) - today.day, 0)
-        let free = FreeToSpend(income: now.income, fixed: fixedPaid + fixedLeft, forGoals: saved,
+        // 这个月留给目标的：定了每月存多少、还没存够的，按定的留；已经存得比定的多，按真存的
+        let bigPlan = ledger.goals.filter { !bizBooks.contains($0.bookID) && !$0.isFinished }
+            .sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }.first?.monthlyPlan ?? .zero
+        let free = FreeToSpend(income: now.income, fixed: fixedPaid + fixedLeft, forGoals: max(saved, bigPlan),
                                spent: now.expense > fixedPaid ? now.expense - fixedPaid : .zero, daysLeft: daysLeft)
 
         // 目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标
@@ -138,7 +141,7 @@ public enum LedgerBridge {
         var bigAccount: UUID?
         if let g = ordered.first, let s = status(g), g.target > .zero {
             let stops = [10, 25, 50, 75, 100].map { Money(cents: max(g.target.cents * Int64($0) / 100 / 100 * 100, 100)) }
-            journey = Journey(name: g.name, stops: Array(Set(stops)).sorted(), saved: s.saved)
+            journey = Journey(name: g.name, stops: Array(Set(stops)).sorted(), saved: s.saved, monthlyPlan: g.monthlyPlan ?? .zero)
             bigAccount = accounts.first { a in g.savingsAccountID.flatMap { names[$0] } == a.name }?.id
         }
         let small: [TrialBook.SmallGoal] = ordered.dropFirst().prefix(Plans.maxSmallGoals).compactMap { g in
@@ -190,6 +193,12 @@ public enum LedgerBridge {
             d.have = have; d.owe = owe; d.net = have - owe
             // 那个月花到「和今天同一天」时花了多少（比上月同期用）
             if k == 1 { d.sameDaySpent = month(ym, upTo: LocalDate(year: ym.year, month: ym.month, day: min(today.day, 28))).expense }
+            // 到那个月底大目标一共存了多少：它那个账户到月底的余额（小结里「过了哪一站」用）
+            if let jar = ordered.first?.savingsAccountID {
+                let end = LocalDate(year: ym.year, month: ym.month, day: 1).adding(months: 1).adding(days: -1)
+                let sum = ledger.transactions.filter { $0.accountID == jar && $0.date <= end }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
+                d.goalSavedEnd = max(sum, .zero)
+            }
             // 那个月每天花了多少（趋势页画「上个月」那条线用）
             var perDay = [Money](repeating: .zero, count: daysInMonth(LocalDate(year: ym.year, month: ym.month, day: 1)))
             for t in lifeTx where t.date.yearMonth == ym && t.amount < .zero && !t.isTransfer && t.date.day <= perDay.count {
@@ -461,6 +470,12 @@ extension LedgerBridge {
                 + b.smallGoals.map { G(key: $0.id.uuidString, name: $0.name, target: $0.target, saved: $0.saved, account: $0.account, big: false) }
         }
         let was = list(before), now = list(after)
+        // 每月打算存多少（大目标的步子）：只改了这一个数
+        if was == now, before.finishedGoals.count == after.finishedGoals.count, before.journey.monthlyPlan != after.journey.monthlyPlan {
+            guard let g = work.goals.first(where: { $0.name == after.journey.name && !$0.isFinished }) else { throw TrialError("先定一个大目标，再定每月存多少") }
+            do { return [try work.setGoalMonthlyPlan(g.id, to: after.journey.monthlyPlan > .zero ? after.journey.monthlyPlan : nil, author: who)] }
+            catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "没改成，账本没动") }
+        }
         guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
         let notYet = TrialError("这一步在接正式账本的这一版里还没接上，账本没动")
         let finishing = after.finishedGoals.count == before.finishedGoals.count + 1
