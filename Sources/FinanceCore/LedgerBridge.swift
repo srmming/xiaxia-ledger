@@ -333,11 +333,36 @@ extension LedgerBridge {
         }
         let was = list(before), now = list(after)
         guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
-        let notYet = TrialError("删目标、换大目标、目标走完收起来，在接正式账本的这一版里还没接上，账本没动")
+        let notYet = TrialError("目标走完收起来、从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
         guard before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
-        // 大目标换了人（名字和金额都变、存的钱也变）或者少了目标：还没接
-        for o in was { guard now.contains(where: { $0.key == o.key }) else { throw notYet } }
         var records: [ChangeRecord] = []
+        // 换大目标：原来的一个小目标现在是大目标，原来的大目标变成小目标。正式账本里就是「把它设成大目标」
+        if let ob = was.first(where: \.big), let nb = now.first(where: \.big), ob.name != nb.name,
+           was.contains(where: { !$0.big && $0.name == nb.name }), now.contains(where: { !$0.big && $0.name == ob.name }), was.count == now.count {
+            guard let g = work.goals.first(where: { $0.name == nb.name }) else { throw TrialError("「\(nb.name)」在正式账本里找不到了") }
+            return [try work.setMainGoal(g.id, author: who)]
+        }
+        // 删目标：一次只删一个。里面的钱照界面上选的走（挪去的那个账户多了这么多），目标删掉；它的账户留着（只加不删），不再算这个目标的
+        let gone = was.filter { o in !now.contains { $0.key == o.key } }
+        if !gone.isEmpty {
+            guard gone.count == 1, now.count == was.count - 1, let o = gone.first else { throw notYet }
+            guard let g = (o.big ? work.goals.first { $0.name == o.name } : work.goals.first { $0.id.uuidString == o.key } ?? work.goals.first { $0.name == o.name }) else {
+                throw TrialError("「\(o.name)」在正式账本里找不到了")
+            }
+            if o.saved > .zero, let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name {
+                // 钱去了哪：删之后余额多了这么多的那个账户（不是它自己的账户）。没有就是留在原账户
+                let to = after.accounts.first { a in
+                    a.name != jarName && before.accounts.first(where: { $0.id == a.id }).map { a.balance - $0.balance == o.saved } == true
+                }
+                if let to {
+                    guard let dest = work.accounts.first(where: { $0.name == to.name }) else { throw TrialError("「\(to.name)」不是正式账本里的账户") }
+                    records.append(try work.addAccountTransfer(amount: o.saved, from: jarID, to: dest.id, date: today, bookID: g.bookID,
+                                                                note: "删掉目标「\(g.name)」，里面的钱放回\(dest.name)", author: who))
+                }
+            }
+            records.append(try work.removeGoal(g.id, author: who))
+            return records
+        }
         func realAccount(_ id: UUID?, in b: TrialBook) -> Account? { b.accounts.first { $0.id == id }.flatMap { a in work.accounts.first { $0.name == a.name } } }
         func realGoal(_ g: G) -> Goal? { g.big ? work.goals.first { $0.name == g.name } : work.goals.first { $0.id.uuidString == g.key } ?? work.goals.first { $0.name == g.name } }
         let lifeBook = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""

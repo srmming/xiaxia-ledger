@@ -566,14 +566,35 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.real?.goals.last?.savingsAccountID, s.real?.accounts.last?.id)
         XCTAssertTrue(s.real!.goalsWithoutOwnAccount.isEmpty); XCTAssertTrue(s.real!.goalsSharingAnAccount.isEmpty)
         XCTAssertEqual(s.book.inHand, total)
-        // 还没接的：删目标 → 拒绝，账本不动
-        let snapshot = s.real
-        XCTAssertFalse(s.change("删") { try $0.removeBigGoal(moneyTo: .account(from)) })
-        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
-        XCTAssertEqual(s.real, snapshot)
         // 撤销：新目标和它的存钱罐一起退回去
         s.undo(); s.undo()
         XCTAssertEqual(s.real?.goals.count, goals); XCTAssertEqual(s.real?.accounts.count, accounts)
+        // 换大目标：正式账本里把那个小目标钉成大目标
+        if let small = s.book.smallGoals.first {
+            let oldBig = s.book.journey.name
+            XCTAssertTrue(s.change("换") { try $0.promoteSmallGoal(small.id) })
+            XCTAssertEqual(s.real?.goals.first { $0.pinned }?.name, small.name)
+            XCTAssertEqual(s.book.journey.name, small.name)
+            XCTAssertTrue(s.book.smallGoals.contains { $0.name == oldBig })
+            XCTAssertEqual(s.book.inHand, total)
+            s.undo()
+            XCTAssertEqual(s.book.journey.name, oldBig)
+        }
+        // 删大目标，钱放回一个账户：正式账本里是一笔转账 + 删掉目标；它的账户留着；总数不变
+        let name = s.book.journey.name, saved = s.book.journey.saved, n = s.real!.goals.count, accs = s.real!.accounts.count
+        let jar = s.book.bigGoalHome!.name, dest = s.book.account(from)!.balance
+        XCTAssertTrue(s.change("删") { try $0.removeBigGoal(moneyTo: .account(from)) })
+        XCTAssertEqual(s.real?.goals.count, n - 1)
+        XCTAssertFalse(s.real!.goals.contains { $0.name == name })
+        XCTAssertEqual(s.real?.accounts.count, accs, "账户只加不删")
+        XCTAssertEqual(s.book.account(from)?.balance, dest + saved)
+        XCTAssertEqual(s.book.account(jar)?.balance, .zero)
+        XCTAssertEqual(s.book.inHand, total, "钱只是换了地方")
+        // 还没接的：目标走完收起来 → 拒绝，账本不动
+        let snapshot = s.real
+        XCTAssertFalse(s.change("收") { $0.finishedGoals.append(.init(name: "x", total: .zero, date: "", small: true)) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertEqual(s.real, snapshot)
     }
 
     func testNoSecretStashAndTwoBlocks() {
