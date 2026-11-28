@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency, smallGoal(UUID?), holdBack
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency, smallGoal(UUID?), holdBack, shopAccount
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -90,6 +90,7 @@ struct V3SheetHost: View {
                 case .emergency: V3EmergencySheet()
                 case .smallGoal(let id): V3SmallGoalSheet(id: id)
                 case .holdBack: V3HoldBackSheet()
+                case .shopAccount: V3ShopAccountSheet()
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -1060,17 +1061,54 @@ struct V3EmergencySheet: View {
     }
 }
 
+/// 给店里加一个账户：现金、银行卡、信用卡、收款机里没结的、储蓄、贷款、欠供应商的，或者自己起名。
+struct V3ShopAccountSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var pick = 0
+    @State private var name = ""
+    @State private var amount = ""
+    @State private var customOwes = 0
+    static let kinds: [(emoji: String, name: String, owes: Bool)] = [
+        ("💶", "店里现金", false), ("🏪", "银行卡", false), ("💳", "信用卡", true), ("🧾", "收款机待结算", false),
+        ("🏦", "储蓄", false), ("🏦", "贷款", true), ("📦", "欠供应商的", true), ("🏷", "自己起名", false),
+    ]
+
+    var body: some View {
+        let k = Self.kinds[pick]
+        let custom = pick == Self.kinds.count - 1
+        let owes = custom ? customOwes == 1 : k.owes
+        let m = V3Form.amountOrZero(amount)
+        let useName = name.trimmingCharacters(in: .whitespaces).isEmpty ? (custom ? "" : (k.name == "信用卡" ? "店的信用卡 2" : "店的" + k.name)) : name
+        V3SheetBox(width: 600, title: "给店里加一个账户", primary: "加上", teal: true, canSave: m != nil && !useName.isEmpty,
+                   save: {
+                       guard let m else { return }
+                       if state.change("加好了：\(useName)", kind: .account, { try $0.addShopAccount(emoji: k.emoji, name: useName, balance: m, owes: owes) }) { state.closeSheet() }
+                   }) {
+            V3FormPick(label: "是哪一种", options: Self.kinds.map(\.name), pick: $pick, teal: true)
+            if custom { V3FormPick(label: "", options: ["是店里有的钱", "是店里欠的钱"], pick: $customOwes, teal: true) }
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "叫什么", prompt: custom ? "起个名字" : "不填就叫「\(useName)」", text: $name, focus: true)
+                V3FormField(label: owes ? "现在欠多少" : "现在有多少", prompt: "0", text: $amount).frame(width: 190)
+            }
+            if m == nil { V3Label("这个数没看懂，写成 1500 这样就行。", color: V3.red, weight: .semibold) }
+        }
+    }
+}
+
 // MARK: - 生意：两边转钱
 
 private struct V3TransferSheet: View {
     @Environment(V3State.self) private var state
     @State private var toHome = true
     @State private var amount = ""
+    @State private var shopPick = 0
+    @State private var homePick = 0
 
     var body: some View {
         let b = state.book
-        let shop = b.accounts.first { $0.kind == .shop }
-        let home = b.accounts(for: .receive, side: .life).first
+        let shops = b.accounts(for: .receive, side: .biz), homes = b.accounts(for: .receive, side: .life)
+        let shop = shops.indices.contains(shopPick) ? shops[shopPick] : shops.first
+        let home = homes.indices.contains(homePick) ? homes[homePick] : homes.first
         let m = V3Form.amount(amount)
         let from = toHome ? shop : home
         let short = (m ?? .zero) > (from?.balance ?? .zero)
@@ -1096,6 +1134,8 @@ private struct V3TransferSheet: View {
             }
             .frame(height: 70)
             V3FormField(label: "多少", prompt: "300", text: $amount, big: true, focus: true)
+            V3FormPick(label: "店里的哪个账户", options: shops.map(\.name), pick: $shopPick, teal: true)
+            V3FormPick(label: "家里的哪个账户", options: homes.map(\.name), pick: $homePick)
             V3AmountHint(text: amount)
             if let m, let from {
                 if short {

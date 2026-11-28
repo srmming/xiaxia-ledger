@@ -247,6 +247,7 @@ struct V3Shell: View {
         case .settings: V3SettingsPage()
         case .bizHome: V3BizHomePage()
         case .sales: V3SalesPage()
+        case .shopWealth: V3ShopWealthPage()
         case .fixed: V3FixedPage()
         case .payback: V3PaybackPage()
         case .stock: V3StockPage()
@@ -495,6 +496,7 @@ private struct V3TopBar: View {
         case .goals: return b.journey.total > .zero ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
         case .monthly, .settings: return nil
         case .bizHome, .sales, .checkup: return ("记今天的账", { state.open(.shopDay(b.todayDay)) })
+        case .shopWealth: return ("加账户", { state.open(.shopAccount) })
         case .fixed: return ("加一样", { state.open(.fixed) })
         case .stock: return ("记一次进货", { state.open(.purchase) })
         case .bizDebts: return ("记一笔欠款", { state.open(.shopDebt) })

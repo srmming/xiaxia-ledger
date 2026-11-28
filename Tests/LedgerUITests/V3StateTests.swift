@@ -139,10 +139,11 @@ final class V3StateTests: XCTestCase {
         let shop = s.book.account("小店账户")!.balance
         XCTAssertTrue(s.change("记好了") { try $0.recordShopDay(18, cash: self.eur("74"), card: self.eur("112")) })
         XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("186"))
-        XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("186"))
+        XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("112"), "刷卡的进店的银行卡")
+        XCTAssertEqual(s.book.account("店里现金")?.balance, eur("314"), "现金进店里现金")
         // 改同一天：只算差的
         XCTAssertTrue(s.change("改好了") { try $0.recordShopDay(18, cash: self.eur("74"), card: self.eur("100")) })
-        XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("174"))
+        XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("100"))
         XCTAssertFalse(s.change("记好了") { try $0.recordShopDay(25, cash: self.eur("10"), card: .zero) }, "还没到的日子记不了")
         XCTAssertEqual(s.book.fixedTotal, eur("1790"))
         XCTAssertTrue(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), note: "每月 12 日", canSkip: false) })
@@ -277,7 +278,7 @@ final class V3StateTests: XCTestCase {
 
     func testNavOrderAndBuyFlow() {
         XCTAssertEqual(V3State.Page.life.map(\.rawValue), ["overview", "transactions", "spending", "wealth", "debts", "subscriptions", "goals", "trends", "monthly"])
-        XCTAssertEqual(V3State.Page.biz.map(\.rawValue), ["bizHome", "sales", "fixed", "stock", "bizDebts", "payback", "checkup"])
+        XCTAssertEqual(V3State.Page.biz.map(\.rawValue), ["bizHome", "sales", "shopWealth", "fixed", "stock", "bizDebts", "payback", "checkup"])
         XCTAssertNil(V3State.Page(rawValue: "think"), "「花钱前想想」那一页没有了")
         // 先放着想想 → 进想要清单；不要了 → 钱进目标；都能撤销
         let s = V3State()
@@ -311,7 +312,7 @@ final class V3StateTests: XCTestCase {
         for use in [TrialBook.AccountUse.pay, .receive, .moveOut, .moveIn] {
             XCTAssertTrue(s.book.accounts(for: use).contains { $0.name == "新开的卡" }, "\(use)")
         }
-        XCTAssertEqual(s.book.accounts(for: .pay, side: .biz).map(\.name), ["小店账户"])
+        XCTAssertEqual(s.book.accounts(for: .pay, side: .biz).map(\.name), ["小店账户", "店里现金", "店的信用卡"], "店里能付钱的：店的账户加店的信用卡；贷款不行")
         // 刷信用卡：欠的变多，删掉这笔欠的变回去
         let owed = s.book.account("信用卡")!.balance
         XCTAssertTrue(s.change("记好了") { try $0.record(name: "超市", emoji: "🛒", amount: self.eur("40"), account: "信用卡") })
@@ -406,6 +407,31 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.journey.saved, saved + eur("4,50"))
         XCTAssertEqual(s.book.journey.resisted, resisted + 1)
         XCTAssertEqual(s.book.wanted.first?.tag, "忍住了")
+    }
+
+    func testShopWorthAndShopAccounts() {
+        let s = V3State()
+        let w = s.book.shopWorth
+        XCTAssertEqual(w.cash, eur("3919,39"), "店的银行卡 + 店里现金")
+        XCTAssertEqual(w.stock, eur("2600"))
+        XCTAssertEqual(w.owedToShop, eur("85"))
+        XCTAssertEqual(w.owes, eur("8900"), "贷款 8.400 + 信用卡 180 + 欠供货商 320")
+        XCTAssertEqual(w.net, eur("-2295,61"))
+        XCTAssertEqual(w.monthsText, "2,2")
+        XCTAssertEqual(s.book.totals.have, eur("8420"), "生活家底的「一共有」口径没变")
+        XCTAssertEqual(s.book.totals.owe, eur("1840"), "店里欠的不算进生活的欠款")
+        // 店里新加一张卡：家底、记账选账户、两边转钱都看得到
+        XCTAssertTrue(s.change("加好了") { try $0.addShopAccount(emoji: "🏪", name: "店的第二张卡", balance: self.eur("500"), owes: false) })
+        XCTAssertEqual(s.book.shopWorth.cash, eur("4419,39"))
+        XCTAssertTrue(s.book.accounts(for: .pay, side: .biz).contains { $0.name == "店的第二张卡" })
+        XCTAssertTrue(s.book.accounts(for: .receive, side: .biz).contains { $0.name == "店的第二张卡" })
+        XCTAssertFalse(s.book.accounts(for: .pay, side: .life).contains { $0.name == "店的第二张卡" }, "店的卡不出现在生活的记一笔里")
+        XCTAssertTrue(s.change("加好了") { try $0.addShopAccount(emoji: "🏦", name: "设备贷款", balance: self.eur("1000"), owes: true) })
+        XCTAssertEqual(s.book.shopWorth.owes, eur("9900"))
+        // 能删（没流水的），至少留一个放钱的
+        XCTAssertTrue(s.change("删掉了") { try $0.removeAccount("店的第二张卡") })
+        s.undo()
+        XCTAssertNotNil(s.book.account("店的第二张卡"))
     }
 
     func testGoingToBizSwitchesSide() {

@@ -73,6 +73,9 @@ final class V3RenderTests: XCTestCase {
         }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
+        try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }
+        try shell("biz-home-wealth-card") { $0.side = .biz; $0.page = .bizHome }
+        try shell("sheet-shop-account") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .shopAccount }
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }

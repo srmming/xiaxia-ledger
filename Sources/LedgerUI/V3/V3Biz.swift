@@ -75,6 +75,19 @@ struct V3BizHomePage: View {
                     }
                     .buttonStyle(V3SinkStyle(depth: 2))
                 }
+                Button { state.go(.shopWealth) } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            V3Label("店的家底")
+                            V3Amount(b.shopWorth.net.v3, color: V3.teal, size: 24, weight: .heavy)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(V3.ink2)
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading).v3Soft()
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(V3SinkStyle(depth: 2)).help("店里一共值多少")
                 V3GrowCard {
                     V3CardTitle("给自己发工资")
                     V3RowList(rows: [.init("🏠", "11 月已经发了", "拿回家算「给自己发了」", "1.000,00 €", V3.teal)])
@@ -440,7 +453,7 @@ struct V3BizDebtsPage: View {
             VStack(spacing: 16) {
                 V3KeyCard(label: "12 月店里要还", amount: Money(cents: 350_00) + open, wave: V3.tealSoft) {
                     HStack(spacing: 26) {
-                        V3KV(value: (Money(cents: 8_400_00) + open).v3, label: "店一共欠", color: V3.red)
+                        V3KV(value: (b.shopOwedAccounts.map(\.balance).reduce(.zero, +) + open).v3, label: "店一共欠", color: V3.red)
                         V3KV(value: owed.filter { !$0.off }.map(\.amount).reduce(.zero, +).v3, label: "别人欠店里")
                     }
                 }
@@ -487,6 +500,89 @@ struct V3BizDebtsPage: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - 店的家底
+
+/// 店里到底有多少钱：和生活的家底一个样子。最大的数是「店里一共值多少」。
+struct V3ShopWealthPage: View {
+    @Environment(V3State.self) private var state
+    private let cols3 = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
+    var body: some View {
+        let b = state.book
+        let w = b.shopWorth
+        V3Cols(left: 1.5, right: 1) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    stat("手里的现金和账户", w.cash.v3, V3.teal)
+                    stat("欠着的", w.owes.v3, V3.red)
+                    VStack(alignment: .leading, spacing: 2) {
+                        V3Label("店里一共值")
+                        V3Gold(amount: w.net, size: 40, whole: w.net.cents % 100 == 0)
+                    }
+                    .padding(.horizontal, 18).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
+                    .layoutPriority(1)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                V3CardTitle(title: "店的账户") { V3Tag(text: "\(b.shopAccounts.count) 个", tone: .teal) } trail: { EmptyView() }
+                LazyVGrid(columns: cols3, spacing: 12) {
+                    ForEach(b.shopAccounts.prefix(8)) { a in card(a) }
+                    Button { state.open(.shopAccount) } label: {
+                        Text("+ 加账户").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
+                            .frame(maxWidth: .infinity, minHeight: 84)
+                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(V3.dash, style: StrokeStyle(lineWidth: 2, dash: [6, 5])))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 2))
+                }
+                Spacer(minLength: 0)
+            }
+        } trailing: {
+            VStack(spacing: 14) {
+                V3Card {
+                    V3CardTitle("这些钱在哪")
+                    V3RowList(rows: [
+                        .init("💶", "手里的现金和账户", "", w.cash.v3, V3.teal),
+                        .init("📦", "压在货上的", b.stockEstimates.first.map { "\($0.name)估的" } ?? "还没估过", w.stock.v3, action: { state.go(.stock) }),
+                        .init("🧑", "别人欠店的", "", w.owedToShop.v3, action: { state.go(.bizDebts) }),
+                        .init("🏦", "店欠别人的", "", (-w.owes).v3, V3.red, action: { state.go(.bizDebts) }),
+                    ], compact: true)
+                }
+                V3GrowCard {
+                    V3CardTitle("手里的钱够店撑")
+                    V3Amount("\(w.monthsText) 个月", size: 32, weight: .heavy)
+                    V3Bar(fraction: min(w.months / 6, 1), height: 16, color: V3.teal)
+                    HStack { V3Label("每月固定要付 \(w.monthlyFixed.v3Short)", size: 12.5); Spacer(); V3Label("6 个月", size: 12.5) }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+    }
+
+    private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            V3Label(label)
+            V3Amount(value, color: color, size: 22, weight: .heavy)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
+    }
+
+    private func card(_ a: V3State.Account) -> some View {
+        Button { state.accountFocus = a.name; state.open(.accounts) } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    V3Ico(emoji: a.emoji, size: 32)
+                    Text(a.name).font(V3.font(14, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
+                }
+                V3Amount(a.balance.v3, color: a.isDebt ? V3.red : V3.teal, size: 21, weight: .heavy)
+                Text(a.note).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13).frame(maxWidth: .infinity, alignment: .leading)
+            .v3Soft(radius: 18, fill: a.isDebt ? V3.hex(0xFFF6F5) : .white)
+        }
+        .buttonStyle(V3SinkStyle(depth: 2)).help("改这个账户")
     }
 }
 #endif

@@ -11,7 +11,7 @@ final class V3State {
     enum Page: String, CaseIterable, Identifiable {
         case overview, goals, wealth, spending, trends, transactions, subscriptions, debts, monthly
         case settings
-        case bizHome, sales, fixed, payback, stock, checkup, bizDebts
+        case bizHome, sales, shopWealth, fixed, payback, stock, checkup, bizDebts
         var id: String { rawValue }
 
         var title: String {
@@ -28,6 +28,7 @@ final class V3State {
             case .settings: "设置"
             case .bizHome: "生意首页"
             case .sales: "营业额"
+            case .shopWealth: "店的家底"
             case .fixed: "固定开销"
             case .payback: "回本"
             case .stock: "货值"
@@ -49,6 +50,7 @@ final class V3State {
             case .settings: "gearshape"
             case .bizHome: "storefront"
             case .sales: "calendar"
+            case .shopWealth: "building.columns"
             case .payback: "flag"
             case .stock: "shippingbox"
             case .checkup: "waveform.path.ecg"
@@ -351,7 +353,10 @@ final class V3State {
                 Account(emoji: "🏦", name: "储蓄", note: "应急钱放这里 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄 · 应急钱"),
                 Account(emoji: "⭐", name: "目标罐", note: goalNote(j), balance: eur("519"), block: .goal),
                 Account(emoji: "💶", name: "现金", note: "钱包里 · 上次点数 11 月 10 日", balance: eur("85")),
-                Account(emoji: "🏪", name: "小店账户", note: "算在生意那边", balance: eur("3919,39"), kind: .shop, block: .shop),
+                Account(emoji: "🏪", name: "小店账户", note: "店的银行卡 · 晴空银行", balance: eur("3679,39"), kind: .shop, block: .shop),
+                Account(emoji: "💶", name: "店里现金", note: "收银抽屉里", balance: eur("240"), kind: .shop, block: .shop),
+                Account(emoji: "💳", name: "店的信用卡", note: "欠 · 每月 10 日还", balance: eur("180"), kind: .debt, block: .none, side: .biz),
+                Account(emoji: "🏦", name: "装修贷款", note: "欠 · 还剩 24 期，每月 350 €", balance: eur("8400"), kind: .debt, block: .none, side: .biz),
                 Account(emoji: "💳", name: "信用卡", note: "欠 · 12 月 5 日要还", balance: eur("640"), kind: .debt, block: .none, short: "信用卡 · 欠"),
                 Account(emoji: "📱", name: "手机分期", note: "欠 · 还剩 6 期，每月 200 €", balance: eur("1200"), kind: .debt, block: .none, short: "手机分期 · 欠"),
                 Account(emoji: "🧑", name: "借给小李", note: "他欠我 · 说好 12 月还", balance: eur("120"), kind: .lent, block: .none, short: "小李欠我"),
