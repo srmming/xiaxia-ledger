@@ -660,6 +660,39 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertNil(none.shopWorthNote, "正好是 0 也不显示")
     }
 
+    /// 店里能加不同的账户：现金、银行卡、信用卡都算店那边的；店的贷款记成生意账本里的一笔欠款。
+    func testAddingDifferentShopAccountsOnTheRealLedger() throws {
+        var l = ledger
+        func add(_ emoji: String, _ name: String, _ amount: Int64, owes: Bool) throws {
+            let before = LedgerBridge.snapshot(of: l, today: today)
+            var after = before
+            try after.addShopAccount(emoji: emoji, name: name, balance: Money(cents: amount), owes: owes)
+            try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        }
+        try add("💶", "店的零钱箱 现金", 80_00, owes: false)
+        try add("🏪", "店的第二张银行卡", 500_00, owes: false)
+        try add("💳", "店的信用卡", 120_00, owes: true)
+        let shopAccounts = WealthBreakdown.businessAccounts(l)
+        for name in ["店的零钱箱 现金", "店的第二张银行卡", "店的信用卡"] {
+            let a = try XCTUnwrap(l.accounts.first { $0.name == name }, name)
+            XCTAssertTrue(shopAccounts.contains(a.id), "\(name) 算店那边的")
+        }
+        XCTAssertEqual(l.accounts.first { $0.name == "店的零钱箱 现金" }?.kind, .cash)
+        XCTAssertEqual(l.accounts.first { $0.name == "店的信用卡" }?.kind, .credit)
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b.account("店的第二张银行卡")?.side, .biz); XCTAssertEqual(b.account("店的第二张银行卡")?.balance, Money(cents: 500_00))
+        XCTAssertEqual(b.account("店的信用卡")?.balance, Money(cents: 120_00), "信用卡填的是欠多少")
+        XCTAssertNil(b.accounts(on: .life).first { $0.name.hasPrefix("店的") }, "不混进生活那边")
+        // 店的贷款：生意账本里的一笔欠款，出现在店的欠款里
+        let debts = l.debts.count
+        try add("🏦", "店的设备贷款", 1000_00, owes: true)
+        XCTAssertEqual(l.debts.count, debts + 1)
+        XCTAssertEqual(l.debts.last?.bookID, l.businessBook?.id)
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertTrue(b2.shopDebts.contains { $0.name == "店的设备贷款" && $0.amount == Money(cents: 1000_00) })
+        XCTAssertEqual(b2.totals.owe, b.totals.owe, "生活这边欠的没变")
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)
