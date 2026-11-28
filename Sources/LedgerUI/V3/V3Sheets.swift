@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -19,7 +19,7 @@ enum V3Sheet: Equatable {
             "sheet-sub": (.subscriptions, .life, .subscription), "sheet-debt": (.debts, .life, .debt),
             "sheet-repay": (.debts, .life, .repay("信用卡")),
             "sheet-plan": (.goals, .life, .monthlyPlan), "sheet-subinfo": (.subscriptions, .life, .subscriptionInfo("云盘 Plus")),
-            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")),
+            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")), "sheet-emergency": (.wealth, .life, .emergency),
             "sheet-daily": (.bizHome, .biz, .shopDay(18)), "sheet-fixed": (.fixed, .biz, .fixed),
             "sheet-purchase": (.stock, .biz, .purchase), "sheet-stock": (.stock, .biz, .stock),
             "sheet-capital": (.payback, .biz, .capital), "sheet-transfer": (.bizHome, .biz, .transfer),
@@ -87,6 +87,7 @@ struct V3SheetHost: View {
                 case .subscriptionInfo(let n): V3SubscriptionInfoSheet(name: n)
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 case .apiKey: V3APIKeySheet()
+                case .emergency: V3EmergencySheet()
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -259,7 +260,10 @@ enum V3Form {
 
 // MARK: - 记一笔 · 自己填
 
-private struct V3ManualSheet: View {
+struct V3ManualSheet: View {
+    /// 嵌在「记一笔」小窗的「自己填」那一段里：不要自己的壳，记好以后叫 `done`。
+    var embedded = false
+    var done: () -> Void = {}
     @Environment(V3State.self) private var state
     @State private var kind = 0
     @State private var amount = ""
@@ -280,9 +284,35 @@ private struct V3ManualSheet: View {
         let m = V3Form.amount(amount)
         let names = accounts.map(\.name)
         let left = state.book.month.left - (kind == 0 && side == 0 ? m ?? .zero : .zero) + (kind == 1 && side == 0 ? m ?? .zero : .zero)
-        V3SheetBox(width: 660, title: "记一笔 · 自己填", foot: "记完还剩：这个月能随便花 \(left.v3)", canSave: m != nil && !names.isEmpty,
-                   save: { if save(m) { state.closeSheet() } },
-                   extra: { Button("记好，再记一笔") { if save(m) { amount = ""; place = ""; note = "" } }.buttonStyle(.v3(.ghost)).disabled(m == nil) }) {
+        Group {
+            if embedded {
+                VStack(alignment: .leading, spacing: 12) {
+                    fields(m, names)
+                    HStack(spacing: 10) {
+                        V3Label("记完这个月还能随便花 \(left.v3)", size: 13)
+                        Spacer(minLength: 8)
+                        Button("记好 ↩") { if save(m) { done() } }.buttonStyle(.v3).disabled(m == nil || names.isEmpty).keyboardShortcut(.defaultAction)
+                        // ⌘↩：记好，清空接着记下一笔
+                        Button("") { if save(m) { amount = ""; place = ""; note = "" } }.keyboardShortcut(.return, modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+                    }
+                }
+            } else {
+                V3SheetBox(width: 660, title: "记一笔 · 自己填", foot: "记完还剩：这个月能随便花 \(left.v3)", canSave: m != nil && !names.isEmpty,
+                           save: { if save(m) { state.closeSheet() } },
+                           extra: { Button("记好，再记一笔") { if save(m) { amount = ""; place = ""; note = "" } }.buttonStyle(.v3(.ghost)).disabled(m == nil) }) {
+                    fields(m, names)
+                }
+            }
+        }
+        .onAppear {
+            side = state.side == .biz ? 1 : 0
+            if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
+        }
+        .onChange(of: side) { _, _ in account = 0 }
+        .onChange(of: kind) { _, _ in account = 0; to = 1 }
+    }
+
+    @ViewBuilder private func fields(_ m: Money?, _ names: [String]) -> some View {
             V3FormPick(label: "", options: ["支出", "收入", "两个账户之间转"], pick: $kind)
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "多少钱", prompt: "3,20", text: $amount, big: true, focus: true).frame(width: 200)
@@ -306,13 +336,6 @@ private struct V3ManualSheet: View {
                 }
                 V3FormField(label: "备注", prompt: "可不填", text: $note)
             }
-        }
-        .onAppear {
-            side = state.side == .biz ? 1 : 0
-            if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
-        }
-        .onChange(of: side) { _, _ in account = 0 }
-        .onChange(of: kind) { _, _ in account = 0; to = 1 }
     }
 
     private func save(_ m: Money?) -> Bool {
@@ -800,6 +823,51 @@ struct V3FixedEditSheet: View {
             }
         }
         .onAppear { if let x { amount = V3Form.plain(x.amount) } }
+    }
+}
+
+/// 设应急钱：放在哪几个账户（能多选）、想存够几个月。
+struct V3EmergencySheet: View {
+    @Environment(V3State.self) private var state
+    @State private var picked: Set<String> = []
+    @State private var months = 1
+    private static let choices = [1, 3, 6]
+
+    var body: some View {
+        let b = state.book
+        let total = b.emergencyCandidates.filter { picked.contains($0.name) }.map(\.balance).reduce(.zero, +)
+        let goal = Money(cents: b.monthlyMust.cents * Int64(Self.choices[months]))
+        V3SheetBox(width: 560, title: "应急钱", primary: "存好",
+                   save: {
+                       let m = Self.choices[months]
+                       let text = picked.isEmpty ? "好，先不设应急钱" : "设好了：应急钱放在\(picked.sorted().joined(separator: "、"))，存够 \(m) 个月"
+                       if state.change(text, { try $0.setEmergency(accounts: picked, months: m) }) { state.closeSheet() }
+                   }) {
+            VStack(alignment: .leading, spacing: 6) {
+                V3Label("放在哪", size: 12.5, weight: .bold)
+                ForEach(b.emergencyCandidates.prefix(6)) { a in
+                    let on = picked.contains(a.name)
+                    Button { withAnimation(.snappy(duration: 0.12)) { if on { picked.remove(a.name) } else { picked.insert(a.name) } } } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.system(size: 17, weight: .semibold)).foregroundStyle(on ? V3.navy : V3.ink2)
+                            Text("\(a.emoji) \(a.name)").font(V3.font(14.5, .bold)).foregroundStyle(V3.ink)
+                            Spacer()
+                            Text(a.balance.v3).font(V3.num(14.5)).foregroundStyle(V3.navy)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(on ? V3.goodBG : V3.bg))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            V3FormPick(label: "想存够几个月", options: Self.choices.map { "\($0) 个月" }, pick: $months)
+            V3FormPreview(text: "现在有 \(total.v3Short)，存够要", amount: goal.v3Short)
+        }
+        .onAppear {
+            picked = Set(b.emergencyAccounts.map(\.name))
+            months = Self.choices.firstIndex(of: b.emergencyGoalMonths) ?? 1
+        }
     }
 }
 

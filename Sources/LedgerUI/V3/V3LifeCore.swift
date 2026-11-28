@@ -42,10 +42,15 @@ struct V3OverviewPage: View {
         let m = b.month
         let j = b.journey
         return VStack(spacing: 14) {
-            V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+            if b.emergencyAccounts.isEmpty {
+                V3Ask(face: "calm", text: "要不要把一个账户设成应急钱？") {
+                    Button("设一下") { state.closeChat(); state.open(.emergency) }.buttonStyle(.v3(.primary, .small))
+                }
+            } else {
+                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                }
             }
-            .frame(width: width * 0.62).frame(maxWidth: .infinity, alignment: .leading)
             // 这一页最重要的数
             VStack(alignment: .leading, spacing: 8) {
                 V3Label("11 月 · 现在还能随便花")
@@ -211,7 +216,7 @@ struct V3WealthPage: View {
                 .frame(width: nil).layoutPriority(1)
             }
             V3CardTitle(title: "我的账户") { V3Tag(text: "\(b.owned.count) 个") } trail: {
-                Button("+ 加账户") { state.showAddAccount = true }.buttonStyle(.v3(.ghost, .small))
+                EmptyView()
             }
             LazyVGrid(columns: cols3, spacing: 12) {
                 ForEach(b.owned) { a in card(a) }
@@ -299,25 +304,34 @@ struct V3WealthPage: View {
             .v3Card()
 
             VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle(title: "应急钱") { V3Tag(text: "排在目标前面") } trail: { EmptyView() }
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    V3Label("万一没了收入，能撑")
-                    V3Amount("\(run.monthsText) 个月", size: 32, weight: .heavy)
-                }
-                VStack(spacing: 4) {
-                    V3Bar(fraction: run.fraction(), height: 16)
-                    GeometryReader { g in
-                        ZStack(alignment: .topLeading) {
-                            Text("1 个月").position(x: g.size.width / 6, y: 8)
-                            Text("3 个月").position(x: g.size.width / 2, y: 8)
-                            Text("6 个月").position(x: g.size.width - 20, y: 8)
+                if b.emergencyAccounts.isEmpty {
+                    V3CardTitle("应急钱")
+                    Text("还没设应急钱").font(V3.font(20, .heavy)).foregroundStyle(V3.ink)
+                    Button("设一下") { state.open(.emergency) }.buttonStyle(.v3(.primary, .small))
+                } else {
+                    // 点这一块：改放在哪几个账户、想存够几个月
+                    Button { state.open(.emergency) } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            V3CardTitle(title: "应急钱") { V3Tag(text: b.emergencyAccounts.map(\.name).joined(separator: "、")) } trail: {
+                                Image(systemName: "slider.horizontal.3").font(.system(size: 13, weight: .semibold)).foregroundStyle(V3.ink2)
+                            }
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                V3Label("万一没了收入，能撑")
+                                V3Amount("\(run.monthsText) 个月", size: 32, weight: .heavy)
+                            }
+                            V3Bar(fraction: run.fraction(of: Double(b.emergencyGoalMonths)), height: 16)
+                            HStack {
+                                V3Label("有 \(b.sum(.emergency).v3Short)", size: 12.5)
+                                Spacer()
+                                V3Label("想存够 \(b.emergencyGoalMonths) 个月 · \(b.emergencyGoal.v3Short)", size: 12.5)
+                            }
                         }
-                        .font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+                        .contentShape(Rectangle())
                     }
-                    .frame(height: 16)
+                    .buttonStyle(V3SinkStyle(depth: 2)).help("改应急钱放在哪、想存够几个月")
                 }
                 Spacer(minLength: 0)
-                switch b.splitWithEmergency {
+                switch b.emergencyAccounts.isEmpty ? Bool?.some(false) : b.splitWithEmergency {
                 case nil:
                     V3Ask(face: "calm", text: "应急钱才 \(run.monthsText) 个月。存的钱分一半给它？") {
                         HStack(spacing: 8) {
@@ -393,7 +407,6 @@ struct V3GoalsPage: View {
                     V3Gold(amount: j.remainingToNext, size: 56, whole: j.remainingToNext.cents % 100 == 0)
                     V3Label(j.isFinished ? "\(j.total.v3Short) · 电脑到手" : "到 \(j.nextStation?.target.v3Short ?? "") · \(state.deadline)前")
                     HStack(spacing: 8) {
-                        Button("+ 存一笔") { state.open(.save) }.buttonStyle(.v3)
                         if !j.isFinished, j.remainingToNext > Money(cents: 20_00) {
                             Button("存够这一站") { state.depositAndCelebrate(j.remainingToNext) }.buttonStyle(.v3(.ghost, .small))
                         }
@@ -422,6 +435,32 @@ struct V3GoalsPage: View {
             .v3Card().contentShape(Rectangle())
             }
             .buttonStyle(V3SinkStyle(depth: 2)).help("改每月存多少")
+
+            // 想要清单：问夏夏「要不要买」时点了「先放着想想」的东西。空的时候这一块不出现。
+            let waiting = state.book.wanted.filter { !$0.off }
+            if !waiting.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    V3CardTitle("先放着想想的", note: "\(waiting.count) 样")
+                    ForEach(Array(waiting.prefix(2).enumerated()), id: \.element.id) { i, w in
+                        if i > 0 { V3Divider() }
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(w.name).font(V3.font(14, .bold)).lineLimit(1)
+                                Text(w.note).font(V3.font(12, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                            }
+                            Spacer(minLength: 4)
+                            V3Amount(w.amount.v3Short, size: 14.5)
+                            Button("不要了，钱进目标") { state.resist(wanted: w) }.buttonStyle(.v3(.primary, .small)).help("这笔钱从日常卡挪进目标")
+                            Button { state.change("从清单里拿掉了：\(w.name)", kind: .remove) { try $0.removeWanted(w.id) } } label: {
+                                Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 22, height: 22)
+                            }
+                            .buttonStyle(.plain).accessibilityLabel("从清单里拿掉\(w.name)")
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+                .v3Card(h: 20, v: 14)
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 V3CardTitle("沿途风光", note: state.book.nextGoals.first.map { "下一个目标：\($0.name) \($0.amount.v3Short)" } ?? "")

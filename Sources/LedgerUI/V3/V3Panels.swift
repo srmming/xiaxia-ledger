@@ -1,6 +1,8 @@
 #if os(macOS)
+import AppKit
 import FinanceCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 // 记一笔（弹出来的面板）、问夏夏（右边滑出来）、设置、改动记录。
 
@@ -8,91 +10,170 @@ import SwiftUI
 
 struct V3AddSheet: View {
     @Environment(V3State.self) private var state
-    @State private var way = 0
-    @State private var text = "刚才咖啡 3 块 2"
+    /// 用哪种方式记：0 说一句、1 自己填、2 拖文件。记住上次用的。
+    @AppStorage("xiaxia.v3.addWay") private var way = 0
+    @State private var text = ""
+    /// 这句话没说怎么付时，问一次；默认先指着第一个。
+    @State private var pay = 0
+    @State private var receipt: NSImage?
+    @State private var picking = false
+    @State private var dropping = false
     @FocusState private var focused: Bool
+    static let ways = ["说一句", "自己填", "拖文件"]
 
     private var parsed: QuickPhrase? { QuickPhrase.parse(text) }
+    private var accounts: [String] { state.book.payable(.life).map(\.name) }
+    /// 话里自己说了怎么付（「现金」「刷卡」或者账户的名字）。
+    private var saidAccount: String? {
+        if let hit = accounts.first(where: { text.contains($0) }) { return hit }
+        if text.contains("现金"), accounts.contains("现金") { return "现金" }
+        if text.contains("刷卡") || text.contains("卡付"), let card = accounts.first(where: { $0.contains("卡") }) { return card }
+        return nil
+    }
 
     var body: some View {
-        let q = parsed
         ZStack {
             V3.ink.opacity(0.42).onTapGesture { close() }.accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    Text("记一笔").font(V3.font(22, .heavy))
-                    Spacer()
+                HStack(spacing: 10) {
+                    // 三段等宽：先选用哪种方式，下面才出现那种方式的内容
+                    HStack(spacing: 0) {
+                        ForEach(Array(Self.ways.enumerated()), id: \.offset) { i, w in
+                            Button { withAnimation(.snappy(duration: 0.2)) { way = i } } label: {
+                                Text(w).font(V3.font(14, .bold)).foregroundStyle(way == i ? .white : V3.ink)
+                                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+                                    .background { if way == i { Capsule().fill(V3.navy) } }
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                            .accessibilityAddTraits(way == i ? .isSelected : [])
+                        }
+                    }
+                    .padding(3).background(Capsule().fill(V3.soft))
                     Button { close() } label: { Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 26, height: 26) }
                         .buttonStyle(.plain).keyboardShortcut(.cancelAction).accessibilityLabel("关掉")
                 }
-                HStack(spacing: 14) {
-                    wayOption(0, "💬 说一句", "打一句大白话就行")
-                    wayOption(1, "🧾 拍小票", "手机拍，自动传过来")
-                    wayOption(2, "📄 拖流水", "一次进来一个月的")
-                }
-                .frame(height: 72)
-                if way == 0 {
-                    HStack(spacing: 10) {
-                        Text("🎙")
-                        TextField("比如：刚才咖啡 3 块 2", text: $text).textFieldStyle(.plain).font(V3.font(17, .bold)).focused($focused)
-                            .onSubmit { if let q { save(q, "现金") } }
-                    }
-                    .padding(.horizontal, 18).padding(.vertical, 12)
-                    .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
-                    if let q {
-                        HStack(spacing: 14) {
-                            V3Ico(emoji: q.emoji, size: 48)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(q.name == "咖啡" ? "咖啡 · Café Nube" : q.name).font(V3.font(17, .heavy))
-                                V3Label("今天")
-                            }
-                            Spacer()
-                            V3Amount((-q.amount).v3, size: 26, weight: .heavy)
-                        }
-                        .padding(.horizontal, 22).padding(.vertical, 16).v3Sticker(fill: V3.bg)
-                        V3Ask(face: "calm", text: "这家店付现金还是刷卡？只问这一次。") {
-                            HStack(spacing: 8) {
-                                Button("现金") { save(q, "现金") }.buttonStyle(.v3(.primary, .small))
-                                Button("日常卡") { save(q, "日常卡") }.buttonStyle(.v3(.ghost, .small))
-                            }
-                        }
-                    } else {
-                        V3Ask(face: "think", text: text.trimmingCharacters(in: .whitespaces).isEmpty ? "说一句就行，比如「午饭 12,5」「打车 15」。" : "没听出多少钱，带上数字再说一遍？", tone: text.trimmingCharacters(in: .whitespaces).isEmpty ? .plain : .warn)
-                    }
-                } else {
-                    V3Ask(face: "think", text: way == 1 ? "试用版还没接手机。正式版里拍了就到这儿。"
-                          : "流水拖到「流水」那页就行，重复的会跳过。") {
-                        if way == 2 { Button("去流水页") { close(); state.go(.transactions) }.buttonStyle(.v3(.primary, .small)) }
-                    }
-                }
-                HStack(spacing: 10) {
-                    V3Label("记完还剩：这个月能随便花 \((state.book.month.left - (way == 0 ? q?.amount ?? .zero : .zero)).v3)")
-                    Spacer()
-                    Button("自己填") { close(); state.open(.manual) }.buttonStyle(.v3(.ghost)).help("金额、店、分类、账户、哪天，自己一样样填")
-                    Button("先不记") { close() }.buttonStyle(.v3(.ghost))
-                    Button("记好") { if let q { save(q, "现金") } }.buttonStyle(.v3).disabled(q == nil || way != 0).keyboardShortcut(.defaultAction)
+                switch way {
+                case 1: V3ManualSheet(embedded: true) { close() }
+                case 2: fileWay
+                default: sayWay
                 }
             }
-            .padding(.horizontal, 30).padding(.vertical, 26)
-            .frame(width: 700)
+            .padding(.horizontal, 26).padding(.vertical, 22)
+            .frame(width: way == 1 ? 640 : 560)
             .v3Sticker(radius: 26, depth: 6)
             .accessibilityAddTraits(.isModal)
         }
         .onAppear { focused = true }
-    }
-
-    private func wayOption(_ i: Int, _ title: String, _ sub: String) -> some View {
-        V3Option(picked: way == i) { withAnimation(.snappy(duration: 0.18)) { way = i } } content: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(V3.font(16, .bold)).foregroundStyle(V3.ink)
-                Text(sub).font(V3.font(13, .regular)).foregroundStyle(V3.ink2)
-            }
+        .fileImporter(isPresented: $picking, allowedContentTypes: [.image, .commaSeparatedText, .pdf, .plainText]) { result in
+            if case .success(let url) = result { take(file: url) }
         }
     }
 
-    private func save(_ q: QuickPhrase, _ account: String) {
-        state.record(q, account: account, place: q.name == "咖啡" ? "Café Nube" : "")
-        close()
+    // MARK: 说一句
+
+    @ViewBuilder private var sayWay: some View {
+        let q = parsed
+        let said = saidAccount
+        TextField("咖啡 3,2 现金", text: $text).textFieldStyle(.plain).font(V3.font(22, .heavy)).foregroundStyle(V3.ink).focused($focused)
+            .onSubmit { save(q) }
+            .padding(.horizontal, 20).padding(.vertical, 14)
+            .background(RoundedRectangle(cornerRadius: 20).fill(.white).overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(V3.ink, lineWidth: 2.5)))
+            .accessibilityLabel("说一句")
+        if let receipt { receiptChip(receipt) }
+        if let q {
+            HStack(spacing: 12) {
+                V3Ico(emoji: q.emoji, size: 40)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(q.name).font(V3.font(16, .heavy)).lineLimit(1)
+                    Text("今天 · \(said ?? (accounts.indices.contains(pay) ? accounts[pay] : ""))").font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
+                }
+                Spacer(minLength: 6)
+                V3Amount((-q.amount).v3, size: 22, weight: .heavy)
+                Button("改") { state.manualPrefill = (q.name, q.amount); withAnimation(.snappy(duration: 0.2)) { way = 1 } }.buttonStyle(.v3(.ghost, .small)).help("改日期、账户、分类、备注")
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 16).fill(V3.bg))
+            if said == nil, accounts.count > 1 {
+                HStack(spacing: 8) {
+                    Text("怎么付的？").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+                    ForEach(Array(accounts.prefix(4).enumerated()), id: \.offset) { i, a in
+                        Button { withAnimation(.snappy(duration: 0.12)) { pay = i } } label: {
+                            Text(a).font(V3.font(13, .bold)).foregroundStyle(pay == i ? .white : V3.ink)
+                                .padding(.horizontal, 12).padding(.vertical, 5)
+                                .background(Capsule().fill(pay == i ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                        }
+                        .buttonStyle(.plain).accessibilityAddTraits(pay == i ? .isSelected : [])
+                    }
+                }
+            }
+        } else if !text.trimmingCharacters(in: .whitespaces).isEmpty || receipt != nil {
+            Text(receipt != nil ? "多少钱？" : "没听出多少钱，带上数字再说一遍").font(V3.font(13.5, .semibold)).foregroundStyle(V3.ink2)
+        }
+        HStack(spacing: 10) {
+            V3Label("记完这个月还能随便花 \((state.book.month.left - (q?.amount ?? .zero)).v3)", size: 13)
+            Spacer(minLength: 8)
+            Button("记好 ↩") { save(q) }.buttonStyle(.v3).disabled(q == nil)
+            // ⌘↩：记好，清空接着记下一笔
+            Button("") { save(q, keepOpen: true) }.keyboardShortcut(.return, modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+        }
+    }
+
+    // MARK: 拖文件
+
+    @ViewBuilder private var fileWay: some View {
+        Button { picking = true } label: {
+            VStack(spacing: 8) {
+                Image(systemName: "tray.and.arrow.down").font(.system(size: 30, weight: .semibold)).foregroundStyle(V3.navy)
+                Text("把小票照片或银行流水拖到这里").font(V3.font(16, .heavy)).foregroundStyle(V3.ink)
+            }
+            .frame(maxWidth: .infinity).frame(height: 150)
+            .background(RoundedRectangle(cornerRadius: 20).fill(dropping ? V3.goodBG : V3.soft)
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(V3.ink, style: StrokeStyle(lineWidth: 2.5, dash: [8, 6]))))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(V3SinkStyle(depth: 2)).help("也可以点开选一个文件")
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
+            _ = providers.first?.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                Task { @MainActor in take(file: url) }
+            }
+            return true
+        }
+    }
+
+    private func receiptChip(_ img: NSImage) -> some View {
+        HStack(spacing: 8) {
+            Image(nsImage: img).resizable().scaledToFill().frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 8))
+            Text("小票").font(V3.font(13, .bold))
+            Button { withAnimation(.snappy(duration: 0.15)) { receipt = nil } } label: {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain).accessibilityLabel("去掉这张小票")
+        }
+        .padding(6).background(RoundedRectangle(cornerRadius: 12).fill(V3.bg))
+    }
+
+    /// 放进来的文件：图片当小票（试用版不识别，补一句金额）；别的当银行流水导入（试用版用示例那几笔）。
+    private func take(file url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        if let img = NSImage(contentsOf: url) {
+            receipt = img
+            withAnimation(.snappy(duration: 0.2)) { way = 0 }
+            focused = true
+        } else {
+            close()
+            state.importSample(dropped: true)
+        }
+    }
+
+    private func save(_ q: QuickPhrase?, keepOpen: Bool = false) {
+        guard let q else { return }
+        let account = saidAccount ?? (accounts.indices.contains(pay) ? accounts[pay] : accounts.first ?? "")
+        guard state.record(q, account: account, place: receipt != nil ? "小票" : "") else { return }
+        text = ""; receipt = nil
+        if keepOpen { focused = true } else { close() }
     }
 
     private func close() { withAnimation(.snappy(duration: 0.2)) { state.showAdd = false } }

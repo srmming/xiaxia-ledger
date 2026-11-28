@@ -37,7 +37,7 @@ extension V3State {
         case .overview, .wealth: return noMoney
         case .goals: return b.journey.total == .zero
         case .spending, .trends, .transactions, .monthly: return b.entries.filter { $0.side == .life }.isEmpty && noMoney
-        case .think, .settings: return false
+        case .settings: return false
         case .subscriptions: return b.subscriptions.isEmpty
         case .debts: return b.debts.isEmpty && b.lent.isEmpty
         case .bizHome, .sales, .checkup: return b.shopSalesTotal == .zero
@@ -77,7 +77,7 @@ struct V3EmptyPage: View {
         case .stock: return ("先估一次", "看一眼货架，估个总数就行。以后每个季度估一次。", [Act(title: "现在估") { $0.open(.stock) }])
         case .checkup: return ("第一次体检在季度末", "要有一整个季度的账。", [today])
         case .bizDebts: return ("店里不欠钱", "装修贷款、欠供货商的、熟客挂的账，可以记在这里。", [Act(title: "记一笔欠款") { $0.open(.shopDebt) }])
-        case .think, .settings: return ("", "", [])
+        case .settings: return ("", "", [])
         }
     }
 

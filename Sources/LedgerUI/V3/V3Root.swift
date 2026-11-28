@@ -48,11 +48,10 @@ public enum V3Launch {
                     state.moment = .letter(l)
                 }
             }
-        } else if ["bigdecision", "log", "add", "ask", "askfrom"].contains(p) || p.hasPrefix("sheet-") || p.hasPrefix("set-") {
+        } else if ["log", "add", "ask", "askfrom"].contains(p) || p.hasPrefix("sheet-") || p.hasPrefix("set-") {
             state.onboardingStep = nil
             state.wish = "三年后不用为钱发愁"
             state.ai = "Claude"
-            if p == "bigdecision" { state.page = .think; state.thinkBig = true }
             if p == "log" { state.page = .settings; state.showLog = true }
             if p == "add" { state.showAdd = true }
             V3Sheet.fromLaunch(p, state)
@@ -242,7 +241,6 @@ struct V3Shell: View {
         case .spending: V3SpendingPage()
         case .trends: V3TrendsPage()
         case .transactions: V3TransactionsPage()
-        case .think: V3ThinkPage()
         case .subscriptions: V3SubscriptionsPage()
         case .debts: V3DebtsPage()
         case .monthly: V3MonthlyPage()
@@ -267,11 +265,17 @@ private struct V3Sidebar: View {
             if state.mode == .both {
                 sideSwitch.padding(.bottom, 14)
             }
-            ForEach(Array((biz ? V3State.Page.biz : V3State.Page.life).enumerated()), id: \.element) { i, p in
-                if i < 9 { navItem(p).keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command) } else { navItem(p) }
+            // 天天看的 → 管钱的地方 → 回头看的；组之间一条细线。⌘1…⌘9 跟着这个顺序。
+            let groups = V3State.Page.groups(state.side)
+            let flat = groups.flatMap { $0 }
+            ForEach(Array(groups.enumerated()), id: \.offset) { g, pages in
+                if g > 0 { Rectangle().fill(V3.ink.opacity(0.1)).frame(height: 1).padding(.horizontal, 12).padding(.vertical, 5) }
+                ForEach(pages, id: \.self) { p in
+                    if let i = flat.firstIndex(of: p), i < 9, !state.showAdd, state.sheet == nil { navItem(p).keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command) } else { navItem(p) }
+                }
             }
-            navItem(.settings).padding(.top, 6)
             Spacer(minLength: 8)
+            navItem(.settings).keyboardShortcut(",", modifiers: .command).padding(.bottom, 6)
             goalCard
         }
         .padding(.init(top: V3Launch.overTitleBar ? 54 : 26, leading: 16, bottom: 16, trailing: 16))
@@ -450,17 +454,38 @@ private struct V3TopBar: View {
                     }
                 }
                 .keyboardShortcut("k", modifiers: .command).help("问夏夏（⌘K）")
-            Button(state.side == .biz ? "+ 记今天的账" : "+ 记一笔") {
-                if state.side == .biz { state.open(.shopDay(state.book.todayDay)) } else { withAnimation(.snappy(duration: 0.2)) { state.showAdd = true } }
+            if let main = mainAction {
+                Button("+ " + main.title, action: main.run)
+                    .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
+                    .keyboardShortcut("n", modifiers: [.command, .shift]).help("\(main.title)（⇧⌘N）")
             }
-                .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
-                .keyboardShortcut("n", modifiers: .command).help("记一笔（⌘N）")
+            // ⌘N 在哪一页都是记一笔
+            Button("") { state.quickAdd() }.keyboardShortcut("n", modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
         }
         .frame(height: 48)
     }
 
+    /// 右上角那个实心按钮：每页只有一个，做这一页最常做的那件事。小结、设置不放。
+    private var mainAction: (title: String, run: () -> Void)? {
+        let b = state.book
+        switch state.page {
+        case .overview, .transactions, .spending, .trends: return ("记一笔", { state.quickAdd() })
+        case .wealth: return ("加账户", { state.showAddAccount = true })
+        case .debts:
+            if let d = b.debts.first(where: { $0.balance > .zero }) { return ("记一笔还款", { state.open(.repay(d.name)) }) }
+            return ("加一笔欠款", { state.open(.debt) })
+        case .subscriptions: return ("加订阅", { state.open(.subscription) })
+        case .goals: return b.journey.total > .zero ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
+        case .monthly, .settings: return nil
+        case .bizHome, .sales, .checkup: return ("记今天的账", { state.open(.shopDay(b.todayDay)) })
+        case .fixed: return ("加一样", { state.open(.fixed) })
+        case .stock: return ("记一次进货", { state.open(.purchase) })
+        case .bizDebts: return ("记一笔欠款", { state.open(.shopDebt) })
+        case .payback: return ("又投了钱", { state.open(.capital) })
+        }
+    }
+
     private var title: String {
-        if state.page == .think, state.thinkBig { return "大决定" }
         if state.page == .settings, state.showLog { return "改动记录" }
         if state.page == .settings, let sub = state.settingsSub { return sub.title }
         if state.page == .monthly { return "10 月小结" }

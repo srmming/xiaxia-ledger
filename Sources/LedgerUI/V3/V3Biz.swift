@@ -240,9 +240,6 @@ struct V3FixedPage: View {
                           tag: c.off ? "停着" : c.tag, tone: c.flag ? .gold : .teal, action: { state.open(.fixedEdit(c.name)) })
                 }, compact: b.fixedCosts.count > 5, fill: true)
                 Spacer(minLength: 0)
-                HStack(spacing: 8) {
-                    Button("加一样") { state.open(.fixed) }.buttonStyle(.v3(.teal, .small))
-                }
             }
         }
     }
@@ -294,7 +291,6 @@ struct V3PaybackPage: View {
                 .padding(.top, 6)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    Button("后来又投了钱") { state.open(.capital) }.buttonStyle(.v3(.teal, .small))
                     Button("改总数") { state.open(.capitalTotal) }.buttonStyle(.v3(.ghost, .small))
                 }
             }
@@ -361,7 +357,6 @@ struct V3StockPage: View {
                 V3CardTitle("这个季度进的货", note: "\(b.purchases.count) 次 · \(b.purchases.map(\.amount).reduce(.zero, +).v3Short)")
                 V3RowList(rows: b.purchases.prefix(5).map { .init($0.emoji, $0.name, $0.note, (-$0.amount).v3) }, fill: true)
                 Spacer(minLength: 0)
-                Button("记一次进货") { state.open(.purchase) }.buttonStyle(.v3(.teal, .small))
             }
         }
     }
@@ -484,7 +479,6 @@ struct V3BizDebtsPage: View {
                 V3RowList(rows: owed.prefix(3).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: owed.count > 1, fill: true)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    Button("记一笔欠款") { state.open(.shopDebt) }.buttonStyle(.v3(.teal, .small))
                     Button(moved ? "还是按原来的还" : "这个月还不上") {
                         withAnimation(.snappy) { moved.toggle() }
                         state.say(moved ? "没事，贷款这一期挪到下个月要多付 6 € 利息，供货商那笔不能拖" : "好，还是按原来的日子还")

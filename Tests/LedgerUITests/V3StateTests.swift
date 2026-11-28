@@ -275,6 +275,34 @@ final class V3StateTests: XCTestCase {
         XCTAssertNil(s.ai)
     }
 
+    func testNavOrderAndBuyFlow() {
+        XCTAssertEqual(V3State.Page.life.map(\.rawValue), ["overview", "transactions", "spending", "wealth", "debts", "subscriptions", "goals", "trends", "monthly"])
+        XCTAssertEqual(V3State.Page.biz.map(\.rawValue), ["bizHome", "sales", "fixed", "stock", "bizDebts", "payback", "checkup"])
+        XCTAssertNil(V3State.Page(rawValue: "think"), "「花钱前想想」那一页没有了")
+        // 先放着想想 → 进想要清单；不要了 → 钱进目标；都能撤销
+        let s = V3State()
+        let n = s.book.wanted.count, saved = s.book.journey.saved
+        XCTAssertTrue(s.change("放进想要清单了") { try $0.addWanted(name: "降噪耳机", price: self.eur("279")) })
+        XCTAssertEqual(s.book.wanted.count, n + 1)
+        let w = s.book.wanted.first { $0.name == "降噪耳机" }!
+        s.resist(wanted: w)
+        XCTAssertEqual(s.book.journey.saved, saved + eur("279"))
+        s.undo(); s.undo()
+        XCTAssertEqual(s.book.wanted.count, n)
+        XCTAssertEqual(s.book.journey.saved, saved)
+    }
+
+    func testEmergencyIsASetting() {
+        let s = V3State()
+        XCTAssertEqual(s.book.emergencyAccounts.map(\.name), ["储蓄"], "示例里默认是储蓄，但只是数据")
+        XCTAssertTrue(s.change("设好了") { try $0.setEmergency(accounts: ["储蓄", "现金"], months: 6) })
+        XCTAssertEqual(s.book.sum(.emergency), eur("2485"))
+        XCTAssertEqual(s.book.emergencyGoalMonths, 6)
+        XCTAssertFalse(s.change("设好了") { try $0.setEmergency(accounts: ["目标罐"], months: 3) })
+        s.undo()
+        XCTAssertEqual(s.book.emergencyAccounts.map(\.name), ["储蓄"])
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

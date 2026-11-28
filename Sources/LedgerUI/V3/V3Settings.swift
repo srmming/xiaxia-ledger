@@ -1085,6 +1085,14 @@ struct V3AccountsSheet: View {
                     V3FormField(label: a?.kind == .debt ? "现在欠多少" : "现在里面有多少", prompt: "0", text: $amount)
                     if m == nil { V3Label("这个数我没看懂。写成 1500 或者 1.500,00 这样就行。", color: V3.red, weight: .semibold) }
                     if canSecret { V3FormSwitch(title: "这是私房钱", sub: "默认藏着，不算进家底的三个数", on: $secret) }
+                    if let a, a.kind == .own, a.block != .goal {
+                        V3FormSwitch(title: "算应急钱", on: Binding(get: { a.block == .emergency }, set: { v in
+                            var names = Set(state.book.emergencyAccounts.map(\.name))
+                            if v { names.insert(a.name) } else { names.remove(a.name) }
+                            let months = state.book.emergencyGoalMonths
+                            state.change(v ? "好，\(a.name)算应急钱" : "好，\(a.name)不算应急钱了") { try $0.setEmergency(accounts: names, months: months) }
+                        }))
+                    }
                     V3Divider()
                     HStack {
                         V3Label(n > 0 ? "里面还有 \(n) 笔流水" : "", size: 12.5)

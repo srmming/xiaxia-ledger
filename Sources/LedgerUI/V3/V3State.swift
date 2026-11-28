@@ -9,7 +9,7 @@ final class V3State {
     enum Side { case life, biz }
 
     enum Page: String, CaseIterable, Identifiable {
-        case overview, goals, wealth, spending, trends, transactions, think, subscriptions, debts, monthly
+        case overview, goals, wealth, spending, trends, transactions, subscriptions, debts, monthly
         case settings
         case bizHome, sales, fixed, payback, stock, checkup, bizDebts
         var id: String { rawValue }
@@ -22,7 +22,6 @@ final class V3State {
             case .spending: "花销"
             case .trends: "趋势"
             case .transactions: "流水"
-            case .think: "花钱前想想"
             case .subscriptions: "订阅"
             case .debts: "欠款与还债"
             case .monthly: "每月小结"
@@ -44,7 +43,6 @@ final class V3State {
             case .spending: "chart.pie"
             case .trends: "waveform.path.ecg"
             case .transactions: "list.bullet"
-            case .think: "questionmark.circle"
             case .subscriptions: "arrow.triangle.2.circlepath"
             case .debts, .fixed, .bizDebts: "creditcard"
             case .monthly: "doc.text"
@@ -59,6 +57,8 @@ final class V3State {
         // 哪页属于哪边写在核心里一处（TrialBook.lifePages / bizPages），这里只是换成页面。
         static let life: [Page] = TrialBook.lifePages.compactMap(Page.init(rawValue:))
         static let biz: [Page] = TrialBook.bizPages.compactMap(Page.init(rawValue:))
+        /// 导航里一组一组的页面（组之间画细线）。
+        static func groups(_ side: Side) -> [[Page]] { (side == .biz ? TrialBook.bizGroups : TrialBook.lifeGroups).map { $0.compactMap(Page.init(rawValue:)) } }
     }
 
     // 账本里的东西都在核心（FinanceCore/TrialBook.swift）里，这里只起个短名字。
@@ -136,11 +136,14 @@ final class V3State {
     var sayReplay = 0
     @ObservationIgnored var sayTask: Task<Void, Never>?
     /// 「花钱前想想」里的第二种：大决定。
-    var thinkBig = false
     /// 设置里点进去的改动记录。
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 聊天输入框上面带着的那张图或那个链接。
+    var chatAttachment: V3Attachment?
+    /// 夏夏刚问了「多少钱？」，在等价钱的那样东西。
+    var pendingWant: String?
     /// 查到的新版本号（没有就是 nil）。试用版不会真的去查，用 `-XiaxiaV3FakeUpdate` 演示。
     var updateVersion: String?
     /// 放 AI 密钥的地方（app 里是钥匙串）。密钥存进去以后不再读出来。
@@ -247,10 +250,15 @@ final class V3State {
         guard book.shows(page: p.rawValue) else { return }
         withAnimation(.snappy(duration: 0.22)) {
             page = p
-            thinkBig = false; showLog = false; chatOpen = false; settingsSub = nil
+            showLog = false; chatOpen = false; settingsSub = nil
             if p != page { sayPoppedThisPage = false; sayCardID = nil; sayUnreadID = nil }
             if Page.biz.contains(p) { side = .biz } else if Page.life.contains(p) { side = .life }
         }
+    }
+
+    /// 记一笔（⌘N）：管生活时是记一笔的小窗；只管生意时是记今天的账。
+    func quickAdd() {
+        if showsLife { withAnimation(.snappy(duration: 0.2)) { showAdd = true } } else { open(.shopDay(book.todayDay)) }
     }
 
     func switchSide(_ s: Side) {
@@ -370,6 +378,7 @@ final class V3State {
             ],
             splitWithEmergency: nil,
             monthlyMust: eur("860"))
+        b.usualDailySpend = eur("31")
         b.subscriptions = [
             item("☁️", "云盘 Plus", "12 月 2 日扣 · 3 个月没怎么用", "4,99", tag: "可以考虑退"),
             item("🎬", "视频会员", "12 月 4 日扣 · 和另一个重了", "9,99", tag: "可以考虑退"),

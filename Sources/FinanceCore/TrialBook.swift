@@ -143,8 +143,11 @@ public struct TrialBook: Equatable, Sendable {
     public var showBiz = true
 
     /// 哪些页面属于哪一边（页面的名字和界面里的一样）。界面的导航只读这里。
-    public static let lifePages = ["overview", "goals", "wealth", "spending", "trends", "transactions", "think", "subscriptions", "debts", "monthly"]
-    public static let bizPages = ["bizHome", "sales", "fixed", "payback", "stock", "checkup", "bizDebts"]
+    /// 导航的顺序：天天看的 → 管钱的地方 → 回头看的。组之间画一条细线。
+    public static let lifeGroups = [["overview", "transactions", "spending"], ["wealth", "debts", "subscriptions", "goals"], ["trends", "monthly"]]
+    public static let bizGroups = [["bizHome", "sales"], ["fixed", "stock", "bizDebts"], ["payback", "checkup"]]
+    public static let lifePages = lifeGroups.flatMap { $0 }
+    public static let bizPages = bizGroups.flatMap { $0 }
 
     /// 现在导航里该出现的页面（不含设置）。
     public var visiblePages: [String] { (showLife ? Self.lifePages : []) + (showBiz ? Self.bizPages : []) }
@@ -179,6 +182,10 @@ public struct TrialBook: Equatable, Sendable {
     /// 应急钱和目标对半分：nil = 还没回答。
     public var splitWithEmergency: Bool?
     public var monthlyMust: Money
+    /// 平时一天大概花多少（算「等于几天的花销」用）。
+    public var usualDailySpend: Money = .zero
+    /// 应急钱想存够几个月（1、3、6）。
+    public var emergencyGoalMonths = 3
     public var subscriptions: [Item] = []
     public var wanted: [Item] = []
     /// 记住的「这家店算哪一类」：店名 → (图标, 分类名)。
@@ -434,7 +441,7 @@ public struct TrialBook: Equatable, Sendable {
         for i in accounts.indices { accounts[i].balance = .zero; accounts[i].note = "" }
         month = FreeToSpend(income: .zero, fixed: .zero, forGoals: .zero, spent: .zero, daysLeft: month.daysLeft)
         journey = Journey(name: "", why: "", stations: [], saved: .zero, monthlyPlan: .zero)
-        monthlyMust = .zero; splitWithEmergency = nil
+        monthlyMust = .zero; splitWithEmergency = nil; usualDailySpend = .zero
         for i in shopDays.indices where shopDays[i].state == .open || shopDays[i].state == .rest {
             shopDays[i] = ShopDay(day: shopDays[i].day, cash: .zero, card: .zero, state: shopDays[i].day <= todayDay ? .missing : .future)
         }
@@ -560,6 +567,30 @@ public struct TrialBook: Equatable, Sendable {
     }
 
     public var subscriptionsMonthly: Money { subscriptions.filter { !$0.off }.map(\.monthly).reduce(.zero, +) }
+
+    public mutating func removeWanted(_ id: UUID) throws {
+        guard let i = wanted.firstIndex(where: { $0.id == id }) else { throw TrialError("清单里没有这一样了") }
+        wanted.remove(at: i)
+    }
+
+    // MARK: 应急钱
+
+    /// 能设成应急钱的账户：自己的钱，不含目标罐、店里的、欠的、借出去的、私房钱。
+    public var emergencyCandidates: [Account] { accounts.filter { $0.kind == .own && $0.block != .goal } }
+    public var emergencyAccounts: [Account] { accounts.filter { $0.kind == .own && $0.block == .emergency } }
+    /// 想存够的那个数：几个月 × 每月必须花的。
+    public var emergencyGoal: Money { Money(cents: monthlyMust.cents * Int64(emergencyGoalMonths)) }
+
+    /// 设应急钱：放在哪几个账户、想存够几个月。没选的账户回到日常。
+    public mutating func setEmergency(accounts names: Set<String>, months: Int) throws {
+        guard [1, 3, 6].contains(months) else { throw TrialError("想存够几个月：选 1、3 或 6") }
+        let ok = Set(emergencyCandidates.map(\.name))
+        if let bad = names.first(where: { !ok.contains($0) }) { throw TrialError("「\(bad)」不能当应急钱（目标罐、店里的钱、欠的都不行）") }
+        for i in accounts.indices where accounts[i].kind == .own && accounts[i].block != .goal {
+            accounts[i].block = names.contains(accounts[i].name) ? .emergency : .daily
+        }
+        emergencyGoalMonths = months
+    }
 
     public mutating func addWanted(name: String, price: Money) throws {
         try Self.positive(price, "价钱")
