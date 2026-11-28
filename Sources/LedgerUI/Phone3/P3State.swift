@@ -80,9 +80,12 @@ final class P3State {
         case transfer
         case account(String?)
         case repay(String)
+        /// 店里某一天收了多少（按收款的账户分开填）
+        case shopDay(Int)
         var id: String {
             switch self {
             case .add: "add"
+            case .shopDay(let d): "shopDay-\(d)"
             case .edit(let i): "edit-\(i)"
             case .save(let i): "save-\(i?.uuidString ?? "big")"
             case .holdBack: "hold"
@@ -171,6 +174,8 @@ final class P3State {
         if let t = PhoneV3Launch.value("-P3Tab"), let tab = Tab(rawValue: t) { self.tab = tab }
         if let p = PhoneV3Launch.value("-P3Page"), let page = Page(rawValue: p) { meOpen = true; mePath = [page] }
         if PhoneV3Launch.value("-P3Me") != nil { meOpen = true }
+        // 测试用：启动时替你对夏夏说几句（用 | 隔开），模拟器里打不了中文
+        if let say = PhoneV3Launch.value("-P3Say") { for line in say.split(separator: "|") { chatSend(String(line)) } }
         if let m = PhoneV3Launch.value("-P3Month"), let n = Int(m), n < 0 { var k = book.thisMonth; for _ in 0..<(-n) { k = k.previous }; viewMonth = book.clampMonth(k) }
         switch PhoneV3Launch.value("-P3Sheet") {
         case "add": sheet = .add

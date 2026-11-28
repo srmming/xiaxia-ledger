@@ -88,6 +88,7 @@ struct P3SheetHost: ViewModifier {
                 case .transfer: P3TransferSheet()
                 case .account(let n): P3AccountEditor(editing: n)
                 case .repay(let n): P3RepaySheet(debt: n)
+                case .shopDay(let d): P3ShopDaySheet(day: d)
                 }
             }
             .environment(state)

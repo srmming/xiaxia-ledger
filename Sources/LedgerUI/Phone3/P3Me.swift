@@ -462,26 +462,46 @@ struct P3SidesPage: View {
 
 struct P3SalesPage: View {
     @Environment(P3State.self) private var state
+    /// 这个月 1 号是周几：周一开头的日历，前面空几格。
+    private func lead(_ b: TrialBook) -> Int {
+        let cal = Calendar(identifier: .gregorian)
+        let k = b.thisMonth
+        guard let first = cal.date(from: DateComponents(year: k.year, month: k.month, day: 1)) else { return 0 }
+        return (cal.component(.weekday, from: first) + 5) % 7
+    }
+
     var body: some View {
         let b = state.book
         P3SubPage(title: "营业额") {
             VStack(alignment: .leading, spacing: 4) {
-                P3Label("11 月 · 收进来")
-                P3Gold(amount: b.shopSalesTotal, size: 44)
-                Text("开了 \(b.shopOpenDays) 天 · 每个开门的日子收够 \(b.dailyBreakEven.p3Short) 才不亏").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
+                P3Label("\(state.monthTitle) · 收进来")
+                P3Gold(amount: state.isThisMonth ? b.shopSalesTotal : b.shopMonth(state.monthKey).income, size: 44)
+                if state.isThisMonth {
+                    Text("开了 \(b.shopOpenDays) 天 · 每个开门的日子收够 \(b.dailyBreakEven.p3Short) 才不亏").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
+                }
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
+            if !state.isThisMonth {
+                // 过去的月份没有日历：列出那个月记过的收入；只有合计的就说清楚
+                let rows = b.shopFlow(in: state.monthKey).filter { $0.amount > .zero }
+                VStack(alignment: .leading, spacing: 2) {
+                    if rows.isEmpty {
+                        Text("那个月只记了合计，没有每天的数。日历只看这个月。").font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 8)
+                    }
+                    ForEach(rows) { r in P3Row(emoji: r.emoji, name: "\(r.day) 号", meta: r.detail, amount: r.amount.p3, color: P3.teal) }
+                }
+                .p3Card(h: 16, v: 12)
+            } else {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
                 ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { Text($0).font(P3.font(11.5, .bold)).foregroundStyle(P3.ink2) }
-                // 11 月 1 日是周日：前面空 6 格
-                ForEach(["a", "b", "c", "d", "e", "f"], id: \.self) { _ in Color.clear.frame(height: 50) }
+                // 1 号前面空几格（周一开头）
+                ForEach((0..<lead(b)).map { "lead-\($0)" }, id: \.self) { _ in Color.clear.frame(height: 50) }
                 ForEach(b.shopDays, id: \.day) { d in
                     let low = d.state == .open && d.total < b.dailyBreakEven
                     Button {
                         guard d.state != .future else { return }
-                        state.addPreset = (true, b.todayDay - d.day)
-                        state.meOpen = false
-                        Task { @MainActor in try? await Task.sleep(for: .milliseconds(450)); state.sheet = .add }
+                        // 就在这页上弹出「那天收了多少」，记完还在日历
+                        state.open(.shopDay(d.day))
                     } label: {
                     VStack(spacing: 1) {
                         Text("\(d.day)").font(P3.font(11, .bold)).foregroundStyle(d.day == b.todayDay ? P3.teal : P3.ink2)
@@ -498,6 +518,7 @@ struct P3SalesPage: View {
                 }
             }
             Text("红字是没收够「不亏线」的那天。点哪天就记哪天收了多少。").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
+            }
         }
     }
 }

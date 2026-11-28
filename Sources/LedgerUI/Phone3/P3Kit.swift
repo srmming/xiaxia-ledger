@@ -210,6 +210,7 @@ struct P3Row: View {
             }
         }
         .frame(minHeight: 48)
+        .contentShape(Rectangle())   // 整行都能点，不只是字和数
         .accessibilityElement(children: .combine)
     }
 }

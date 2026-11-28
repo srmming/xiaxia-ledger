@@ -18,6 +18,8 @@ struct P3AddSheet: View {
     @State private var pickDate = false
     @State private var date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
     @State private var voice = SpeechDictation()
+    @State private var started = false
+    @FocusState private var writing: Bool
 
     private var biz: Bool { state.side == .biz }
     private var tint: Color { biz ? P3.teal : P3.navy }
@@ -67,12 +69,15 @@ struct P3AddSheet: View {
                     .font(P3.font(15, .regular))
                     .padding(.horizontal, 12).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
+                    .focused($writing)
+                    .submitLabel(.done)
                 P3MicButton(voice: voice, live: { name = $0 }) { said in heard(said) }
                     .background(Circle().fill(.white))
             }
             .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
 
-            keypad
+            // 写备注时键盘会盖住数字键：先收起数字键，让「记下」留在键盘上面
+            if !writing { keypad }
             Button(income ? "记下这笔收入" : "记下") { save() }
                 .buttonStyle(.p3(biz ? .teal : .primary, .wide))
                 .disabled(amount <= .zero)
@@ -80,6 +85,9 @@ struct P3AddSheet: View {
         .padding(.horizontal, 16).padding(.top, 22).padding(.bottom, 8)
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
+            // 只在第一次出现时定日子：单子重画时不能把「补记 16 号」又改回今天
+            guard !started else { return }
+            started = true
             date = state.book.todayDate
             if let p = state.addPreset {
                 state.addPreset = nil

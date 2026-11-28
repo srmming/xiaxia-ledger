@@ -7,6 +7,12 @@ import SwiftUI
 // 示例里不连 AI：夏夏的回话是按固定规则写的。
 
 struct P3Chat {
+    enum Action: Equatable {
+        case spend(QuickPhrase, from: String)
+        case income(QuickPhrase, to: String)
+        case repay(debt: String, amount: Money, from: String)
+    }
+
     struct Msg: Identifiable {
         enum Who { case me, xia }
         let id = UUID()
@@ -15,6 +21,8 @@ struct P3Chat {
         var image: Image?
         var check: PurchaseCheck?
         var quick: QuickPhrase?
+        /// 夏夏听懂要记的那一下（花了 / 收了 / 还款），点「记下」才写。
+        var action: Action?
         var done = ""
         var time = Date()
     }
@@ -55,9 +63,10 @@ extension P3State {
             reply = .init(who: .xia, check: c)
         } else if chat.waitingPrice {
             reply = .init(who: .xia, text: "没看到价钱。说一下多少钱就行，比如「跑鞋 95」")
+        } else if let answer = localAnswer(text) {
+            reply = .init(who: .xia, text: answer)
         } else if let q = QuickPhrase.parse(text) {
-            let from = side == .biz ? (book.accounts(for: .pay, side: .biz).first?.name ?? "") : "日常卡"
-            reply = .init(who: .xia, text: side == .biz ? "记一笔店里的开销：\(q.name) \(q.amount.p3)，从\(from)出？" : "记一笔\(q.name) \(q.amount.p3)，从\(from)出？", quick: q)
+            reply = understand(text, q)
         } else if ai.hasKey {
             // 不是记账、不是问要不要买：问 OpenRouter（只带 app 算好的几个数）
             Task { @MainActor in
@@ -73,6 +82,73 @@ extension P3State {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(450))
             withAnimation(.snappy(duration: 0.25)) { self.chat.messages.append(reply) }
+        }
+    }
+
+    /// 听懂一句带钱数的话：是花了、收了、还是还款。还款和收入不算花销。
+    private func understand(_ text: String, _ q: QuickPhrase) -> P3Chat.Msg {
+        let biz = side == .biz
+        let b = book
+        let repayWords = ["还信用卡", "还款", "还贷", "还分期", "还钱", "还了"]
+        if repayWords.contains(where: text.contains) || (text.hasPrefix("还") && b.accounts.contains { $0.kind == .debt && text.contains($0.name) }) {
+            let debts = b.accounts.filter { $0.kind == .debt && $0.side == (biz ? .biz : .life) }
+            let debt = debts.first { text.contains($0.name) } ?? debts.first { text.contains("信用卡") && $0.name.contains("信用卡") } ?? debts.first
+            if let debt, let from = b.transferSources(debt.side).first?.name {
+                return .init(who: .xia, text: "还款不算花销。从\(from)还\(debt.name) \(q.amount.p3)？", action: .repay(debt: debt.name, amount: q.amount, from: from))
+            }
+            return .init(who: .xia, text: "没找到要还的欠款。去「我的 › 欠款」里点那一笔还。")
+        }
+        let incomeWords = ["收了", "收到", "收入", "进账", "赚了", "工资", "营业额", "卖了"]
+        if incomeWords.contains(where: text.contains) {
+            let to = biz ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .receive, side: .life).first?.name ?? "")
+            let name = biz ? "营业额" : (text.contains("工资") ? "工资" : "收入")
+            let q2 = QuickPhrase(name: name, emoji: biz ? "💶" : "💼", amount: q.amount)
+            return .init(who: .xia, text: biz ? "记一笔店里今天收的 \(q.amount.p3)，进到\(to)？" : "记一笔收入\(name) \(q.amount.p3)，进到\(to)？", action: .income(q2, to: to))
+        }
+        let from = biz ? (b.accounts(for: .pay, side: .biz).first?.name ?? "") : (b.accounts(for: .pay, side: .life).first?.name ?? "日常卡")
+        return .init(who: .xia, text: biz ? "记一笔店里的开销：\(q.name) \(q.amount.p3)，从\(from)出？" : "记一笔\(q.name) \(q.amount.p3)，从\(from)出？", action: .spend(q, from: from))
+    }
+
+    /// 不用 AI 也答得上的：这个月还能花多少、花了多少、家底多少。数都是 app 自己算的。
+    private func localAnswer(_ text: String) -> String? {
+        let b = book
+        let m = b.month
+        if ["还能花", "能花多少", "还剩多少", "还剩", "随便花"].contains(where: text.contains) {
+            if side == .biz {
+                let s = b.shopMonth()
+                return "店里这个月收进来 \(s.income.p3)，开销 \(s.costs.p3)，真正赚了 \(s.earned.p3)。"
+            }
+            return m.left > .zero
+                ? "这个月现在还能随便花 \(m.left.p3)，到月底还有 \(m.daysLeft) 天，一天大概 \(Money(cents: m.perDay.cents / 100 * 100).p3Short)。"
+                : "这个月能随便花的已经用完了，超了 \(m.left.magnitude.p3)，到月底还有 \(m.daysLeft) 天。"
+        }
+        if ["花了多少", "花掉多少", "一共花"].contains(where: text.contains), QuickPhrase.parse(text) == nil {
+            return "这个月一共花掉 \(m.spentTotal.p3)，其中随手花的 \(m.spent.p3)。"
+        }
+        if ["家底", "净资产", "一共有多少"].contains(where: text.contains), QuickPhrase.parse(text) == nil {
+            return "家底现在净剩 \(b.totals.net.p3)。"
+        }
+        return nil
+    }
+
+    /// 点了「记下」：照听懂的那一下写进账本。
+    func chatDo(_ a: P3Chat.Action) -> Bool {
+        switch a {
+        case .spend(let q, let from):
+            let biz = side == .biz
+            return change("记好了 · \(q.name) \(q.amount.p3) · \(from)", kind: .add) {
+                if biz { _ = try $0.recordShopExpense(name: q.name, amount: q.amount, category: "其他", account: from) }
+                else { try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: from, tag: "跟夏夏说的") }
+            }
+        case .income(let q, let to):
+            if side == .biz {
+                return change("记好了 · 收进 \(q.amount.p3) · \(to)", kind: .add) { try $0.addShopIncome(q.amount, account: to, daysAgo: 0) }
+            }
+            return change("记好了 · \(q.name) +\(q.amount.p3) · \(to)", kind: .add) {
+                try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, income: true, account: to, tag: "跟夏夏说的")
+            }
+        case .repay(let debt, let amount, let from):
+            return change("还好了：\(debt) \(amount.p3Short)，从\(from)出", kind: .repay) { try $0.repay(debt: debt, amount: amount, from: from) }
         }
     }
 
@@ -176,8 +252,7 @@ struct P3ChatView: View {
             P3MicButton(voice: voice, live: { text = $0 }) { said in
                 if P3Permissions.autoSend { state.chatSend(said); text = "" } else { text = said }
             }
-            TextField(voice.listening ? "在听，说完停一下就发" : "问夏夏，比如「想买跑鞋 95」", text: $text, axis: .vertical)
-                .lineLimit(1...4)
+            TextField(voice.listening ? "在听，说完停一下就发" : "问夏夏，比如「想买跑鞋 95」", text: $text)
                 .font(P3.font(15.5, .regular))
                 .focused($typing)
                 .padding(.horizontal, 12).padding(.vertical, 9)
@@ -227,18 +302,10 @@ struct P3ChatView: View {
                     Text(m.text).font(P3.font(15.5, .regular)).foregroundStyle(P3.ink).fixedSize(horizontal: false, vertical: true)
                 }
                 if let c = m.check { checkCard(c, m) }
-                if let q = m.quick, m.done.isEmpty {
+                if let a = m.action, m.done.isEmpty {
                     HStack(spacing: 8) {
-                        Button("记下") {
-                            let biz = state.side == .biz
-                            let from = biz ? (state.book.accounts(for: .pay, side: .biz).first?.name ?? "") : "日常卡"
-                            let ok = state.change("记好了 · \(q.name) \(q.amount.p3) · \(from)", kind: .add) {
-                                if biz { _ = try $0.recordShopExpense(name: q.name, amount: q.amount, category: "其他", account: from) }
-                                else { try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: from, tag: "跟夏夏说的") }
-                            }
-                            if ok { state.chatMark(m.id, "记好了") }
-                        }
-                        .buttonStyle(.p3(.primary, .small))
+                        Button("记下") { if state.chatDo(a) { state.chatMark(m.id, "记好了") } }
+                            .buttonStyle(.p3(.primary, .small))
                         Button("不记") { state.chatMark(m.id, "没记") }.buttonStyle(.p3(.ghost, .small))
                     }
                 }

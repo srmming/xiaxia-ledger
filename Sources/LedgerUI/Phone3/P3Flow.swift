@@ -16,6 +16,8 @@ struct P3FlowPage: View {
         var amount: Money
         var tag: String
         var entryID: UUID?
+        /// 店里按天记的营业额：点了改那天收了多少
+        var shopDay: Int?
     }
 
     private struct Day: Identifiable {
@@ -40,7 +42,8 @@ struct P3FlowPage: View {
             for r in b.shopFlow(in: k) where hit(r.title, r.detail) {
                 let d = cal.date(from: DateComponents(year: k.year, month: k.month, day: r.day)) ?? today
                 let ago = cal.dateComponents([.day], from: d, to: today).day ?? 0
-                byDay[ago, default: []].append(Row(id: r.id, emoji: r.emoji, name: r.title, meta: r.detail, amount: r.amount, tag: "", entryID: r.entryID))
+                byDay[ago, default: []].append(Row(id: r.id, emoji: r.emoji, name: r.title, meta: r.detail, amount: r.amount, tag: "", entryID: r.entryID,
+                                                     shopDay: r.entryID == nil && r.amount > .zero && state.isThisMonth ? r.day : nil))
             }
         } else {
             for e in monthEntries where e.side == .life && hit(e.name, e.meta, e.place) {
@@ -105,7 +108,7 @@ struct P3FlowPage: View {
     private func row(_ r: Row) -> some View {
         let biz = state.side == .biz
         return Button {
-            if let id = r.entryID { state.sheet = .edit(id) }
+            if let id = r.entryID { state.sheet = .edit(id) } else if let d = r.shopDay { state.sheet = .shopDay(d) }
         } label: {
             P3Row(emoji: r.emoji, name: r.name, meta: r.meta, amount: r.amount.p3, color: r.amount > .zero ? (biz ? P3.teal : P3.green) : P3.navy,
                   tag: r.tag, tagTone: .gold)
