@@ -285,7 +285,10 @@ final class P3State {
             accounts: [
                 Account(emoji: "💳", name: "日常卡", note: "晴空银行 · 今天刚导入", balance: eur("1496,61")),
                 Account(emoji: "🏦", name: "储蓄", note: "存着 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄"),
-                Account(emoji: "⭐", name: "目标罐", note: "换新电脑 · 这一站 519 / 700", balance: eur("519"), block: .goal),
+                Account(emoji: "⭐", name: "换新电脑 存钱罐", note: "存给「换新电脑」", balance: eur("519"), block: .goal),
+                Account(emoji: "🧳", name: "周末短途旅行 存钱罐", note: "存给「周末短途旅行」", balance: eur("120"), block: .goal),
+                Account(emoji: "👟", name: "新跑鞋 存钱罐", note: "存给「新跑鞋」", balance: eur("60"), block: .goal),
+                Account(emoji: "🎁", name: "给妈妈的生日礼物 存钱罐", note: "存给「给妈妈的生日礼物」", balance: eur("15"), block: .goal),
                 Account(emoji: "💶", name: "现金", note: "钱包里 · 上次点数 11 月 10 日", balance: eur("85")),
                 Account(emoji: "🏪", name: "小店账户", note: "店的银行卡 · 晴空银行", balance: eur("3679,39"), kind: .shop, block: .shop),
                 Account(emoji: "💶", name: "店里现金", note: "收银抽屉里", balance: eur("240"), kind: .shop, block: .shop),
@@ -379,7 +382,10 @@ final class P3State {
         spend(9, "交通运输", "送花的油费", "35", from: "店里现金")
         spend(5, "包装耗材", "包装纸和丝带", "46")
         spend(3, "房租", "店面房租", "600")
-        for n in ["日常卡", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
+        // 一个目标对一个账户：各自的存钱罐（和 Mac 试用版一样）
+        b.bigGoalAccount = b.account("换新电脑 存钱罐")?.id
+        for i in b.smallGoals.indices { b.smallGoals[i].account = b.account(TrialBook.jarName(b.smallGoals[i].name))?.id }
+        for n in ["日常卡", "换新电脑 存钱罐", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b
     }
 }

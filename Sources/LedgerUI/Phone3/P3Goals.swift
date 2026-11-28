@@ -370,18 +370,32 @@ struct P3GoalEditor: View {
     let smallID: UUID?
     let big: Bool
     var editBig = false
+    @State private var step = 0
+    /// 0 是新开存钱罐，后面是已有的「存起来的」账户。
+    @State private var place = 0
     @State private var name = ""
     @State private var amount = ""
     @State private var due = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(editBig ? "改大目标" : big ? "定一个大目标" : smallID == nil ? "加一个小目标" : "改小目标").font(P3.font(20, .heavy)).foregroundStyle(P3.ink)
-            TextField("想要什么，比如「换新电脑」", text: $name).p3Field()
-            TextField("要多少钱", text: $amount).keyboardType(.decimalPad).p3Field()
-            if !big { TextField("想哪天前存够（可不填）", text: $due).p3Field() }
+            Text(step == 1 ? "「\(name)」的钱单独放在哪" : editBig ? "改大目标" : big ? "定一个大目标" : smallID == nil ? "加一个小目标" : "改小目标").font(P3.font(20, .heavy)).foregroundStyle(P3.ink)
+            if step == 0 {
+                TextField("想要什么，比如「换新电脑」", text: $name).p3Field()
+                TextField("要多少钱", text: $amount).keyboardType(.decimalPad).p3Field()
+                if !big { TextField("想哪天前存够（可不填）", text: $due).p3Field() }
+            } else {
+                placePick
+            }
             Spacer(minLength: 0)
-            Button(big ? "定好了" : "好了") { save() }.buttonStyle(.p3(.primary, .wide))
+            Button(isNew && step == 0 ? "下一步：钱放哪" : big ? "定好了" : "好了") {
+                if isNew && step == 0 {
+                    guard let m = Money(parsing: amount), m > .zero, !name.trimmingCharacters(in: .whitespaces).isEmpty else { state.fail("先填名字和要多少钱"); return }
+                    withAnimation(.snappy(duration: 0.2)) { step = 1 }
+                } else { save() }
+            }
+            .buttonStyle(.p3(.primary, .wide))
+            if step == 1 { Button("上一步") { withAnimation { step = 0 } }.buttonStyle(.p3(.text, .wide)) }
         }
         .padding(16).padding(.top, 12)
         .onAppear {
@@ -393,23 +407,59 @@ struct P3GoalEditor: View {
                 name = g.name; amount = g.target.formatted.replacingOccurrences(of: " €", with: "").replacingOccurrences(of: ".", with: ""); due = g.due
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+    }
+
+    /// 新建（不是改）：要走第二步选钱放哪。
+    private var isNew: Bool { !editBig && smallID == nil }
+
+    private var placePick: some View {
+        let c = state.book.goalPlaceCandidates
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("目标的钱一定单独放一个账户，不和日常的钱混。").font(P3.font(13.5, .regular)).foregroundStyle(P3.ink2)
+            pickRow(0, "新开一个存钱罐", "账户叫「\(TrialBook.jarName(name.trimmingCharacters(in: .whitespaces)))」，从 0 开始存")
+            ForEach(Array(c.enumerated()), id: \.element.id) { i, a in
+                pickRow(i + 1, "放进「\(a.name)」", "里面现在的 \(a.balance.p3Short) 算这个目标已经存的")
+            }
+        }
+    }
+
+    private func pickRow(_ k: Int, _ title: String, _ note: String) -> some View {
+        Button { place = k } label: {
+            HStack(spacing: 12) {
+                Image(systemName: place == k ? "largecircle.fill.circle" : "circle").font(.system(size: 20)).foregroundStyle(place == k ? P3.navy : P3.dash)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(P3.font(15.5, .bold)).foregroundStyle(P3.ink)
+                    Text(note).font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(place == k ? P3.navy : .clear, lineWidth: 2))
+        }
+        .buttonStyle(P3Sink(depth: 1))
+    }
+
+    private var goalPlace: TrialBook.GoalPlace {
+        let c = state.book.goalPlaceCandidates
+        return place > 0 && c.indices.contains(place - 1) ? .existing(c[place - 1].name) : .newJar
     }
 
     private func save() {
         guard let m = Money(parsing: amount), m > .zero else { state.fail("填一下要多少钱"); return }
+        // 先算好放哪：改账本的那一下里不能再读账本
+        let goalPlace = self.goalPlace
         let ok: Bool
         if editBig {
             ok = state.change("改好了：\(name) \(m.p3Short)", kind: .goal) { try $0.editBigGoal(name: name, total: m) }
         } else if big {
             ok = state.change("定好了大目标：\(name) \(m.p3Short)", kind: .goal) { b in
-                try b.startGoal(name: name, total: m)
-                try b.setMonthlyPlan(Money(cents: 100_00))
+                try b.startGoal(name: name, total: m, place: goalPlace)
             }
         } else if let id = smallID {
             ok = state.change("改好了：\(name)", kind: .goal) { try $0.editSmallGoal(id, name: name, target: m, due: due) }
         } else {
-            ok = state.change("加好了小目标：\(name)", kind: .goal) { try $0.addSmallGoal(name: name, target: m, due: due) }
+            ok = state.change("加好了小目标：\(name)", kind: .goal) { try $0.addSmallGoal(name: name, target: m, due: due, place: goalPlace) }
         }
         if ok { dismiss() }
     }
