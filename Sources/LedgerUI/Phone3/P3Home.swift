@@ -35,11 +35,16 @@ struct P3LifeHome: View {
         }
         HStack(spacing: 12) {
             let spent = state.isThisMonth ? b.month.spentTotal : state.pastSlices.map(\.amount).reduce(.zero, +)
-            small("\(state.monthTitle)花掉", spent.p3, state.isThisMonth ? "比上月同期少 86 €" : "看看花在哪", P3.green) { state.go(.spending) }
-            small("家底 · 净剩", b.totals.net.p3, "比上个月多 490 €", P3.green) { state.go(.wealth) }
+            small("\(state.monthTitle)花掉", spent.p3, state.isThisMonth ? spentNote : "看看花在哪", P3.green) { state.go(.spending) }
+            small(state.isThisMonth ? "家底 · 净剩" : "家底 · 现在净剩", b.totals.net.p3, state.isThisMonth ? state.compare(b.totals.net, state.lastMonthNet) : "家底只看现在的", state.isThisMonth ? P3.green : P3.ink2) { state.go(.wealth) }
         }
         goalCard(b.journey)
-        today(b)
+        if state.isThisMonth { today(b) }
+    }
+
+    private var spentNote: String {
+        let d = state.lastMonthSpentSoFar - state.book.month.spentTotal
+        return d >= .zero ? "比上月同期少 \(d.p3Short)" : "比上月同期多 \(d.magnitude.p3Short)"
     }
 
     private func hero(_ b: TrialBook) -> some View {

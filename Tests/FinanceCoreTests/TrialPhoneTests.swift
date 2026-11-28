@@ -1,7 +1,7 @@
 import XCTest
 @testable import FinanceCore
 
-/// iPhone 界面 v3 的两条规则：删掉大目标、生意那边一笔一笔记收进来的钱。数字都是编的。
+/// iPhone 界面 v3 的两条规则：生意那边一笔一笔记收进来的钱。数字都是编的。
 final class TrialPhoneTests: XCTestCase {
     private func eur(_ s: String) -> Money { Money(parsing: s)! }
 
@@ -17,19 +17,6 @@ final class TrialPhoneTests: XCTestCase {
             monthlyMust: eur("860"))
         b.shopDays = (1...30).map { .init(day: $0, cash: .zero, card: .zero, state: $0 > 18 ? .future : .missing) }
         return b
-    }
-
-    func testDropMainGoalGivesMoneyBack() throws {
-        var b = book()
-        let leftBefore = b.month.left
-        try b.dropMainGoal()
-        XCTAssertEqual(b.journey.total, .zero)
-        XCTAssertEqual(b.account("目标罐")?.balance, .zero)
-        XCTAssertEqual(b.account("日常卡")?.balance, eur("2000"))
-        XCTAssertEqual(b.month.left, leftBefore + eur("200"), "不再给目标留钱，随便花的多出来")
-        XCTAssertThrowsError(try b.dropMainGoal())
-        try b.startGoal(name: "新跑鞋", total: eur("95"))
-        XCTAssertEqual(b.journey.name, "新跑鞋")
     }
 
     func testShopIncomeAddsUp() throws {

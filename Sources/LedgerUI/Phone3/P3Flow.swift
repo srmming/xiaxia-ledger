@@ -49,7 +49,7 @@ struct P3FlowPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            P3Header(title: "流水", months: true, sideSwitch: true)
+            P3Header(title: "流水", months: true, sideSwitch: true, meButton: true)
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(P3.ink2)
                 TextField("找一笔，比如「咖啡」", text: $query).font(P3.font(15, .regular)).submitLabel(.search)
@@ -110,6 +110,7 @@ struct P3FlowPage: View {
                 Button(role: .destructive) {
                     state.change("删掉了：\(r.name) \(r.amount.magnitude.p3)", kind: .remove) { _ = try $0.delete(entry: id) }
                 } label: { Label("删", systemImage: "trash") }
+                .tint(P3.red)
                 Button { state.sheet = .edit(id) } label: { Label("改", systemImage: "pencil") }.tint(P3.navy)
             }
         }

@@ -133,7 +133,10 @@ struct P3AddSheet: View {
             Image(systemName: "calendar").foregroundStyle(P3.ink2).font(.system(size: 14))
             ForEach(options, id: \.0) { o in
                 let on = !pickDate && daysAgo == o.0
-                Button { pickDate = false; daysAgo = o.0 } label: {
+                Button {
+                    pickDate = false; daysAgo = o.0
+                    date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -o.0, to: state.book.todayDate) ?? state.book.todayDate
+                } label: {
                     Text(o.1).font(P3.font(13, .bold)).foregroundStyle(on ? tint : P3.ink2)
                         .padding(.horizontal, 10).frame(height: 30)
                         .background(Capsule().strokeBorder(on ? tint : P3.line, lineWidth: 1.5))
@@ -146,9 +149,10 @@ struct P3AddSheet: View {
                 .scaleEffect(0.88, anchor: .trailing)
                 .environment(\.locale, Locale(identifier: "zh_CN"))
                 .onChange(of: date) { _, d in
-                    pickDate = true
                     let cal = Calendar(identifier: .gregorian)
                     daysAgo = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: d), to: cal.startOfDay(for: state.book.todayDate)).day ?? 0)
+                    // 选到今天、昨天、前天：左边那几个跟着亮；更早的才算「自己挑的日子」
+                    pickDate = daysAgo > 2
                 }
                 .opacity(pickDate ? 1 : 0.55)
         }

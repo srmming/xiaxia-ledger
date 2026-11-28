@@ -13,7 +13,7 @@ struct P3GoalsPage: View {
         let b = state.book
         let j = b.journey
         VStack(spacing: 0) {
-            P3Header(title: "目标")
+            P3Header(title: "目标", meButton: true)
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     if j.total > .zero { big(j) } else { noBig(b) }
@@ -41,7 +41,7 @@ struct P3GoalsPage: View {
         }
         .confirmationDialog("删掉大目标「\(j.name)」？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("删掉，存的 \(j.saved.p3Short) 回日常卡", role: .destructive) {
-                state.change("删掉了大目标：\(j.name)。\(j.saved.p3Short) 回到日常卡", kind: .remove) { try $0.dropMainGoal() }
+                state.change("删掉了大目标：\(j.name)。\(j.saved.p3Short) 回到日常卡", kind: .remove) { try $0.removeBigGoal() }
             }
             Button("算了", role: .cancel) {}
         } message: {
@@ -68,6 +68,7 @@ struct P3GoalsPage: View {
                     Spacer()
                     Menu {
                         Button("改每月存多少") { state.sheet = .smallerStep }
+                        Button("改名字和金额") { state.sheet = .editBigGoal }
                         Button("删掉这个大目标", role: .destructive) { confirmDelete = true }
                     } label: {
                         Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold)).foregroundStyle(P3.ink2)
@@ -83,10 +84,18 @@ struct P3GoalsPage: View {
                     Text("一共 \(j.saved.p3Short) / \(j.total.p3Short)").font(P3.num(13.5)).foregroundStyle(P3.navy)
                 }
                 P3Road(journey: j).frame(height: 70)
-                HStack(spacing: 8) {
-                    Text("这个月").font(P3.font(13, .bold)).foregroundStyle(P3.ink)
-                    P3Bar(fraction: j.monthlyPlan > .zero ? Double(j.savedThisMonth.cents) / Double(j.monthlyPlan.cents) : 0, height: 9)
-                    Text("\(j.savedThisMonth.p3Short) / \(j.monthlyPlan.p3Short)").font(P3.num(13)).foregroundStyle(P3.navy).fixedSize()
+                if j.monthlyPlan > .zero {
+                    Button { state.sheet = .smallerStep } label: {
+                        HStack(spacing: 8) {
+                            Text("这个月").font(P3.font(13, .bold)).foregroundStyle(P3.ink)
+                            P3Bar(fraction: Double(j.savedThisMonth.cents) / Double(j.monthlyPlan.cents), height: 9)
+                            Text("\(j.savedThisMonth.p3Short) / \(j.monthlyPlan.p3Short)").font(P3.num(13)).foregroundStyle(P3.navy).fixedSize()
+                        }
+                    }
+                    .buttonStyle(P3Sink(depth: 1))
+                    .accessibilityHint("改每月存多少")
+                } else {
+                    Button("还没定每月存多少 · 定一下") { state.sheet = .smallerStep }.buttonStyle(.p3(.ghost, .small))
                 }
                 HStack(spacing: 10) {
                     Button("+ 存一笔") { state.sheet = .save(nil) }.buttonStyle(.p3(.primary, .wide))
@@ -97,10 +106,9 @@ struct P3GoalsPage: View {
             .padding(.horizontal, 18).padding(.vertical, 16)
             .p3Sticker()
 
-            if !j.isFinished {
-                P3Bubble(face: "happy", text: "离下一站还差 \(j.remainingToNext.p3Short)，12 月 20 日前有点悬。") {
-                    Button("看看办法") { state.sheet = .smallerStep }.buttonStyle(.p3(.primary, .small))
-                    Button("先不用") { state.say("好，我 12 月 10 日再看一眼") }.buttonStyle(.p3(.ghost, .small))
+            if !j.isFinished, j.monthlyPlan > .zero, let m = j.monthsToFinish() {
+                P3Bubble(face: "happy", text: "照每月 \(j.monthlyPlan.p3Short) 存，离下一站还差 \(j.remainingToNext.p3Short)，大概 \(m) 个月走完整条路。") {
+                    Button("改每月存多少") { state.sheet = .smallerStep }.buttonStyle(.p3(.ghost, .small))
                 }
             }
         }
@@ -242,7 +250,8 @@ struct P3SaveSheet: View {
                 }
             }
             P3Label("从哪拿")
-            HStack(spacing: 6) { ForEach(sources) { a in chip("\(a.name) · \(a.balance.p3Short)", on: from == a.name) { from = a.name } } }
+            ScrollView(.horizontal) { HStack(spacing: 6) { ForEach(sources) { a in chip("\(a.name) · \(a.balance.p3Short)", on: from == a.name) { from = a.name } } } }
+                .scrollIndicators(.hidden)
             Text(b.savedPhrase(Money(cents: Int64(pick) * 100))).font(P3.font(13.5, .bold)).foregroundStyle(P3.green)
             Spacer(minLength: 0)
             Button("存进去") {
@@ -265,7 +274,7 @@ struct P3SaveSheet: View {
 
     private func chip(_ t: String, on: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(t).font(P3.font(13.5, .bold)).foregroundStyle(on ? .white : P3.ink2)
+            Text(t).font(P3.font(13.5, .bold)).foregroundStyle(on ? .white : P3.ink2).lineLimit(1).fixedSize()
                 .padding(.horizontal, 14).frame(height: 34).background(Capsule().fill(on ? P3.navy : P3.soft))
         }
         .buttonStyle(.plain)
@@ -302,48 +311,54 @@ struct P3HoldBackSheet: View {
     }
 }
 
-// MARK: - 几选一：把步子改小一点
+// MARK: - 每月存多少：自己填，或者几选一
 
 struct P3SmallerStepSheet: View {
     @Environment(P3State.self) private var state
     @Environment(\.dismiss) private var dismiss
+    @State private var custom = ""
 
     var body: some View {
         let j = state.book.journey
         let plan = j.monthlyPlan
-        let steps = Journey.smallerSteps(from: plan)
-        VStack(spacing: 12) {
+        let options = plan > .zero ? Journey.smallerSteps(from: plan) : [Money(cents: 50_00), Money(cents: 100_00), Money(cents: 200_00)]
+        VStack(alignment: .leading, spacing: 12) {
+            Text(plan > .zero ? "每月存多少？现在是 \(plan.p3Short)" : "每月给「\(j.name)」存多少？").font(P3.font(17, .heavy)).foregroundStyle(P3.ink)
             VStack(spacing: 0) {
-                Text("把步子改小一点？原来每月存 \(plan.p3Short)").font(P3.font(14, .semibold)).foregroundStyle(P3.ink2)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                ForEach(Array(steps.enumerated()), id: \.offset) { i, s in
-                    P3Divider()
-                    Button {
-                        if state.change("好，以后每月存 \(s.p3Short)", kind: .goal, { try $0.setMonthlyPlan(s) }) { dismiss() }
-                    } label: {
+                ForEach(Array(options.enumerated()), id: \.offset) { i, s in
+                    if i > 0 { P3Divider() }
+                    Button { set(s) } label: {
                         VStack(spacing: 2) {
-                            Text(i == 0 ? "减半" : "再减半").font(P3.font(17, .heavy)).foregroundStyle(P3.ink)
-                            Text(late(j, s)).font(P3.font(13, .regular)).foregroundStyle(P3.ink2)
+                            Text(plan > .zero ? (i == 0 ? "减半" : "再减半") : s.p3Short).font(P3.font(17, .heavy)).foregroundStyle(P3.ink)
+                            Text(months(j, s)).font(P3.font(13, .regular)).foregroundStyle(P3.ink2)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 64).contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, minHeight: 60).contentShape(Rectangle())
                     }
                     .buttonStyle(P3Sink(depth: 1))
                 }
             }
             .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(.white).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(P3.ink, lineWidth: 2)))
-            Button { dismiss() } label: {
-                Text("不改，我再试试").font(P3.font(17, .heavy)).foregroundStyle(P3.ink).frame(maxWidth: .infinity, minHeight: 54)
-                    .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(.white).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(P3.ink, lineWidth: 2)))
+            HStack(spacing: 8) {
+                TextField("自己填，比如 150", text: $custom).keyboardType(.decimalPad).p3Field()
+                Button("就这样") {
+                    guard let m = Money(parsing: custom), m > .zero else { state.fail("填一个比 0 大的数"); return }
+                    set(m)
+                }
+                .buttonStyle(.p3(.primary))
             }
-            .buttonStyle(P3Sink())
+            Button("不改了") { dismiss() }.buttonStyle(.p3(.text, .wide))
         }
         .padding(16).padding(.top, 12)
-        .presentationDetents([.height(330)])
+        .presentationDetents([.medium])
     }
 
-    private func late(_ j: Journey, _ s: Money) -> String {
-        if let d = j.delayMonths(ifNextMonthIs: s), d > 0 { return "每月 \(s.p3Short)，晚 \(d) 个月到" }
-        return "每月 \(s.p3Short)，慢一点但稳"
+    private func set(_ s: Money) {
+        if state.change("好，以后每月存 \(s.p3Short)", kind: .goal, { try $0.setMonthlyPlan(s) }) { dismiss() }
+    }
+
+    private func months(_ j: Journey, _ s: Money) -> String {
+        if let m = j.monthsToFinish(monthly: s) { return "每月 \(s.p3Short)，大概 \(m) 个月走完" }
+        return "每月 \(s.p3Short)"
     }
 }
 
@@ -354,13 +369,14 @@ struct P3GoalEditor: View {
     @Environment(\.dismiss) private var dismiss
     let smallID: UUID?
     let big: Bool
+    var editBig = false
     @State private var name = ""
     @State private var amount = ""
     @State private var due = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(big ? "定一个大目标" : smallID == nil ? "加一个小目标" : "改小目标").font(P3.font(20, .heavy)).foregroundStyle(P3.ink)
+            Text(editBig ? "改大目标" : big ? "定一个大目标" : smallID == nil ? "加一个小目标" : "改小目标").font(P3.font(20, .heavy)).foregroundStyle(P3.ink)
             TextField("想要什么，比如「换新电脑」", text: $name).p3Field()
             TextField("要多少钱", text: $amount).keyboardType(.decimalPad).p3Field()
             if !big { TextField("想哪天前存够（可不填）", text: $due).p3Field() }
@@ -369,6 +385,10 @@ struct P3GoalEditor: View {
         }
         .padding(16).padding(.top, 12)
         .onAppear {
+            if editBig {
+                let j = state.book.journey
+                name = j.name; amount = j.total.formatted.replacingOccurrences(of: " €", with: "").replacingOccurrences(of: ".", with: "")
+            }
             if let id = smallID, let g = state.book.smallGoals.first(where: { $0.id == id }) {
                 name = g.name; amount = g.target.formatted.replacingOccurrences(of: " €", with: "").replacingOccurrences(of: ".", with: ""); due = g.due
             }
@@ -379,7 +399,9 @@ struct P3GoalEditor: View {
     private func save() {
         guard let m = Money(parsing: amount), m > .zero else { state.fail("填一下要多少钱"); return }
         let ok: Bool
-        if big {
+        if editBig {
+            ok = state.change("改好了：\(name) \(m.p3Short)", kind: .goal) { try $0.editBigGoal(name: name, total: m) }
+        } else if big {
             ok = state.change("定好了大目标：\(name) \(m.p3Short)", kind: .goal) { b in
                 try b.startGoal(name: name, total: m)
                 try b.setMonthlyPlan(Money(cents: 100_00))

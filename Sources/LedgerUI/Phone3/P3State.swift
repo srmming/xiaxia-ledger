@@ -68,6 +68,7 @@ final class P3State {
         case holdBack
         case smallerStep
         case newBigGoal
+        case editBigGoal
         case smallGoal(UUID?)
         var id: String {
             switch self {
@@ -77,6 +78,7 @@ final class P3State {
             case .holdBack: "hold"
             case .smallerStep: "smaller"
             case .newBigGoal: "newBig"
+            case .editBigGoal: "editBig"
             case .smallGoal(let i): "small-\(i?.uuidString ?? "new")"
             }
         }
@@ -125,7 +127,7 @@ final class P3State {
         default: break
         }
         if PhoneV3Launch.value("-P3Chat") != nil { tab = .xia; chat.unread = 0 }
-        if PhoneV3Launch.value("-P3NoGoal") != nil { ledger.patch { try? $0.dropMainGoal() } }
+        if PhoneV3Launch.value("-P3NoGoal") != nil { ledger.patch { try? $0.removeBigGoal() } }
         if PhoneV3Launch.value("-P3Chat") == "want" { chat.demoWant(book: book) }
     }
 
@@ -147,6 +149,21 @@ final class P3State {
     var pastSlices: [Book.SpendSlice] {
         guard monthOffset == -1 else { return [] }
         return book.spendByCategory.map { .init(emoji: $0.emoji, name: $0.name, amount: $0.lastMonth, lastMonth: .zero) }.filter { $0.amount > .zero }
+    }
+    /// 这个月的花销：示例里分好类的那些，加上在手机上刚记的（还没归进那几类的合成「刚记的」），总数和总览对得上。
+    var thisMonthSlices: [Book.SpendSlice] {
+        var s = book.spendSlices(limit: 8)
+        let extra = book.month.spentTotal - book.spendSliceTotal
+        if extra > .zero { s.append(.init(emoji: "🧾", name: "刚记的", amount: extra, lastMonth: .zero)) }
+        return s.sorted { $0.amount > $1.amount }
+    }
+    /// 示例里上个月的几个数（和 Mac 试用版同一套）：上个月同期花了多少、上个月底家底净剩多少。
+    var lastMonthSpentSoFar: Money { Money(cents: 1_249_39) }
+    var lastMonthNet: Money { Money(cents: 2_170_61) }
+    /// 「比上个月多 / 少 …」，跟着数变。
+    func compare(_ now: Money, _ before: Money, more: String = "多", less: String = "少") -> String {
+        let d = now - before
+        return d == .zero ? "和上个月一样" : d > .zero ? "比上个月\(more) \(d.p3Short)" : "比上个月\(less) \(d.magnitude.p3Short)"
     }
     var lastMonthIncome: Money { Money(cents: 2_340_00) }
 
@@ -189,7 +206,7 @@ final class P3State {
         toastTask?.cancel()
         withAnimation(.spring(duration: 0.18, bounce: 0.35)) { toast = t }
         toastTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(t.isError ? 4 : t.canUndo ? 3.2 : 2.2))
+            try? await Task.sleep(for: .seconds(t.isError ? 4 : t.canUndo ? 4 : 2.2))
             guard !Task.isCancelled else { return }
             withAnimation(.easeIn(duration: 0.15)) { self?.toast = nil }
         }

@@ -6,15 +6,15 @@ import SwiftUI
 
 struct P3MePage: View {
     @Environment(P3State.self) private var state
-    @AppStorage("p3.hideAmounts") private var hideAmounts = false
-    @AppStorage("p3.subRemind") private var subRemind = true
     @AppStorage("p3.voiceAutoSend") private var voiceAutoSend = true
 
     var body: some View {
         @Bindable var state = state
         NavigationStack(path: $state.mePath) {
             VStack(spacing: 0) {
-                P3Header(title: "我的", sideSwitch: true)
+                P3Header(title: "我的", sideSwitch: true) {
+                    Button("完成") { state.meOpen = false }.font(P3.font(16, .bold)).foregroundStyle(P3.navy).padding(.leading, 4)
+                }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if state.side == .biz {
@@ -34,10 +34,6 @@ struct P3MePage: View {
                             }
                             P3Divider().padding(.leading, 52)
                             NavigationLink(value: P3State.Page.changes) { rowLabel("clock.arrow.circlepath", "改动记录", "\(state.ledger.changes.count) 条") }
-                            P3Divider().padding(.leading, 52)
-                            toggle("eye.slash", "打开时藏起金额", $hideAmounts)
-                            P3Divider().padding(.leading, 52)
-                            toggle("bell", "订阅扣钱前提醒我", $subRemind)
                             P3Divider().padding(.leading, 52)
                             toggle("mic", "问夏夏时说完自动发", $voiceAutoSend)
                             P3Divider().padding(.leading, 52)
@@ -144,7 +140,7 @@ struct P3SpendingPage: View {
     static let colors: [Color] = [P3.navy, P3.sky, P3.gold, P3.teal, P3.hex(0xE58C7A), P3.hex(0x9B8FE0), P3.hex(0x7CC4A0), P3.dash]
 
     var body: some View {
-        let slices = state.isThisMonth ? state.book.spendSlices(limit: 8) : state.pastSlices
+        let slices = state.isThisMonth ? state.thisMonthSlices : state.pastSlices
         let total = slices.map(\.amount).reduce(.zero, +)
         P3SubPage(title: "花销") {
             HStack { P3MonthSwitch(); Spacer() }
@@ -225,7 +221,7 @@ struct P3WealthPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 P3Label("净剩（有的减欠的）")
                 P3Gold(amount: b.totals.net, size: 44)
-                Text("比上个月多 490 € · 手里的钱够撑 \(b.handRunway.monthsText) 个月").font(P3.font(13, .bold)).foregroundStyle(P3.green)
+                Text("\(state.compare(b.totals.net, state.lastMonthNet)) · 手里的钱够撑 \(b.handRunway.monthsText) 个月").font(P3.font(13, .bold)).foregroundStyle(P3.green)
                 HStack(spacing: 20) {
                     kv("一共有", b.totals.have.p3, P3.ink)
                     kv("欠别人", b.totals.owe.p3, P3.red)
@@ -497,7 +493,7 @@ struct P3ShopWealthPage: View {
         }
         if isTab {
             VStack(spacing: 0) {
-                P3Header(title: "店的家底", sideSwitch: true)
+                P3Header(title: "店的家底", sideSwitch: true, meButton: true)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) { content }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 16)
                 }

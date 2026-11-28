@@ -47,6 +47,7 @@ public struct PhoneV3Root: View {
                 case .holdBack: P3HoldBackSheet()
                 case .smallerStep: P3SmallerStepSheet()
                 case .newBigGoal: P3GoalEditor(smallID: nil, big: true)
+                case .editBigGoal: P3GoalEditor(smallID: nil, big: true, editBig: true)
                 case .smallGoal(let id): P3GoalEditor(smallID: id, big: false)
                 }
             }
