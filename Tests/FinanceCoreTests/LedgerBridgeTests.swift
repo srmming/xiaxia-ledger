@@ -91,4 +91,38 @@ final class LedgerBridgeTests: XCTestCase {
         XCTAssertEqual(b.subscriptions.count, Subscriptions.status(l, today: today).count)
         XCTAssertLessThanOrEqual(b.smallGoals.count, Plans.maxSmallGoals)
     }
+
+    /// 第 3 步给账户加的两个字段（置顶第几张、卡片底色）：存进账本文件再读回来还在；改之前、改之后别的东西一样不变。
+    /// 只在临时文件夹里写一份示例账本的副本，用完就删。
+    func testNewAccountFieldsSurviveSavingAndOldDataStaysIntact() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("xiaxia-bridge-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = SQLiteLedgerStore(url: dir.appendingPathComponent("copy.sqlite"))
+        var l = ledger
+        try store.save(l)
+        let plain = try store.load()
+        XCTAssertTrue(plain.accounts.allSatisfy { $0.cardPin == nil && $0.cardStyle == nil }, "老数据：两个新字段都是空的")
+        let balancesBefore = Summaries.balances(plain.transactions)
+        // 在界面上置顶一张、换个底色，写进正式账本，再存盘、读回
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        var after = before
+        let name = before.accounts(on: .life).first { $0.kind == .own && $0.block == .daily }!.name
+        let second = before.accounts(on: .life).first { $0.kind == .own && $0.name != name }!.name
+        try after.setPinned(second, true)
+        try after.setCardStyle(second, 2)
+        let records = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "测试")
+        XCTAssertFalse(records.isEmpty)
+        XCTAssertTrue(records.allSatisfy { $0.author == "测试" })
+        try store.save(l)
+        let back = try store.load()
+        XCTAssertEqual(back.accounts.first { $0.name == second }?.cardStyle, 2)
+        XCTAssertNotNil(back.accounts.first { $0.name == second }?.cardPin)
+        XCTAssertNotNil(back.accounts.first { $0.name == name }?.cardPin, "原来默认置顶的那张也记下来了")
+        // 别的一样没变：流水、每个账户的余额、私房钱标记
+        XCTAssertEqual(back.transactions.count, plain.transactions.count)
+        XCTAssertEqual(Summaries.balances(back.transactions), balancesBefore, "前后每个账户的余额一致")
+        XCTAssertEqual(back.accounts.map(\.isPrivate), plain.accounts.map(\.isPrivate))
+        XCTAssertEqual(LedgerBridge.snapshot(of: back, today: today).pinned(on: .life).map(\.name), [name, second])
+    }
 }

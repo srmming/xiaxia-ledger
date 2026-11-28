@@ -41,14 +41,22 @@ public enum LedgerBridge {
             let bal = balances[a.id] ?? .zero
             let biz = bizAccounts.contains(a.id)
             let icon = a.kind == .cash ? "💶" : a.kind == .savings ? "🏦" : goalAccounts.contains(a.id) ? "⭐" : biz ? "🏪" : "💳"
+            var out: TrialBook.Account
             if a.kind == .credit {
                 // 信用卡：欠的是正数
-                return .init(emoji: "💳", name: a.name, note: a.institution ?? "", balance: bal < .zero ? bal.magnitude : .zero, kind: .debt, block: .none, side: biz ? .biz : .life)
+                out = .init(emoji: "💳", name: a.name, note: a.institution ?? "", balance: bal < .zero ? bal.magnitude : .zero, kind: .debt, block: .none, side: biz ? .biz : .life)
+            } else if biz {
+                out = .init(emoji: icon, name: a.name, note: a.institution ?? "", balance: bal, kind: .shop, block: .shop)
+            } else {
+                let block: TrialBook.Account.Block = goalAccounts.contains(a.id) ? .goal : a.kind == .savings ? .emergency : .daily
+                out = .init(emoji: icon, name: a.name, note: a.institution ?? "", balance: bal, kind: .own, block: block)
             }
-            if biz { return .init(emoji: icon, name: a.name, note: a.institution ?? "", balance: bal, kind: .shop, block: .shop) }
-            let block: TrialBook.Account.Block = goalAccounts.contains(a.id) ? .goal : a.kind == .savings ? .emergency : .daily
-            return .init(emoji: icon, name: a.name, note: a.institution ?? "", balance: bal, kind: .own, block: block)
+            out.cardStyle = a.cardStyle
+            return out
         }
+        // 置顶成卡片的：按正式账本里记的先后
+        let pinnedNames = ledger.accounts.filter { $0.cardPin != nil && !hidden.contains($0.id) }.sorted { ($0.cardPin ?? 0) < ($1.cardPin ?? 0) }.map(\.name)
+        let pinIDs = pinnedNames.compactMap { n in accounts.first { $0.name == n } }
         // 借的钱和借出去的
         for d in Plans.debts(ledger, today: today) where d.outstanding > .zero {
             let lent = d.direction == .theyOweMe
@@ -118,6 +126,8 @@ public enum LedgerBridge {
         var b = TrialBook(accounts: accounts, entries: entries, upcoming: [], month: free, journey: journey, monthlyMust: fixedAll)
         b.todayDay = today.day
         b.todayDate = date(today)
+        b.lifePins = pinIDs.filter { $0.side == .life }.map(\.id)
+        b.shopPins = pinIDs.filter { $0.side == .biz }.map(\.id)
         b.showLife = true
         b.showBiz = !bizBooks.isEmpty
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
@@ -182,12 +192,11 @@ extension LedgerBridge {
 
     /// 界面上不属于流水的那些东西的样子（账户有哪些、目标、订阅、店的每天…）。写入前后拿它比：变了，说明这次改动不只是流水，这一步还没接。
     static func shape(_ b: TrialBook) -> [String] {
-        b.accounts.map { "\($0.name)|\($0.kind)|\($0.block)|\($0.side)" }
-            + ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
+        ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
             + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
             + b.subscriptions.map { "sub|\($0.name)|\($0.amount.cents)|\($0.off)" }
             + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
-            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "pins|\(b.lifePins.count)|\(b.shopPins.count)", "memos|\(b.memos.count)"]
+            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)"]
     }
 
     /// 界面上做了一次改动（`before` → `after`），把它照样做到正式账本上。
@@ -203,11 +212,18 @@ extension LedgerBridge {
         let added = after.entries.filter { old[$0.id] == nil }
         let removed = before.entries.filter { new[$0.id] == nil }
         let changed = after.entries.filter { e in old[e.id].map { $0.name != e.name || $0.amount != e.amount } ?? false }
-        guard !added.isEmpty || !removed.isEmpty || !changed.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         guard added.count <= 1 else { throw TrialError("一次进来好几笔（导入）在这一版里还没接上，账本没动") }
 
         var work = ledger
         var records: [ChangeRecord] = []
+        let entriesTouched = !added.isEmpty || !removed.isEmpty || !changed.isEmpty
+        // 第 3 步：账户（加、改名、改余额、删、置顶、换底色）。流水没动的时候才看账户，免得把「记一笔带来的余额变化」当成改余额
+        if !entriesTouched {
+            records += try applyAccounts(before: before, after: after, to: &work, today: today, author: who)
+            guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+            ledger = work
+            return records
+        }
         let lifeBook = work.books.first { !$0.isBusiness }?.id
         let shopBook = work.books.first { $0.isBusiness }?.id
         func accountID(_ name: String) throws -> String {
@@ -236,6 +252,64 @@ extension LedgerBridge {
             }
         }
         ledger = work
+        return records
+    }
+
+    /// 账户上的改动照样做到正式账本上。能对上正式账本里一个账户的才动（银行卡、现金、储蓄、信用卡）；借的钱、分期那几行不是账户，这一步不管。
+    static func applyAccounts(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord] {
+        var records: [ChangeRecord] = []
+        func real(_ name: String) -> Account? { work.accounts.first { $0.name == name } }
+        let was = Dictionary(before.accounts.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let now = Dictionary(after.accounts.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+
+        // 删
+        for a in before.accounts where now[a.id] == nil {
+            guard let r = real(a.name) else { throw TrialError("「\(a.name)」不是一个账户，这一步还没接上，账本没动") }
+            records.append(try work.removeAccount(r.id, author: who))
+        }
+        // 加
+        for a in after.accounts where was[a.id] == nil {
+            guard a.kind == .own || a.kind == .shop || a.isCreditCard else { throw TrialError("借的钱、借出去的在接正式账本的这一版里还没接上，账本没动") }
+            guard real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
+            let kind: AccountKind = a.kind == .debt ? .credit : a.name.contains("现金") ? .cash : a.block == .emergency || a.block == .goal ? .savings : .bank
+            let id = work.newAccountID(for: a.name)
+            let opening = a.kind == .debt ? .zero - a.balance : a.balance
+            records.append(try work.createAccount(Account(id: id, name: a.name, kind: kind), openingBalance: opening, date: today, author: who))
+            if a.side == .biz { records.append(try work.setAccountSide(id, side: .business, author: who)) }
+        }
+        // 两个以上的账户余额一起变了：那是转账 / 还款，不是改余额，这一步还没接
+        let moved = after.accounts.filter { a in was[a.id].map { $0.balance != a.balance } ?? false }
+        guard moved.count <= 1 else { throw TrialError("转账、还款在接正式账本的这一版里还没接上，账本没动") }
+        // 改名、改余额、换底色
+        for a in after.accounts {
+            guard let o = was[a.id], var r = real(o.name) else { continue }
+            if o.name != a.name || o.cardStyle != a.cardStyle {
+                guard o.name == a.name || real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
+                r.name = a.name; r.cardStyle = a.cardStyle
+                records.append(try work.updateAccount(r, author: who))
+            }
+            if o.balance != a.balance {
+                // 改余额 = 调期初余额：差多少，期初就挪多少（流水一笔不动）
+                let delta = o.kind == .debt ? o.balance - a.balance : a.balance - o.balance
+                let opening = work.transactions.first { $0.accountID == r.id && $0.flow == .opening }?.amount ?? .zero
+                guard work.baseAmount(Transaction(date: today, amount: Money(cents: 100), description: "", accountID: r.id)) == Money(cents: 100) else {
+                    throw TrialError("「\(a.name)」是外币账户，余额先回旧界面改")
+                }
+                records.append(try work.setOpeningBalance(accountID: r.id, amount: opening + delta, date: today, author: who))
+            }
+        }
+        // 置顶：哪几张、什么先后
+        for side in [TrialBook.Side.life, .biz] {
+            let old = before.pinned(on: side).map(\.name), new = after.pinned(on: side).map(\.name)
+            // 用户从没置顶过（正式账本里一张都没记）而界面上只是默认置顶的那张，不算改动
+            let stored = work.accounts.contains { $0.cardPin != nil && (after.account($0.name)?.side == side) }
+            guard old != new || (!stored && (side == .life ? after.lifePins != before.lifePins : after.shopPins != before.shopPins)) else { continue }
+            for acc in after.accounts(on: side) {
+                guard var r = real(acc.name) else { continue }
+                let pin = new.firstIndex(of: acc.name)
+                if r.cardPin != pin { r.cardPin = pin; records.append(try work.updateAccount(r, author: who)) }
+            }
+        }
         return records
     }
 }

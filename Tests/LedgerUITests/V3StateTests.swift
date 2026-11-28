@@ -351,10 +351,12 @@ final class V3StateTests: XCTestCase {
         s.undo(); XCTAssertEqual(s.real?.transactions.count, n + 1)
         s.undo(); XCTAssertEqual(s.real?.transactions.count, n, "记的那一笔也撤掉了")
         XCTAssertEqual(s.book.account(acc)?.balance, before)
-        // 还没接的（账户、目标、转账…）：拒绝，正式账本一个字不动
+        // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("加") { try $0.addAccount(emoji: "💳", name: "新卡", note: "", balance: .zero, kind: .own) })
+        let two = s.book.transferSources(.life).prefix(2).map(\.name)
+        XCTAssertFalse(s.change("转") { try $0.move(self.eur("10"), from: two[0], to: two[1]) })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
         s.author = "  "
@@ -481,6 +483,52 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("86"), account: "日常卡") })
         XCTAssertEqual(s.book.spentLessThanLastMonthSameDay, .zero)
         XCTAssertEqual(s.book.netMoreThanLastMonth, eur("404"))
+    }
+
+    func testRealLedgerAccountChanges() {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        let real = DemoData.make(endingOn: day)
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        let have = s.book.inHand, n = real.accounts.count
+        // 加一个账户（带现有的钱）：正式账本多一个账户 + 一笔期初余额；合计多这么多
+        XCTAssertTrue(s.change("加") { try $0.addAccount(emoji: "💳", name: "新开的卡", note: "", balance: self.eur("300"), kind: .own) })
+        XCTAssertEqual(s.real?.accounts.count, n + 1)
+        let id = s.real!.accounts.last!.id
+        XCTAssertEqual(s.real?.transactions.last?.flow, .opening)
+        XCTAssertEqual(s.book.account("新开的卡")?.balance, eur("300"))
+        XCTAssertEqual(s.book.inHand, have + eur("300"))
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        // 改名 + 改余额：账户改名，期初余额挪了差的那么多，流水一笔没多
+        let txs = s.real!.transactions.count
+        XCTAssertTrue(s.change("改") { try $0.editAccount("新开的卡", newName: "旅行卡", balance: self.eur("450"), secret: false) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.name, "旅行卡")
+        XCTAssertEqual(s.book.account("旅行卡")?.balance, eur("450"))
+        XCTAssertEqual(s.real?.transactions.count, txs)
+        // 置顶、换底色、换先后：记在正式账本的账户上（只加了两个字段）
+        XCTAssertTrue(s.change("置顶") { try $0.setPinned("旅行卡", true) })
+        XCTAssertNotNil(s.real?.accounts.first { $0.id == id }?.cardPin)
+        XCTAssertTrue(s.book.pinned(on: .life).contains { $0.name == "旅行卡" })
+        XCTAssertTrue(s.change("换") { try $0.setCardStyle("旅行卡", 3) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.cardStyle, 3)
+        XCTAssertEqual(s.book.account("旅行卡")?.cardLook, 3)
+        XCTAssertTrue(s.change("排") { try $0.movePin("旅行卡", to: 0) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.cardPin, 0)
+        XCTAssertEqual(s.book.pinned(on: .life).first?.name, "旅行卡")
+        // 存下来再读回来：字段还在；没有这两个字段的老数据照样读得出来
+        let data = try! JSONEncoder().encode(s.real!.accounts.first { $0.id == id }!)
+        XCTAssertEqual(try! JSONDecoder().decode(FinanceCore.Account.self, from: data).cardStyle, 3)
+        let oldJSON = Data(#"{"id":"x","name":"老账户","kind":"bank"}"#.utf8)
+        XCTAssertNil(try! JSONDecoder().decode(FinanceCore.Account.self, from: oldJSON).cardPin)
+        // 撤销到底：账户没了，合计回到原来
+        for _ in 0..<12 { s.undo() }
+        XCTAssertEqual(s.real?.accounts.count, n)
+        XCTAssertEqual(s.book.inHand, have)
+        // 删一个还有流水的账户：正式账本自己的规矩，不让删
+        let busy = s.book.accounts(for: .pay, side: .life).first { $0.kind == .own }!.name
+        let before = s.real
+        XCTAssertFalse(s.change("删") { $0.accounts.removeAll { $0.name == busy } })
+        XCTAssertEqual(s.real, before)
     }
 
     func testNoSecretStashAndTwoBlocks() {
