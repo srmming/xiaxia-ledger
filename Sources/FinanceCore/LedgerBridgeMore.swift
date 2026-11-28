@@ -244,7 +244,8 @@ extension LedgerBridge {
                 for o in before.shopDebts where !after.shopDebts.contains(where: { $0.id == o.id }) {
                     if work.debts.contains(where: { $0.id == o.id }) { records.append(try work.removeDebt(o.id, author: who)) }
                     else if work.installments.contains(where: { $0.id == o.id }) { records.append(try work.removeInstallment(o.id, author: who)) }
-                    else { throw TrialError("「\(o.name)」是旧界面记的客人欠款，先回旧界面删。账本没动") }
+                    else if work.receivables.contains(where: { $0.id == o.id }) { records.append(try work.removeReceivable(o.id, author: who)) }
+                    else { throw TrialError("「\(o.name)」在账本里找不到了，账本没动") }
                 }
             }
         } catch let e as TrialError { throw e } catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "没写成，账本没动") }

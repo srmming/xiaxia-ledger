@@ -397,6 +397,7 @@ extension Ledger {
         for d in s.debts ?? [] {
             if let i = debts.firstIndex(where: { $0.id == d.id }) { debts[i] = d } else { debts.append(d) }
         }
+        for r in s.removedReceivables ?? [] where !receivables.contains(where: { $0.id == r.id }) { receivables.append(r) }
         for x in s.installments ?? [] {
             if let i = installments.firstIndex(where: { $0.id == x.id }) { installments[i] = x } else { installments.append(x) }
         }
