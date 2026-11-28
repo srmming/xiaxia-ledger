@@ -700,6 +700,10 @@ public struct TrialBook: Equatable, Sendable {
     public var nextGoals: [Item] = []
     /// 置顶成卡片的账户，按卡片排里的先后。生活、店里各一排；空着时默认置顶第一个日常能用的。
     public var finishedGoals: [FinishedGoal] = []
+    /// 夏夏主动提醒过什么（哪件事、几天前、是出了卡还是存到晚上）。
+    public var reminderLog: [ReminderEntry] = []
+    /// 用户关掉的那几类提醒。
+    public var mutedReminders: Set<String> = []
     /// 过去那些月份存下来的数（这个月的不在这里，是现算的）。
     public var pastMonths: [MonthData] = []
     public var lifePins: [UUID] = []

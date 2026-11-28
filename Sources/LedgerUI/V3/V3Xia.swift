@@ -101,6 +101,8 @@ extension V3State {
 
     /// 页面有话要说（或者没话了）。
     func offer(_ id: String?) {
+        // 主动提醒的那张卡正挂着：页面自己的那句先不抢
+        if reminder != nil, sayCardID?.hasPrefix("remind:") == true { return }
         guard let id else { sayCardID = nil; sayUnreadID = nil; return }
         guard !sayDismissed.contains(id), id != sayCardID else { return }
         if lastSaid?.text != id { lastSaid = (id, Date()) }
@@ -152,6 +154,11 @@ struct V3XiaLayer: View {
             if state.chatOpen {
                 V3ChatPage(saying: saying.flatMap { state.sayDismissed.contains($0.id) ? nil : $0 })
                     .transition(.opacity.combined(with: .offset(y: 10)))
+            } else if let r = state.reminder, state.sayCardID == "remind:" + r.key {
+                // D1 判断要说的那一句：多一个「别再提醒这个」
+                V3SayCard(saying: V3Saying(id: "remind:" + r.key, face: "worried", text: r.text, tone: 2, extra: AnyView(EmptyView())), muteKind: r.kind)
+                    .padding(.top, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             } else if let s = saying, state.sayCardID == s.id {
                 V3SayCard(saying: s)
                     .padding(.top, 14)
@@ -167,6 +174,8 @@ struct V3XiaLayer: View {
 /// 从顶上滑下来的小消息：左边小头像，右边一句话，最右一个叉。点卡片本身打开对话。
 private struct V3SayCard: View {
     let saying: V3Saying
+    /// 是主动提醒的那种卡：给一个「别再提醒这个」。
+    var muteKind: String?
     @Environment(V3State.self) private var state
     @State private var hover = false
 
@@ -183,7 +192,11 @@ private struct V3SayCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("夏夏说：\(saying.text)。点一下和她聊")
-            Button { state.dismissSaying(saying.id) } label: {
+            if let muteKind {
+                Button("别再提醒这个") { state.muteReminder(muteKind) }.buttonStyle(.plain)
+                    .font(V3.font(12.5, .bold)).foregroundStyle(V3.ink2).fixedSize()
+            }
+            Button { state.dismissSaying(saying.id); if muteKind != nil { state.reminder = nil } } label: {
                 Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundStyle(V3.ink2)
                     .frame(width: 28, height: 28).background(Circle().fill(V3.bg))
             }
@@ -385,10 +398,13 @@ struct V3ChatPage: View {
         withAnimation(.snappy) { thinking = true }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.9))
-            let answer = buyReply(q, attachment: attachment) ?? V3State.ChatMessage(mine: false, text: reply(q))
+            // 买不买、记一笔这些账本自己能办的先办；别的话，填了 OpenRouter 就先问它，问不到照旧走原来的回法
+            var answer = buyReply(q, attachment: attachment)
+            if answer == nil, !looksLocal(q), let text = await state.askChatModel(q) { answer = .init(mine: false, text: text) }
+            let final = answer ?? V3State.ChatMessage(mine: false, text: reply(q))
             withAnimation(.snappy) { thinking = false }
-            state.chat.append(answer)
-            state.lastSaid = (answer.text, Date())
+            state.chat.append(final)
+            state.lastSaid = (final.text, Date())
         }
     }
 
@@ -406,6 +422,11 @@ struct V3ChatPage: View {
             let c = try state.book.checkPurchase(name: name, price: want.price)
             return .init(mine: false, text: c.line, check: c)
         } catch let e as TrialError { return .init(mine: false, text: e.message) } catch { return .init(mine: false, text: "没算出来，再说一遍？") }
+    }
+
+    /// 这句话是不是要动账本（记一笔）：这种不交给聊天模型，自己办。
+    private func looksLocal(_ q: String) -> Bool {
+        QuickPhrase.parse(q) != nil && (q.contains("记") || q.contains("花了") || q.contains("买了") || q.contains("块"))
     }
 
     /// 试用版没接 AI：常问的几句按账本里的数字现算，别的就老实说。

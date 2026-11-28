@@ -3,51 +3,19 @@ import FinanceCore
 import Security
 import SwiftUI
 
-// 用自己的 API 密钥连 AI。
+// 用 OpenRouter 的密钥连 AI（一把密钥，决策和聊天两个模型共用）。
 // 密钥只进这台 Mac 的钥匙串：不进账本、不进偏好设置、不进日志和改动记录；存好以后界面上不再显示，app 也不把它读回来。
-// 试用版只做填、存、换、删和「已填 / 没填」，不拿密钥去发请求。
+// 填、存、换、删在这里；拿它发请求在 V3Decision.swift。
 
-/// 这台 Mac 的钥匙串（登录钥匙串里的一条通用密码，名字是这个试用版自己的）。
-struct KeychainSecretStore: SecretStore {
-    let service: String
-
-    private func base(_ account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
-    }
-
-    func save(_ secret: String, for account: String) throws {
-        let data = Data(secret.utf8)
-        var status = SecItemUpdate(base(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if status == errSecItemNotFound {
-            var add = base(account)
-            add[kSecValueData as String] = data
-            add[kSecAttrLabel as String] = "夏夏账本 v3 试用 · AI 密钥"
-            status = SecItemAdd(add as CFDictionary, nil)
-        }
-        guard status == errSecSuccess else { throw TrialError("没存进钥匙串（\(status)）。再试一次，或者先在「钥匙串访问」里看看") }
-    }
-
-    /// 只问有没有：不要求把密钥的内容还回来。
-    func has(_ account: String) -> Bool {
-        var q = base(account)
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        q[kSecReturnAttributes as String] = true
-        return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
-    }
-
-    func delete(_ account: String) throws {
-        let status = SecItemDelete(base(account) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw TrialError("没从钥匙串里删掉（\(status)），再试一次") }
-    }
-}
+// 钥匙串那一层（KeychainSecretStore）在 FinanceCore/OpenRouterClient.swift，Mac 和 iPhone 共用。
 
 extension V3State {
     /// 跑测试时不碰真的钥匙串，用内存里的假货。
     static func defaultKeyStore() -> SecretStore {
-        NSClassFromString("XCTestCase") != nil ? MemorySecretStore() : KeychainSecretStore(service: "com.srmming.xiaxia-ledger.v3demo.ai-key")
+        NSClassFromString("XCTestCase") != nil ? MemorySecretStore() : KeychainSecretStore(service: "com.srmming.xiaxia-ledger.v3demo.ai-key", label: "夏夏账本 v3 试用 · AI 密钥")
     }
 
-    static let aiOwnAPI = "自己的 API"
+    static let aiOwnAPI = "OpenRouter"
     private static let addressKey = "xiaxia.v3demo.ai-address"
 
     /// 现在填了哪一家的密钥（没填是 nil）。
@@ -92,8 +60,8 @@ struct V3APIKeyFields: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            V3SetMenu(options: AIKeyProvider.allCases.map(\.shortTitle),
-                      pick: Binding(get: { AIKeyProvider.allCases.firstIndex(of: provider) ?? 0 }, set: { provider = AIKeyProvider.allCases[$0] }))
+            // 现在只连 OpenRouter 这一家（一把密钥，决策和聊天两个模型共用）
+            Text("OpenRouter").font(V3.font(14, .heavy)).foregroundStyle(V3.ink).fixedSize()
             if provider.needsAddress {
                 TextField("https://…", text: $address).textFieldStyle(.plain).font(V3.font(14, .bold)).foregroundStyle(V3.ink)
                     .padding(.horizontal, 14).padding(.vertical, 8).frame(width: 220)
@@ -112,20 +80,20 @@ struct V3APIKeyFields: View {
 /// 设置里填 / 换密钥的弹窗。
 struct V3APIKeySheet: View {
     @Environment(V3State.self) private var state
-    @State private var provider = AIKeyProvider.anthropic
+    @State private var provider = AIKeyProvider.openrouter
     @State private var key = ""
     @State private var address = ""
 
     var body: some View {
         let had = state.apiProvider
-        V3SheetBox(width: 640, title: had == nil ? "自己的 API" : "换一把密钥", hint: "只存在这台 Mac 的钥匙串里。试用版不会拿它去连 AI。", primary: "存好",
+        V3SheetBox(width: 640, title: had == nil ? "OpenRouter 的密钥" : "换一把密钥", hint: "只存在这台 Mac 的钥匙串里。", primary: "存好",
                    canSave: !key.trimmingCharacters(in: .whitespaces).isEmpty,
                    save: {
                        if state.saveAPIKey(key, provider: provider, address: address) { key = ""; state.closeSheet() }
                    }) {
             V3APIKeyFields(provider: $provider, key: $key, address: $address)
         }
-        .onAppear { if let had { provider = had }; address = state.apiAddress }
+        .onAppear { provider = .openrouter; address = "" }
     }
 }
 #endif

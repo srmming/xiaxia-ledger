@@ -56,7 +56,7 @@ struct V3Backup: Identifiable {
 
 extension V3State {
     enum SettingsSub: String {
-        case ai, xia, memory, speak, privacy, author, books, business, money, sync, data
+        case ai, xia, memory, speak, privacy, author, books, business, money, sync, data, decision
         var title: String {
             switch self {
             case .ai: "管理 AI 连接"
@@ -70,6 +70,7 @@ extension V3State {
             case .money: "钱怎么进来"
             case .sync: "同步与币种"
             case .data: "数据"
+            case .decision: "决策模型"
             }
         }
     }
@@ -258,6 +259,7 @@ struct V3SettingsPage: View {
             switch state.settingsSub {
             case nil: home
             case .ai: V3SetAIPage()
+            case .decision: V3SetDecisionPage()
             case .xia: V3SetXiaPage()
             case .memory: V3SetMemoryPage()
             case .speak: V3SetSpeakPage()
@@ -355,24 +357,10 @@ private struct V3SetAIPage: View {
                 }
                 V3SetRow(title: "\(state.prefs.xiaName)自带的 AI", sub: "没连别的 AI，或者它连不上时用") { V3Tag(text: "备用", tone: .blue) }
             }
-            V3SetGroup(title: "自己的 API", note: "密钥只存在这台 Mac 的钥匙串里。试用版只管存、换、删，不会拿它去连 AI。") {
+            V3SetGroup(title: "OpenRouter") {
                 let _ = state.keyRevision
-                if let p = state.apiProvider {
-                    V3SetRow(title: p.shortTitle, detail: p.needsAddress ? state.apiAddress : "", line: false) {
-                        HStack(spacing: 8) {
-                            V3Tag(text: "已填", tone: .green)
-                            Button("换") { state.open(.apiKey) }.buttonStyle(.v3(.ghost, .small))
-                            Button("删") { state.deleteAPIKey() }.buttonStyle(.v3(.danger, .small))
-                        }
-                    }
-                } else {
-                    V3SetRow(title: "密钥", line: false) {
-                        HStack(spacing: 8) {
-                            V3Tag(text: "没填", tone: .blue)
-                            Button("填…") { state.open(.apiKey) }.buttonStyle(.v3(.primary, .small))
-                        }
-                    }
-                }
+                V3SetLink(title: "决策模型", value: state.hasOpenRouterKey ? "密钥已填 · \(state.decisionPrefs.decisionModel)" : "没连 · 按固定规则判断", line: false) { state.openSettings(.decision) }
+                V3SetRow(title: "问夏夏用哪个", detail: state.chatRouteLine) { EmptyView() }
             }
             VStack(spacing: 14) {
                 V3SetGroup(title: "再连一个", note: "Claude、Codex、Hermes 点一下就连好；别的 AI 复制一段话粘过去。") {

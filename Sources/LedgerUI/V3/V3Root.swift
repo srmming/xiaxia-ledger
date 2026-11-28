@@ -115,6 +115,7 @@ public struct V3RootView: View {
         .background(V3.bg)
         .ignoresSafeArea(.container, edges: V3Launch.overTitleBar ? .all : [])
         .modifier(V3LockWatcher())
+        .task { state.startDailyReminder() }
         .environment(state)
         .preferredColorScheme(.light)
         .background(V3WindowSetup())
@@ -541,8 +542,8 @@ private struct V3TopBar: View {
     /// 标题旁边只留「数据」：今天几号、哪家店。解释这页是干什么的那句话不放（ming 2026-11-27：小字太多）。
     private var subtitle: String {
         switch state.page {
-        case .overview: state.isThisMonth ? state.today : ""
-        case .bizHome: state.book.shopName
+        // 有月份切换的页，标题旁边不再放别的字（会被顶上的消息卡挡住）
+        case .overview, .bizHome: ""
         default: ""
         }
     }

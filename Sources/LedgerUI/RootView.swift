@@ -570,6 +570,7 @@ public struct XiaxiaScene: Scene {
         #else
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
+        // V3Launch 只有 Mac 有；iPhone 上是 PhoneV3Launch
         #if os(macOS)
         let v3 = V3Launch.enabled
         #else
