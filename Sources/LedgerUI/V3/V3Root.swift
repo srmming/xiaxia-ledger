@@ -85,7 +85,10 @@ public struct V3RootView: View {
     @State private var state: V3State
 
     public init() {
-        let s = V3State()
+        // `-XiaxiaV3Ledger demo`：不看编的那套试用数字，改看「示例正式账本」（DemoData，内存里现造的）整理出来的数。只读，不打开任何账本文件。
+        let args = ProcessInfo.processInfo.arguments
+        let useDemoLedger = args.firstIndex(of: "-XiaxiaV3Ledger").map { $0 + 1 < args.count && args[$0 + 1] == "demo" } ?? false
+        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make()) : V3State()
         V3Launch.apply(to: s)
         s.lockIfNeeded(.launch)
         _state = State(initialValue: s)

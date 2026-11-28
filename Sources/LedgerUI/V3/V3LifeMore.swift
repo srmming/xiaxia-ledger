@@ -108,7 +108,7 @@ struct V3SpendingPage: View {
         let biggest = slices.map(\.amount.cents).max() ?? 1
         V3Cols(left: 1.1, right: 1) {
             VStack(spacing: 16) {
-                if now { V3Ask(face: diff >= .zero ? "happy" : "calm",
+                if now, !state.readOnly { V3Ask(face: diff >= .zero ? "happy" : "calm",
                       text: diff >= .zero ? "比上月同期少花 \(diff.v3Short)\(state.book.savedPhrase(diff).isEmpty ? "" : "，" + state.book.savedPhrase(diff))。" : "比上月同期多花 \(diff.magnitude.v3Short)，跟你说一声。",
                       tone: diff >= .zero ? .good : .plain) }
                 V3KeyCard(label: now ? "\(state.monthLabel)到今天花掉" : "\(state.monthLabel)花掉", amount: m.spentTotal, size: 56) {

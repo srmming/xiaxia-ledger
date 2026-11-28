@@ -303,6 +303,20 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(Outlook.isUnusual(amount: 89_00, sameCategory: [], monthly: 1500_00))
     }
 
+    func testRealLedgerSnapshotIsReadOnly() {
+        let real = DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 18))
+        let s = V3State(snapshotOf: real, today: LocalDate(year: 2026, month: 11, day: 18))
+        XCTAssertTrue(s.readOnly); XCTAssertNil(s.onboardingStep)
+        XCTAssertFalse(s.book.accounts.isEmpty); XCTAssertFalse(s.book.entries.isEmpty)
+        let before = s.book
+        // 只看不写：记一笔、改、删都被挡住，并且说人话
+        let acc = s.book.accounts(for: .pay, side: .life).first?.name ?? ""
+        XCTAssertFalse(s.change("记") { try $0.record(name: "午饭", emoji: "🍜", amount: self.eur("9"), account: acc) })
+        XCTAssertTrue(s.toast?.text.contains("只能看") ?? false)
+        XCTAssertTrue(s.book == before)
+        XCTAssertEqual(s.monthLabel, "11 月")
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
