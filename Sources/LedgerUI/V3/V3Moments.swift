@@ -68,13 +68,14 @@ extension V3State {
         } else {
             body.append("九月你写过一句：\(wish)。后来我们把它变成了眼前的一步：\(j.name)，\(j.why.replacingOccurrences(of: "为了", with: ""))。那天定的第一步只有 50 块。")
         }
-        var middle = "到今天是 76 天。你忍住了 \(j.resisted) 杯 Café Nube"
+        // 忍住的不一定是咖啡（ming 2026-11-28：老写咖啡不合理），只说忍住了几次
+        var middle = "到今天是 76 天。你忍住了 \(j.resisted) 次没买"
         middle += j.monthlyPlan < Money(cents: 200_00) ? "，进账少的那个月把步子改成了 \(j.monthlyPlan.v3Short.replacingOccurrences(of: "\u{00A0}€", with: ""))，也没有停。" : "，一次也没有断。"
         body.append(middle)
         body.append(isEnd ? "\(st.target.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "")) 了，全走完了。去把它带回家吧。"
                     : "\(st.target.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "")) 了\(st.title == "走到一半" ? "，走到一半了" : "")。离你想过的那种日子，近了一点。")
         return Letter(title: st.title.isEmpty ? st.target.v3Short : st.title,
-                      quote: "「到今天是 76 天，你忍住了 \(j.resisted) 杯…」", date: "11 月 18 日",
+                      quote: "「到今天是 76 天，你忍住了 \(j.resisted) 次…」", date: "11 月 18 日",
                       tag: "第 \(index) 站 · 存到 \(st.target.v3Short)\(half)", headline: isEnd ? "你走完了。" : "你终于做到了。",
                       paragraphs: body,
                       facts: [["76 天", "从出发到这儿"], ["\(j.resisted) 次", "忍住没买"],

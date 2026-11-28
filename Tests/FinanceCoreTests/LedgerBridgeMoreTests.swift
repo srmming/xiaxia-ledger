@@ -647,6 +647,19 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(LedgerBridge.snapshot(of: l, today: today).subscriptions.first { $0.name == "杂志" }?.account, card.name)
     }
 
+    /// 「店里一共值」是负数时才有那句「欠的比有的多 X」，X 就是差的那个数；不是负数没有这句。
+    func testShopWorthNoteOnlyWhenNegative() {
+        let demo = TrialBook.demo
+        XCTAssertLessThan(demo.shopWorth.net, .zero, "示例里的店欠的比有的多")
+        XCTAssertEqual(demo.shopWorthNote, "欠的比有的多 \(demo.shopWorth.net.magnitude.formatted)")
+        let real = LedgerBridge.snapshot(of: ledger, today: today)
+        XCTAssertGreaterThan(real.shopWorth.net, .zero)
+        XCTAssertNil(real.shopWorthNote)
+        var none = demo
+        none.wipe()
+        XCTAssertNil(none.shopWorthNote, "正好是 0 也不显示")
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

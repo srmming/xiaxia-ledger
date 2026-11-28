@@ -346,8 +346,8 @@ struct V3TrendsPage: View {
                         }
                     }
                     .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
-                    stat("接下来要付", due.v3, b.month.income >= due ? "进账够付，还多 \((b.month.income - due).v3Short)" : "比进账多 \((due - b.month.income).v3Short)", b.month.income >= due ? V3.green : V3.red)
-                    stat("没了收入，钱还能撑", "\(run.monthsText) 个月", "按平时每月花算", V3.ink2)
+                    stat("接下来要付", due.v3, b.month.income >= due ? "钱够，还多 \((b.month.income - due).v3Short)" : "比进账多 \((due - b.month.income).v3Short)", b.month.income >= due ? V3.green : V3.red)
+                    stat("没收入还能撑", "\(run.monthsText) 个月", "按平时每月花算", V3.ink2)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 V3GrowCard {
@@ -442,9 +442,11 @@ struct V3TrendsPage: View {
 
     private func stat(_ label: String, _ value: String, _ note: String, _ noteColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            V3Label(label)
+            V3Label(label).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             V3Amount(value, size: 23, weight: .heavy)
+            // 字多了就折成两行，不许顶出卡片盖到旁边
             V3Label(note, color: noteColor, weight: noteColor == V3.ink2 ? .regular : .bold)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).v3Soft()
     }
