@@ -112,6 +112,8 @@ struct V3SheetBox<Content: View, Extra: View>: View {
     var teal = false
     var danger = false
     var canSave = true
+    /// 底部只留一个主按钮（没有「取消」）。
+    var single = false
     var save: () -> Void
     @ViewBuilder var extra: Extra
     @ViewBuilder var content: Content
@@ -132,7 +134,7 @@ struct V3SheetBox<Content: View, Extra: View>: View {
             HStack(spacing: 10) {
                 if !foot.isEmpty { V3Label(foot, size: 13).lineLimit(2) }
                 Spacer(minLength: 8)
-                Button("取消") { state.closeSheet() }.buttonStyle(.v3(.ghost))
+                if !single { Button("取消") { state.closeSheet() }.buttonStyle(.v3(.ghost)) }
                 extra
                 Button(primary, action: save).buttonStyle(.v3(danger ? .danger : teal ? .teal : .primary)).disabled(!canSave).keyboardShortcut(.defaultAction).help(hint)
             }
@@ -147,8 +149,8 @@ struct V3SheetBox<Content: View, Extra: View>: View {
 
 extension V3SheetBox where Extra == EmptyView {
     init(width: CGFloat = 540, title: String, sub: String = "", foot: String = "", hint: String = "", primary: String = "记好", teal: Bool = false, danger: Bool = false,
-         canSave: Bool = true, save: @escaping () -> Void, @ViewBuilder content: () -> Content) {
-        self.init(width: width, title: title, sub: sub, foot: foot, hint: hint, primary: primary, teal: teal, danger: danger, canSave: canSave, save: save,
+         canSave: Bool = true, single: Bool = false, save: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.init(width: width, title: title, sub: sub, foot: foot, hint: hint, primary: primary, teal: teal, danger: danger, canSave: canSave, single: single, save: save,
                   extra: { EmptyView() }, content: content)
     }
 }
@@ -314,9 +316,9 @@ struct V3ManualSheet: View {
         }
         .onAppear {
             if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
-            let s = state.book.transferShortcuts.first
-            from = s?.from ?? state.book.transferSources.first?.name ?? ""
-            to = s?.to ?? state.book.transferTargets.first { $0.name != from }?.name ?? ""
+            let s = bookSide == .life ? state.book.transferShortcuts.first : nil
+            from = s?.from ?? state.book.transferSources(bookSide).first?.name ?? ""
+            to = s?.to ?? state.book.transferTargets(bookSide).first { $0.name != from }?.name ?? ""
         }
         .onChange(of: kind) { _, _ in account = 0 }
     }
@@ -376,7 +378,7 @@ struct V3ManualSheet: View {
 
     @ViewBuilder private var transferFields: some View {
         let b = state.book
-        let shortcuts = b.transferShortcuts
+        let shortcuts = bookSide == .life ? b.transferShortcuts : []
         if !shortcuts.isEmpty {
             FlowLayout(spacing: 6) {
                 ForEach(Array(shortcuts.enumerated()), id: \.offset) { _, sc in
@@ -387,12 +389,12 @@ struct V3ManualSheet: View {
         V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220).frame(maxWidth: .infinity)
         V3AmountHint(text: amount)
         HStack(spacing: 10) {
-            accountCard("从", from, b.transferSources) { from = $0; if to == $0 { to = b.transferTargets.first { $0.name != from }?.name ?? "" } }
+            accountCard("从", from, b.transferSources(bookSide)) { from = $0; if to == $0 { to = b.transferTargets(bookSide).first { $0.name != from }?.name ?? "" } }
             VStack(spacing: 6) {
                 Image(systemName: "arrow.right").font(.system(size: 24, weight: .heavy)).foregroundStyle(V3.navy)
                 Button {
                     // 对调：只有两边都能当「从」时才调得过来
-                    if b.transferSources.contains(where: { $0.name == to }) { withAnimation(.snappy(duration: 0.15)) { (from, to) = (to, from) } }
+                    if b.transferSources(bookSide).contains(where: { $0.name == to }) { withAnimation(.snappy(duration: 0.15)) { (from, to) = (to, from) } }
                     else { state.fail("「\(to)」里的钱转不出来，调不过来") }
                 } label: {
                     Image(systemName: "arrow.left.arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 26, height: 22)
@@ -400,7 +402,7 @@ struct V3ManualSheet: View {
                 }
                 .buttonStyle(.plain).help("对调").accessibilityLabel("从和到对调")
             }
-            accountCard("到", to, b.transferTargets.filter { $0.name != from }) { to = $0 }
+            accountCard("到", to, b.transferTargets(bookSide).filter { $0.name != from }) { to = $0 }
         }
     }
 

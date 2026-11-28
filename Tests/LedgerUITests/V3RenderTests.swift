@@ -71,6 +71,12 @@ final class V3RenderTests: XCTestCase {
             _ = s.addAccount(emoji: "💳", name: "第二张卡", note: "", balance: Money(cents: 120_00), kind: .own)
             s.sheet = .subscription
         }
+        // 生活和生意的账户分开：生活的总览、家底、管理账户里没有店里的；店里的在生意那边管
+        try shell("split-overview") { $0.page = .overview }
+        try shell("split-wealth") { $0.page = .wealth }
+        try shell("split-accounts-life") { $0.page = .wealth; $0.sheet = .accounts }
+        try shell("split-accounts-biz") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .accounts }
+        try shell("split-manual-biz") { $0.side = .biz; $0.page = .bizHome; $0.sheet = .manual }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

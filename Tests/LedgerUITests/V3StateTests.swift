@@ -11,12 +11,12 @@ final class V3StateTests: XCTestCase {
     func testDemoNumbersMatchTheDesign() {
         let s = V3State()
         XCTAssertEqual(s.book.month.left, eur("976,61"))
-        XCTAssertEqual(s.book.totals.have, eur("8420"))
+        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "生活的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"))
-        XCTAssertEqual(s.book.totals.net, eur("6580"))
+        XCTAssertEqual(s.book.totals.net, eur("2660,61"))
         XCTAssertEqual(s.book.journey.remainingToNext, eur("181"))
         XCTAssertEqual(s.book.runway.monthsText, "2,8")
-        // 四块加起来就是「一共有」；私房钱、借出去的不算
+        // 三块加起来就是「一共有」；店里的钱、私房钱、借出去的不算
         let blocks = s.book.sum(.daily) + s.book.sum(.emergency) + s.book.sum(.goal) + s.book.sum(.shop)
         XCTAssertEqual(blocks, s.book.totals.have)
     }
@@ -69,9 +69,9 @@ final class V3StateTests: XCTestCase {
         let s = V3State()
         s.addAccount(emoji: "🤝", name: "跟朋友借的", note: "欠的钱", balance: eur("300"), kind: .debt)
         XCTAssertEqual(s.book.totals.owe, eur("2140"))
-        XCTAssertEqual(s.book.totals.net, eur("6280"))
+        XCTAssertEqual(s.book.totals.net, eur("2360,61"))
         s.addAccount(emoji: "🧑", name: "借给小王", note: "别人欠我", balance: eur("50"), kind: .lent)
-        XCTAssertEqual(s.book.totals.have, eur("8420"), "借出去的收回来之前不算进一共有")
+        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "借出去的收回来之前不算进一共有")
     }
 
     func testOnboardingStepsGoStraightIn() {
@@ -150,7 +150,8 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.fixedTotal, eur("1825"))
         let net = s.book.totals.net
         XCTAssertTrue(s.change("转好了") { try $0.transferBetweenSides(self.eur("300"), toHome: true, shopAccount: "小店账户", homeAccount: "日常卡") })
-        XCTAssertEqual(s.book.totals.net, net, "两边挪钱，净剩不变")
+        XCTAssertEqual(s.book.totals.net, net + eur("300"), "店里拿回家 300：生活这边多 300")
+        XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("100") - eur("300"), "店里少 300")
     }
 
     func testMemoryCategoriesAndAccounts() {
@@ -418,7 +419,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(w.owes, eur("8900"), "贷款 8.400 + 信用卡 180 + 欠供货商 320")
         XCTAssertEqual(w.net, eur("-2295,61"))
         XCTAssertEqual(w.monthsText, "2,2")
-        XCTAssertEqual(s.book.totals.have, eur("8420"), "生活家底的「一共有」口径没变")
+        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "生活家底的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"), "店里欠的不算进生活的欠款")
         // 店里新加一张卡：家底、记账选账户、两边转钱都看得到
         XCTAssertTrue(s.change("加好了") { try $0.addShopAccount(emoji: "🏪", name: "店的第二张卡", balance: self.eur("500"), owes: false) })

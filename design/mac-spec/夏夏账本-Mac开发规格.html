@@ -542,7 +542,7 @@ const overBody=`
   <div class="card" style="padding:14px 16px">
     <div class="ct">今天自己进来的 <small>3 笔 · 全部 ›</small></div>
     <div class="rows c">
-      ${row('🛒','超市','Mercadona · 日常卡','−23,40 €','blue','<span class="tag">流水导入</span>')}
+      ${row('🛒','超市','Super Sol · 日常卡','−23,40 €','blue','<span class="tag">流水导入</span>')}
       ${row('☕','咖啡','Café Nube · 现金','−3,20 €','blue','<span class="tag">跟 AI 说的</span>')}
       ${row('🥗','午饭','La Tasca · 日常卡','−12,50 €','blue','<span class="tag">拍小票</span>')}
     </div>
@@ -647,7 +647,7 @@ const p_wealth=page('life','家底','家底','你现在一共有多少、欠多�
   </div>
   <div class="ct">我的账户 <span class="tag">5 个</span><small><button class="btn ghost sm" data-t="加一个账户：银行卡、现金、借入、借出">+ 加账户</button></small></div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-    ${acard('💳','日常卡','Revolut · 今天刚导入','1.496,61 €')}
+    ${acard('💳','日常卡','晴空银行 · 今天刚导入','1.496,61 €')}
     ${acard('🏦','储蓄','应急钱放这里 · 不动','2.400,00 €')}
     ${acard('⭐','目标罐','换新电脑 · 这一站 519 / 700','519,00 €')}
     ${acard('💶','现金','钱包里 · 上次点数 11 月 10 日','85,00 €')}
@@ -707,7 +707,7 @@ const p_tx=page('life','流水','流水','钱自己进来，你只管看一眼',
  <div class="col">
   <div class="stick" style="flex-direction:row;align-items:center;gap:16px;border-style:dashed;background:var(--soft)">
     <div style="font-size:34px">📄</div>
-    <div style="flex:1;display:grid;gap:6px"><b>正在读「Revolut 11 月流水」· 已读 <span class="num" id="imp">37</span> / 52 笔</b><div class="bar"><i id="impb" style="width:71%"></i></div><span class="lab">新的 31 笔 · 重复的 6 笔已跳过 · 把别的流水也拖到这里就行</span></div>
+    <div style="flex:1;display:grid;gap:6px"><b>正在读「晴空银行 11 月流水」· 已读 <span class="num" id="imp">37</span> / 52 笔</b><div class="bar"><i id="impb" style="width:71%"></i></div><span class="lab">新的 31 笔 · 重复的 6 笔已跳过 · 把别的流水也拖到这里就行</span></div>
     <button class="btn ghost sm" data-t="先停下了，已读的 37 笔留着">先停下</button>
   </div>
   ${xb('think','「Super Lumi」那笔 18,60 €，我帮你归进超市？','',b('好','','归好了，以后这家店都按超市')+b('不是','ghost','那它算什么？'))}
@@ -715,7 +715,7 @@ const p_tx=page('life','流水','流水','钱自己进来，你只管看一眼',
     <div class="inp" style="padding:6px 14px;border-width:1.5px"><span>🔍</span><span>搜店名、金额、分类</span></div>
     <span class="lab" style="font-weight:700">今天 · 11 月 18 日</span>
     <div class="rows">
-      ${row('🛒','超市','Mercadona · 日常卡','−23,40 €','blue','<span class="tag">流水导入</span>')}
+      ${row('🛒','超市','Super Sol · 日常卡','−23,40 €','blue','<span class="tag">流水导入</span>')}
       ${row('☕','咖啡','Café Nube · 现金','−3,20 €','blue','<span class="tag">跟 AI 说的</span>')}
       ${row('🥗','午饭','La Tasca · 日常卡','−12,50 €','blue','<span class="tag">拍小票</span>')}
     </div>
@@ -833,7 +833,7 @@ const p_month=page('life','每月小结','10 月小结','每个月一份，11 �
 </div>`);
 
 /* ================= 生意 ================= */
-const p_biz=page('biz','生意首页','生意首页','Miora 小店 · 11 月',`
+const p_biz=page('biz','生意首页','生意首页','晴空小花店 · 11 月',`
 <div class="cols" style="grid-template-columns:1.35fr 1fr">
  <div class="col">
   <div style="width:74%">${xb('think','这周一句：周六收得最多，一天顶平时两天。固定开销已经赚回来了，后面收的都是你的。','',"","每周一句")}</div>
@@ -918,7 +918,7 @@ const p_set=page('life','设置','设置','',`
  </div>
  <div class="col">
   <div class="card"><div class="ct">钱怎么进来</div><div class="rows">
-    ${setrow('流水导入','上次：今天 · Revolut 52 笔',b('再导一份','ghost','把文件拖进窗口就行'))}
+    ${setrow('流水导入','上次：今天 · 晴空银行 52 笔',b('再导一份','ghost','把文件拖进窗口就行'))}
     ${setrow('手机拍的小票','自动同步到这台 Mac',sw(1))}
     ${setrow('跟 AI 说一句','「刚才咖啡 3 块 2」',sw(1))}
   </div></div>
@@ -1027,7 +1027,7 @@ const p_log=page('life','设置','改动记录','账本每一次改动都记着�
    ${logrow('🧾','拍小票','记一笔：午饭 12,50 € · 日常卡','今天 13:05','')}
    ${logrow('🛒','夏夏','「Super Lumi」归进超市，以后这家店都这样','今天 10:42','g')}
    ${logrow('🔁','Claude','把「健身房 29 €」标成像订阅，等你确认','今天 10:41','y')}
-   ${logrow('📄','流水导入','导入「Revolut 11 月流水」31 笔，跳过重复 6 笔','今天 10:40','')}
+   ${logrow('📄','流水导入','导入「晴空银行 11 月流水」31 笔，跳过重复 6 笔','今天 10:40','')}
    ${logrow('☕','Claude','记一笔：咖啡 3,20 € · 现金','今天 09:12','y')}
    ${logrow('⭐','你','存一笔 20 € 进「换新电脑」','今天 08:30','')}
  </div></div></div>
@@ -1081,7 +1081,7 @@ const p_stock=page('biz','货值','货值','不数库存，只估一个总数',`
  </div>
  <div class="col">
   <div class="card"><div class="ct">这个季度进的货 <small>3 次 · 890 €</small></div><div class="rows c">
-   ${row('📦','甲油胶补货','11 月 12 日','−340,00 €')}
+   ${row('📦','花材补货','11 月 12 日','−340,00 €')}
    ${row('📦','工具和耗材','10 月 28 日','−310,00 €')}
    ${row('📦','饰品','10 月 6 日','−240,00 €')}
   </div><div>${b('记一次进货','teal','进了多少钱的货？')}</div></div>
@@ -1140,7 +1140,7 @@ const s_manual=sheet(640,'记一笔 · 自己填','说一句认错了，或者�
 const p_manual=page('life','总览','总览','11 月 18 日 · 周三',overBody,s_manual);
 const addVar=(pick,mid)=>page('life','总览','总览','11 月 18 日 · 周三',overBody,`<div class="dim"><div class="sheet" style="width:700px"><div style="display:flex;align-items:center;gap:12px"><div style="font-size:22px;font-weight:800">记一笔</div><span class="lab">一个动作就记完，记错能撤销</span></div><div class="pick3">${[['💬 说一句','打字或者按住说话'],['🧾 拍小票','手机拍，自动传过来'],['📄 拖流水','一次进来一个月的']].map(([a,c],i)=>`<div class="opt ${i==pick?'pick':''}"><b>${a}</b><span>${c}</span></div>`).join('')}</div>${mid}</div></div>`);
 const p_add_receipt=addVar(1,`<div class="stick" style="flex-direction:row;align-items:center;gap:16px;border-style:dashed;background:var(--soft);min-height:150px"><div style="font-size:44px">🧾</div><div style="flex:1;display:grid;gap:4px"><b style="font-size:17px">把小票照片拖到这里</b><span class="lab">或者用手机上的夏夏账本拍一张，几秒钟后自己出现在这里。</span></div>${B('选一张照片','ghost')}</div><div class="rows">${row('🧾','手机刚拍的 1 张','La Tasca · 12,50 € · 13:05 拍的','−12,50 €','blue','<span class="tag y">等你点一下</span>')}</div><div class="sf"><span class="lab" style="flex:1">认出来的店名、金额、日期都能改。</span>${B('关掉','ghost')}${B('记下这 1 张','','记好了 · 午饭 12,50 €')}</div>`);
-const p_add_file=addVar(2,`<div class="stick" style="align-items:center;gap:10px;border-style:dashed;background:var(--soft);min-height:190px;justify-content:center;text-align:center"><div style="font-size:44px">📄</div><b style="font-size:17px">把银行流水拖到这里</b><span class="lab">认得 Revolut、N26、CaixaBank、imagin 导出的 CSV。别的银行也能试，认不出来我会问你哪一列是金额。</span>${B('选一个文件','ghost')}</div><div class="sf"><span class="lab" style="flex:1">重复的会自动跳过，导错了能整批撤销。</span>${B('关掉','ghost')}</div>`);
+const p_add_file=addVar(2,`<div class="stick" style="align-items:center;gap:10px;border-style:dashed;background:var(--soft);min-height:190px;justify-content:center;text-align:center"><div style="font-size:44px">📄</div><b style="font-size:17px">把银行流水拖到这里</b><span class="lab">认得 晴空银行、海风银行、山丘银行、小橘银行 导出的 CSV。别的银行也能试，认不出来我会问你哪一列是金额。</span>${B('选一个文件','ghost')}</div><div class="sf"><span class="lab" style="flex:1">重复的会自动跳过，导错了能整批撤销。</span>${B('关掉','ghost')}</div>`);
 
 const s_save=sheet(520,'存一笔','存进「换新电脑」这条路',
  `${fld('存多少','20,00 €',{big:1,on:1,p:'amount'})}
@@ -1152,7 +1152,7 @@ const p_save=page('life','目标','目标','一个大目标，拆成几站慢慢
 
 const accForm=(del)=>`${fld('叫什么','日常卡',{on:1,p:'name'})}
   <div class="fld"><span>是哪一种</span>${segs(['银行卡','信用卡','现金','电子钱包','储蓄'],0)}</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${fld('银行或机构','Revolut',{note:'可不填'})}${fld('币种',pop('欧元 €'))}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${fld('银行或机构','晴空银行',{note:'可不填'})}${fld('币种',pop('欧元 €'))}</div>
   ${fld('现在里面有多少','1.500,00 €',{note:'填个大概就行，以后再对。记成一开始的余额，不算收入。信用卡欠的钱前面加减号。',p:'balance'})}
   <div class="rows">${srow('这是私房钱','默认藏着，不算进家底的三个数',sw(0),'private')}</div>${del?`<div class="rows">${srow('<span class="red">删除这个账户</span>','里面还有流水时不能删，先把流水删掉或改到别的账户。',B('删除…','ghost sm red'))}</div>`:''}`;
 const s_acc=sheet(560,'加一个账户','银行卡、现金、信用卡、借出去的、欠别人的',accForm(0),`<span class="lab" style="flex:1">导入流水时，没见过的账户会自己建好。</span>${B('取消','ghost')}${B('加好','','加好了：日常卡')}`);
@@ -1223,7 +1223,7 @@ const p_set2=page('life','设置','设置','',`
   ${grp('这台 Mac',srow('隐私与语言','私房钱、界面语言',go('私房钱藏着 · 中文'),'r-privacy')+srow('记账人','改动记录里用这个名字',go('小满'),'r-author'),'','g-mac','grow')}
  </div>
  <div class="col">
-  ${grp('账本',srow('账本与账户','账本、账户、分类',go('2 个账本 · 8 个账户'),'r-books')+srow('生意模式','首页分生活、生意两边',go('开着 · Miora 小店'),'r-business')+srow('钱怎么进来','流水、小票、跟 AI 说一句',go('上次：今天'),'r-money')+srow('同步与币种','账本放在哪、更新、汇率',go('<i style="color:var(--green)">●</i> 账本已读到 · 欧元 €'),'r-sync')+srow('改动记录','每一次改动都能撤销',go('今天 6 次'),'r-log'),'','g-book')}
+  ${grp('账本',srow('账本与账户','账本、账户、分类',go('2 个账本 · 8 个账户'),'r-books')+srow('生意模式','首页分生活、生意两边',go('开着 · 晴空小花店'),'r-business')+srow('钱怎么进来','流水、小票、跟 AI 说一句',go('上次：今天'),'r-money')+srow('同步与币种','账本放在哪、更新、汇率',go('<i style="color:var(--green)">●</i> 账本已读到 · 欧元 €'),'r-sync')+srow('改动记录','每一次改动都能撤销',go('今天 6 次'),'r-log'),'','g-book')}
   ${grp('数据和帮助',srow('数据','演示数据、删除数据、从备份恢复',go(''),'r-data')+srow('反馈问题 / 提个想法','写好用邮件发给我们',go(''),'r-feedback')+srow('更新日志','每一版改了什么（官网）',go(''),'r-changelog'),'','g-help','grow')}
   <div class="lab" data-p="version" style="text-align:right">版本 0.3.0（202611280001）</div>
  </div>
@@ -1258,23 +1258,23 @@ const p_connect_none=over(p_set_ai,s_connect_none);
 
 const booksBody=`
 <div class="cols" style="grid-template-columns:1fr 1fr">
- <div class="col">${grp('账本',srow('🏠 生活','1.240 笔流水 · 5 个账户','<span class="tag">生活</span>')+srow('🏪 Miora 小店','288 笔流水 · 3 个账户','<span class="tag t">生意</span>'),'每个账本有自己的收支和小结。账户可以两边混用。','books','grow')}</div>
+ <div class="col">${grp('账本',srow('🏠 生活','1.240 笔流水 · 5 个账户','<span class="tag">生活</span>')+srow('🏪 晴空小花店','288 笔流水 · 3 个账户','<span class="tag t">生意</span>'),'每个账本有自己的收支和小结。账户可以两边混用。','books','grow')}</div>
  <div class="col">${grp('管理',srow('管理账本','新建、改名、删除',go('2 个'),'m-books')+srow('管理账户','加、改、删，标成私房钱',go('8 个'),'m-accounts')+srow('管理分类','换图标、改名、把两个并成一个',go('14 个'),'m-cats'),'','manage','grow')}</div>
 </div>`;
 const p_set_books=setp('账本与账户','有几本账、几个账户、哪些分类',booksBody);
 const s_books=sheet(520,'管理账本','每个账本有自己的收支和小结',
- `<div class="rows" data-p="list">${srow('🏠 生活','1.240 笔流水',`<span class="tag">生活</span><span class="more">⋯</span>`)}${srow('🏪 Miora 小店','288 笔流水 · 2 个计划',`<span class="tag t">生意</span><span class="more" data-p="more">⋯</span>`)}</div>
+ `<div class="rows" data-p="list">${srow('🏠 生活','1.240 笔流水',`<span class="tag">生活</span><span class="more">⋯</span>`)}${srow('🏪 晴空小花店','288 笔流水 · 2 个计划',`<span class="tag t">生意</span><span class="more" data-p="more">⋯</span>`)}</div>
   <div class="menu" data-p="menu"><span>改名…</span><span class="red">删除…</span></div>
   <div class="fld" data-p="new"><span>新建账本</span><div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center"><div class="inp ph">比如「家庭」「第二家店」</div>${segs(['生活','生意'],0)}${B('新建','sm')}</div></div>`,
  `<span class="lab" style="flex:1">删错了可以在改动记录里撤销。</span>${B('完成','','好')}`);
 const p_books=over(p_set_books,s_books);
 const s_bookdel=sheet(480,'删除「第二家店」？','里面有 36 笔流水、1 个分期',
- `<div class="fld"><span>这些流水挪到哪个账本</span>${pop('Miora 小店')}</div><span class="lab">流水不会丢，只是换到另一个账本。删错了可以在改动记录里撤销。</span>`,
- `${B('取消','ghost')}${B('挪过去并删除','red ghost','删掉了「第二家店」，36 笔挪到 Miora 小店')}`);
+ `<div class="fld"><span>这些流水挪到哪个账本</span>${pop('晴空小花店')}</div><span class="lab">流水不会丢，只是换到另一个账本。删错了可以在改动记录里撤销。</span>`,
+ `${B('取消','ghost')}${B('挪过去并删除','red ghost','删掉了「第二家店」，36 笔挪到 晴空小花店')}`);
 const p_bookdel=over(p_set_books,s_bookdel);
 const s_accounts=`<div class="dim"><div class="sheet" data-p="sheet" style="width:860px;flex-direction:row;gap:22px;padding:24px 26px">
   <div style="width:300px;display:flex;flex-direction:column;gap:10px;flex:none" data-p="list"><div class="sh"><b>管理账户</b></div><div class="rows c">
-   ${['💳|日常卡|银行卡 · Revolut|1','🏦|储蓄|储蓄','⭐|目标罐|储蓄','💶|现金|现金','🏪|小店账户|银行卡 · 生意','💳|信用卡|信用卡','📱|手机分期|分期','🙈|私房钱|私房钱 · 藏着'].map(x=>{const [e,n,t,on]=x.split('|');return `<div class="row" style="${on?'background:var(--soft);border-radius:10px;padding-left:8px;padding-right:8px':''}"><div class="ico">${e}</div><div><div class="nm">${n}</div><div class="mt">${t}</div></div></div>`}).join('')}</div>${B('＋ 加一个账户','ghost sm')}</div>
+   ${['💳|日常卡|银行卡 · 晴空银行|1','🏦|储蓄|储蓄','⭐|目标罐|储蓄','💶|现金|现金','🏪|小店账户|银行卡 · 生意','💳|信用卡|信用卡','📱|手机分期|分期','🙈|私房钱|私房钱 · 藏着'].map(x=>{const [e,n,t,on]=x.split('|');return `<div class="row" style="${on?'background:var(--soft);border-radius:10px;padding-left:8px;padding-right:8px':''}"><div class="ico">${e}</div><div><div class="nm">${n}</div><div class="mt">${t}</div></div></div>`}).join('')}</div>${B('＋ 加一个账户','ghost sm')}</div>
   <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0" data-p="form"><div class="sh"><b>改账户</b><span class="lab">日常卡</span></div>${accForm(1)}<div class="sf">${B('完成','ghost')}${B('保存','','存好了：日常卡')}</div></div>
  </div></div>`;
 const p_accounts=over(p_set_books,s_accounts);
@@ -1290,7 +1290,7 @@ const bizSet=(on,cap)=>`
 <div class="cols" style="grid-template-columns:1.2fr 1fr">
  <div class="col">
   <div class="stick" data-p="switch" style="flex-direction:row;align-items:center;gap:14px"><div style="flex:1"><div style="font-size:20px;font-weight:800">生意模式</div><div class="lab">首页分生活、生意两边；店里的账算利润和回本。</div></div>${sw(on)}</div>
-  ${on?grp('哪个账本是店里的',srow('Miora 小店','288 笔流水','<span class="radio on"></span>')+srow('第二家店','36 笔流水','<span class="radio"></span>'),'你有 2 个生意账本，选一个当店里的，别的都算生活那边。不会合并，也不改以前的账。','pick'):''}
+  ${on?grp('哪个账本是店里的',srow('晴空小花店','288 笔流水','<span class="radio on"></span>')+srow('第二家店','36 笔流水','<span class="radio"></span>'),'你有 2 个生意账本，选一个当店里的，别的都算生活那边。不会合并，也不改以前的账。','pick'):''}
   ${on?grp('开店本钱',cap?srow('32.000,00 €','2025 年 3 月开店 · 已经赚回 52%',B('改本钱…','ghost sm','打开「开店本钱」')):srow('还没填','填一个总数，夏夏就能算什么时候回本。',B('填本钱…','teal sm','打开「开店本钱」')),'','capital','grow'):`<div class="card grow"><div class="xb"><div class="ava calm"></div><div class="bub">生意模式关着。打开后左上角会多出「生活｜生意」，店里的账单独算利润和回本。</div></div></div>`}
  </div>
  <div class="col">
@@ -1404,7 +1404,7 @@ const p_set_speak=setp('夏夏什么时候开口','每一样都能关。关了�
 const p_set_money=setp('钱怎么进来','三条路，哪条都不用你一笔一笔记',`
 <div class="cols" style="grid-template-columns:1fr 1fr">
  <div class="col">
-  ${grp('流水导入',srow('上次导入','今天 10:40 · Revolut 11 月流水 · 新的 31 笔，跳过重复 6 笔',B('再导一份','ghost sm','把文件拖进窗口就行'),'last')+srow('认得哪些银行','Revolut、N26、CaixaBank、imagin',go('怎么从银行导出'))+srow('重复的流水','同一天、同一金额、同一家店的只留一笔',sw(1)),'导错了能在改动记录里整批撤销。','import','grow')}
+  ${grp('流水导入',srow('上次导入','今天 10:40 · 晴空银行 11 月流水 · 新的 31 笔，跳过重复 6 笔',B('再导一份','ghost sm','把文件拖进窗口就行'),'last')+srow('认得哪些银行','晴空银行、海风银行、山丘银行、小橘银行',go('怎么从银行导出'))+srow('重复的流水','同一天、同一金额、同一家店的只留一笔',sw(1)),'导错了能在改动记录里整批撤销。','import','grow')}
  </div>
  <div class="col">
   ${grp('手机拍的小票',srow('自动传到这台 Mac','手机上拍，几秒钟后出现在「记一笔」里',sw(1),'phone')+srow('认出来以后','',pop('等我点一下再记')),'','receipt')}
@@ -1420,7 +1420,7 @@ const s_feedback=sheet(560,'反馈问题 / 提个想法','写好用邮件发给�
 const p_feedback=over(p_set2,s_feedback);
 
 /* ================= 全局 ================= */
-const p_drop=over(p_over,`<div class="dim" style="background:rgba(46,58,130,.55)"><div class="stick" data-p="drop" style="width:620px;align-items:center;text-align:center;gap:10px;border-style:dashed;background:var(--soft);padding:44px"><div style="font-size:56px">📄</div><b style="font-size:24px">松手，我来读</b><span class="lab" style="font-size:15px">Revolut 11 月流水.csv · 流水、小票照片都行</span></div></div>`);
+const p_drop=over(p_over,`<div class="dim" style="background:rgba(46,58,130,.55)"><div class="stick" data-p="drop" style="width:620px;align-items:center;text-align:center;gap:10px;border-style:dashed;background:var(--soft);padding:44px"><div style="font-size:56px">📄</div><b style="font-size:24px">松手，我来读</b><span class="lab" style="font-size:15px">晴空银行 11 月流水.csv · 流水、小票照片都行</span></div></div>`);
 const p_whatsnew=over(p_over,sheet(600,'夏夏账本更新到 0.3.0 了','这一版改了三件事',
  `<div class="rows">${row('🧭','目标变成一条路','大目标拆成几站，左边栏一直看得到走到哪了','')}${row('✉️','到站有一封信','只写给你的，收在「沿途风光」','')}${row('📄','流水拖进来就行','重复的自动跳过，一笔一笔跳数字','')}</div>`,
  `<span class="lab" style="flex:1">账本没动。更新前的备份在「更新前备份」文件夹。</span>${B('看全部更新日志','ghost')}${B('知道了')}`));
@@ -1615,7 +1615,7 @@ P({t:'生意首页',kind:'v3 已有',what:'最大的数是「真正赚了」，�
  pins:[[c(1,1)+' .bub','每周一句','Bubble','最上面有一个小标题「每周一句」'],[c(1,2),'真正赚了','StickerCard',''],[c(1,2)+' .gold','赚了多少','HeroNumber · 72',''],[c(1,3),'为什么不一样','ProfitVsCashCard','两个数并排，中间写差的去了哪'],[c(2,1),'今天收了多少','StickerCard','这页有两张贴纸卡：这张是能填的'],[c(2,1)+' .inp','金额框','AmountField · 大','22 圆体'],[c(2,1)+' .btn','记好','Button · 青',''],[c(2,2),'回本','PaybackMiniCard','圆环 86，线粗 12'],[c(2,3),'给自己发工资','SalaryCard','']],
  act:[['填数点「记好」','记下今天的总数，提示条写「够付今天的固定开销了」或者「还差 14 €」',M.toast],['点金额框旁边的小箭头','弹出「记今天的账」，现金和刷卡分开填（C2）',M.sheet],['点「多拿一点回家」','弹出「两边转钱」（C3）',M.sheet],['点回本那张卡','去「回本」',M.none]],
  data:[['真正赚了','businessReport 的利润，再减掉给自己发的工资',H],['手里实际多了','店里几个账户这个月余额的变化',H],['差的去了哪','进货里还没卖掉的、还贷款的本金',N0],['回本','capitalProgress',H],['每周一句','固定规则加说法',N0]],
- strip:st3('biz','生意首页','生意首页','Miora 小店 · 11 月',['店里还没有账','先记今天收了多少。记满一个星期，我就能说点有用的。',['记今天的账','填开店本钱']]),
+ strip:st3('biz','生意首页','生意首页','晴空小花店 · 11 月',['店里还没有账','先记今天收了多少。记满一个星期，我就能说点有用的。',['记今天的账','填开店本钱']]),
  keys:['<kbd>⇧⌘N</kbd> 记今天的账','读屏：先念「十一月真正赚了 1520 欧 26 分，已经扣掉给自己发的 1000 欧工资」']});
 P({t:'记今天的账',kind:'这次补的',what:'现金和刷卡分开填。照着现在 app 里「记今天的账」来。',win:p_daily,
  pins:[[d('sheet'),'这张纸','Sheet','宽 520'],[d('amount'),'收的现金','AmountField · 大',''],[d('preview'),'今天一共','PreviewTile','两个数加起来，跟着变']],
@@ -1717,7 +1717,7 @@ P({t:'记账人',kind:'这次补的',what:'设置 → 记账人。',win:p_set_au
  act:[['改完回车或离开这一页','存好。以后你记的、改的都记在新名字下，以前的不改',M.toast],['清空再离开','不存，恢复成原来的名字',M.none]],
  data:[['名字','这台 Mac 自己的设置；写进每条改动记录的作者',H]],keys:['<kbd>↩</kbd> 存']});
 P({t:'数据',kind:'这次补的',what:'设置 → 数据。演示数据、删除数据、从备份恢复。删除要过两道确认。',win:p_set_data,
- pins:[[d('g-demo'),'演示数据','SettingsGroup',''],[d('scope'),'删哪些','SettingsRow + PopUp','全部数据 / 只删「生活」账本 / 只删「Miora 小店」账本'],[d('delete'),'会删掉什么','SettingsRow','写清几笔流水、几个目标和欠款。里面没东西时写「这里面现在没有东西」，按钮变淡'],[d('delete')+' .btn','删除…','Button · 次要小号 · 红字',''],[d('g-backup'),'从备份恢复','SettingsGroup','最多 10 行'],[d('backup'),'一份备份','SettingsRow','「删除前」或「恢复前」加时间，下面写里面有几笔']],
+ pins:[[d('g-demo'),'演示数据','SettingsGroup',''],[d('scope'),'删哪些','SettingsRow + PopUp','全部数据 / 只删「生活」账本 / 只删「晴空小花店」账本'],[d('delete'),'会删掉什么','SettingsRow','写清几笔流水、几个目标和欠款。里面没东西时写「这里面现在没有东西」，按钮变淡'],[d('delete')+' .btn','删除…','Button · 次要小号 · 红字',''],[d('g-backup'),'从备份恢复','SettingsGroup','最多 10 行'],[d('backup'),'一份备份','SettingsRow','「删除前」或「恢复前」加时间，下面写里面有几笔']],
  act:[['点「看看」','换成演示数据，最上面出现一条暖黄的提示（下面第一张小图）',M.card],['点「删除…」','弹出第一道确认',M.sheet],['点「继续」','换成第二道：要打「删除」两个字',M.none],['打对了点「删除」','先备份再删，提示条「已删除全部数据。删之前的备份留好了，可以在这一页恢复」',M.toast],['没打对就点','提示条「没有删：要输入『删除』两个字才行」',M.toast],['点「恢复」','弹出恢复确认',M.sheet]],
  data:[['演示数据','DemoData：一个人加一家小花店',H],['删除、备份、恢复','DataReset、LedgerBackup',H]],
  strip:[[p_set_data_demo,'<b>正在看演示数据</b>　最上面一条暖黄提示加「退出演示」；删除那一组换成「不用删，退出演示就没了」'],[p_del1,'<b>第一道确认</b>　要删掉全部数据吗？　取消 / 继续'],[p_del2,'<b>第二道确认</b>　输入「删除」两个字，再点删除'],[p_restore,'<b>恢复确认</b>　现在的账本会先另存一份「恢复前」的备份']],

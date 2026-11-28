@@ -19,7 +19,7 @@ extension V3State {
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }
     var lastMonthSpentSoFar: Money { Money(cents: 1_249_39) }
-    var lastMonthNet: Money { Money(cents: 6_090_00) }
+    var lastMonthNet: Money { Money(cents: 2_170_61) }
 }
 
 // MARK: - 总览
@@ -275,13 +275,13 @@ struct V3WealthPage: View {
         let b = state.book
         let parts: [(String, Money, Color)] = [
             ("应急钱，不动", b.sum(.emergency), V3.navy), ("存在目标里", b.sum(.goal), V3.star),
-            ("店里的钱", b.sum(.shop), V3.teal), ("日常能用", b.sum(.daily), V3.sky),
+            ("日常能用", b.sum(.daily), V3.sky),
         ]
         let total = max(b.totals.have.cents, 1)
         let run = b.runway
         return VStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle("这些钱分成四块")
+                V3CardTitle("这些钱分成三块")
                 GeometryReader { g in
                     HStack(spacing: 0) {
                         ForEach(Array(parts.enumerated()), id: \.offset) { _, p in

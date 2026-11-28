@@ -247,17 +247,21 @@ public struct TrialBook: Equatable, Sendable {
     // MARK: 现算的数
 
     public var today: [Entry] { entries.filter { $0.daysAgo == 0 && $0.side == .life } }
-    public var owned: [Account] { accounts.filter { $0.kind == .own || $0.kind == .shop } }
+    /// 硬规则：生活和生意的账户完全分开。账户属于哪边看 `side`，生活这边的任何清单、合计都不含店里的；
+    /// 只有 `transferBetweenSides`（两边转钱）能让钱跨过去。
+    public func accounts(on side: Side) -> [Account] { accounts.filter { $0.side == side } }
+    /// 生活这边自己手里的钱（不含店里的、私房钱）。
+    public var owned: [Account] { accounts.filter { $0.side == .life && $0.kind == .own } }
     /// 生活这边欠的（店里欠的看 `shopOwed`）。
     public var debts: [Account] { accounts.filter { $0.kind == .debt && $0.side == .life } }
-    public var lent: [Account] { accounts.filter { $0.kind == .lent } }
+    public var lent: [Account] { accounts.filter { $0.kind == .lent && $0.side == .life } }
     public var totals: HouseholdTotals { HouseholdTotals(holdings: owned.map(\.balance), debts: debts.map(\.balance)) }
     public func sum(_ block: Account.Block) -> Money { owned.filter { $0.block == block }.map(\.balance).reduce(.zero, +) }
     public var runway: EmergencyRunway { EmergencyRunway(fund: sum(.emergency), monthlyMust: monthlyMust) }
     public func account(_ name: String) -> Account? { accounts.first { $0.name == name } }
     /// 能拿来付钱的账户（自己的、店里的；不含欠款、借出、私房钱）。
     public func payable(_ side: Side) -> [Account] {
-        accounts.filter { side == .biz ? $0.kind == .shop : ($0.kind == .own && $0.block == .daily) }
+        accounts.filter { $0.side == side && (side == .biz ? $0.kind == .shop : ($0.kind == .own && $0.block == .daily)) }
     }
     public var shopSalesTotal: Money { shopDays.filter { $0.state == .open }.map(\.total).reduce(.zero, +) }
     public var shopOpenDays: Int { shopDays.filter { $0.state == .open }.count }
@@ -275,9 +279,9 @@ public struct TrialBook: Equatable, Sendable {
             if side == .biz { return accounts.filter { $0.side == .biz && ($0.kind == .shop || $0.isCreditCard) } }
             return accounts.filter { $0.side == .life && (($0.kind == .own && $0.block == .daily) || $0.isCreditCard) }
         case .receive:
-            return accounts.filter { side == .biz ? $0.kind == .shop : ($0.kind == .own && $0.block == .daily) }
-        case .moveOut: return transferSources
-        case .moveIn: return transferTargets
+            return payable(side)
+        case .moveOut: return transferSources(side)
+        case .moveIn: return transferTargets(side)
         }
     }
 
@@ -300,6 +304,9 @@ public struct TrialBook: Equatable, Sendable {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { throw TrialError("先写一下是什么") }
         let i = try index(account)
+        guard accounts[i].side == side else {
+            throw TrialError(side == .life ? "「\(account)」是店里的账户，生活的账记不到它上面" : "「\(account)」是生活这边的账户，店里的账记不到它上面")
+        }
         var useName = clean, useEmoji = emoji
         if let rule = placeRules[place], rule.count == 2 { useEmoji = rule[0]; useName = rule[1] }
         if accounts[i].kind == .debt {
@@ -367,6 +374,7 @@ public struct TrialBook: Equatable, Sendable {
         try Self.positive(amount)
         guard from != to else { throw TrialError("两边选了同一个账户") }
         let f = try index(from), t = try index(to)
+        guard accounts[f].side == accounts[t].side else { throw TrialError("生活和店里的钱是分开的，要挪请用「两边转钱」") }
         guard accounts[f].balance >= amount else { throw TrialError("\(from)里只有 \(accounts[f].balance.formatted)") }
         accounts[f].balance = accounts[f].balance - amount
         accounts[t].balance = accounts[t].balance + amount
@@ -513,10 +521,14 @@ public struct TrialBook: Equatable, Sendable {
         fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []; nextGoals = []; smallGoals = []
     }
 
-    /// 能把钱转出去的账户：自己的钱（不含目标罐、私房钱），加上店里的。
-    public var transferSources: [Account] { accounts.filter { ($0.kind == .own && $0.block != .goal) || $0.kind == .shop } }
-    /// 能把钱转进去的账户：上面那些，加上目标罐和欠着的（转给欠款就是还款）。
-    public var transferTargets: [Account] { accounts.filter { $0.kind == .own || $0.kind == .shop || ($0.kind == .debt && $0.side == .life && $0.balance > .zero) } }
+    /// 这一边能把钱转出去的账户：生活是自己的钱（不含目标罐、私房钱）；生意是店里放钱的账户。两边不混。
+    public func transferSources(_ side: Side = .life) -> [Account] {
+        accounts.filter { $0.side == side && (side == .biz ? $0.kind == .shop : ($0.kind == .own && $0.block != .goal)) }
+    }
+    /// 这一边能把钱转进去的账户：上面那些，加上目标罐和这一边欠着的（转给欠款就是还款）。
+    public func transferTargets(_ side: Side = .life) -> [Account] {
+        accounts.filter { $0.side == side && ((side == .biz ? $0.kind == .shop : $0.kind == .own) || ($0.kind == .debt && $0.balance > .zero)) }
+    }
 
     /// 转账：从一个账户到另一个。到目标罐算存一笔，到欠款算还款，别的就是两个账户之间挪。都不算花也不算赚。
     /// 返回刚到的站（只有存进目标罐时才可能有）。
@@ -524,8 +536,10 @@ public struct TrialBook: Equatable, Sendable {
     public mutating func transfer(_ amount: Money, from: String, to: String) throws -> [Journey.Station] {
         try Self.positive(amount)
         guard from != to else { throw TrialError("从和到选了同一个账户") }
-        guard transferSources.contains(where: { $0.name == from }) else { throw TrialError("不能从「\(from)」转出去") }
-        guard let target = transferTargets.first(where: { $0.name == to }) else { throw TrialError("不能转进「\(to)」") }
+        guard let source = accounts.first(where: { $0.name == from }), transferSources(source.side).contains(where: { $0.name == from }) else { throw TrialError("不能从「\(from)」转出去") }
+        guard let target = accounts.first(where: { $0.name == to }) else { throw TrialError("不能转进「\(to)」") }
+        guard target.side == source.side else { throw TrialError("生活和店里的钱是分开的，要挪请用「两边转钱」") }
+        guard transferTargets(source.side).contains(where: { $0.name == to }) else { throw TrialError("不能转进「\(to)」") }
         if target.kind == .debt { try repay(debt: to, amount: amount, from: from); return [] }
         if target.block == .goal { return try deposit(amount, from: from) }
         try move(amount, from: from, to: to)
@@ -534,11 +548,11 @@ public struct TrialBook: Equatable, Sendable {
 
     /// 常用的几种转法：存进储蓄、还信用卡、取现金、放进目标罐。账本里有对应的账户才给。
     public var transferShortcuts: [(title: String, from: String, to: String)] {
-        guard let main = accounts.first(where: { $0.kind == .own && $0.block == .daily && !$0.name.contains("现金") })?.name else { return [] }
+        guard let main = owned.first(where: { $0.block == .daily && !$0.name.contains("现金") })?.name else { return [] }
         var out: [(String, String, String)] = []
-        if let s = accounts.first(where: { $0.kind == .own && ($0.block == .emergency || $0.name.contains("储蓄")) && $0.name != main }) { out.append(("存进\(s.name)", main, s.name)) }
+        if let s = owned.first(where: { ($0.block == .emergency || $0.name.contains("储蓄")) && $0.name != main }) { out.append(("存进\(s.name)", main, s.name)) }
         if let d = accounts.first(where: { $0.kind == .debt && $0.side == .life && $0.balance > .zero && $0.name.contains("信用卡") }) { out.append(("还\(d.name)", main, d.name)) }
-        if let c = accounts.first(where: { $0.kind == .own && $0.name.contains("现金") }) { out.append(("取现金", main, c.name)) }
+        if let c = owned.first(where: { $0.name.contains("现金") }) { out.append(("取现金", main, c.name)) }
         if let g = accounts.first(where: { $0.block == .goal }), journey.total > .zero { out.append(("放进\(g.name)", main, g.name)) }
         return out
     }
@@ -587,6 +601,7 @@ public struct TrialBook: Equatable, Sendable {
         guard !clean.isEmpty else { throw TrialError("先给它起个名字") }
         guard !accounts.contains(where: { $0.name == clean }) else { throw TrialError("已经有一个叫「\(clean)」的账户了") }
         guard balance >= .zero else { throw TrialError("这里填正数就行") }
+        guard kind != .shop else { throw TrialError("店里的账户到生意那边的「店的家底」里加") }
         accounts.append(Account(emoji: emoji, name: clean, note: note, balance: balance, kind: kind, block: kind == .own ? .daily : .none))
     }
 
@@ -597,6 +612,7 @@ public struct TrialBook: Equatable, Sendable {
         guard accounts[d].kind == .debt else { throw TrialError("「\(name)」不是欠款") }
         guard amount <= accounts[d].balance else { throw TrialError("\(name)只欠 \(accounts[d].balance.formatted)，不用还这么多") }
         let f = try index(from)
+        guard accounts[f].side == accounts[d].side else { throw TrialError("生活和店里的钱是分开的，「\(name)」不能用「\(from)」来还") }
         guard accounts[f].balance >= amount else { throw TrialError("\(from)里只有 \(accounts[f].balance.formatted)") }
         accounts[f].balance = accounts[f].balance - amount
         accounts[d].balance = accounts[d].balance - amount
@@ -824,8 +840,8 @@ public struct TrialBook: Equatable, Sendable {
     // MARK: 应急钱
 
     /// 能设成应急钱的账户：自己的钱，不含目标罐、店里的、欠的、借出去的、私房钱。
-    public var emergencyCandidates: [Account] { accounts.filter { $0.kind == .own && $0.block != .goal } }
-    public var emergencyAccounts: [Account] { accounts.filter { $0.kind == .own && $0.block == .emergency } }
+    public var emergencyCandidates: [Account] { owned.filter { $0.block != .goal } }
+    public var emergencyAccounts: [Account] { owned.filter { $0.block == .emergency } }
     /// 想存够的那个数：几个月 × 每月必须花的。
     public var emergencyGoal: Money { Money(cents: monthlyMust.cents * Int64(emergencyGoalMonths)) }
 
@@ -834,7 +850,7 @@ public struct TrialBook: Equatable, Sendable {
         guard [1, 3, 6].contains(months) else { throw TrialError("想存够几个月：选 1、3 或 6") }
         let ok = Set(emergencyCandidates.map(\.name))
         if let bad = names.first(where: { !ok.contains($0) }) { throw TrialError("「\(bad)」不能当应急钱（目标罐、店里的钱、欠的都不行）") }
-        for i in accounts.indices where accounts[i].kind == .own && accounts[i].block != .goal {
+        for i in accounts.indices where accounts[i].side == .life && accounts[i].kind == .own && accounts[i].block != .goal {
             accounts[i].block = names.contains(accounts[i].name) ? .emergency : .daily
         }
         emergencyGoalMonths = months
@@ -934,6 +950,8 @@ public struct TrialBook: Equatable, Sendable {
     public mutating func transferBetweenSides(_ amount: Money, toHome: Bool, shopAccount: String, homeAccount: String) throws {
         try Self.positive(amount)
         let s = try index(shopAccount), h = try index(homeAccount)
+        guard accounts[s].side == .biz, accounts[s].kind == .shop else { throw TrialError("「\(shopAccount)」不是店里放钱的账户") }
+        guard accounts[h].side == .life, accounts[h].kind == .own else { throw TrialError("「\(homeAccount)」不是生活这边自己的账户") }
         let from = toHome ? s : h, to = toHome ? h : s
         guard accounts[from].balance >= amount else { throw TrialError("\(accounts[from].name)里只有 \(accounts[from].balance.formatted)") }
         accounts[from].balance = accounts[from].balance - amount

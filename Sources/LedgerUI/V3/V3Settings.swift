@@ -665,14 +665,14 @@ private struct V3SetBooksPage: View {
         let shop = b.entries.filter { $0.side == .biz }.count + b.shopOpenDays
         V3SetColumn {
             V3SetGroup(title: "账本", note: "每个账本有自己的收支和小结。", grow: true) {
-                if state.showsLife { V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts.filter { $0.kind != .shop }.count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) } }
+                if state.showsLife { V3SetRow(title: "🏠 \(b.lifeName)", detail: "\(life) 笔流水 · \(b.accounts(on: .life).count) 个账户", line: false) { V3Tag(text: "生活", tone: .blue) } }
                 if state.showsBiz {
-                    V3SetRow(title: "🏪 \(b.shopName)", detail: "\(shop) 笔流水 · \(b.accounts.filter { $0.kind == .shop }.count) 个账户") { V3Tag(text: "生意", tone: .teal) }
+                    V3SetRow(title: "🏪 \(b.shopName)", detail: "\(shop) 笔流水 · \(b.accounts(on: .biz).count) 个账户") { V3Tag(text: "生意", tone: .teal) }
                 }
             }
             V3SetGroup(title: "管理", grow: true) {
                 V3SetLink(title: "管理账本", sub: "改名", value: "\(state.mode == .both ? 2 : 1) 个", line: false) { state.open(.books) }
-                V3SetLink(title: "管理账户", sub: "加、改、删，标成私房钱", value: "\(b.accounts.count) 个") { state.open(.accounts) }
+                V3SetLink(title: "管理账户", sub: "加、改、删，标成私房钱", value: "\(b.accounts(on: state.side == .biz ? .biz : .life).count) 个") { state.open(.accounts) }
                 V3SetLink(title: "管理分类", sub: "换图标、改名、把两个并成一个", value: "\(b.categories.count) 个") { state.open(.categories) }
             }
         }
@@ -1058,23 +1058,32 @@ struct V3AccountsSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var secret = false
+    /// 这次管的是哪一边的账户：生活和店里的分开管，不混在一张单子里。
+    @State private var side: TrialBook.Side = .life
+
+    /// 把正在改的这个账户存好（没改就不动）。存不成返回 false，停在原地。
+    private func commit() -> Bool {
+        guard let a = state.book.account(pick) else { return true }
+        guard let m = V3Form.amountOrZero(amount) else { state.fail("这个数我没看懂。写成 1500 或者 1.500,00 这样就行。"); return false }
+        let clean = name.trimmingCharacters(in: .whitespaces)
+        guard clean != a.name || m != a.balance || secret != (a.kind == .secret) else { return true }
+        guard state.change("存好了：\(clean)", kind: .account, { try $0.editAccount(pick, newName: name, balance: m, secret: secret) }) else { return false }
+        pick = clean
+        return true
+    }
 
     var body: some View {
-        let accounts = state.book.accounts
+        let accounts = state.book.accounts(on: side)
         let a = accounts.first { $0.name == pick }
         let m = V3Form.amountOrZero(amount)
         let n = state.book.entries.filter { $0.account == pick }.count
         let canSecret = a.map { ($0.kind == .own && $0.block == .daily) || $0.kind == .secret } ?? false
-        V3SheetBox(width: 820, title: "管理账户", hint: "导入流水时，没见过的账户会自己建好。", primary: "保存", canSave: a != nil && m != nil,
-                   save: {
-                       guard let m else { return }
-                       if state.change("存好了：\(name)", kind: .account, { try $0.editAccount(pick, newName: name, balance: m, secret: secret) }) { pick = name.trimmingCharacters(in: .whitespaces) }
-                   },
-                   extra: { Button("完成") { state.closeSheet() }.buttonStyle(.v3(.ghost)) }) {
+        V3SheetBox(width: 820, title: side == .biz ? "管理店里的账户" : "管理账户", primary: "完成", single: true,
+                   save: { if commit() { state.closeSheet() } }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(accounts.prefix(10)) { acc in
-                        Button { load(acc) } label: {
+                        Button { if commit() { load(acc) } } label: {
                             HStack(spacing: 8) {
                                 Text(acc.emoji)
                                 Text(acc.name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
@@ -1087,7 +1096,11 @@ struct V3AccountsSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    Button("＋ 加一个账户") { state.closeSheet(); state.showAddAccount = true }.buttonStyle(.v3(.ghost, .small)).padding(.top, 6)
+                    Button("＋ 加一个账户") {
+                        guard commit() else { return }
+                        if side == .biz { state.open(.shopAccount) } else { state.closeSheet(); state.showAddAccount = true }
+                    }
+                    .buttonStyle(.v3(.ghost, .small)).padding(.top, 6)
                 }
                 .frame(width: 290)
                 VStack(alignment: .leading, spacing: 12) {
@@ -1108,7 +1121,7 @@ struct V3AccountsSheet: View {
                         V3Label(n > 0 ? "里面还有 \(n) 笔流水" : "", size: 12.5)
                         Spacer()
                         Button("删除这个账户") {
-                            if state.change("删掉了账户：\(pick)", kind: .remove, { try $0.removeAccount(pick) }), let first = state.book.accounts.first { load(first) }
+                            if state.change("删掉了账户：\(pick)", kind: .remove, { try $0.removeAccount(pick) }), let first = state.book.accounts(on: side).first { load(first) }
                         }
                         .buttonStyle(.v3(.danger, .small)).disabled(n > 0).help(n > 0 ? "先把流水删掉或改到别的账户才能删" : "删错了能撤销")
                     }
@@ -1117,8 +1130,11 @@ struct V3AccountsSheet: View {
             }
         }
         .onAppear {
-            if let n = state.accountFocus, let a = state.book.account(n) { load(a); state.accountFocus = nil }
-            else if let first = state.book.accounts.first { load(first) }
+            if let n = state.accountFocus, let a = state.book.account(n) { side = a.side; load(a); state.accountFocus = nil }
+            else {
+                side = state.side == .biz ? .biz : .life
+                if let first = state.book.accounts(on: side).first { load(first) }
+            }
         }
     }
 
@@ -1129,7 +1145,7 @@ struct V3AccountsSheet: View {
     static func kindName(_ a: V3State.Account) -> String {
         switch a.kind {
         case .own: a.block == .goal ? "目标" : a.block == .emergency ? "储蓄" : "自己的"
-        case .shop: "生意"
+        case .shop: "放钱的"
         case .debt: "欠的"
         case .lent: "借出去的"
         case .secret: "私房钱 · 藏着"
