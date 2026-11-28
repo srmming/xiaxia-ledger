@@ -66,6 +66,8 @@ final class V3RenderTests: XCTestCase {
             s.settingsSub = sub
             try write(V3SettingsPage().environment(s), "real-set-\(sub.rawValue)", to: dir)
         }
+        s.settingsSub = .speak
+        try write(V3SettingsPage().environment(s), "set-speak", to: dir)
         s.settingsSub = nil
         // 生意首页和回本页：回本的日子是同一个
         s.side = .biz

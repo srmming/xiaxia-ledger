@@ -22,6 +22,8 @@ struct V3Prefs: Equatable {
     var maxPerDay = 3
     /// 语音：说完停多久自动发（`VoiceRules.pauses` 里的第几个）。
     var voicePause = VoiceRules.defaultIndex
+    /// 听写按哪种语言认（VoiceRules.languages 里的第几个）。
+    var voiceLanguage = VoiceRules.defaultLanguageIndex
     var language = 0
     var dedupe = true
     var phoneReceipts = true
@@ -599,6 +601,9 @@ private struct V3SetSpeakPage: View {
                 V3SetGroup(title: "对她说话") {
                     V3SetRow(title: "说完停多久自动发", line: false) {
                         V3SetMenu(options: VoiceRules.pauses.indices.map(VoiceRules.title), pick: $s.prefs.voicePause)
+                    }
+                    V3SetRow(title: "听写语言") {
+                        V3SetMenu(options: VoiceRules.languages.map(\.title), pick: $s.prefs.voiceLanguage)
                     }
                 }
                 if state.real == nil { V3SetGroup(title: "试用", note: "把今天说过的次数清零，回到总览再看她说一句。") {

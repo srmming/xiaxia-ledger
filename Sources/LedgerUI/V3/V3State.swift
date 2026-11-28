@@ -202,7 +202,23 @@ final class V3State {
     var manualPrefill: (name: String, amount: Money)?
     /// 硬摆出来的「在读 / 出错」（重新读取时、截图检查时）。
     var forced: Forced?
-    var prefs = V3Prefs()
+    var prefs = V3State.savedPrefs() {
+        didSet {
+            // 「对她说话」那两样记到下次打开（不是秘密，放偏好设置里）。跑测试时不写
+            guard NSClassFromString("XCTestCase") == nil else { return }
+            if prefs.voicePause != oldValue.voicePause { UserDefaults.standard.set(prefs.voicePause, forKey: Self.voicePauseKey) }
+            if prefs.voiceLanguage != oldValue.voiceLanguage { UserDefaults.standard.set(prefs.voiceLanguage, forKey: Self.voiceLanguageKey) }
+        }
+    }
+    static let voicePauseKey = "xiaxia.v3.voice.pause", voiceLanguageKey = "xiaxia.v3.voice.language"
+    /// 启动时读回上次选的听写停顿和语言；没选过、或者存的数不对，就是默认的。
+    static func savedPrefs(_ d: UserDefaults = .standard, testing: Bool = NSClassFromString("XCTestCase") != nil) -> V3Prefs {
+        var p = V3Prefs()
+        guard !testing else { return p }
+        if let v = d.object(forKey: voicePauseKey) as? Int, VoiceRules.pauses.indices.contains(v) { p.voicePause = v }
+        if let v = d.object(forKey: voiceLanguageKey) as? Int, VoiceRules.languages.indices.contains(v) { p.voiceLanguage = v }
+        return p
+    }
     var aiLinks = V3AILink.demo
     var backups = V3Backup.demo
     /// 目标的三个时刻：定第一步、改小步子、到站的信。
