@@ -203,6 +203,35 @@ extension TrialBook {
         .sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
     }
 
+    /// 订阅页夏夏会问「还要吗」的那几个：一年下来花得最多的两个（赚钱要用的、已经标了要退的不问）。
+    /// 问的依据只有一个：一年是多少钱，从周期和金额算出来。用没用得上 app 不知道，不说。
+    public var subscriptionsToAsk: [Item] {
+        Array(subscriptions.filter { !$0.off && !$0.flag }.sorted { $0.yearly > $1.yearly }.prefix(2))
+    }
+    /// 那一句话：「『A』一年下来是 X、『B』一年下来是 Y，还要吗？」。没有可问的就是 nil。
+    public var subscriptionsQuestion: String? {
+        let ask = subscriptionsToAsk
+        guard !ask.isEmpty else { return nil }
+        return ask.map { "「\($0.name)」一年下来是 \($0.yearly.formatted)" }.joined(separator: "、") + "，还要吗？"
+    }
+
+    /// 照这个月到今天存的速度，到月底大概能存到多少（已经存的 ÷ 过了几天 × 这个月几天）。
+    public var projectedSavedThisMonth: Money {
+        let days = Calendar(identifier: .gregorian).range(of: .day, in: .month, for: todayDate)?.count ?? 30
+        let today = min(max(todayDay, 1), days)
+        return Money(cents: journey.savedThisMonth.cents * Int64(days) / Int64(today))
+    }
+    /// 这个月打算存的照现在的速度到不到得了（没定每月存多少就说不上，算到得了）。
+    public var savingIsBehind: Bool { journey.monthlyPlan > .zero && !journey.isFinished && projectedSavedThisMonth < journey.monthlyPlan }
+    /// 「步子改小一点」那一屏里解释原因的那句：这个月进账比上个月少了多少。没少、或者没有上个月的数，就没有这句。
+    /// 花得不比上月同期多时，才加上「不是你乱花」。
+    public var incomeDropNote: String? {
+        guard let prev = previousMonthData, prev.income > month.income else { return nil }
+        let drop = prev.income - month.income
+        let notOverspent = (spentLessThanLastMonthSameDay ?? .zero - Money(cents: 1)) >= .zero
+        return "这个月进账比上个月少了 \(drop.formatted)" + (notOverspent ? "，不是你乱花。" : "。")
+    }
+
     /// 总览上夏夏关于存钱的那一句，从这个月的数算出来；没定每月存多少就没有这句。
     /// 存够了说存够了；没存够说还差多少；要是付完固定的、留出打算存的以后已经不够花了，说钱不太够。
     public var savingRemark: String? {

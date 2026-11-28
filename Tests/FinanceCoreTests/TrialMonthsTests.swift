@@ -121,4 +121,39 @@ final class TrialMonthsTests: XCTestCase {
         b.month.spent = b.month.spent + b.month.left + Money(cents: 1)
         XCTAssertTrue(b.savingRemark?.contains("钱不太够") ?? false)
     }
+
+    /// 订阅页那一问的依据只有「一年多少钱」：问的是一年下来最贵的两个，数是周期 × 金额；赚钱用的、要退的不问。
+    func testSubscriptionQuestionIsAboutYearlyCost() throws {
+        var b = TrialBook.demo
+        XCTAssertFalse(b.subscriptions.contains { $0.note.contains("没怎么用") || $0.note.contains("重了") }, "示例里不再写死用没用")
+        let ask = b.subscriptionsToAsk
+        XCTAssertEqual(ask.count, 2)
+        let rest = b.subscriptions.filter { s in !s.off && !s.flag && !ask.contains { $0.id == s.id } }
+        XCTAssertTrue(rest.allSatisfy { r in ask.allSatisfy { $0.yearly >= r.yearly } }, "问的是一年下来最贵的")
+        XCTAssertEqual(b.subscriptionsQuestion, ask.map { "「\($0.name)」一年下来是 \($0.yearly.formatted)" }.joined(separator: "、") + "，还要吗？")
+        try b.addSubscription(name: "设计软件", amount: Money(cents: 60_00), note: "", forWork: true, cycle: 1)
+        XCTAssertFalse(b.subscriptionsToAsk.contains { $0.name == "设计软件" }, "赚钱要用的不问")
+        try b.setSubscription(ask[0].name, dropped: true)
+        XCTAssertFalse(b.subscriptionsToAsk.contains { $0.name == ask[0].name }, "已经要退的不再问")
+        var none = b; none.subscriptions = []
+        XCTAssertNil(none.subscriptionsQuestion)
+    }
+
+    /// 「步子改小一点」那一屏：月底大概能存多少是按速度算的；进账少了多少是和上个月比出来的，没少就没有那句。
+    func testSmallerStepSceneNumbersAreComputed() {
+        var b = TrialBook.demo
+        let days = Calendar(identifier: .gregorian).range(of: .day, in: .month, for: b.todayDate)!.count
+        XCTAssertEqual(b.projectedSavedThisMonth, Money(cents: b.journey.savedThisMonth.cents * Int64(days) / Int64(b.todayDay)))
+        XCTAssertEqual(b.savingIsBehind, b.projectedSavedThisMonth < b.journey.monthlyPlan)
+        // 示例里这个月进账和上个月一样：没有那句
+        XCTAssertEqual(b.month.income, b.previousMonthData?.income)
+        XCTAssertNil(b.incomeDropNote)
+        // 进账少了 260：说少了 260；花得不比上月同期多，才说不是乱花
+        b.month.income = b.month.income - Money(cents: 260_00)
+        XCTAssertEqual(b.incomeDropNote, "这个月进账比上个月少了 260,00 €，不是你乱花。")
+        b.month.spent = b.month.spent + Money(cents: 500_00)
+        XCTAssertEqual(b.incomeDropNote, "这个月进账比上个月少了 260,00 €。")
+        b.pastMonths = []
+        XCTAssertNil(b.incomeDropNote)
+    }
 }
