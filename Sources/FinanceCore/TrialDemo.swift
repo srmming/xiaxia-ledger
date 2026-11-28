@@ -110,7 +110,7 @@ extension TrialBook {
             item("🎮", "游戏手柄", "上周忍住了 · 存进目标", "59", off: true),
         ]
         func fixed(_ e: String, _ n: String, _ day: Int, _ a: String, last: String? = nil, flag: Bool = false) -> TrialBook.Item {
-            .init(emoji: e, name: n, note: "每月 \(day) 日 · 小店账户", amount: eur(a), tag: flag ? "可省" : "必要", flag: flag,
+            .init(emoji: e, name: n, note: "每月 \(day) 日 · 小店账户", amount: eur(a), flag: flag,
                   account: "小店账户", day: day, lastMonth: last.map { eur($0) })
         }
         b.fixedCosts = [
