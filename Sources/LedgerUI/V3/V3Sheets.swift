@@ -9,6 +9,8 @@ import SwiftUI
 enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
+    /// 删目标（nil 是大目标）、改大目标
+    case goalDelete(UUID?), goalEdit, finishedGoal(UUID)
     // 设置里的
     case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, smallGoal(UUID?), holdBack, shopAccount
 
@@ -88,6 +90,9 @@ struct V3SheetHost: View {
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 case .apiKey: V3APIKeySheet()
                 case .smallGoal(let id): V3SmallGoalSheet(id: id)
+                case .goalDelete(let id): V3GoalDeleteSheet(id: id)
+                case .goalEdit: V3GoalEditSheet()
+                case .finishedGoal(let id): V3FinishedGoalSheet(id: id)
                 case .holdBack: V3HoldBackSheet()
                 case .shopAccount: V3ShopAccountSheet()
                 }
@@ -344,35 +349,7 @@ struct V3ManualSheet: View {
         }
     }
 
-    /// 哪天：今天、昨天，或者点开小日历选一天（只能选今天和以前）。
-    private var dayPick: some View {
-        let today = state.book.todayDate
-        let cal = Calendar(identifier: .gregorian)
-        return VStack(alignment: .leading, spacing: 5) {
-            V3Label("哪天", size: 12.5, weight: .bold)
-            HStack(spacing: 6) {
-                dayChip("今天", daysAgo == 0) { daysAgo = 0 }
-                dayChip("昨天", daysAgo == 1) { daysAgo = 1 }
-                dayChip(daysAgo > 1 ? QuickDate.label(daysAgo: daysAgo, today: today, calendar: cal) : "选日期", daysAgo > 1) { pickingDate = true }
-                    .popover(isPresented: $pickingDate, arrowEdge: .bottom) {
-                        DatePicker("", selection: Binding(
-                            get: { cal.date(byAdding: .day, value: -daysAgo, to: today) ?? today },
-                            set: { d in daysAgo = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: d), to: cal.startOfDay(for: today)).day ?? 0) }),
-                                   in: ...today, displayedComponents: .date)
-                            .datePickerStyle(.graphical).labelsHidden().padding(12).frame(width: 300)
-                    }
-            }
-        }
-    }
-
-    private func dayChip(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
-        Button { withAnimation(.snappy(duration: 0.15)) { action() } } label: {
-            Text(title).font(V3.font(13.5, .bold)).foregroundStyle(on ? .white : V3.ink).lineLimit(1)
-                .padding(.horizontal, 13).padding(.vertical, 7)
-                .background(Capsule().fill(on ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
-        }
-        .buttonStyle(V3SinkStyle(depth: 2)).accessibilityAddTraits(on ? .isSelected : [])
-    }
+    private var dayPick: some View { V3DatePick(daysAgo: $daysAgo) }
 
     // MARK: 转账：「从」「到」各一行账户胶囊，直接点
 
@@ -432,6 +409,43 @@ struct V3ManualSheet: View {
     }
 }
 
+/// 哪天：今天、昨天，或者点开小日历选一天（只能选今天和以前）。生活的记一笔和店里的记账共用。
+struct V3DatePick: View {
+    @Binding var daysAgo: Int
+    var teal = false
+    @Environment(V3State.self) private var state
+    @State private var picking = false
+
+    var body: some View {
+        let today = state.book.todayDate
+        let cal = Calendar(identifier: .gregorian)
+        VStack(alignment: .leading, spacing: 5) {
+            V3Label("哪天", size: 12.5, weight: .bold)
+            HStack(spacing: 6) {
+                chip("今天", daysAgo == 0) { daysAgo = 0 }
+                chip("昨天", daysAgo == 1) { daysAgo = 1 }
+                chip(daysAgo > 1 ? QuickDate.label(daysAgo: daysAgo, today: today, calendar: cal) : "选日期", daysAgo > 1) { picking = true }
+                    .popover(isPresented: $picking, arrowEdge: .bottom) {
+                        DatePicker("", selection: Binding(
+                            get: { cal.date(byAdding: .day, value: -daysAgo, to: today) ?? today },
+                            set: { d in daysAgo = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: d), to: cal.startOfDay(for: today)).day ?? 0) }),
+                                   in: ...today, displayedComponents: .date)
+                            .datePickerStyle(.graphical).labelsHidden().padding(12).frame(width: 300)
+                    }
+            }
+        }
+    }
+
+    private func chip(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.snappy(duration: 0.15)) { action() } } label: {
+            Text(title).font(V3.font(13.5, .bold)).foregroundStyle(on ? .white : V3.ink).lineLimit(1)
+                .padding(.horizontal, 13).padding(.vertical, 7)
+                .background(Capsule().fill(on ? (teal ? V3.teal : V3.navy) : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+        }
+        .buttonStyle(V3SinkStyle(depth: 2)).accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
 /// 12 个分类排两行，点一下就选。
 private struct V3CatGrid: View {
     let pick: Int?
@@ -474,17 +488,25 @@ private struct V3SaveSheet: View {
         let m = V3Form.amount(amount)
         let from = accounts.indices.contains(account) ? accounts[account] : nil
         let enough = m.map { ($0) <= (from?.balance ?? .zero) } ?? true
-        let picked = goal > 0 && small.indices.contains(goal - 1) ? small[goal - 1] : nil
+        // 大目标没有或者已经存够了：只能存进小目标
+        let bigOpen = j.total > .zero && !j.isFinished
+        let picked = (goal > 0 || !bigOpen) && small.indices.contains(max(goal - 1, 0)) ? small[max(goal - 1, 0)] : nil
         let gap = (picked.map { $0.target - $0.saved } ?? j.remainingToNext) - (m ?? .zero)
         V3SheetBox(width: 540, title: "存一笔", primary: "存好",
-                   canSave: m != nil && enough && from != nil,
+                   canSave: m != nil && enough && from != nil && (picked != nil || bigOpen),
                    save: {
                        guard let m, let from else { return }
                        if let picked {
-                           if state.change("存好了 +\(m.v3Short) · \(picked.name)", kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) { state.closeSheet() }
+                           let done = picked.saved + m >= picked.target
+                           let text = done ? "🎉「\(picked.name)」存够了！收进走完的路，钱放回日常卡，可以去买了" : "存好了 +\(m.v3Short) · \(picked.name)"
+                           if state.change(text, kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) {
+                               if done { state.starDrops += 1 }
+                               state.closeSheet()
+                           }
                        } else if state.depositAndCelebrate(m, from: from.name) { state.closeSheet() }
                    }) {
-            if !small.isEmpty { V3FormPick(label: "存进哪个目标", options: [j.name] + small.map(\.name), pick: $goal) }
+            if !small.isEmpty, bigOpen { V3FormPick(label: "存进哪个目标", options: [j.name] + small.map(\.name), pick: $goal) }
+            else if small.count > 1 { V3FormPick(label: "存进哪个目标", options: small.map(\.name), pick: Binding(get: { max(goal - 1, 0) }, set: { goal = $0 + 1 })) }
             V3FormField(label: "存多少", prompt: "20", text: $amount, big: true, focus: true)
             V3AmountHint(text: amount)
             HStack(spacing: 6) {
@@ -537,6 +559,84 @@ struct V3SmallGoalSheet: View {
 }
 
 /// 忍住了一笔：没买的那样东西和它的钱，存进大目标。默认填你最近最常买的小东西；流水里看不出来就空着。
+/// 删一个目标：一次问清里面已经存的钱去哪。
+struct V3GoalDeleteSheet: View {
+    /// nil 是大目标。
+    let id: UUID?
+    @Environment(V3State.self) private var state
+    @State private var pick = 0
+
+    var body: some View {
+        let b = state.book
+        let small = id.flatMap { id in b.smallGoals.first { $0.id == id } }
+        let name = small?.name ?? b.journey.name
+        let saved = small?.saved ?? b.journey.saved
+        // 能去的地方：自己的账户在前（默认第一个），然后是别的目标
+        let places: [(title: String, to: TrialBook.GoalMoney)] =
+            b.goalMoneyAccounts.map { ("放回\($0.name)", TrialBook.GoalMoney.account($0.name)) }
+            + (id != nil && b.journey.total > .zero ? [("挪给「\(b.journey.name)」", TrialBook.GoalMoney.bigGoal)] : [])
+            + b.smallGoals.filter { $0.id != id }.map { ("挪给「\($0.name)」", TrialBook.GoalMoney.smallGoal($0.id)) }
+        let to = places.indices.contains(pick) ? places[pick] : nil
+        V3SheetBox(width: 560, title: "删掉「\(name)」", primary: "删掉", danger: true, canSave: saved == .zero || to != nil,
+                   save: {
+                       let text = saved > .zero ? "已删掉：\(name) · \(saved.v3) \(to?.title ?? "")" : "已删掉：\(name)"
+                       let ok = state.change(text, kind: .remove) {
+                           if let id { try $0.removeSmallGoal(id, moneyTo: saved > .zero ? to?.to : nil) } else { try $0.removeBigGoal(moneyTo: saved > .zero ? to?.to : nil) }
+                       }
+                       if ok { state.closeSheet() }
+                   }) {
+            if saved > .zero {
+                V3FormPick(label: "里面存的 \(saved.v3) 放到哪", options: places.map(\.title), pick: $pick)
+            } else {
+                V3Label("里面还没存钱，删掉不动别的。", size: 14)
+            }
+        }
+    }
+}
+
+/// 走完的一条路：点开看那条路和最后那封信。
+struct V3FinishedGoalSheet: View {
+    let id: UUID
+    @Environment(V3State.self) private var state
+    var body: some View {
+        let f = state.book.finishedGoals.first { $0.id == id }
+        let letter = state.book.letters.last
+        V3SheetBox(width: 600, title: "\(f?.name ?? "")的路", sub: f.map { "\($0.date)走完 · \($0.total.v3)" } ?? "", primary: "好", single: true, save: { state.closeSheet() }) {
+            if let f {
+                let stops = [10, 25, 50, 75, 100].map { Money(cents: max(f.total.cents * Int64($0) / 100 / 100 * 100, 100)) }
+                V3Road(journey: Journey(name: f.name, stops: stops, saved: f.total), mini: true, markerText: "").frame(height: 250)
+                if !f.small, let letter {
+                    Button("看最后那封信") { state.closeSheet(); state.openMoment(.letter(letter)) }.buttonStyle(.v3(.ghost, .small))
+                }
+            }
+        }
+    }
+}
+
+/// 改大目标：名字、一共要存多少。
+struct V3GoalEditSheet: View {
+    @Environment(V3State.self) private var state
+    @State private var name = ""
+    @State private var amount = ""
+    var body: some View {
+        let j = state.book.journey
+        let m = V3Form.amount(amount)
+        V3SheetBox(width: 520, title: "改大目标", primary: "存好", canSave: m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty,
+                   save: {
+                       guard let m else { return }
+                       if state.change("改好了：\(name) · 一共 \(m.v3)", kind: .goal, { try $0.editBigGoal(name: name, total: m) }) { state.closeSheet() }
+                   }) {
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "叫什么", text: $name, focus: true)
+                V3FormField(label: "一共要存多少", prompt: "1400", text: $amount).frame(width: 180)
+            }
+            V3AmountHint(text: amount)
+            if let m, m <= j.saved { V3FormPreview(text: "已经存了 \(j.saved.v3)，改成这个数就算存够了。") }
+        }
+        .onAppear { name = j.name; amount = V3Form.plain(j.total) }
+    }
+}
+
 struct V3HoldBackSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
@@ -786,6 +886,12 @@ private struct V3ShopDaySheet: View {
     @State private var texts: [String: String] = [:]
     @State private var whole = ""
     @State private var day = 18
+    /// 几天前（0 是今天）。能选往前任何一天，不能选还没到的。
+    @State private var daysAgo = 0
+    /// 就地加一个渠道：正在起的名字（nil 是没在加）。
+    @State private var newChannel: String?
+    /// 现在格子里的数是不是从记过的那天填回来的。
+    @State private var loaded = false
     // 开销
     @State private var amount = ""
     @State private var what = ""
@@ -810,7 +916,8 @@ private struct V3ShopDaySheet: View {
         let cats = TrialBook.shopCategories
         let okIn = !bad && total > .zero
         let okOut = m != nil && pay.indices.contains(account)
-        V3SheetBox(width: 640, title: day == b.todayDay ? "记今天的账" : "补 \(day) 号的账",
+        let dateText = QuickDate.label(daysAgo: daysAgo, today: b.todayDate, calendar: Calendar(identifier: .gregorian))
+        V3SheetBox(width: 640, title: daysAgo == 0 ? "记今天的账" : "补 \(dateText)的账",
                    foot: kind == 0 && known?.state == .open ? "这天记过了，再记就是改数。" : "", teal: true,
                    canSave: kind == 0 ? okIn : okOut,
                    save: {
@@ -818,11 +925,11 @@ private struct V3ShopDaySheet: View {
                            let channels: [TrialBook.ShopChannel] = mode == 0
                                ? parsed.compactMap { p in p.amount.map { TrialBook.ShopChannel(p.name, $0) } }
                                : [TrialBook.ShopChannel(b.usualShopChannel, total)]
-                           if state.change("记好了 · 11 月 \(day) 日收了 \(total.v3)", kind: .add, { try $0.recordShopDay(day, channels: channels) }) { state.closeSheet() }
+                           if state.change("记好了 · \(daysAgo == 0 ? "今天" : dateText)收了 \(total.v3)", kind: .add, { try $0.recordShopIncome(daysAgo: daysAgo, channels: channels) }) { state.closeSheet() }
                        } else if let m, pay.indices.contains(account) {
                            let c = cats[min(cat, cats.count - 1)].name
                            let from = pay[account].name
-                           let ago = b.todayDay - day
+                           let ago = daysAgo
                            if state.change("记好了 · \(c) \(m.v3)", kind: .add, { try $0.recordShopExpense(name: what, amount: m, category: c, account: from, daysAgo: ago, note: note) }) { state.closeSheet() }
                        }
                    }) {
@@ -841,7 +948,14 @@ private struct V3ShopDaySheet: View {
                 if bad { V3Label("这个数我没看懂。写成 74 或者 74,50 这样就行。", color: V3.red, weight: .semibold) }
                 HStack(spacing: 8) {
                     V3Chip(text: mode == 0 ? "只填总数" : "按渠道填", size: 12.5) { mode = 1 - mode }
-                    if mode == 0 { V3Chip(text: "+ 加一个渠道", size: 12.5) { state.open(.shopAccount) } }
+                    if mode == 0, newChannel == nil { V3Chip(text: "+ 加一个渠道", size: 12.5) { newChannel = "" } }
+                    // 就地加：起个名字就多一格，已经填的数都还在
+                    if mode == 0, let name = newChannel {
+                        V3Field(prompt: "渠道叫什么，比如：收款机", text: Binding(get: { name }, set: { newChannel = $0 }), size: 13.5, rounded: true) { addChannel() }
+                            .frame(width: 210)
+                        Button("加上") { addChannel() }.buttonStyle(.v3(.teal, .small)).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Button("不加了") { newChannel = nil }.buttonStyle(.v3(.ghost, .small))
+                    }
                     Spacer()
                 }
                 V3FormPreview(text: total >= need ? "这天一共 · 够付这天的固定开销了" : "这天一共 · 离够付固定开销还差 \((need - total).v3Short)", amount: total.v3)
@@ -855,38 +969,46 @@ private struct V3ShopDaySheet: View {
                 V3FormPick(label: "从店里哪个账户出", options: pay.map(\.name), pick: $account, teal: true)
                 V3FormField(label: "备注", prompt: "可不填", text: $note)
             }
-            HStack(spacing: 8) {
-                V3Label("哪天", size: 12.5, weight: .bold)
-                Button { if day > 1 { day -= 1 } } label: { Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
-                    .buttonStyle(.plain).accessibilityLabel("前一天")
-                Text("11 月 \(day) 日").font(V3.num(15, .heavy)).frame(width: 96).contentTransition(.numericText())
-                Button { if day < b.todayDay { day += 1 } } label: { Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
-                    .buttonStyle(.plain).disabled(day >= b.todayDay).accessibilityLabel("后一天")
+            HStack(alignment: .bottom, spacing: 8) {
+                V3DatePick(daysAgo: $daysAgo, teal: true)
                 if kind == 0 {
                     ForEach(b.shopDays.filter { $0.state == .missing && $0.day < b.todayDay && $0.day != day }.map(\.day), id: \.self) { d in
-                        V3Chip(text: "\(d) 号还没记", size: 12.5) { day = d }
+                        V3Chip(text: "\(d) 号还没记", size: 12.5) { daysAgo = b.todayDay - d }
                     }
                 }
                 Spacer()
-                if kind == 0 {
+                if kind == 0, day >= 1 {
                     Button("这天休息") {
-                        if state.change("记好了 · 11 月 \(day) 日休息", { try $0.markShopRest(day) }) { state.closeSheet() }
+                        if state.change("记好了 · \(dateText)休息", { try $0.markShopRest(day) }) { state.closeSheet() }
                     }
                     .buttonStyle(.v3(.ghost, .small))
                 }
             }
         }
         .onAppear {
-            day = start; fill()
+            day = start; daysAgo = max(b.todayDay - start, 0); fill()
             if state.shopDayExpense { kind = 1; state.shopDayExpense = false }
             account = pay.firstIndex { $0.name == b.usualFixedAccount } ?? 0
         }
-        .onChange(of: day) { _, _ in fill() }
+        .onChange(of: daysAgo) { _, v in day = b.todayDay - v; fill() }
+    }
+
+    private func addChannel() {
+        let name = (newChannel ?? "").trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        if state.change("加好了：\(name)", kind: .account, { try $0.addShopAccount(emoji: "📟", name: name, balance: .zero, owes: false) }) { newChannel = nil }
     }
 
     private func fill() {
         let b = state.book
-        texts = [:]; whole = ""
+        // 换日子：这天记过就把记过的数填回来；没记过的日子，已经填的数留着
+        guard let known = b.shopDays.first(where: { $0.day == day }), known.state == .open else {
+            // 上一天的数是从记过的账里填回来的，就清掉，别带到这一天
+            if loaded { texts = [:]; whole = ""; loaded = false }
+            return
+        }
+        _ = known
+        texts = [:]; whole = ""; loaded = true
         if let d = b.shopDays.first(where: { $0.day == day }), d.state == .open {
             for c in b.channels(of: d) { texts[c.account] = V3Form.plain(c.amount) }
             whole = V3Form.plain(d.total)

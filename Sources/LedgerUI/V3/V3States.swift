@@ -23,7 +23,7 @@ extension V3State {
     /// 先去流水页，顶上一条进度走几秒，走完才真的进账本，底下提示条说进来几笔。
     func importSample(dropped: Bool = false) {
         guard importProgress == nil else { return }
-        let rows = Self.demoBook.entries
+        let rows = Self.demoBook.entries.filter { $0.side == .life }
         let total = 40
         if showsLife { go(.transactions) }
         withAnimation(.snappy(duration: 0.2)) { importProgress = (dropped ? "放进来的文件" : "示例流水", 0, total) }
@@ -55,7 +55,7 @@ extension V3State {
         let noMoney = b.owned.allSatisfy { $0.balance == .zero } && b.entries.isEmpty
         switch p {
         case .overview, .wealth: return noMoney
-        case .goals: return b.journey.total == .zero
+        case .goals: return b.journey.total == .zero && b.smallGoals.isEmpty
         case .transactions where importProgress != nil: return false
         case .spending, .trends, .transactions, .monthly: return b.entries.filter { $0.side == .life }.isEmpty && noMoney
         case .settings: return false
@@ -80,16 +80,16 @@ struct V3EmptyPage: View {
 
     private var content: (String, String, [Act]) {
         let addAccount = Act(title: "加一个账户") { $0.showAddAccount = true }
-        let drop = Act(title: "拖流水进来") { $0.go(.transactions) }
+        let drop = Act(title: "把流水交给夏夏") { $0.handToXia() }
         let record = Act(title: "记一笔") { s in withAnimation(.snappy(duration: 0.2)) { s.showAdd = true } }
         let today = Act(title: "记今天的账") { $0.open(.shopDay($0.book.todayDay)) }
         switch page {
-        case .overview: return ("先告诉我你有多少钱", "加一个账户，或者把银行流水拖进来。有了数我才能算这个月还能花多少。", [addAccount, drop])
+        case .overview: return ("先告诉我你有多少钱", "加一个账户，或者把银行流水交给夏夏。有了数我才能算这个月还能花多少。", [addAccount, drop])
         case .goals: return ("还没有目标", "不急。想到一件想要的东西再来。", [Act(title: "定一个小目标") { $0.open(.goalNew) }])
         case .wealth: return ("还没有账户里的钱", "加一个银行卡、现金或者信用卡，这里就能算出你的家底。", [addAccount, drop])
-        case .spending: return ("这个月还没有花销", "记一笔，或者把银行流水拖进来。", [record, drop])
+        case .spending: return ("这个月还没有花销", "记一笔，或者把银行流水交给夏夏。", [record, drop])
         case .trends: return ("再等几天", "要有两个星期的流水，我才看得出花钱的速度。", [drop])
-        case .transactions: return ("一笔都还没有", "把银行流水拖到窗口里，一个月的账一次进来。", [Act(title: "导入流水") { $0.importSample() }, record])
+        case .transactions: return ("一笔都还没有", "把银行流水拖到窗口里交给夏夏，一个月的账一次进来。", [Act(title: "导入流水") { $0.handToXia() }, record])
         case .subscriptions: return ("还没发现订阅", "导入两三个月的流水，每月都扣的那些我会自己找出来。", [Act(title: "自己加一个") { $0.open(.subscription) }, drop])
         case .debts: return ("你不欠钱", "挺好的。借给别人的、分期买的，也可以记在这里。", [Act(title: "记一笔欠款") { $0.open(.debt) }])
         case .monthly: return ("第一份小结下个月 1 日写好", "要有一整个月的账才写得出来。", [])
@@ -123,17 +123,11 @@ struct V3EmptyPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .v3Soft()
-        .onDrop(of: [.fileURL], isTargeted: nil) { _ in
-            // 流水页空着时：把文件拖进来就导入（试用版不读真文件，用示例流水）。
-            guard page == .transactions else { return false }
-            state.importSample(dropped: true)
-            return true
-        }
         .background {
             // 刚进来、还没有流水：夏夏在顶上说一句，点开就去导入（引导里不再放拖流水）。
             if page == .overview, state.book.entries.isEmpty {
-                V3Ask(face: "happy", text: "想省事？把银行流水拖进来，我帮你填") {
-                    Button("去导入") { state.closeChat(); state.go(.transactions) }.buttonStyle(.v3(.primary, .small))
+                V3Ask(face: "happy", text: "想省事？把银行流水拖给我，我帮你填") {
+                    Button("交给夏夏") { state.handToXia() }.buttonStyle(.v3(.primary, .small))
                 }
                 .frame(width: 0, height: 0).hidden()
             }

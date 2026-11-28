@@ -602,7 +602,10 @@ struct V3ShopFlowPage: View {
 
     var body: some View {
         let b = state.book
-        let all = b.shopFlow
+        let now = state.isThisMonth
+        let d = state.monthData
+        // 过去的月份：只有补记的那几笔有明细，合计用那个月存下来的数
+        let all = now ? b.shopFlow : b.shopFlow(in: state.monthKey)
         let rows = all.filter { filter == 0 || (filter == 1 ? $0.amount > .zero : $0.amount < .zero) }
         let pages = max((rows.count + perPage - 1) / perPage, 1)
         let at = min(page, pages - 1)
@@ -613,10 +616,10 @@ struct V3ShopFlowPage: View {
             .sorted { $0.total > $1.total }
         V3Cols(left: 1, right: 1.5) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "11 月 · 收的减花的", amount: b.shopFlowIn - b.shopFlowOut, wave: V3.tealSoft) {
+                V3KeyCard(label: "\(state.monthLabel) · 收的减花的", amount: d.shopIn - d.shopOut, wave: V3.tealSoft) {
                     HStack(spacing: 26) {
-                        V3KV(value: b.shopFlowIn.v3, label: "收了", color: V3.teal)
-                        V3KV(value: b.shopFlowOut.v3, label: "花了", color: V3.red)
+                        V3KV(value: d.shopIn.v3, label: "收了", color: V3.teal)
+                        V3KV(value: d.shopOut.v3, label: "花了", color: V3.red)
                     }
                 }
                 V3GrowCard {
@@ -640,9 +643,9 @@ struct V3ShopFlowPage: View {
                     V3Label("\(rows.count) 笔", size: 12.5)
                 }
                 V3RowList(rows: shown.map { r in
-                    .init(r.emoji, r.title, "11 月 \(r.day) 日" + (r.detail.isEmpty ? "" : " · \(r.detail)"),
+                    .init(r.emoji, r.title, "\(state.monthKey.month) 月 \(r.day) 日" + (r.detail.isEmpty ? "" : " · \(r.detail)"),
                           (r.amount > .zero ? "+" : "") + r.amount.v3, r.amount > .zero ? V3.teal : V3.navy,
-                          action: { if r.amount > .zero { state.open(.shopDay(r.day)) } else if let id = r.entryID { state.open(.amount(id)) } })
+                          action: { if now, r.entryID == nil { state.open(.shopDay(r.day)) } else if let id = r.entryID { state.open(.amount(id)) } })
                 }, compact: true, fill: true)
                 Spacer(minLength: 0)
                 if pages > 1 {

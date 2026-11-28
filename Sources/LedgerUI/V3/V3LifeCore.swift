@@ -19,7 +19,7 @@ extension V3State {
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }
     var lastMonthSpentSoFar: Money { Money(cents: 1_249_39) }
-    var lastMonthNet: Money { Money(cents: 2_170_61) }
+    var lastMonthNet: Money { Money(cents: 2_365_61) }
 }
 
 // MARK: - 总览
@@ -39,19 +39,26 @@ struct V3OverviewPage: View {
 
     private func left(width: CGFloat) -> some View {
         let b = state.book
-        let m = b.month
+        let live = b.month
+        // 切到过去的月份：大卡是那个月最后剩下的，四个数照算
+        let m = state.monthData
+        let now = state.isThisMonth
         let j = b.journey
         return VStack(spacing: 14) {
-            V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+            if now {
+                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                }
             }
             // 这一页最重要的数
             VStack(alignment: .leading, spacing: 8) {
-                V3Label("11 月 · 现在还能随便花")
+                V3Label(now ? "\(state.monthLabel) · 现在还能随便花" : "\(state.monthLabel) · 最后剩下")
                 V3Gold(amount: m.left, size: 72)
-                Text(m.left > .zero ? "到月底还有 \(m.daysLeft) 天，平均每天能花 \(Money(cents: m.perDay.cents / 100 * 100).v3Short)"
-                     : "这个月能随便花的已经用完了，到月底还有 \(m.daysLeft) 天")
-                    .font(V3.font(14, .bold)).foregroundStyle(m.left > .zero ? V3.green : V3.red).contentTransition(.numericText())
+                if now {
+                    Text(live.left > .zero ? "到月底还有 \(live.daysLeft) 天，平均每天能花 \(Money(cents: live.perDay.cents / 100 * 100).v3Short)"
+                         : "这个月能随便花的已经用完了，到月底还有 \(live.daysLeft) 天")
+                        .font(V3.font(14, .bold)).foregroundStyle(live.left > .zero ? V3.green : V3.red).contentTransition(.numericText())
+                }
                 HStack(spacing: 26) {
                     V3KV(value: m.income.v3Signed, label: "进账", color: V3.green)
                     V3KV(value: (-m.fixed).v3Signed, label: "固定要付的")
@@ -67,12 +74,12 @@ struct V3OverviewPage: View {
 
             HStack(spacing: 14) {
                 let diff = state.lastMonthSpentSoFar - m.spentTotal
-                smallCard("这个月花掉", m.spentTotal.v3,
-                          diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
+                smallCard(now ? "这个月花掉" : "\(state.monthLabel)花掉", m.spentTotal.v3,
+                          !now ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
                           diff >= .zero ? V3.green : V3.navy) { state.go(.spending) }
                 let delta = b.totals.net - state.lastMonthNet
-                smallCard("家底 · 净剩", b.totals.net.v3,
-                          delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
+                smallCard(now ? "家底 · 净剩" : "\(state.monthLabel)底 · 净剩", (now ? b.totals.net : m.net).v3,
+                          !now ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
                           delta >= .zero ? V3.green : V3.navy) { state.go(.wealth) }
             }
 
@@ -145,13 +152,14 @@ struct V3OverviewPage: View {
             .v3Card(h: 16, v: 12)
 
             VStack(alignment: .leading, spacing: 6) {
-                V3CardTitle(title: "今天自己进来的") { EmptyView() } trail: {
+                let recent = state.isThisMonth ? b.today : state.monthData.entries
+                V3CardTitle(title: state.isThisMonth ? "今天自己进来的" : "这个月记的") { EmptyView() } trail: {
                     Button { state.go(.transactions) } label: {
-                        Text("\(b.today.count) 笔 · 全部 ›").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+                        Text("\(recent.count) 笔 · 全部 ›").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                     }
                     .buttonStyle(V3SinkStyle(depth: 1))
                 }
-                V3Rows(data: Array(b.today.prefix(3))) { e in
+                V3Rows(data: Array(recent.prefix(3))) { e in
                     Button { state.txFocus = e.id; state.go(.transactions) } label: {
                         V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, tag: e.tag, compact: true).contentShape(Rectangle())
                     }
@@ -160,6 +168,8 @@ struct V3OverviewPage: View {
             }
             .v3Card(h: 16, v: 14)
 
+            // 接下来要付的：只有看这个月时才有
+            if !state.isThisMonth { Spacer(minLength: 0) } else {
             VStack(alignment: .leading, spacing: 6) {
                 V3CardTitle(title: "接下来要付的") { EmptyView() } trail: { V3Tag(text: "钱够", tone: .green) }
                 V3Rows(data: Array(b.upcoming.prefix(3))) { e in
@@ -173,6 +183,7 @@ struct V3OverviewPage: View {
             .padding(.horizontal, 16).padding(.vertical, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .v3Soft()
+            }
         }
     }
 }
@@ -266,10 +277,38 @@ struct V3GoalsPage: View {
         GeometryReader { g in
             let leftW = (g.size.width - 18) * 1.45 / 2.45
             HStack(alignment: .top, spacing: 18) {
-                left(width: leftW).frame(width: leftW)
+                Group {
+                    if state.book.journey.total > .zero { left(width: leftW) } else { noBigGoal }
+                }
+                .frame(width: leftW)
                 right
             }
         }
+    }
+
+    /// 没有大目标时，路卡是空的：一句话 + 两个按钮。
+    private var noBigGoal: some View {
+        let small = state.book.smallGoals
+        return VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            Image(systemName: "flag").font(.system(size: 34, weight: .semibold)).foregroundStyle(V3.dash)
+            Text("现在没有大目标").font(V3.font(22, .heavy)).foregroundStyle(V3.ink)
+            HStack(spacing: 10) {
+                if !small.isEmpty {
+                    Menu {
+                        ForEach(small) { g in
+                            Button("「\(g.name)」") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
+                        }
+                    } label: { Text("从小目标里挑一个").font(V3.font(14, .bold)).foregroundStyle(V3.ink).padding(.horizontal, 16).padding(.vertical, 9)
+                        .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2))) }
+                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                }
+                Button("定一个新的大目标") { state.open(.goalNew) }.buttonStyle(.v3)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .v3Sticker()
     }
 
     // 左边：大目标那条路。「这一站还差」写在卡头，「这个月的计划」和收到的信在卡底一行。
@@ -284,41 +323,73 @@ struct V3GoalsPage: View {
                     HStack(spacing: 8) {
                         if !j.isFinished { Text("这一站还差").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2) }
                         Text(j.isFinished ? "都存够了" : j.remainingToNext.v3Short).font(V3.num(22, .heavy)).foregroundStyle(V3.gold).contentTransition(.numericText())
+                        // 「…」：改、换、删这个大目标
+                        Menu { bigGoalMenu } label: {
+                            Image(systemName: "ellipsis").font(.system(size: 14, weight: .bold)).foregroundStyle(V3.ink)
+                                .frame(width: 30, height: 30).background(Circle().fill(V3.bg)).contentShape(Circle())
+                        }
+                        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                        .help("改、换、删这个大目标").accessibilityLabel("大目标的更多操作")
                     }
                 }
-                V3Road(journey: j, captions: state.roadCaptions).frame(maxWidth: .infinity, maxHeight: .infinity)
-                HStack(spacing: 10) {
-                    Button { state.open(.monthlyPlan) } label: {
-                        HStack(spacing: 8) {
-                            Text("这个月").font(V3.font(13, .bold)).foregroundStyle(V3.ink)
-                            V3Bar(fraction: plan > .zero ? Double(j.savedThisMonth.cents) / Double(plan.cents) : 0, height: 10).frame(width: 120)
-                            Text("\(j.savedThisMonth.v3Short) / \(plan.v3Short)").font(V3.num(13.5)).foregroundStyle(V3.navy)
+                V3Road(journey: j, captions: state.roadCaptions, onLetter: { i in
+                    // 路上第 i 站的信：有就打开，没有（示例里原来就走过的站）就现写一封
+                    let letters = state.book.letters
+                    if letters.indices.contains(i - 1) { state.openMoment(.letter(letters[i - 1])) }
+                    else if j.stations.indices.contains(i) { state.openMoment(.letter(state.arrivalLetter(for: j.stations[i]))) }
+                })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if j.isFinished {
+                    // 存够了：这个目标完成了，接下来走哪条
+                    HStack(spacing: 10) {
+                        Text("这个目标完成了").font(V3.font(15, .heavy)).foregroundStyle(V3.gold).lineLimit(1).fixedSize()
+                        Spacer(minLength: 6)
+                        if !state.book.smallGoals.isEmpty {
+                            Menu {
+                                ForEach(state.book.smallGoals) { g in
+                                    Button("「\(g.name)」") {
+                                        state.change("「\(j.name)」收进走完的路，「\(g.name)」现在是大目标", kind: .goal) { try $0.archiveBigGoal(); try $0.promoteSmallGoal(g.id) }
+                                    }
+                                }
+                            } label: {
+                                Text("从小目标里挑一个当大目标").font(V3.font(13, .bold)).foregroundStyle(V3.ink).padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                            }
+                            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
                         }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(V3SinkStyle(depth: 1)).help("改每月存多少")
-                    Spacer(minLength: 6)
-                    // 到站收到的信：点信封打开
-                    ForEach(state.book.letters.suffix(3)) { l in
-                        Button { state.openMoment(.letter(l)) } label: {
-                            Label(l.title, systemImage: "envelope").font(V3.font(12.5, .bold)).foregroundStyle(V3.ink)
-                                .padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(Capsule().fill(V3.paper).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                        Button("定一个新的大目标") {
+                            if state.change("「\(j.name)」收进走完的路了", kind: .goal, { try $0.archiveBigGoal() }) { state.open(.goalNew) }
                         }
-                        .buttonStyle(V3SinkStyle(depth: 2)).accessibilityLabel("\(l.date)的信：\(l.title)")
+                        .buttonStyle(.v3(.primary, .small))
                     }
-                    if !j.isFinished, j.remainingToNext > Money(cents: 20_00) {
-                        Button("存够这一站") { state.depositAndCelebrate(j.remainingToNext) }.buttonStyle(.v3(.ghost, .small))
+                } else {
+                    let over = j.savedThisMonth - plan
+                    HStack(spacing: 10) {
+                        Button { state.open(.monthlyPlan) } label: {
+                            HStack(spacing: 8) {
+                                V3Bar(fraction: plan > .zero ? min(Double(j.savedThisMonth.cents) / Double(plan.cents), 1) : 0, height: 10,
+                                      color: plan > .zero && j.savedThisMonth >= plan ? V3.star : V3.navy).frame(width: 120)
+                                Text(plan > .zero && over > .zero ? "这个月存了 \(j.savedThisMonth.v3Short)，比计划多存了 \(over.v3Short)" : "这个月存了 \(j.savedThisMonth.v3Short)")
+                                    .font(V3.font(13.5, .bold)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(V3SinkStyle(depth: 1)).help("改每月存多少")
+                        Spacer(minLength: 6)
+                        if j.remainingToNext > Money(cents: 20_00) {
+                            Button("存够这一站") { state.depositAndCelebrate(j.remainingToNext) }.buttonStyle(.v3(.ghost, .small))
+                        }
                     }
                 }
             }
             .padding(.init(top: 16, leading: 20, bottom: 26, trailing: 20))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .v3Sticker().v3WaveBottom()
+            .contextMenu { bigGoalMenu }
             Group {
                 if j.isFinished {
                     V3Ask(face: "celebrate", text: "走完了！\(j.total.v3Short) 都存够了。", tone: .good)
-                } else {
+                } else if j.total > .zero {
                     let name = j.nextStation.flatMap { $0.title.isEmpty ? nil : "「\($0.title)」那一站" } ?? "下一站"
                     V3Ask(face: "happy", text: "离\(name)还差 \(j.remainingToNext.v3Short)，\(state.deadline)前有点悬。") {
                         HStack(spacing: 8) {
@@ -330,6 +401,21 @@ struct V3GoalsPage: View {
             }
             .frame(width: width * 0.86).frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// 大目标的菜单（右上「…」和右键是同一个）。
+    @ViewBuilder private var bigGoalMenu: some View {
+        let b = state.book
+        Button("改名字、金额…") { state.open(.goalEdit) }
+        if !b.smallGoals.isEmpty {
+            Menu("换掉这个大目标") {
+                ForEach(b.smallGoals) { g in
+                    Button("换成「\(g.name)」") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
+                }
+            }
+        }
+        Divider()
+        Button("删掉这个目标…", role: .destructive) { state.open(.goalDelete(nil)) }
     }
 
     // 右边：最多 3 个小目标；下面是「先放着想想的」。
@@ -373,17 +459,51 @@ struct V3GoalsPage: View {
                 }
                 .v3Card(h: 20, v: 14)
             }
+            // 走完的路：存够了的目标收在这里
+            if !b.finishedGoals.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    V3CardTitle("走完的路", note: "\(b.finishedGoals.count) 条")
+                    ForEach(Array(b.finishedGoals.prefix(3).enumerated()), id: \.element.id) { i, f in
+                        if i > 0 { V3Divider() }
+                        Button { state.open(.finishedGoal(f.id)) } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.seal.fill").font(.system(size: 14)).foregroundStyle(V3.star)
+                                Text(f.name).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
+                                Text(f.date).font(V3.font(12, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                                Spacer(minLength: 4)
+                                V3Amount(f.total.v3Short, size: 14.5)
+                            }
+                            .padding(.vertical, 3).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .v3Card(h: 20, v: 14)
+            }
             Spacer(minLength: 0)
         }
     }
 
     private func smallCard(_ g: TrialBook.SmallGoal) -> some View {
+        V3SmallGoalCard(goal: g)
+    }
+}
+
+/// 一个小目标的卡片：鼠标移上去浮起来、变成手形，点一下出菜单。
+private struct V3SmallGoalCard: View {
+    let goal: TrialBook.SmallGoal
+    @Environment(V3State.self) private var state
+    @State private var hover = false
+
+    var body: some View { card(goal) }
+
+    private func card(_ g: TrialBook.SmallGoal) -> some View {
         Menu {
             Button("存一笔") { state.saveTarget = g.id; state.open(.save) }
             Button("设成大目标") { state.change("好，「\(g.name)」现在是大目标", kind: .goal) { try $0.promoteSmallGoal(g.id) } }
             Button("改名字、金额、日子…") { state.open(.smallGoal(g.id)) }
             Divider()
-            Button("删掉（存的钱回日常卡）") { state.change("删掉了：\(g.name)", kind: .remove) { try $0.removeSmallGoal(g.id) } }
+            Button("删掉…", role: .destructive) { state.open(.goalDelete(g.id)) }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
@@ -401,6 +521,12 @@ struct V3GoalsPage: View {
             .contentShape(Rectangle())
         }
         .menuStyle(.button).buttonStyle(.plain)
+        .offset(y: hover ? -3 : 0).shadow(color: V3.ink.opacity(hover ? 0.14 : 0), radius: 8, y: 5)
+        .animation(.snappy(duration: 0.15), value: hover)
+        .onHover { h in
+            hover = h
+            if h { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
         .accessibilityLabel("小目标 \(g.name)，存了 \(g.saved.v3Short)，一共要 \(g.target.v3Short)")
     }
 }

@@ -228,6 +228,8 @@ struct V3Shell: View {
         }
         .overlay { if state.showAdd { V3AddSheet().environment(\.v3InlineXia, true).transition(.opacity) } }
         .overlay { if let sheet = state.sheet { V3SheetHost(sheet: sheet).environment(\.v3InlineXia, true).transition(.opacity) } }
+        // 把文件拖到任何一页：都是交给夏夏（出图、跑测试时不挂这个，离屏画不出来）
+        .modifier(V3FileDrop())
         .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state).environment(\.v3InlineXia, true) }
     }
 
@@ -244,14 +246,27 @@ struct V3Shell: View {
         case .goals: V3GoalsPage()
         case .wealth: V3WealthPage()
         case .spending: V3SpendingPage()
-        case .trends: V3TrendsPage()
+        case .trends:
+            if state.isThisMonth { V3TrendsPage() } else {
+                let d = state.monthData
+                V3PastMonthPage(title: "\(state.monthLabel)花掉", amount: d.spentTotal,
+                                facts: [("固定要付的", d.fixed.v3), ("平时花的", d.spent.v3), ("月底净剩", d.net.v3)], weekly: d.weekly)
+            }
         case .transactions: V3TransactionsPage()
         case .subscriptions: V3SubscriptionsPage()
         case .debts: V3DebtsPage()
         case .monthly: V3MonthlyPage()
         case .settings: V3SettingsPage()
-        case .bizHome: V3BizHomePage()
-        case .sales: V3SalesPage()
+        case .bizHome:
+            if state.isThisMonth { V3BizHomePage() } else {
+                let d = state.monthData
+                V3PastMonthPage(title: "\(state.monthLabel) · 收的减花的", amount: d.shopIn - d.shopOut, teal: true, facts: [("收了", d.shopIn.v3), ("花了", d.shopOut.v3)])
+            }
+        case .sales:
+            if state.isThisMonth { V3SalesPage() } else {
+                let d = state.monthData
+                V3PastMonthPage(title: "\(state.monthLabel)店里收了", amount: d.shopIn, teal: true, facts: [("花了", d.shopOut.v3), ("收的减花的", (d.shopIn - d.shopOut).v3)])
+            }
         case .shopFlow: V3ShopFlowPage()
         case .shopWealth: V3ShopWealthPage()
         case .fixed: V3FixedPage()
@@ -474,6 +489,7 @@ private struct V3TopBar: View {
                     .buttonStyle(.v3(.ghost, .small)).help("回到设置")
             }
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
+            if V3MonthSwitch.pages.contains(state.page), !(state.page == .settings) { V3MonthSwitch() }
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
             // 「问夏夏」不再放在右上角（左下角已经有夏夏那一行了，ming 2026-11-28）；⌘K 照旧打开聊天。
@@ -501,7 +517,10 @@ private struct V3TopBar: View {
             if let d = b.debts.first(where: { $0.balance > .zero }) { return ("记一笔还款", { state.open(.repay(d.name)) }) }
             return ("加一笔欠款", { state.open(.debt) })
         case .subscriptions: return ("加订阅", { state.open(.subscription) })
-        case .goals: return b.journey.total > .zero ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
+        // 有在走的目标（大目标没存够，或者有小目标）就是存一笔；一个都没有才是定一个目标
+        case .goals:
+            let bigOpen = b.journey.total > .zero && !b.journey.isFinished
+            return bigOpen || !b.activeSmallGoals.isEmpty ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
         case .monthly, .settings: return nil
         case .bizHome, .sales, .shopFlow, .checkup: return ("记今天的账", { state.open(.shopDay(b.todayDay)) })
         case .shopWealth: return ("加账户", { state.open(.shopAccount) })
@@ -515,15 +534,15 @@ private struct V3TopBar: View {
     private var title: String {
         if state.page == .settings, state.showLog { return "改动记录" }
         if state.page == .settings, let sub = state.settingsSub { return sub.title }
-        if state.page == .monthly { return "10 月小结" }
+        if state.page == .monthly { return "每月小结" }
         return state.page.title
     }
 
     /// 标题旁边只留「数据」：今天几号、哪家店。解释这页是干什么的那句话不放（ming 2026-11-27：小字太多）。
     private var subtitle: String {
         switch state.page {
-        case .overview: state.today
-        case .bizHome: "\(state.book.shopName) · 11 月"
+        case .overview: state.isThisMonth ? state.today : ""
+        case .bizHome: state.book.shopName
         default: ""
         }
     }
@@ -593,6 +612,24 @@ struct V3AddAccountSheet: View {
         TextField(prompt, text: text).textFieldStyle(.plain).font(V3.font(15, .semibold))
             .padding(.horizontal, 16).padding(.vertical, 10)
             .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
+    }
+}
+
+/// 整个窗口都能接文件：小票、流水一律交给夏夏，她回确认卡以后才写入。
+struct V3FileDrop: ViewModifier {
+    @Environment(V3State.self) private var state
+    func body(content: Content) -> some View {
+        if NSClassFromString("XCTestCase") != nil || state.chatOpen {
+            content
+        } else {
+            content.onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                _ = providers.first?.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    Task { @MainActor in state.handToXia(file: url) }
+                }
+                return true
+            }
+        }
     }
 }
 #endif
