@@ -8,7 +8,7 @@ import SwiftUI
 // 开关和名字这些偏好只是这台 Mac 上的设置，放在 V3Prefs 里。
 
 /// 这台 Mac 上的偏好（不进账本）。
-struct V3Prefs: Equatable {
+struct V3Prefs: Equatable, Codable {
     var builtIn = true
     var xiaName = "夏夏"
     var callMe = ""
@@ -32,6 +32,62 @@ struct V3Prefs: Equatable {
     var samePlace = true
     /// 上次更新汇率是几号。
     var ratesDay = 17
+    /// 点过「别再提醒这个」的那几类提醒（接正式账本时记在这里；试用数字记在示例账本里）。
+    var mutedReminders: [String] = []
+
+    init() {}
+
+    /// 存起来的偏好里少了哪一项（旧版本存的、以后新加的），那一项就用默认的；读不懂的整份不要。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = V3Prefs()
+        builtIn = try c.decodeIfPresent(Bool.self, forKey: .builtIn) ?? d.builtIn
+        xiaName = try c.decodeIfPresent(String.self, forKey: .xiaName) ?? d.xiaName
+        callMe = try c.decodeIfPresent(String.self, forKey: .callMe) ?? d.callMe
+        showXia = try c.decodeIfPresent(Bool.self, forKey: .showXia) ?? d.showXia
+        bubbles = try c.decodeIfPresent(Bool.self, forKey: .bubbles) ?? d.bubbles
+        persona = try c.decodeIfPresent(Int.self, forKey: .persona) ?? d.persona
+        speak = try c.decodeIfPresent([String: Bool].self, forKey: .speak) ?? d.speak
+        remindDays = try c.decodeIfPresent(Int.self, forKey: .remindDays) ?? d.remindDays
+        maxPerDay = try c.decodeIfPresent(Int.self, forKey: .maxPerDay) ?? d.maxPerDay
+        voicePause = try c.decodeIfPresent(Int.self, forKey: .voicePause) ?? d.voicePause
+        voiceLanguage = try c.decodeIfPresent(Int.self, forKey: .voiceLanguage) ?? d.voiceLanguage
+        language = try c.decodeIfPresent(Int.self, forKey: .language) ?? d.language
+        dedupe = try c.decodeIfPresent(Bool.self, forKey: .dedupe) ?? d.dedupe
+        phoneReceipts = try c.decodeIfPresent(Bool.self, forKey: .phoneReceipts) ?? d.phoneReceipts
+        receiptAuto = try c.decodeIfPresent(Bool.self, forKey: .receiptAuto) ?? d.receiptAuto
+        aiRecords = try c.decodeIfPresent(Bool.self, forKey: .aiRecords) ?? d.aiRecords
+        samePlace = try c.decodeIfPresent(Bool.self, forKey: .samePlace) ?? d.samePlace
+        ratesDay = try c.decodeIfPresent(Int.self, forKey: .ratesDay) ?? d.ratesDay
+        mutedReminders = try c.decodeIfPresent([String].self, forKey: .mutedReminders) ?? d.mutedReminders
+    }
+
+    /// 存的数不对（序号出界、名字空了、太长）就回到默认的那一个，别的不动。
+    var checked: V3Prefs {
+        var p = self
+        let d = V3Prefs()
+        let name = p.xiaName.trimmingCharacters(in: .whitespacesAndNewlines)
+        p.xiaName = name.isEmpty || name.count > 12 ? d.xiaName : name
+        p.callMe = String(p.callMe.trimmingCharacters(in: .whitespacesAndNewlines).prefix(12))
+        if !(0..<4).contains(p.persona) { p.persona = d.persona }
+        if ![1, 3, 7].contains(p.remindDays) { p.remindDays = d.remindDays }
+        if ![1, 2, 3, 5].contains(p.maxPerDay) { p.maxPerDay = d.maxPerDay }
+        if !VoiceRules.pauses.indices.contains(p.voicePause) { p.voicePause = d.voicePause }
+        if !VoiceRules.languages.indices.contains(p.voiceLanguage) { p.voiceLanguage = d.voiceLanguage }
+        if !(0..<3).contains(p.language) { p.language = d.language }
+        p.mutedReminders = Array(Set(p.mutedReminders)).sorted()
+        return p
+    }
+
+    static let storeKey = "xiaxia.v3.prefs"
+    /// 读回上次存的偏好（这台 Mac 的偏好设置里，不是秘密）。没存过、读不懂，都是默认的。
+    static func load(from d: UserDefaults) -> V3Prefs {
+        guard let data = d.data(forKey: storeKey), let p = try? JSONDecoder().decode(V3Prefs.self, from: data) else { return V3Prefs() }
+        return p.checked
+    }
+    func save(to d: UserDefaults) {
+        if let data = try? JSONEncoder().encode(checked) { d.set(data, forKey: Self.storeKey) }
+    }
 }
 
 struct V3AILink: Identifiable, Equatable {

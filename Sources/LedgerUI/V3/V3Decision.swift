@@ -156,7 +156,13 @@ extension V3State {
     /// 卡上的「别再提醒这个」：这一类以后都不提。能在设置里重新打开。
     func muteReminder(_ kind: String) {
         let title = ReminderSituation.Topic.Kind(rawValue: kind)?.title ?? "这一类"
-        change("好，「\(title)」以后不提醒了") { $0.mutedReminders.insert(kind) }
+        if real != nil {
+            // 接正式账本：这是这台 Mac 上的偏好，不进账本；存起来，下次打开还记得
+            if !prefs.mutedReminders.contains(kind) { prefs.mutedReminders.append(kind) }
+            say("好，「\(title)」以后不提醒了")
+        } else {
+            change("好，「\(title)」以后不提醒了") { $0.mutedReminders.insert(kind) }
+        }
         withAnimation(.easeIn(duration: 0.18)) { reminder = nil; sayCardID = nil }
     }
 

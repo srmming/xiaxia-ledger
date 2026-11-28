@@ -353,7 +353,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, before)
         // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("改") { try $0.setSides(life: false, biz: true) })
+        XCTAssertFalse(s.change("改") { $0.categories[0].emoji = "🧪" })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
@@ -945,18 +945,80 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(book.account(jar)?.balance, b.account(jar)!.balance + Money(cents: 20_00))
     }
 
-    /// 听写的停顿和语言记到下次打开；存的数不对就回默认。用一份临时的偏好设置，不碰真的。
-    func testVoicePrefsAreReadBack() {
+    /// 「夏夏偏好」「夏夏什么时候开口」和听写的选项都记到下次打开；存的数不对就回默认。用一份临时的偏好设置，不碰真的。
+    func testPrefsAreReadBack() {
         let name = "xiaxia-test-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: name)!
         defer { d.removePersistentDomain(forName: name) }
-        XCTAssertEqual(V3State.savedPrefs(d, testing: false).voiceLanguage, VoiceRules.defaultLanguageIndex)
-        d.set(1, forKey: V3State.voiceLanguageKey); d.set(3, forKey: V3State.voicePauseKey)
-        let p = V3State.savedPrefs(d, testing: false)
-        XCTAssertEqual(VoiceRules.localeID(p.voiceLanguage), "es-ES"); XCTAssertNil(VoiceRules.pause(p.voicePause))
-        d.set(99, forKey: V3State.voiceLanguageKey)
-        XCTAssertEqual(V3State.savedPrefs(d, testing: false).voiceLanguage, VoiceRules.defaultLanguageIndex)
-        XCTAssertEqual(V3State().prefs.voiceLanguage, VoiceRules.defaultLanguageIndex, "跑测试时不读真的偏好设置")
+        XCTAssertEqual(V3Prefs.load(from: d), V3Prefs(), "没存过就是默认的")
+        XCTAssertNil(V3State().prefsStore, "跑测试时不读不写真的偏好设置")
+        let s = V3State()
+        s.usePrefsStore(d)
+        s.prefs.xiaName = "小夏"; s.prefs.callMe = "阿晴"; s.prefs.showXia = false; s.prefs.bubbles = false; s.prefs.persona = 2
+        s.prefs.speak["weekly"] = false; s.prefs.remindDays = 7; s.prefs.maxPerDay = 1
+        s.prefs.voicePause = 3; s.prefs.voiceLanguage = 1; s.prefs.language = 1
+        s.prefs.dedupe = false; s.prefs.receiptAuto = true; s.prefs.samePlace = false
+        // 关掉再打开：另一个窗口从同一份偏好里读回来，一样不差
+        let again = V3State()
+        again.usePrefsStore(d)
+        XCTAssertEqual(again.prefs, s.prefs)
+        XCTAssertEqual(again.prefs.xiaName, "小夏"); XCTAssertEqual(again.prefs.persona, 2); XCTAssertEqual(again.prefs.speak["weekly"], false)
+        XCTAssertEqual(VoiceRules.localeID(again.prefs.voiceLanguage), "es-ES"); XCTAssertNil(VoiceRules.pause(again.prefs.voicePause))
+        // 存的数不对：那一项回默认，别的照旧
+        var bad = s.prefs
+        bad.persona = 99; bad.remindDays = 4; bad.maxPerDay = 0; bad.voiceLanguage = 99; bad.voicePause = -1; bad.language = 7; bad.xiaName = "  "
+        d.set(try! JSONEncoder().encode(bad), forKey: V3Prefs.storeKey)
+        let fixed = V3Prefs.load(from: d), def = V3Prefs()
+        XCTAssertEqual([fixed.persona, fixed.remindDays, fixed.maxPerDay, fixed.voiceLanguage, fixed.voicePause, fixed.language],
+                       [def.persona, def.remindDays, def.maxPerDay, def.voiceLanguage, def.voicePause, def.language])
+        XCTAssertEqual(fixed.xiaName, def.xiaName); XCTAssertEqual(fixed.callMe, "阿晴"); XCTAssertFalse(fixed.showXia)
+        // 读不懂的、旧版本少几项的
+        d.set(Data("乱的".utf8), forKey: V3Prefs.storeKey)
+        XCTAssertEqual(V3Prefs.load(from: d), V3Prefs())
+        d.set(Data(#"{"xiaName":"阿夏","persona":1}"#.utf8), forKey: V3Prefs.storeKey)
+        let old = V3Prefs.load(from: d)
+        XCTAssertEqual(old.xiaName, "阿夏"); XCTAssertEqual(old.persona, 1); XCTAssertEqual(old.maxPerDay, def.maxPerDay); XCTAssertEqual(old.speak, def.speak)
+    }
+
+    /// 接正式账本时「别再提醒这个」记在偏好里：不进账本，关掉再开还记得。
+    func testMutedRemindersSurviveOnARealLedger() {
+        let name = "xiaxia-test-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: name)!
+        defer { d.removePersistentDomain(forName: name) }
+        let model = LedgerModel.demo(); model.author = "小满"
+        let s = V3State(model: model)
+        s.usePrefsStore(d)
+        let before = model.ledger
+        let kind = ReminderSituation.Topic.Kind.allCases[0].rawValue
+        s.muteReminder(kind)
+        XCTAssertTrue(s.book.mutedReminders.contains(kind))
+        XCTAssertEqual(model.ledger, before, "这是这台 Mac 的偏好，账本一个字不动")
+        // 记一笔（界面重新算一遍数）以后还在
+        let acc = s.book.accounts(for: .pay, side: .life).first { $0.kind == .own }!.name
+        XCTAssertTrue(s.change("记好了") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("3,00"), account: acc, place: "La Tasca") })
+        XCTAssertTrue(s.book.mutedReminders.contains(kind))
+        // 关掉再打开
+        let again = V3State(model: LedgerModel.demo())
+        again.usePrefsStore(d)
+        XCTAssertTrue(again.book.mutedReminders.contains(kind))
+    }
+
+    /// 「管哪边」存在正式账本里：带作者、能撤销，另一台设备打开同一本账读到的是同一个。
+    func testSidesAreSavedInTheRealLedger() {
+        let model = LedgerModel.demo(); model.author = "小满"
+        let s = V3State(model: model)
+        XCTAssertEqual(s.mode, .both)
+        XCTAssertTrue(s.setSides(life: true, biz: false))
+        XCTAssertEqual(model.ledger.managedSides, .life)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        XCTAssertEqual(model.ledger.business?.enabled, true, "只是先不显示，生意模式和生意的账都还在")
+        XCTAssertEqual(s.book.visiblePages, TrialBook.lifePages)
+        XCTAssertEqual(V3State(model: model).mode, .life, "再打开还是只管生活")
+        XCTAssertTrue(s.setSides(life: false, biz: true))
+        XCTAssertEqual(model.ledger.managedSides, .biz); XCTAssertEqual(s.side, .biz)
+        s.undo()
+        XCTAssertEqual(model.ledger.managedSides, .life)
+        XCTAssertFalse(s.setSides(life: false, biz: false))
     }
 
     func testNewLookSharesTheAppsLedgerModel() throws {
@@ -987,7 +1049,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(model.ledger.transactions.contains { $0.description == "La Tasca" && $0.amount == Money(cents: -12_50) })
         // 做不了的改动：模型一个字不动
         let before = model.ledger
-        XCTAssertFalse(s.change("改") { try $0.setSides(life: false, biz: true) })
+        XCTAssertFalse(s.change("改") { $0.categories[0].emoji = "🧪" })
         XCTAssertEqual(model.ledger, before)
         // 默认还是旧界面
         XCTAssertFalse(V3Launch.newLook)
