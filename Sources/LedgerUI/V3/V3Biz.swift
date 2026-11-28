@@ -231,34 +231,16 @@ struct V3SalesPage: View {
 
 struct V3FixedPage: View {
     @Environment(V3State.self) private var state
-    @State private var kept = false
 
     var body: some View {
         let b = state.book
-        // 「广告没见带来新客人」是试用里的示例，正式账本上没有依据，不说
-        let ads = state.real == nil ? b.fixedCosts.first { $0.name == "广告" } : nil
+        // 夏夏在这一页不再说「广告没见带来新客人，停一个月试试」：没有依据（ming 2026-11-28：说的话要能从数据算出来）
         let rises = b.fixedRises
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "每月固定要付", amount: b.fixedTotal, wave: V3.tealSoft) {
                     Text("每个开门的日子收够 \(b.dailyBreakEven.v3Short) 才不亏").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
                         .help(b.breakEvenNote)
-                }
-                if let ads {
-                    if ads.off {
-                        V3Ask(face: "happy", text: "12 月停广告，月底看客人少没少。", tone: .good) {
-                            Button("还是开着") { state.change("好，广告接着投") { try $0.setFixedCost("广告", paused: false) } }.buttonStyle(.v3(.ghost, .small))
-                        }
-                    } else if kept {
-                        V3Ask(face: "happy", text: "好，广告先留着。", tone: .good)
-                    } else {
-                        V3Ask(face: "think", text: "广告每月 \(ads.amount.v3Short)，没见带来新客人。停一个月试试？") {
-                            HStack(spacing: 8) {
-                                Button("停一个月试试") { state.change("好，12 月停广告") { try $0.setFixedCost("广告", paused: true) } }.buttonStyle(.v3(.teal, .small))
-                                Button("先留着") { withAnimation(.snappy) { kept = true }; state.say("好，先留着") }.buttonStyle(.v3(.ghost, .small))
-                            }
-                        }
-                    }
                 }
                 // 比上个月多了的：哪一样涨了、涨多少。没有就不出现。
                 if !rises.isEmpty {
@@ -465,7 +447,8 @@ struct V3CheckupPage: View {
         let b = state.book
         let m = b.shopMonth()
         let split = b.shopPer100
-        let ads = state.real == nil ? b.fixedCosts.first { $0.name == "广告" && !$0.off } : nil
+        // 能省的只放算得出来的：比上个月涨了的固定开销（涨了多少是两个月的差）
+        let rises = b.fixedRises
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "\(state.monthLabel) · 真正赚了", amount: m.earned, wave: V3.tealSoft) {
@@ -503,9 +486,11 @@ struct V3CheckupPage: View {
                 V3GrowCard(spacing: 6) {
                     V3CardTitle("怎么多赚一点")
                     // 只放从账本里看得出来的：和钱无关的（排班、开门时间）不放
-                    if let ads {
-                        V3RowList(rows: [.init("📣", "停掉广告试一个月", "每月 \(ads.amount.v3Short)", "+\(ads.amount.v3Short) / 月", V3.green,
-                                               action: { state.open(.fixedEdit(ads.name)) })], fill: true)
+                    if !rises.isEmpty {
+                        V3RowList(rows: rises.prefix(3).map { r in
+                            .init(r.item.emoji, "\(r.item.name)比上个月涨了", "上个月 \((r.item.lastMonth ?? .zero).v3Short)，现在 \(r.item.amount.v3Short)", "+\(r.rise.v3Short) / 月", V3.red,
+                                  action: { state.open(.fixedEdit(r.item.name)) })
+                        }, fill: true)
                     } else {
                         V3Label("这个月没有看得出来能省的。", size: 14)
                     }
@@ -548,7 +533,7 @@ struct V3BizDebtsPage: View {
                     }
                 }
                 if let first {
-                    V3Ask(face: "worried", text: "\(first.name)那 \(first.amount.v3Short)\(first.note.isEmpty ? "" : "，" + first.note)。拖了下次不给赊。", tone: .warn, kicker: "要留意") {
+                    V3Ask(face: "worried", text: "\(first.name)那 \(first.amount.v3Short)\(first.note.isEmpty ? "" : "，" + first.note)。", tone: .warn, kicker: "要留意") {
                         HStack(spacing: 8) {
                             ForEach(b.shopHeld.prefix(3)) { a in
                                 Button("从\(a.name)还") {

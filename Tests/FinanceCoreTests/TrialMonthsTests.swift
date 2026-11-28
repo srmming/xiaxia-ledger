@@ -107,4 +107,18 @@ final class TrialMonthsTests: XCTestCase {
         tight.pastMonths[0].income = Money(cents: 100_00)
         XCTAssertEqual(tight.monthWatch(oct).first?.title, "花的比进的多")
     }
+
+    /// 总览上关于存钱的那一句是算出来的：没定每月存多少就不说；差多少就是「打算存的 − 已经存的」。
+    func testSavingRemarkIsComputed() throws {
+        var b = TrialBook.demo
+        let plan = b.journey.monthlyPlan, saved = b.journey.savedThisMonth
+        XCTAssertEqual(b.savingRemark, "这个月打算存 \(plan.formatted)，还差 \((plan - saved).formatted)。")
+        b.journey.monthlyPlan = .zero
+        XCTAssertNil(b.savingRemark, "没定就不说")
+        b.journey.monthlyPlan = saved
+        XCTAssertEqual(b.savingRemark, "这个月打算存的 \(saved.formatted) 已经存够了。")
+        b.journey.monthlyPlan = plan
+        b.month.spent = b.month.spent + b.month.left + Money(cents: 1)
+        XCTAssertTrue(b.savingRemark?.contains("钱不太够") ?? false)
+    }
 }

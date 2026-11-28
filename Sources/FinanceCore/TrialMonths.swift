@@ -203,6 +203,17 @@ extension TrialBook {
         .sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
     }
 
+    /// 总览上夏夏关于存钱的那一句，从这个月的数算出来；没定每月存多少就没有这句。
+    /// 存够了说存够了；没存够说还差多少；要是付完固定的、留出打算存的以后已经不够花了，说钱不太够。
+    public var savingRemark: String? {
+        let plan = journey.monthlyPlan
+        guard plan > .zero, journey.total > .zero, !journey.isFinished else { return nil }
+        let saved = journey.savedThisMonth
+        if saved >= plan { return "这个月打算存的 \(plan.formatted) 已经存够了。" }
+        let need = plan - saved
+        return month.left < .zero ? "这个月打算存的还差 \(need.formatted)，照这样花钱不太够。" : "这个月打算存 \(plan.formatted)，还差 \(need.formatted)。"
+    }
+
     // MARK: 每月小结里的那几句话（都从那个月的数现算，没有的就不写）
 
     /// 小结里的一行：图标、一句话、下面的说明、右边的数（可以空着）。
