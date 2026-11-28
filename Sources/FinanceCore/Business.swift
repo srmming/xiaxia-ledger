@@ -53,6 +53,8 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var restDays: [LocalDate]?
     /// 估的货值：哪天估的、店里的货大概值多少。新的在后。老账本没有这个字段。
     public var stockEstimates: [StockEstimate]?
+    /// 管哪边（只生活 / 只生意 / 都管）。没选过就是 nil：生意模式开着算两边都管。老账本没有这个字段。
+    public var manages: ManagedSides?
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -65,6 +67,7 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods)
         restDays = try c.decodeIfPresent([LocalDate].self, forKey: .restDays)
         stockEstimates = try c.decodeIfPresent([StockEstimate].self, forKey: .stockEstimates)
+        manages = (try? c.decodeIfPresent(String.self, forKey: .manages)).flatMap { $0 }.flatMap(ManagedSides.init(rawValue:))
     }
 }
 /// 估一次货值：店里还没卖掉的货大概值多少。

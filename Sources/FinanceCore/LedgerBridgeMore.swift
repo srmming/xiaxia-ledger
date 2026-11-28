@@ -235,3 +235,43 @@ extension LedgerBridge {
         return records
     }
 }
+
+
+// MARK: - 分类
+
+extension LedgerBridge {
+    /// 正式账本里的支出分类，变成界面上「改分类」「自己填」里的那一排：用得多的在前，最后是「还没分」。
+    static func categories(of ledger: Ledger) -> [TrialBook.Category] {
+        var used: [String: Int] = [:]
+        for t in ledger.transactions where !t.amount.isIncome { if let c = t.category { used[c, default: 0] += 1 } }
+        let names = ledger.allCategoryNames(income: false).subtracting(["还没分", "未分类"])
+        let sorted = names.sorted { (used[$0] ?? 0, $1) > (used[$1] ?? 0, $0) }
+        return sorted.map { TrialBook.Category(emoji($0), $0) } + [TrialBook.Category("❓", "还没分")]
+    }
+
+    /// 分类上的改动：新建一个、改名（改成已有的名字就是并进去，流水一起改）。没动分类返回 nil。只换图标的这一版不接。
+    static func applyCategories(before: TrialBook, after: TrialBook, to work: inout Ledger, author who: String) throws -> [ChangeRecord]? {
+        let was = before.categories.map(\.name), now = after.categories.map(\.name)
+        guard Set(was) != Set(now) else {
+            guard before.categories == after.categories else { throw TrialError("给分类换图标，在接正式账本的这一版里还没接上，先回旧界面换。账本没动") }
+            return nil
+        }
+        var records: [ChangeRecord] = []
+        let gone = was.filter { !now.contains($0) }, new = now.filter { !was.contains($0) }
+        do {
+            if gone.count == 1, new.count <= 1 {
+                // 改名：原来叫这个名字的流水现在叫什么，就是改成了什么
+                let old = gone[0]
+                let ids = Set(before.entries.filter { $0.name == old }.map(\.id))
+                let target = new.first ?? after.entries.first { ids.contains($0.id) }?.name
+                guard let target, target != old else { throw TrialError("删掉一个分类，在接正式账本的这一版里还没接上，账本没动") }
+                records.append(try work.renameCategory(old, to: target, author: who))
+            } else if gone.isEmpty {
+                for n in new { records.append(try work.addCategory(n, income: false, author: who)) }
+            } else {
+                throw TrialError("一次改了好几个分类，这一步还没接上，账本没动")
+            }
+        } catch let e as TrialError { throw e } catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "分类没改成，账本没动") }
+        return records
+    }
+}

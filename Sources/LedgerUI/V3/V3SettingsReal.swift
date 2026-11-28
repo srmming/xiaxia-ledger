@@ -142,12 +142,15 @@ struct V3RealAIPage: View {
 struct V3RealSidesPage: View {
     @Environment(V3State.self) private var state
     var body: some View {
-        let on = state.model?.businessOn ?? false
+        let now = state.book.managedSides
         V3SetColumn {
-            V3SetGroup(title: "管哪边", note: "生活和生意的钱分开算。关掉生意那一边，生意的账还在，只是先不显示。", grow: true) {
-                V3SetRow(title: "🏠 生活", detail: state.book.lifeName, line: false) { V3Tag(text: "一直开着", tone: .green) }
-                V3SetRow(title: "🏪 生意", detail: on ? state.book.shopName : "开一家店、做副业的在这边") {
-                    Button(on ? "先不管生意" : "也管生意") { state.setBusiness(on: !on) }.buttonStyle(.v3(on ? .ghost : .primary, .small))
+            V3SetGroup(title: "管哪边", note: "生活和生意的钱分开算。先不管的那一边，账还在，只是先不显示。", grow: true) {
+                ForEach(Array(ManagedSides.allCases.enumerated()), id: \.element) { i, m in
+                    V3SetRow(title: m == .life ? "🏠 只管生活" : m == .biz ? "🏪 只管生意" : "🏠🏪 两边都管",
+                             detail: m == .life ? state.book.lifeName : m == .biz ? (state.book.showBiz ? state.book.shopName : "开一家店、做副业的在这边") : "生活和生意都看", line: i > 0) {
+                        if m == now { V3Tag(text: "现在是这个", tone: .green) }
+                        else { Button("选这个") { state.setSides(life: m.showsLife, biz: m.showsBiz) }.buttonStyle(.v3(.ghost, .small)) }
+                    }
                 }
             }
         }

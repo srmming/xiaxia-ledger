@@ -708,4 +708,68 @@ final class LedgerBridgeMoreTests: XCTestCase {
         try l.undo(changeID: records[0].id, author: "小晴")
         XCTAssertEqual(l.books.first { !$0.isBusiness }?.name, before.lifeName)
     }
+
+    // MARK: 管哪边
+
+    func testManagedSidesLiveInTheLedgerAndUndo() throws {
+        var l = ledger
+        XCTAssertEqual(l.managedSides, .both, "示例账本开着生意、没选过：两边都管")
+        XCTAssertThrowsError(try l.setManagedSides(.both, author: "小晴"), "没变就不记改动")
+        let n = l.changes.count
+        let c = try l.setManagedSides(.biz, author: "小晴")
+        XCTAssertEqual(l.managedSides, .biz); XCTAssertEqual(c.author, "小晴"); XCTAssertEqual(l.changes.count, n + 1)
+        // 存进账本文件：编码再解码（另一台设备读到的）还是它
+        let copy = try JSONDecoder().decode(Ledger.self, from: JSONEncoder().encode(l))
+        XCTAssertEqual(copy.managedSides, .biz)
+        let b = LedgerBridge.snapshot(of: copy, today: today)
+        XCTAssertFalse(b.showLife); XCTAssertTrue(b.showBiz)
+        _ = try l.undo(changeID: c.id, author: "小晴")
+        XCTAssertEqual(l.managedSides, .both)
+        // 只管生活：生意模式不关，账还在
+        try l.setManagedSides(.life, author: "小晴")
+        XCTAssertEqual(l.business?.enabled, true); XCTAssertEqual(l.managedSides, .life)
+        XCTAssertFalse(LedgerBridge.snapshot(of: l, today: today).showBiz)
+    }
+
+    func testManagedSidesOnALedgerWithoutBusiness() throws {
+        var l = Ledger.fresh
+        XCTAssertEqual(l.managedSides, .life)
+        XCTAssertThrowsError(try l.setManagedSides(.life, author: "小晴"))
+        // 选两边都管：顺手把生意模式打开（一条改动）
+        let n = l.changes.count
+        try l.setManagedSides(.both, author: "小晴")
+        XCTAssertEqual(l.managedSides, .both); XCTAssertEqual(l.business?.enabled, true); XCTAssertEqual(l.changes.count, n + 1)
+    }
+
+    func testBridgeAppliesSides() throws {
+        var l = ledger
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        var after = before
+        after.setManagedSides(.life)
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1); XCTAssertEqual(l.managedSides, .life)
+        XCTAssertEqual(LedgerBridge.snapshot(of: l, today: today).managedSides, .life)
+    }
+
+    // MARK: 分类
+
+    func testCategoriesComeFromTheLedgerAndAddRename() throws {
+        var l = ledger
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(before.categories.last?.name, "还没分")
+        XCTAssertTrue(Set(before.categories.map(\.name)).isSuperset(of: l.allCategoryNames(income: false).subtracting(["还没分", "未分类"])))
+        // 新建
+        var after = before
+        try after.addCategory(emoji: "🪴", name: "养花")
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.first?.author, "小晴")
+        XCTAssertTrue(l.allCategoryNames(income: false).contains("养花"))
+        XCTAssertTrue(LedgerBridge.snapshot(of: l, today: today).categories.contains { $0.name == "养花" })
+        // 只换图标：这一版不接，账本不动
+        let now = LedgerBridge.snapshot(of: l, today: today)
+        var icon = now; icon.categories[0].emoji = "🧪"
+        let keep = l
+        XCTAssertThrowsError(try LedgerBridge.apply(before: now, after: icon, to: &l, today: today, author: "小晴"))
+        XCTAssertEqual(l, keep)
+    }
 }

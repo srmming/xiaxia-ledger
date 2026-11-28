@@ -202,22 +202,26 @@ final class V3State {
     var manualPrefill: (name: String, amount: Money)?
     /// 硬摆出来的「在读 / 出错」（重新读取时、截图检查时）。
     var forced: Forced?
+    /// 这台 Mac 上的偏好：改了就存，下次打开读回来。跑测试时不读不写真的偏好设置（测试自己给一份临时的）。
     var prefs = V3State.savedPrefs() {
         didSet {
-            // 「对她说话」那两样记到下次打开（不是秘密，放偏好设置里）。跑测试时不写
-            guard NSClassFromString("XCTestCase") == nil else { return }
-            if prefs.voicePause != oldValue.voicePause { UserDefaults.standard.set(prefs.voicePause, forKey: Self.voicePauseKey) }
-            if prefs.voiceLanguage != oldValue.voiceLanguage { UserDefaults.standard.set(prefs.voiceLanguage, forKey: Self.voiceLanguageKey) }
+            guard prefs != oldValue else { return }
+            if let d = prefsStore { prefs.save(to: d) }
+            if prefs.mutedReminders != oldValue.mutedReminders { applyMutedReminders() }
         }
     }
-    static let voicePauseKey = "xiaxia.v3.voice.pause", voiceLanguageKey = "xiaxia.v3.voice.language"
-    /// 启动时读回上次选的听写停顿和语言；没选过、或者存的数不对，就是默认的。
+    /// 偏好存到哪。平时是这台 Mac 的偏好设置；跑测试时是 nil（不存），测试可以换成一份临时的。
+    var prefsStore: UserDefaults? = NSClassFromString("XCTestCase") == nil ? .standard : nil
     static func savedPrefs(_ d: UserDefaults = .standard, testing: Bool = NSClassFromString("XCTestCase") != nil) -> V3Prefs {
-        var p = V3Prefs()
-        guard !testing else { return p }
-        if let v = d.object(forKey: voicePauseKey) as? Int, VoiceRules.pauses.indices.contains(v) { p.voicePause = v }
-        if let v = d.object(forKey: voiceLanguageKey) as? Int, VoiceRules.languages.indices.contains(v) { p.voiceLanguage = v }
-        return p
+        testing ? V3Prefs() : V3Prefs.load(from: d)
+    }
+    /// 从一份偏好设置里读回来并从此存到它那里（测试用临时的那份）。
+    func usePrefsStore(_ d: UserDefaults) { prefsStore = nil; prefs = V3Prefs.load(from: d); prefsStore = d; applyMutedReminders() }
+    /// 接正式账本时，「别再提醒这个」记在偏好里：每次重新算数以后放回界面这份账里。
+    func applyMutedReminders() {
+        guard real != nil else { return }
+        let muted = Set(prefs.mutedReminders)
+        if book.mutedReminders != muted { ledger.patch { $0.mutedReminders = muted } }
     }
     var aiLinks = V3AILink.demo
     var backups = V3Backup.demo
@@ -241,6 +245,7 @@ final class V3State {
         readOnly = !writable
         self.real = real; realToday = today; realShowsPrivate = showPrivate
         // 一本刚开始的空账本：先走引导，走完才把填的东西写进去
+        applyMutedReminders()
         firstRun = writable && LedgerBridge.isBrandNew(real)
         onboardingStep = firstRun ? 0 : nil
     }
@@ -309,6 +314,7 @@ final class V3State {
     private func resnapshot() {
         guard let real else { return }
         ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: realShowsPrivate), changes: Array(real.changes.suffix(50).reversed()))
+        applyMutedReminders()
     }
     /// 只看不写：这一版界面接的是正式账本的只读数，写入还没接。
     var readOnly = false

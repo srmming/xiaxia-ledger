@@ -167,11 +167,14 @@ public enum LedgerBridge {
         b.todayDate = date(today)
         b.lifePins = pinIDs.filter { $0.side == .life }.map(\.id)
         b.shopPins = pinIDs.filter { $0.side == .biz }.map(\.id)
-        b.showLife = true
-        b.showBiz = !bizBooks.isEmpty
+        // 管哪边存在账本里。生意模式没开过的老账本照旧：有生意账本就显示生意那一边
+        let manages = ledger.business?.manages.map { _ in ledger.managedSides } ?? (bizBooks.isEmpty ? .life : .both)
+        b.showLife = manages.showsLife
+        b.showBiz = manages.showsBiz && !bizBooks.isEmpty
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
         b.memos = memos(of: ledger)
+        b.categories = categories(of: ledger)
         b.lifeLoanMonthly = lifeMonthlyRepayments(ledger, today: today)
         // 欠的每一笔照计划哪个月还完：排了还款计划的看最后一期，没排但约了日子的看约的日子，分期看最后一期。别的不写
         func monthLabel(_ d: LocalDate) -> String { "\(d.year) 年 \(d.month) 月" }
@@ -409,6 +412,18 @@ extension LedgerBridge {
         var bizWork = ledger
         if let records = try applyShopBooks(before: before, after: after, to: &bizWork, today: today, author: who) {
             ledger = bizWork
+            return records
+        }
+        // 管哪边
+        var sideWork = ledger
+        if let records = try applySides(before: before, after: after, to: &sideWork, author: who) {
+            ledger = sideWork
+            return records
+        }
+        // 分类：新建、改名
+        var catWork = ledger
+        if let records = try applyCategories(before: before, after: after, to: &catWork, author: who) {
+            ledger = catWork
             return records
         }
         // 第 8 步：夏夏的记忆、账本改名
