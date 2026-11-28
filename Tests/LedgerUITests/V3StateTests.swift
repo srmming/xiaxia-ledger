@@ -692,6 +692,77 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, bal)
     }
 
+    /// 第 8 步：正式账本上，文件交给夏夏是真读真导；照片不演；没接上的设置页直说。
+    func testRealLedgerImportThroughXiaAndHonestReplies() async throws {
+        let model = LedgerModel.demo()
+        model.author = "小满"
+        let s = V3State(model: model)
+        let n = model.ledger.transactions.count
+        // 一份编出来的流水，放在临时文件夹里
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("xiaxia-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("晴空银行 流水.csv")
+        try "Fecha;Concepto;Importe\n03/11/2026;Papeleria Nube;-7,35\n04/11/2026;Cafe Brisa;-3,10\n".write(to: url, atomically: true, encoding: .utf8)
+        s.handToXia(file: url)
+        try await Task.sleep(for: .seconds(0.8))
+        guard case .realStatement(let name, let account, let added)? = s.chat.last?.confirm else { return XCTFail("应该回一张真流水的确认卡") }
+        XCTAssertEqual(added, 2)
+        XCTAssertEqual(model.ledger.transactions.count, n, "确认之前不写入")
+        // 换个账户再数一遍，还是不写
+        let other = s.statementAccounts.first { $0 != account }!
+        XCTAssertNotNil(s.statementReply(name, account: other).confirm)
+        XCTAssertEqual(model.ledger.transactions.count, n)
+        // 点「导进来」：进的是 app 那本账，写明记账人，整批能撤销
+        XCTAssertEqual(s.importStatement(name, account: account)?.fresh, 2)
+        XCTAssertEqual(model.ledger.transactions.count, n + 2)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        XCTAssertTrue(s.book.entries.contains { $0.place == "Cafe Brisa" })
+        XCTAssertNil(s.importStatement(name, account: account), "同一份再导：全是重复，不写")
+        XCTAssertEqual(model.ledger.transactions.count, n + 2)
+        s.undo()
+        XCTAssertEqual(model.ledger.transactions.count, n)
+        // 照片：不出示例小票那张卡，账本不动
+        XCTAssertTrue(s.hand(.image(NSImage(size: .init(width: 4, height: 4)), "小票.jpg"), text: ""))
+        try await Task.sleep(for: .seconds(0.6))
+        XCTAssertNil(s.chat.last?.confirm)
+        // 读不成字的文件：直说读不了
+        XCTAssertNil(s.statementReply("对账单.pdf", account: account).confirm)
+        // 没给文件：不拿示例流水来演
+        let chats = s.chat.count
+        s.handToXia()
+        XCTAssertEqual(s.chat.count, chats + 1); XCTAssertNil(s.chat.last?.confirm)
+        XCTAssertEqual(model.ledger.transactions.count, n)
+    }
+
+    func testRealLedgerMemoriesAuthorAndUnwiredSettings() throws {
+        let model = LedgerModel.demo()
+        model.author = "小满"
+        let s = V3State(model: model)
+        // 记账人是同一个
+        s.author = "小晴"
+        XCTAssertEqual(model.author, "小晴")
+        // 记一条、彻底忘掉
+        XCTAssertTrue(s.change("记下了") { try $0.remember(.topic, topic: "停车位", line: "每月 60 €") })
+        XCTAssertEqual(model.ledger.changes.last?.author, "小晴")
+        let memo = try XCTUnwrap(s.book.memos.first { $0.topic == "停车位" })
+        XCTAssertNotNil(model.ledger.memories.first { $0.id == memo.id })
+        s.forget(memo: memo.id)
+        XCTAssertNil(model.ledger.memories.first { $0.id == memo.id })
+        XCTAssertNil(s.book.memos.first { $0.topic == "停车位" })
+        // 账本改名
+        XCTAssertTrue(s.change("改好了") { try $0.renameBook(.life, to: "我的日子") })
+        XCTAssertEqual(model.ledger.books.first { !$0.isBusiness }?.name, "我的日子")
+        // 还没接上的：直说，不开演示页，账本不动
+        let before = model.ledger
+        s.openSettings(.ai); XCTAssertNil(s.settingsSub)
+        s.openSettings(.data); XCTAssertNil(s.settingsSub)
+        s.deleteEverything()
+        s.connect("Claude 桌面版")
+        XCTAssertEqual(model.ledger, before)
+        s.openSettings(.memory); XCTAssertEqual(s.settingsSub, .memory)
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()
