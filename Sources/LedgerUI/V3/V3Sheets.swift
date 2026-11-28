@@ -701,19 +701,22 @@ private struct V3DebtSheet: View {
     @State private var note = ""
     @State private var periods = "12"
     @State private var paid = "0"
-    @State private var day = "8"
+    @State private var day = 8
+    @State private var payFrom = 0
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let n = Int(periods.trimmingCharacters(in: .whitespaces)), done = Int(paid.trimmingCharacters(in: .whitespaces)), d = Int(day.trimmingCharacters(in: .whitespaces))
+        let n = Int(periods.trimmingCharacters(in: .whitespaces)), done = Int(paid.trimmingCharacters(in: .whitespaces))
+        let pay = state.book.accounts(for: .pay, side: .life).filter { $0.kind == .own }
         let each = m.flatMap { m in n.flatMap { $0 > 0 ? Money(cents: m.cents / Int64($0)) : nil } }
-        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && (who != 2 || (n != nil && done != nil && d != nil))
+        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && (who != 2 || (n != nil && done != nil))
         V3SheetBox(width: 600, title: "记一笔欠款", foot: who == 2 ? "每月要还的会从「能随便花」里先扣掉。" : "借钱和还钱不算花也不算赚。", primary: "记上", canSave: ok,
                    save: {
                        guard let m else { return }
                        let saved: Bool
-                       if who == 2, let n, let done, let d {
-                           saved = state.change("记上了：\(name) 分 \(n) 期", kind: .installment) { try $0.addInstallment(name: name, total: m, periods: n, paid: done, day: d) }
+                       if who == 2, let n, let done {
+                           let from = pay.indices.contains(payFrom) ? pay[payFrom].name : ""
+                           saved = state.change("记上了：\(name) 分 \(n) 期", kind: .installment) { try $0.addInstallment(name: name, total: m, periods: n, paid: done, day: day, from: from) }
                        } else {
                            let label = who == 1 ? "借给\(name)" : name
                            saved = state.change("记上了：\(label) \(m.v3)", kind: .debt) { try $0.addDebt(name: label, amount: m, owedToMe: who == 1, note: note) }
@@ -730,8 +733,9 @@ private struct V3DebtSheet: View {
                 HStack(alignment: .top, spacing: 12) {
                     V3FormField(label: "分几期", prompt: "12", text: $periods)
                     V3FormField(label: "已经还了几期", prompt: "0", text: $paid)
-                    V3FormField(label: "每月几号扣", prompt: "8", text: $day)
+                    V3DayPick(label: "每月几号扣", day: $day, last: 28)
                 }
+                if !pay.isEmpty { V3FormPick(label: "从哪个账户扣", options: pay.map(\.name), pick: $payFrom) }
                 if let each, let n, let done, done < n, let m {
                     V3FormPreview(text: "每期 \(each.v3) · 还剩 \(n - done) 期，还欠", amount: (m - Money(cents: each.cents * Int64(done))).v3)
                 } else if m != nil {
@@ -843,35 +847,54 @@ private struct V3ShopDaySheet: View {
 
 // MARK: - 生意：加一样固定开销
 
+/// 每月几号：1 到 31（或 1 到 28）的小选择器。
+struct V3DayPick: View {
+    let label: String
+    @Binding var day: Int
+    var last = 31
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+            Picker(label, selection: $day) {
+                ForEach(1...last, id: \.self) { Text("\($0) 日").tag($0) }
+            }
+            .labelsHidden().pickerStyle(.menu).frame(width: 96, height: 38)
+            .accessibilityLabel(label)
+        }
+    }
+}
+
 private struct V3FixedSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
-    @State private var day = "1"
-    @State private var skip = 0
+    @State private var day = 1
+    @State private var account = 0
 
     var body: some View {
         let b = state.book
         let m = V3Form.amount(amount)
-        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
+        let pay = b.accounts(for: .pay, side: .biz)
+        let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && pay.indices.contains(account)
         let after = b.fixedTotal + (m ?? .zero)
-        V3SheetBox(width: 540, title: "加一样固定开销", sub: "不管开不开门，每个月都要付的", primary: "加好", teal: true, canSave: ok,
+        V3SheetBox(width: 560, title: "加一样固定开销", primary: "加好", teal: true, canSave: ok,
                    save: {
-                       guard let m else { return }
-                       let d = Int(day.trimmingCharacters(in: .whitespaces)).flatMap { (1...31).contains($0) ? $0 : nil } ?? 1
-                       if state.change("加好了：\(name) 每月 \(m.v3)", { try $0.addFixedCost(name: name, amount: m, note: "每月 \(d) 日", canSkip: skip == 1) }) { state.closeSheet() }
+                       guard let m, pay.indices.contains(account) else { return }
+                       let from = pay[account].name
+                       if state.change("加好了：\(name) 每月 \(m.v3)", { try $0.addFixedCost(name: name, amount: m, day: day, account: from) }) { state.closeSheet() }
                    }) {
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "叫什么", prompt: "店面保险", text: $name, focus: true)
                 V3FormField(label: "每月多少", prompt: "35,00", text: $amount).frame(width: 150)
-                V3FormField(label: "每月几号付", prompt: "12", text: $day).frame(width: 110)
+                V3DayPick(label: "每月几号付", day: $day)
             }
             V3AmountHint(text: amount)
-            V3FormPick(label: "这笔能不能省", options: ["必要", "可省"], pick: $skip, teal: true)
+            V3FormPick(label: "从哪个账户扣", options: pay.map(\.name), pick: $account, teal: true)
             if m != nil {
                 V3FormPreview(text: "每月固定要付，从 \(b.fixedTotal.v3Short) 变成", amount: after.v3Short)
             }
         }
+        .onAppear { account = pay.firstIndex { $0.name == b.usualFixedAccount } ?? 0 }
     }
 }
 
@@ -991,13 +1014,18 @@ struct V3FixedEditSheet: View {
     let name: String
     @Environment(V3State.self) private var state
     @State private var amount = ""
+    @State private var day = 1
+    @State private var account = 0
     var body: some View {
         let x = state.book.fixedCosts.first { $0.name == name }
         let m = V3Form.amount(amount)
-        V3SheetBox(width: 500, title: name, sub: x?.note ?? "", primary: "存好", teal: true, canSave: m != nil && m != x?.amount,
+        let pay = state.book.accounts(for: .pay, side: .biz)
+        let from = pay.indices.contains(account) ? pay[account].name : ""
+        let changed = m != x?.amount || day != x?.day || from != x?.account
+        V3SheetBox(width: 520, title: name, primary: "存好", teal: true, canSave: m != nil && !from.isEmpty && changed,
                    save: {
                        guard let m else { return }
-                       if state.change("改好了：\(name) 每月 \(m.v3)", { try $0.editFixedCost(name, amount: m) }) { state.closeSheet() }
+                       if state.change("改好了：\(name) 每月 \(m.v3)", { try $0.editFixedCost(name, amount: m, day: day, account: from) }) { state.closeSheet() }
                    },
                    extra: {
                        Button("不再付这笔了") {
@@ -1005,15 +1033,23 @@ struct V3FixedEditSheet: View {
                        }
                        .buttonStyle(.v3(.danger))
                    }) {
-            V3FormField(label: "每月多少", prompt: "", text: $amount, big: true, focus: true)
+            HStack(alignment: .top, spacing: 12) {
+                V3FormField(label: "每月多少", prompt: "", text: $amount, big: true, focus: true)
+                V3DayPick(label: "每月几号付", day: $day)
+            }
             V3AmountHint(text: amount)
+            V3FormPick(label: "从哪个账户扣", options: pay.map(\.name), pick: $account, teal: true)
             if let x {
-                V3FormSwitch(title: "先停一个月", sub: "停着的不算进每月要付的", on: Binding(get: { x.off }, set: { v in
+                V3FormSwitch(title: "先停一个月", on: Binding(get: { x.off }, set: { v in
                     state.change(v ? "好，\(name)先停着" : "好，\(name)接着付") { try $0.setFixedCost(name, paused: v) }
                 }), teal: true)
             }
         }
-        .onAppear { if let x { amount = V3Form.plain(x.amount) } }
+        .onAppear {
+            guard let x else { return }
+            amount = V3Form.plain(x.amount); day = (1...31).contains(x.day) ? x.day : 1
+            account = pay.firstIndex { $0.name == x.account } ?? pay.firstIndex { $0.name == state.book.usualFixedAccount } ?? 0
+        }
     }
 }
 

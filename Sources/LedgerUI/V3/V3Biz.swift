@@ -214,7 +214,7 @@ struct V3FixedPage: View {
     var body: some View {
         let b = state.book
         let ads = b.fixedCosts.first { $0.name == "广告" }
-        let canSave = b.fixedCosts.filter { $0.flag && !$0.off }.map(\.amount).reduce(.zero, +)
+        let rises = b.fixedRises
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "每月固定要付", amount: b.fixedTotal, wave: V3.tealSoft) {
@@ -236,12 +236,18 @@ struct V3FixedPage: View {
                         }
                     }
                 }
-                V3GrowCard {
-                    V3CardTitle("如果停掉可省的")
-                    V3Amount("每月省 \(canSave.v3)", color: V3.green, size: 28, weight: .heavy)
-                    V3RowList(rows: b.fixedCosts.filter { $0.flag && !$0.off }.prefix(4).map { c in
-                        .init(c.emoji, c.name, c.note, c.amount.v3, action: { state.open(.fixedEdit(c.name)) })
-                    }, fill: true)
+                // 比上个月多了的：哪一样涨了、涨多少。没有就不出现。
+                if !rises.isEmpty {
+                    V3GrowCard {
+                        V3CardTitle("比上个月多了的")
+                        V3Amount("多付 \(rises.map(\.rise).reduce(.zero, +).v3)", color: V3.red, size: 28, weight: .heavy)
+                        V3RowList(rows: rises.prefix(4).map { r in
+                            .init(r.item.emoji, r.item.name, "上个月 \((r.item.lastMonth ?? .zero).v3Short)，现在 \(r.item.amount.v3Short)", "+\(r.rise.v3)", V3.red,
+                                  action: { state.open(.fixedEdit(r.item.name)) })
+                        }, fill: true)
+                        Spacer(minLength: 0)
+                    }
+                } else {
                     Spacer(minLength: 0)
                 }
             }
@@ -250,7 +256,7 @@ struct V3FixedPage: View {
                 V3CardTitle("按花得多少排", note: "\(b.fixedCosts.count) 样")
                 V3RowList(rows: b.fixedCosts.prefix(7).map { c in
                     .init(c.emoji, c.name, c.off ? "先停着" : c.note, c.off ? "0,00 €" : c.amount.v3, c.name.contains("工资") ? V3.teal : V3.navy,
-                          tag: c.off ? "停着" : c.tag, tone: c.flag ? .gold : .teal, action: { state.open(.fixedEdit(c.name)) })
+                          tag: c.off ? "停着" : "", tone: .teal, action: { state.open(.fixedEdit(c.name)) })
                 }, compact: b.fixedCosts.count > 5, fill: true)
                 Spacer(minLength: 0)
             }

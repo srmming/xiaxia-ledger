@@ -97,8 +97,14 @@ public struct TrialBook: Equatable, Sendable {
         public var flag = false
         /// 订阅多久扣一次：0 每周、1 每月、2 每三个月、3 每年。
         public var cycle = 1
-        public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false, cycle: Int = 1) {
+        /// 固定开销：从哪个账户扣、每月几号付（0 是没填）、上个月是多少（没有就是这个月新加的或没变过）。
+        public var account = ""
+        public var day = 0
+        public var lastMonth: Money?
+        public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false, cycle: Int = 1,
+                    account: String = "", day: Int = 0, lastMonth: Money? = nil) {
             self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.amount = amount; self.tag = tag; self.off = off; self.flag = flag; self.cycle = cycle
+            self.account = account; self.day = day; self.lastMonth = lastMonth
         }
         public static let cycleNames = ["每周", "每月", "每三个月", "每年"]
         /// 折成每个月多少（订阅用）。
@@ -638,16 +644,17 @@ public struct TrialBook: Equatable, Sendable {
     }
 
     /// 记一笔分期：一共多少、分几期、已经还了几期。欠的是还没还的那部分，每期的钱排进「接下来要付的」。
-    public mutating func addInstallment(name: String, total: Money, periods: Int, paid: Int, day: Int) throws {
+    public mutating func addInstallment(name: String, total: Money, periods: Int, paid: Int, day: Int, from: String = "") throws {
         try Self.positive(total)
         guard (2...60).contains(periods) else { throw TrialError("分期填 2 到 60 期") }
         guard (0..<periods).contains(paid) else { throw TrialError("已经还的期数要比总期数少") }
         guard (1...28).contains(day) else { throw TrialError("每月几号扣，填 1 到 28") }
+        guard from.isEmpty || accounts(for: .pay, side: .life).contains(where: { $0.name == from && $0.kind == .own }) else { throw TrialError("选一个自己能付钱的账户来扣") }
         let each = Money(cents: total.cents / Int64(periods))
         let left = total - Money(cents: each.cents * Int64(paid))
         try addAccount(emoji: "🧾", name: name, note: "欠 · 还剩 \(periods - paid) 期，每月 \(each.formatted)", balance: left, kind: .debt)
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        upcoming.append(Entry(emoji: "🧾", name: clean, meta: "12 月 \(day) 日 · 第 \(paid + 1) / \(periods) 期", amount: each, red: true))
+        upcoming.append(Entry(emoji: "🧾", name: clean, meta: "12 月 \(day) 日 · 第 \(paid + 1) / \(periods) 期" + (from.isEmpty ? "" : " · \(from)"), amount: each, red: true, account: from))
     }
 
     /// 排在现在这个目标后面的下一个目标（大决定页「存成一个目标」）。
@@ -910,20 +917,57 @@ public struct TrialBook: Equatable, Sendable {
         shopDays[i] = ShopDay(day: day, cash: .zero, card: .zero, state: .rest)
     }
 
-    public mutating func addFixedCost(name: String, amount: Money, note: String, canSkip: Bool) throws {
+    /// 固定开销默认从哪个账户扣：别的固定开销用得最多的那个；都没填过，就是店里第一个不是现金的账户。
+    public var usualFixedAccount: String {
+        let pay = accounts(for: .pay, side: .biz).map(\.name)
+        let used = Dictionary(grouping: fixedCosts.map(\.account).filter { pay.contains($0) }, by: { $0 }).mapValues(\.count)
+        if let top = pay.max(by: { (used[$0] ?? 0) < (used[$1] ?? 0) }), (used[top] ?? 0) > 0 { return top }
+        return pay.first { !$0.contains("现金") } ?? pay.first ?? ""
+    }
+
+    private func fixedNote(day: Int, account: String) -> String {
+        [day > 0 ? "每月 \(day) 日" : "", account].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    private func checkFixed(day: Int, account: String) throws {
+        guard (1...31).contains(day) else { throw TrialError("每月几号付，选 1 到 31") }
+        guard accounts(for: .pay, side: .biz).contains(where: { $0.name == account }) else { throw TrialError("选一个店里能付钱的账户") }
+    }
+
+    /// 加一样固定开销：叫什么、每月多少、每月几号付、从店里哪个账户扣。
+    public mutating func addFixedCost(name: String, amount: Money, day: Int, account: String, canSkip: Bool = false) throws {
         try Self.positive(amount)
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { throw TrialError("先写一下这样开销叫什么") }
         guard !fixedCosts.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这一样了") }
-        fixedCosts.append(Item(emoji: "🧾", name: clean, note: note, amount: amount, tag: canSkip ? "可省" : "必要", flag: canSkip))
+        try checkFixed(day: day, account: account)
+        fixedCosts.append(Item(emoji: "🧾", name: clean, note: fixedNote(day: day, account: account), amount: amount, tag: canSkip ? "可省" : "必要", flag: canSkip,
+                               account: account, day: day))
         fixedCosts.sort { $0.amount > $1.amount }
     }
 
-    public mutating func editFixedCost(_ name: String, amount: Money) throws {
+    /// 改一样固定开销：多少、几号付、从哪扣。金额变了就记住原来是多少（「比上个月多了的」用）。
+    public mutating func editFixedCost(_ name: String, amount: Money, day: Int? = nil, account: String? = nil) throws {
         try Self.positive(amount)
         guard let i = fixedCosts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这样开销") }
+        let d = day ?? fixedCosts[i].day, a = account ?? fixedCosts[i].account
+        if day != nil || account != nil { try checkFixed(day: d, account: a) }
+        if amount != fixedCosts[i].amount, fixedCosts[i].lastMonth == nil { fixedCosts[i].lastMonth = fixedCosts[i].amount }
         fixedCosts[i].amount = amount
+        if day != nil || account != nil {
+            fixedCosts[i].day = d; fixedCosts[i].account = a
+            fixedCosts[i].note = fixedNote(day: d, account: a)
+        }
         fixedCosts.sort { $0.amount > $1.amount }
+    }
+
+    /// 比上个月多了的固定开销：哪一样涨了、涨了多少。涨得多的排前面；停着的不算。
+    public var fixedRises: [(item: Item, rise: Money)] {
+        fixedCosts.compactMap { c in
+            guard !c.off, let last = c.lastMonth, c.amount > last else { return nil }
+            return (c, c.amount - last)
+        }
+        .sorted { $0.rise > $1.rise }
     }
 
     /// 不再付这笔了。

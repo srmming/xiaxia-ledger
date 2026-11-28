@@ -21,6 +21,32 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(blocks, s.book.totals.have)
     }
 
+    func testFixedCostsAccountDayAndRises() {
+        let s = V3State()
+        XCTAssertEqual(s.book.usualFixedAccount, "小店账户", "默认从用得最多的那个账户扣")
+        XCTAssertEqual(s.book.fixedRises.map(\.item.name), ["水电", "预约软件"], "涨得多的排前面")
+        XCTAssertEqual(s.book.fixedRises.map(\.rise), [eur("12"), eur("5")])
+        XCTAssertFalse(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), day: 12, account: "日常卡") }, "生活的账户不能扣店里的固定开销")
+        XCTAssertFalse(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), day: 32, account: "小店账户") })
+        XCTAssertTrue(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), day: 31, account: "店的信用卡") }, "店的信用卡也能扣")
+        let x = s.book.fixedCosts.first { $0.name == "店面保险" }
+        XCTAssertEqual(x?.note, "每月 31 日 · 店的信用卡")
+        XCTAssertEqual(s.book.fixedRises.count, 2, "新加的不算涨")
+        // 改贵了：记住原来多少，出现在「比上个月多了的」里；再改一次，还是跟最早那个数比
+        XCTAssertTrue(s.change("改好了") { try $0.editFixedCost("店面房租", amount: self.eur("650"), day: 5, account: "小店账户") })
+        XCTAssertTrue(s.change("改好了") { try $0.editFixedCost("店面房租", amount: self.eur("660")) })
+        XCTAssertEqual(s.book.fixedRises.first?.item.name, "店面房租")
+        XCTAssertEqual(s.book.fixedRises.first?.rise, eur("60"))
+        XCTAssertEqual(s.book.fixedCosts.first { $0.name == "店面房租" }?.note, "每月 5 日 · 小店账户")
+        // 停着的不算
+        XCTAssertTrue(s.change("停") { try $0.setFixedCost("水电", paused: true) })
+        XCTAssertFalse(s.book.fixedRises.contains { $0.item.name == "水电" })
+        // 分期也能选从哪扣；店里的账户不行
+        XCTAssertFalse(s.change("记") { try $0.addInstallment(name: "新冰箱", total: self.eur("600"), periods: 12, paid: 0, day: 8, from: "小店账户") })
+        XCTAssertTrue(s.change("记") { try $0.addInstallment(name: "新冰箱", total: self.eur("600"), periods: 12, paid: 0, day: 8, from: "日常卡") })
+        XCTAssertEqual(s.book.upcoming.last?.account, "日常卡")
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
@@ -156,7 +182,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account("小店账户")?.balance, shop + eur("100"))
         XCTAssertFalse(s.change("记好了") { try $0.recordShopDay(25, cash: self.eur("10"), card: .zero) }, "还没到的日子记不了")
         XCTAssertEqual(s.book.fixedTotal, eur("1790"))
-        XCTAssertTrue(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), note: "每月 12 日", canSkip: false) })
+        XCTAssertTrue(s.change("加好了") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), day: 12, account: "店里现金") })
         XCTAssertEqual(s.book.fixedTotal, eur("1825"))
         let net = s.book.totals.net
         XCTAssertTrue(s.change("转好了") { try $0.transferBetweenSides(self.eur("300"), toHome: true, shopAccount: "小店账户", homeAccount: "日常卡") })

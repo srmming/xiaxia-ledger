@@ -77,6 +77,9 @@ final class V3RenderTests: XCTestCase {
         try shell("split-accounts-life") { $0.page = .wealth; $0.sheet = .accounts }
         try shell("split-accounts-biz") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .accounts }
         try shell("split-manual-biz") { $0.side = .biz; $0.page = .bizHome; $0.sheet = .manual }
+        try shell("biz-fixed") { $0.side = .biz; $0.page = .fixed }
+        try shell("sheet-fixed-add") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixed }
+        try shell("sheet-fixed-edit") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixedEdit("水电") }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

@@ -403,12 +403,16 @@ final class V3State {
             item("👟", "跑鞋", "冷静完了，还想要吗？", "95", tag: "该回答了"),
             item("🎮", "游戏手柄", "上周忍住了 · 存进目标", "59", off: true),
         ]
+        func fixed(_ e: String, _ n: String, _ day: Int, _ a: String, last: String? = nil, flag: Bool = false) -> TrialBook.Item {
+            .init(emoji: e, name: n, note: "每月 \(day) 日 · 小店账户", amount: eur(a), tag: flag ? "可省" : "必要", flag: flag,
+                  account: "小店账户", day: day, lastMonth: last.map { eur($0) })
+        }
         b.fixedCosts = [
-            item("🧑", "给自己发的工资", "每月 1 日", "1000", tag: "必要"),
-            item("🏠", "店面房租", "每月 3 日", "600", tag: "必要"),
-            item("📣", "广告", "每月 10 日", "80", tag: "可省", flag: true),
-            item("💡", "水电", "每月 15 日", "70", tag: "必要"),
-            item("🗓", "预约软件", "每月 20 日", "40", tag: "可省", flag: true),
+            fixed("🧑", "给自己发的工资", 1, "1000"),
+            fixed("🏠", "店面房租", 3, "600"),
+            fixed("📣", "广告", 10, "80", flag: true),
+            fixed("💡", "水电", 15, "70", last: "58"),
+            fixed("🗓", "预约软件", 20, "40", last: "35", flag: true),
         ]
         b.purchases = [item("📦", "鲜花补货", "11 月 12 日", "340"), item("📦", "包装纸和丝带", "10 月 28 日", "310"), item("📦", "花瓶和花器", "10 月 6 日", "240")]
         b.stockEstimates = [item("📅", "9 月 30 日", "第三季度末", "2600"), item("📅", "6 月 30 日", "第二季度末", "2400"), item("📅", "开店时", "2025 年 10 月", "4200")]
