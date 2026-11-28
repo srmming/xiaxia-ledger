@@ -15,7 +15,7 @@ extension V3State {
         return out
     }
     /// 哪天到的哪一站、打算哪天前到下一站：试用数字里是示例；正式账本上没有这两样的记录，不写。
-    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : [:] }
+    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : book.stationDates }
     var deadline: String { real == nil ? "12 月 20 日" : "" }
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }
@@ -467,7 +467,7 @@ struct V3GoalsPage: View {
                             }
                             Spacer(minLength: 4)
                             V3Amount(w.amount.v3Short, size: 14.5)
-                            Button("不要了，钱进目标") { state.resist(wanted: w) }.buttonStyle(.v3(.ghost, .small)).help("这笔钱从日常卡挪进大目标")
+                            Button("不要了，钱进目标") { state.resist(wanted: w) }.buttonStyle(.v3(.ghost, .small)).help("这笔钱从平时花的账户挪进大目标")
                             Button { state.change("从清单里拿掉了：\(w.name)", kind: .remove) { try $0.removeWanted(w.id) } } label: {
                                 Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 22, height: 22)
                             }

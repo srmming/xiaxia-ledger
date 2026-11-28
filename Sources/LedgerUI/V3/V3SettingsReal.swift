@@ -28,6 +28,31 @@ extension V3State {
         return false
     }
 
+    /// 生活这边从流水里认出来、还没问过的固定开销（正式账本自己的认法，和旧界面趋势页是同一份）。
+    var fixedGuesses: [Outlook.FixedGuess] {
+        guard let real else { return [] }
+        return Outlook.fixedGuesses(real, side: .life, today: bookToday)
+    }
+
+    /// 回答「这笔算固定的吗」：算 → 加成一条每月自动记的固定开销；不算 → 记进「不算」的名单，以后不再问。都能撤销。
+    @discardableResult
+    func answerFixedGuess(_ g: Outlook.FixedGuess, fixed: Bool) -> Bool {
+        guard let model else { fail("这是试用数字"); return false }
+        do {
+            let who = author
+            let book = g.bookID ?? model.ledger.books.first { !$0.isBusiness }?.id
+            let change = try model.edit(quiet: true) { l in
+                fixed ? try l.addFixedCost(name: g.name, amount: g.amount, day: g.day, accountID: g.accountID, category: g.category, bookID: book, today: self.bookToday, author: who)
+                      : l.markNotFixed(g.key, name: g.name, author: who)
+            }
+            refreshFromModel()
+            noteRealUndo([change.id])
+            sayDone(fixed ? "好，「\(g.name)」算固定开销，以后每月 \(g.day) 号自动记" : "好，「\(g.name)」不算固定开销，以后不再问")
+            return true
+        } catch { fail((error as? LocalizedError)?.errorDescription ?? "没记成，账本没动") }
+        return false
+    }
+
     /// 换主币种（总数都换成它）。
     func setBaseCurrency(_ code: String) {
         guard let model else { return }

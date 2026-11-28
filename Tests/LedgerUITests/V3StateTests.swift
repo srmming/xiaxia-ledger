@@ -889,6 +889,46 @@ final class V3StateTests: XCTestCase {
         XCTAssertNil(V3State(model: LedgerModel.demo()).onboardingStep)
     }
 
+    /// 正式账本上「这笔算固定的吗」是真的问：算 → 多一条每月自动记的规则；不算 → 进「不算」的名单；都不再问，能撤销。
+    func testRealLedgerAsksAboutGuessedFixedCosts() throws {
+        let model = LedgerModel.demo()
+        model.author = "小满"
+        let s = V3State(model: model)
+        let guesses = s.fixedGuesses
+        guard let g = guesses.first else { throw XCTSkip("示例账本里生活这边没有认出来的固定开销") }
+        let rules = model.ledger.recurring.count
+        XCTAssertTrue(s.answerFixedGuess(g, fixed: true))
+        XCTAssertEqual(model.ledger.recurring.count, rules + 1)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        XCTAssertFalse(s.fixedGuesses.contains { $0.key == g.key }, "答过了就不再问")
+        s.undo()
+        XCTAssertEqual(model.ledger.recurring.count, rules)
+        XCTAssertTrue(s.fixedGuesses.contains { $0.key == g.key })
+        XCTAssertTrue(s.answerFixedGuess(g, fixed: false))
+        XCTAssertEqual(model.ledger.profile.notFixed?.contains(g.key), true)
+        XCTAssertFalse(s.fixedGuesses.contains { $0.key == g.key })
+        XCTAssertEqual(model.ledger.recurring.count, rules)
+        // 试用数字里没有这回事
+        XCTAssertTrue(V3State().fixedGuesses.isEmpty)
+    }
+
+    /// 正式账本上到站的信只写账本里真有的：不出现试用里那些编的（76 天、忍住了几杯、九月定的第一步 50 块）。
+    func testRealLedgerArrivalLetterOnlyStatesFacts() throws {
+        let s = V3State(model: LedgerModel.demo())
+        let j = s.book.journey
+        let st = try XCTUnwrap(j.stations.dropFirst().first)
+        let letter = s.arrivalLetter(for: st)
+        let all = ([letter.title, letter.quote, letter.tag, letter.headline] + letter.paragraphs + letter.facts.flatMap { $0 }).joined(separator: "|")
+        for fake in ["76 天", "Café Nube", "50 块", "小满", "九月", "忍住"] { XCTAssertFalse(all.contains(fake), fake) }
+        XCTAssertTrue(all.contains(st.target.v3Short)); XCTAssertTrue(all.contains(j.name))
+        // 试用数字里那封信照旧
+        let demo = V3State(); demo.onboardingStep = nil
+        XCTAssertTrue(demo.arrivalLetter(for: demo.book.journey.stations[1]).paragraphs.joined().contains("76 天"))
+        // 没起名的店里账户：名字有人用了就往后排号
+        XCTAssertEqual(V3ShopAccountSheet.freeName("店的信用卡", taken: ["店的信用卡"]), "店的信用卡 2")
+        XCTAssertEqual(V3ShopAccountSheet.freeName("店的信用卡", taken: []), "店的信用卡")
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

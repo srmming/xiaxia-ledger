@@ -48,6 +48,20 @@ extension V3State {
         let index = j.stations.firstIndex(of: st) ?? 0
         let isEnd = index == j.stations.count - 1
         let half = st.title.isEmpty ? "" : " · \(st.title)"
+        if real != nil {
+            // 正式账本：信里只写账本里真有的（存到多少、每月打算存多少、这一站是哪天到的），不编天数、不编忍住了几杯
+            let amount = st.target.v3Short
+            let cal = Calendar(identifier: .gregorian).dateComponents([.month, .day], from: book.todayDate)
+            let when = book.stationDates[index] ?? "\(cal.month ?? 0) 月 \(cal.day ?? 0) 日"
+            var lines = [isEnd ? "「\(j.name)」存够了，\(amount)。去把它带回家吧。" : "「\(j.name)」存到 \(amount) 了\(st.title.isEmpty ? "" : "，\(st.title)")。"]
+            if !wish.isEmpty { lines.append("你写过一句：\(wish)。离它近了一点。") }
+            if !isEnd { lines.append("离走完还差 \(max(j.total - st.target, .zero).v3Short)。") }
+            var facts = [[amount, "存到了"]]
+            if j.monthlyPlan > .zero { facts.append([j.monthlyPlan.v3Short, "每月打算存"]) }
+            if j.savedThisMonth > .zero { facts.append([j.savedThisMonth.v3Short, "这个月存了"]) }
+            return Letter(title: st.title.isEmpty ? amount : st.title, quote: "「\(j.name)存到 \(amount) 了」", date: when,
+                          tag: "第 \(index) 站 · 存到 \(amount)\(half)", headline: isEnd ? "你走完了。" : "到站了。", paragraphs: lines, facts: facts)
+        }
         var body = ["小满："]
         if wish.isEmpty {
             body.append("九月我们定了眼前的一步：\(j.name)，\(j.why.replacingOccurrences(of: "为了", with: ""))。那天定的第一步只有 50 块。")

@@ -261,6 +261,18 @@ public struct TrialBook: Equatable, Sendable {
     public var shopLoanMonthly: Money = .zero
     /// 生活这边每个月要还的（欠款这个月那一期 + 分期每期）。试用数字里不用它。
     public var lifeLoanMonthly: Money = .zero
+    /// 欠的每一笔照计划哪个月还完（名字 → 「2027 年 5 月」）。只有排了计划、约了日子的才有；没有的不写。
+    public var payoffMonths: [String: String] = [:]
+    /// 生活这边欠的（信用卡除外）全都有还完的日子时，最晚的那个月；有一笔没日子就是 nil，不编。
+    public var debtFreeMonth: String?
+    /// 大目标各站是哪天到的（第几站 → 「10 月 12 日」）。从目标账户的余额历史算；算不出来的不写。
+    public var stationDates: [Int: String] = [:]
+    /// 最近两次估货之间用掉和损耗了多少：上次估的 + 这段进的货 − 这次估的。估过不到两次就是 nil。
+    public var stockUsage: StockUsage?
+    public struct StockUsage: Equatable, Sendable {
+        public var fromLabel: String, start: Money, bought: Money, toLabel: String, end: Money
+        public var used: Money { start + bought - end }
+    }
     /// 这个月从店里拿回家多少（给自己发的）。nil = 没有这个数（试用数字）。
     public var ownerPaidThisMonth: Money?
     /// 这个月以前，开店本钱已经赚回来多少。

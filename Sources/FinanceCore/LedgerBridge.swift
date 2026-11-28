@@ -173,6 +173,35 @@ public enum LedgerBridge {
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
         b.memos = memos(of: ledger)
         b.lifeLoanMonthly = lifeMonthlyRepayments(ledger, today: today)
+        // 欠的每一笔照计划哪个月还完：排了还款计划的看最后一期，没排但约了日子的看约的日子，分期看最后一期。别的不写
+        func monthLabel(_ d: LocalDate) -> String { "\(d.year) 年 \(d.month) 月" }
+        var ends: [String: LocalDate] = [:], lifeOpen: [String] = []
+        for d in ledger.debts where d.direction == .iOweThem && !d.closed {
+            guard let st = Plans.debts(ledger, today: today).first(where: { $0.id == d.id }), st.outstanding > .zero else { continue }
+            if !bizBooks.contains(d.bookID) { lifeOpen.append(d.counterparty) }
+            if let last = (d.plan ?? []).map(\.date).max(), last >= today { ends[d.counterparty] = last }
+            else if let due = d.dueDate, due >= today { ends[d.counterparty] = due }
+        }
+        for i in ledger.installments {
+            guard let st = Plans.installments(ledger).first(where: { $0.id == i.id }), st.remaining > .zero else { continue }
+            if !bizBooks.contains(i.bookID) { lifeOpen.append(i.name) }
+            if let next = st.nextDate { ends[i.name] = next.adding(months: max(st.count - st.paidCount - 1, 0)) }
+        }
+        b.payoffMonths = ends.mapValues(monthLabel)
+        if !lifeOpen.isEmpty, lifeOpen.allSatisfy({ ends[$0] != nil }) { b.debtFreeMonth = lifeOpen.compactMap { ends[$0] }.max().map(monthLabel) }
+        // 大目标各站是哪天到的：它那个账户一天天的余额，第一次到那么多的那天。钱取出去又存回来的，按第一次算
+        if let g = ordered.first, let jar = g.savingsAccountID {
+            var running = Money.zero
+            var reached: [Int: String] = [:]
+            let history = ledger.transactions.filter { $0.accountID == jar && $0.date <= today }.sorted { $0.date < $1.date }
+            for t in history {
+                running = running + ledger.baseAmount(t)
+                for (i, st) in journey.stations.enumerated() where i > 0 && reached[i] == nil && st.target > .zero && running >= st.target && st.target <= journey.saved {
+                    reached[i] = (t.date.year == today.year ? "" : "\(t.date.year) 年 ") + "\(t.date.month) 月 \(t.date.day) 日"
+                }
+            }
+            b.stationDates = reached
+        }
         // 这个月从店里拿回家的（给自己发的）：两边转钱里从生意那边出去的那些
         if !bizBooks.isEmpty {
             b.ownerPaidThisMonth = ledger.sideTransfers(month: today.yearMonth).filter { $0.amount < .zero }
@@ -316,6 +345,18 @@ public enum LedgerBridge {
                 owing.append(.init(id: r.id, emoji: "🧑", name: r.name, note: "", amount: r.amount, flag: true))
             }
             b.shopDebts = owing
+            // 最近两次估货之间用掉和损耗了多少：上次估的 + 这段时间进的货 − 这次估的
+            let ests = (ledger.business?.stockEstimates ?? []).sorted { $0.date < $1.date }
+            if ests.count >= 2 {
+                let a = ests[ests.count - 2], z = ests[ests.count - 1]
+                let stockCats: Set<String> = ["进货", "花材", "原料"]
+                let bought = ledger.transactions.filter { t in
+                    t.bookID.map(bizBooks.contains) == true && t.amount < .zero && t.countsAsIncomeOrExpense && t.date > a.date && t.date <= z.date
+                        && stockCats.contains(t.category ?? "")
+                }.reduce(Money.zero) { $0 + ledger.baseAmount($1).magnitude }
+                func label(_ d: LocalDate) -> String { "\(d.month) 月 \(d.day) 日估的" }
+                b.stockUsage = .init(fromLabel: label(a.date), start: a.value, bought: bought, toLabel: label(z.date), end: z.value)
+            }
             b.stockEstimates = (ledger.business?.stockEstimates ?? []).sorted { $0.date > $1.date }.map {
                 .init(emoji: "📅", name: $0.date == today ? "今天" : "\($0.date.month) 月 \($0.date.day) 日", note: $0.note ?? "", amount: $0.value)
             }
