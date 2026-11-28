@@ -654,7 +654,7 @@ struct V3ShopFlowPage: View {
         let b = state.book
         let now = state.isThisMonth
         let d = state.monthData
-        // 过去的月份：只有补记的那几笔有明细，合计用那个月存下来的数
+        // 过去的月份：正式账本上是那个月一笔笔的流水；试用数字里只有补记的那几笔，别的只有合计
         let all = now ? b.shopFlow : b.shopFlow(in: state.monthKey)
         let rows = all.filter { filter == 0 || (filter == 1 ? $0.amount > .zero : $0.amount < .zero) }
         let pages = max((rows.count + perPage - 1) / perPage, 1)
@@ -693,6 +693,10 @@ struct V3ShopFlowPage: View {
                     }
                     Spacer()
                     V3Label("\(rows.count) 笔", size: 12.5)
+                }
+                // 只有合计、没有逐笔的月份：就写一行说清楚（这句话在核心里，手机一样）
+                if let line = b.shopFlowTotalsLine(in: state.monthKey) {
+                    V3Label(line, size: 14).padding(.vertical, 10)
                 }
                 V3RowList(rows: shown.map { r in
                     .init(r.emoji, r.title, "\(state.monthKey.month) 月 \(r.day) 日" + (r.detail.isEmpty ? "" : " · \(r.detail)"),

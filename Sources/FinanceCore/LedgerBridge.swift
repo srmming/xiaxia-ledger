@@ -202,6 +202,13 @@ public enum LedgerBridge {
             let shop = plain.filter { side($0) == .biz && $0.date.yearMonth == ym && !$0.isTransfer }
             d.shopIn = shop.filter { $0.amount > .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
             d.shopOut = shop.filter { $0.amount < .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }.magnitude
+            // 那个月店里一笔笔的流水（正式账本里本来就有）。最近 90 天里的那些笔带着编号，点开能改；更早的只看
+            d.shopRows = shop.map { t in
+                .init(id: t.id.uuidString, emoji: t.amount > .zero ? ((names[t.accountID] ?? "").contains("现金") ? "💶" : "💳") : emoji(t.category),
+                      title: t.amount > .zero && t.category == "营业收入" ? "营业额" : (t.category ?? "还没分"),
+                      detail: [t.description, names[t.accountID] ?? t.accountID].filter { !$0.isEmpty }.joined(separator: " · "),
+                      amount: ledger.baseAmount(t), day: t.date.day, entryID: days(from: t.date, to: today) <= 90 ? t.id : nil)
+            }
             return d
         }
         // 订阅，和 7 天内要扣的

@@ -417,6 +417,31 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(TrialBook.demo.paybackCurve.count, 3)
     }
 
+    /// 过去月份的生意流水：正式账本上是一笔笔的，加起来就是那个月收的、花的；试用数字里只有合计的月份说清楚。
+    func testPastMonthShopFlowIsItemisedOnTheRealLedger() throws {
+        let b = LedgerBridge.snapshot(of: ledger, today: today)
+        let oct = TrialBook.MonthKey(2026, 10)
+        let rows = b.shopFlow(in: oct)
+        XCTAssertGreaterThan(rows.count, 10, "十月店里有很多笔")
+        XCTAssertFalse(b.shopFlowIsTotalsOnly(in: oct)); XCTAssertNil(b.shopFlowTotalsLine(in: oct))
+        let d = b.monthData(oct)
+        XCTAssertEqual(rows.filter { $0.amount > .zero }.map(\.amount).reduce(.zero, +), d.shopIn, "逐笔加起来 = 那个月收的")
+        XCTAssertEqual(rows.filter { $0.amount < .zero }.map(\.amount).reduce(.zero, +).magnitude, d.shopOut, "逐笔加起来 = 那个月花的")
+        XCTAssertEqual(Set(rows.map(\.id)).count, rows.count, "没有重复的行")
+        XCTAssertTrue(rows.allSatisfy { (1...31).contains($0.day) })
+        // 这个月不受影响：还是按每天收的算一次
+        XCTAssertEqual(b.shopFlow(in: b.thisMonth).count, b.shopFlow.count)
+        XCTAssertFalse(b.shopFlowIsTotalsOnly(in: b.thisMonth))
+        // 试用数字：十月只有合计
+        let demo = TrialBook.demo
+        XCTAssertTrue(demo.shopFlowIsTotalsOnly(in: oct))
+        XCTAssertEqual(demo.shopFlowTotalsLine(in: oct), "10 月只有合计：收了 4.210,00 €，花了 2.874,00 €。一笔笔的没有存")
+        // 试用数字里往十月补记一笔：就不再是「只有合计」了
+        var patched = demo
+        try patched.recordShopIncome(daysAgo: patched.todayDay + 3, channels: [.init(patched.shopHeld.first!.name, Money(cents: 80_00))])
+        XCTAssertFalse(patched.shopFlowIsTotalsOnly(in: oct)); XCTAssertEqual(patched.shopFlow(in: oct).count, 1)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

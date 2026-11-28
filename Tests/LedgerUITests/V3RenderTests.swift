@@ -48,6 +48,12 @@ final class V3RenderTests: XCTestCase {
         s.side = .life
         let demoBiz = V3State(); demoBiz.onboardingStep = nil; demoBiz.side = .biz
         try write(V3PaybackPage().padding(20).environment(demoBiz), "demo-payback", to: dir)
+        // 过去月份的生意流水：正式账本是一笔笔的；试用数字只有合计的那一行
+        s.side = .biz; s.setMonth(.init(2026, 10))
+        try write(V3ShopFlowPage().padding(20).environment(s), "real-shopflow-oct", to: dir)
+        s.setMonth(s.book.thisMonth); s.side = .life
+        demoBiz.setMonth(.init(2026, 10))
+        try write(V3ShopFlowPage().padding(20).environment(demoBiz), "demo-shopflow-oct", to: dir)
         let demo = V3State(); demo.onboardingStep = nil
         try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
     }
