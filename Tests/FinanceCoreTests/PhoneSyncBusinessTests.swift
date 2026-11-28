@@ -135,4 +135,65 @@ final class PhoneSyncBusinessTests: XCTestCase {
         XCTAssertFalse(again.apply(note))
         XCTAssertEqual(again, mac)
     }
+
+    // MARK: 自己加的分类：一个一个合并
+
+    func testPhoneIconAndMacNewCategoryBothKept() throws {
+        var start = base
+        try start.addCategory("养花", income: false, author: "小满")
+        start.profile.memoryTidiedAt = Date(timeIntervalSince1970: 1_795_000_000)   // 设置里带日期的也要读得回原值
+        var phone = start, mac = start
+        try phone.setCategoryEmoji("养花", emoji: "🪴", author: "小晴")       // 手机改 A 的图标
+        try mac.addCategory("宠物零食", income: false, author: "小满")          // Mac 加了 B
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        XCTAssertEqual(out.categoryEmojis["养花"], "🪴")
+        XCTAssertTrue(out.profile.categories.contains { $0.name == "宠物零食" })
+        XCTAssertFalse(out.changes.contains { $0.syncConflicts?.isEmpty == false }, "不算冲突")
+    }
+
+    func testPhoneAddsAndRemovesWhileMacChangesAnother() throws {
+        var start = base
+        try start.addCategory("养花", income: false, author: "小满")
+        try start.addCategory("夜宵", income: false, author: "小满")
+        var phone = start, mac = start
+        try phone.addCategory("学琴", income: false, author: "小晴")            // 手机加一个
+        try phone.removeCategory("夜宵", moveTo: nil, author: "小晴")            // 手机删一个
+        try mac.setCategoryEmoji("养花", emoji: "🌷", author: "小满")           // Mac 改另一个
+        try mac.setPlaceCategory("Super Lumi", category: "超市", author: "小满") // Mac 还改了别的设置
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        let names = Set(out.profile.categories.map(\.name))
+        XCTAssertTrue(names.contains("学琴")); XCTAssertFalse(names.contains("夜宵")); XCTAssertTrue(names.contains("养花"))
+        XCTAssertEqual(out.categoryEmojis["养花"], "🌷")
+        XCTAssertEqual(out.placeCategory(for: "Super Lumi"), "超市", "电脑上别的设置没被盖掉")
+        XCTAssertFalse(out.changes.contains { $0.syncConflicts?.isEmpty == false })
+    }
+
+    func testSameCategoryChangedOnBothKeepsMacAndRecordsConflict() throws {
+        var start = base
+        try start.addCategory("养花", income: false, author: "小满")
+        var phone = start, mac = start
+        try phone.setCategoryEmoji("养花", emoji: "🪴", author: "小晴")
+        try phone.addCategory("学琴", income: false, author: "小晴")
+        try mac.setCategoryEmoji("养花", emoji: "🌷", author: "小满")
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        XCTAssertEqual(out.categoryEmojis["养花"], "🌷", "同一个分类两边都改了：留电脑的")
+        XCTAssertTrue(out.profile.categories.contains { $0.name == "学琴" }, "手机另外加的那个照收")
+        let conflict = out.changes.compactMap(\.syncConflicts).flatMap { $0 }.first { $0.rowID == "profile" }
+        XCTAssertEqual(conflict?.fields, ["分类「养花」"])
+    }
+
+    func testMergeCategoriesRules() {
+        let a = CustomCategory(name: "A", income: false), b = CustomCategory(name: "B", income: false)
+        var a2 = a; a2.emoji = "🅰️"
+        var a3 = a; a3.emoji = "🔤"
+        // 两边改成一样的：不算冲突
+        XCTAssertEqual(Ledger.mergeCategories(base: [a], proposed: [a2], current: [a2]).conflicts, [])
+        // 手机改、电脑删了
+        XCTAssertEqual(Ledger.mergeCategories(base: [a], proposed: [a2], current: []).conflicts, ["A"])
+        // 手机删、电脑改了：留着电脑的
+        let r = Ledger.mergeCategories(base: [a, b], proposed: [b], current: [a3, b])
+        XCTAssertEqual(r.rows, [a3, b]); XCTAssertEqual(r.conflicts, ["A"])
+        // 手机没动：电脑的原样
+        XCTAssertEqual(Ledger.mergeCategories(base: [a], proposed: [a], current: [a3, b]).rows, [a3, b])
+    }
 }
