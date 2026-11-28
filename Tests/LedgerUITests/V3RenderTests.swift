@@ -37,6 +37,12 @@ final class V3RenderTests: XCTestCase {
             V3SayCard(saying: V3Saying(id: "b", face: "worried", text: "信用卡 5 号要还 640 €，日常卡里够。", tone: 2, extra: AnyView(EmptyView())), muteKind: "card")
         }
         try write(says.environment(V3State()), "say-card", to: dir)
+        // 记一笔「自己填」的三种：支出、收入、两个账户之间转（试用数字，生活这边）
+        for k in 0..<3 {
+            let st = V3State(); st.onboardingStep = nil; st.side = .life
+            st.manualStartKind = k
+            try write(V3ManualSheet(startKind: k).environment(st), "manual-\(k)", to: dir)
+        }
         s.page = .settings
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model

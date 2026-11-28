@@ -276,6 +276,11 @@ struct V3ManualSheet: View {
     var done: () -> Void = {}
     @Environment(V3State.self) private var state
     @State private var kind = 0
+    /// 一打开就停在哪一种（0 支出、1 收入、2 转账）。出图和从别处直接跳到某一种时用。
+    init(embedded: Bool = false, done: @escaping () -> Void = {}, startKind: Int = 0) {
+        self.embedded = embedded; self.done = done
+        _kind = State(initialValue: startKind)
+    }
     @State private var amount = ""
     @State private var place = ""
     /// 分类一开始不选：免得什么都被记成同一类。
