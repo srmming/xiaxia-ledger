@@ -88,6 +88,12 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
     public var quietUntil: LocalDate?
     /// 哪天开始存的（建目标那天）。老账本没有，看改动记录。
     public var startedOn: LocalDate?
+    /// 哪天走完的（存够了、收起来了）。nil = 还在走。走完的目标留在账本里，但不再算「在走的目标」：
+    /// 目标列表、进度、最多几个的上限都跳过它。老账本没有这个字段，就是都还在走。
+    public var finishedOn: LocalDate?
+    public var isFinished: Bool { finishedOn != nil }
+    /// 每月打算存多少（自己定的步子）。nil = 没定。老账本没有这个字段。
+    public var monthlyPlan: Money?
 
     public init(id: UUID = UUID(), name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
                 savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false,
@@ -101,7 +107,7 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked, pinned, rank
-        case icon, stash, stashNote, quietUntil, startedOn
+        case icon, stash, stashNote, quietUntil, startedOn, finishedOn, monthlyPlan
     }
 
     public init(from decoder: Decoder) throws {
@@ -122,6 +128,8 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
         stashNote = try c.decodeIfPresent(String.self, forKey: .stashNote)
         quietUntil = try c.decodeIfPresent(LocalDate.self, forKey: .quietUntil)
         startedOn = try c.decodeIfPresent(LocalDate.self, forKey: .startedOn)
+        finishedOn = try c.decodeIfPresent(LocalDate.self, forKey: .finishedOn)
+        monthlyPlan = try c.decodeIfPresent(Money.self, forKey: .monthlyPlan)
     }
 }
 
@@ -268,9 +276,10 @@ public enum Plans {
         }
     }
 
-    public static func goals(_ ledger: Ledger) -> [GoalStatus] {
+    /// 在走的目标和进度。走完收起来的（finishedOn）默认不在里面；要看就传 includeFinished。
+    public static func goals(_ ledger: Ledger, includeFinished: Bool = false) -> [GoalStatus] {
         let balances = ledger.accountBalances().mapValues(\.base)
-        return ledger.goals.map { g in
+        return ledger.goals.filter { includeFinished || !$0.isFinished }.map { g in
             let saved: Money
             if let acct = g.savingsAccountID { saved = Money(cents: max(0, (balances[acct] ?? .zero).cents)) }
             else {

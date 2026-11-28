@@ -47,7 +47,7 @@ extension Plans {
     public static func goalForecasts(_ ledger: Ledger, today: LocalDate = .today) -> [GoalForecast] {
         let status = Dictionary(goals(ledger).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let windowStart = today.adding(days: -91)
-        return ledger.goals.compactMap { g in
+        return ledger.goals.filter { !$0.isFinished }.compactMap { g in
             guard let s = status[g.id] else { return nil }
             // 最近存了多少：目标的存取记录，或者专门存钱的那个账户的进出（不算期初余额）。
             let recent: [Transaction]

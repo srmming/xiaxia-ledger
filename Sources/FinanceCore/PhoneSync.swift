@@ -223,6 +223,14 @@ extension Ledger {
         n.memories = take("memories", old.memories, memories, key: \.id, name: \.uuidString)
         n.captures = take("captures", old.captures, captures, key: \.id, name: \.uuidString)
         n.paperwork = take("paperwork", old.paperwork, paperwork, key: \.id, name: \.uuidString)
+        // 旧界面记的客人欠款
+        n.receivables = take("receivables", old.receivables, receivables, key: \.id, name: \.uuidString)
+        // 生意设置（开没开生意、管哪边、本钱、估的货值、休息日、收款方式、账户算哪边）：整份带上，附原值，收的那边按字段合并
+        if business != old.business {
+            n.changedBusiness = true
+            n.business = business
+            if let was = old.business { originals["meta", default: [:]]["business"] = try? FieldMerge.encode(was) }
+        }
         if profile != old.profile {
             n.profile = profile
             originals["meta", default: [:]]["profile"] = try? FieldMerge.encode(old.profile)
@@ -243,6 +251,46 @@ extension Ledger {
         n.summary = newChanges.map(\.summary).joined(separator: "；")
         if n.summary.isEmpty { n.summary = "在\(device)上改了账本" }
         return n
+    }
+
+    /// 「自己加的分类」三方合并：一个分类一个分类地看（名字 + 是收入还是支出当它的身份）。
+    /// 手机改过的、加的、删的，电脑那边这个分类没动过就照手机的；电脑也动过同一个而且改得不一样，留电脑的，名字记进冲突。
+    static func mergeCategories(base: [CustomCategory], proposed: [CustomCategory], current: [CustomCategory]) -> (rows: [CustomCategory], conflicts: [String]) {
+        func key(_ c: CustomCategory) -> String { "\(c.income ? "in" : "out")|\(c.name)" }
+        func find(_ list: [CustomCategory], _ k: String) -> CustomCategory? { list.first { key($0) == k } }
+        var rows = current
+        var conflicts: [String] = []
+        for p in proposed {
+            let k = key(p), was = find(base, k), mine = find(rows, k)
+            if was == p { continue }                       // 手机没动这个
+            if mine == p { continue }                      // 两边改成一样的
+            if let was {
+                // 手机改了一个原来就有的
+                guard let mine else { conflicts.append(p.name); continue }   // 电脑已经删了
+                if mine == was, let i = rows.firstIndex(where: { key($0) == k }) { rows[i] = p } else { conflicts.append(p.name) }
+            } else if mine == nil {
+                rows.append(p)                             // 手机新加的
+            } else {
+                conflicts.append(p.name)                   // 两边各加了一个同名的，内容不一样
+            }
+        }
+        for was in base where find(proposed, key(was)) == nil {
+            // 手机删掉的
+            let k = key(was)
+            guard let mine = find(rows, k) else { continue }
+            if mine == was { rows.removeAll { key($0) == k } } else { conflicts.append(was.name) }
+        }
+        return (rows, conflicts)
+    }
+
+    /// 一张「名字 → 值」的表三方合并：一行一行地看。手机改过、加的、删的，电脑那一行没动过就照手机的；电脑也动过同一行而且不一样，留电脑的。
+    static func mergeMap(base: [String: String], proposed: [String: String], current: [String: String]) -> (rows: [String: String], conflicts: [String]) {
+        var rows = current
+        var conflicts: [String] = []
+        for k in Set(base.keys).union(proposed.keys) where base[k] != proposed[k] {
+            if rows[k] == base[k] || rows[k] == proposed[k] { rows[k] = proposed[k] } else { conflicts.append(k) }
+        }
+        return (rows, conflicts.sorted())
     }
 
     /// 收一张纸条。收过的不再收。返回收了没有。
@@ -353,9 +401,53 @@ extension Ledger {
         merger.rows(&paperwork, note.paperwork, "paperwork", key: \.id, name: \.uuidString)
         merger.rows(&receivables, note.receivables, "receivables", key: \.id, name: \.uuidString)
         if note.changedBusiness == true && business != note.business {
-            merger.conflicts.append(.init(table: "meta", rowID: "business", fields: ["生意设置"], phoneValue: try? FieldMerge.encode(note.business)))
+            let offered = try? FieldMerge.encode(note.business)
+            if let proposed = note.business, var mine = business {
+                // 两边都有：按字段合并（手机只改了「管哪边」，电脑改了本钱，两个都留）；同一项都改了，留电脑的，记一条冲突
+                merger.setting(&mine, proposed, "business")
+                if mine != business { business = mine }
+            } else if let proposed = note.business, note.originalRows?["meta"]?["business"] == nil {
+                // 电脑上还没有生意设置，手机那边原来也没有：手机新开的，直接收下
+                business = proposed
+            } else {
+                merger.conflicts.append(.init(table: "meta", rowID: "business", fields: ["生意设置"], phoneValue: offered))
+            }
+            if business != nil || !receivables.isEmpty { minReaderVersion = max(minReaderVersion, 2) }
         }
-        merger.setting(&profile, note.profile, "profile")
+        // 自己加的分类按分类逐个合并：手机改了 A 的图标、电脑加了 B，两样都留；同一个分类两边都改了才算冲突，留电脑的
+        var offeredProfile = note.profile
+        if let proposed = note.profile, proposed != profile,
+           let data = note.originalRows?["meta"]?["profile"], let base = try? decoder.decode(Profile.self, from: data) {
+            var fields: [String] = []
+            if proposed.categories != profile.categories {
+                let merged = Self.mergeCategories(base: base.categories, proposed: proposed.categories, current: profile.categories)
+                if merged.rows != profile.categories { profile.categories = merged.rows }
+                offeredProfile?.categories = merged.rows
+                fields += merged.conflicts.map { "分类「\($0)」" }
+            }
+            // 「这家店算哪一类」也一家一家合并：手机定了一家、电脑定了另一家，两家都留；同一家两边定得不一样，留电脑的
+            if proposed.placeCategories != profile.placeCategories {
+                let merged = Self.mergeMap(base: base.placeCategories ?? [:], proposed: proposed.placeCategories ?? [:], current: profile.placeCategories ?? [:])
+                let rows = merged.rows.isEmpty ? nil : merged.rows
+                if rows != profile.placeCategories { profile.placeCategories = rows }
+                offeredProfile?.placeCategories = rows
+                fields += merged.conflicts.map { "「\($0)」算哪一类" }
+            }
+            // 「不再问这家店」：两边说过的合在一起；手机收回的（撤销了）也跟着收回
+            if proposed.placeSkipped != profile.placeSkipped {
+                let was = Set(base.placeSkipped ?? []), want = Set(proposed.placeSkipped ?? [])
+                var mine = profile.placeSkipped ?? []
+                for k in (proposed.placeSkipped ?? []) where !was.contains(k) && !mine.contains(k) { mine.append(k) }
+                mine.removeAll { was.contains($0) && !want.contains($0) }
+                let rows = mine.isEmpty ? nil : mine
+                if rows != profile.placeSkipped { profile.placeSkipped = rows }
+                offeredProfile?.placeSkipped = rows
+            }
+            if !fields.isEmpty {
+                merger.conflicts.append(.init(table: "meta", rowID: "profile", fields: fields, phoneValue: try? FieldMerge.encode(proposed)))
+            }
+        }
+        merger.setting(&profile, offeredProfile, "profile")
         merger.setting(&currency, note.currency, "currency")
         merger.setting(&lastStatementDate, note.lastStatementDate, "lastStatementDate")
         if note.currency != nil { Money.defaultCurrency = currency.base }
@@ -632,9 +724,6 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
             let current = try readCurrent()
             try current.checkBusinessVersion()
             try ledger.revision.check(ledgerURL, current: current.contentDigest())
-            guard ledger.business == current.business, ledger.receivables == current.receivables else {
-                throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
-            }
             guard let note = ledger.syncNote(since: current, device: device) else { return }
             var next = current
             next.apply(note)

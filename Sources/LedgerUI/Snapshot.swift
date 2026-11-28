@@ -25,7 +25,9 @@ enum WindowSnapshot {
                 let parts = args[i + 1].split(separator: "x").compactMap { Double($0) }
                 if parts.count == 2 { window.setContentSize(NSSize(width: parts[0], height: parts[1])) }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
+            // -XiaxiaSettle 11：多等几秒再截（等开场动画放完）。
+            let wait = args.firstIndex(of: "-XiaxiaSettle").flatMap { $0 + 1 < args.count ? Double(args[$0 + 1]) : nil } ?? settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
                 let url = URL(fileURLWithPath: path)
                 save(window, to: url)
                 if let sheet = window.attachedSheet {

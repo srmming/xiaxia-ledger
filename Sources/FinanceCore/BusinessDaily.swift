@@ -202,6 +202,32 @@ extension Ledger {
         return changeBusinessSettings(settings, summary: "账户「\(name)」算到\(side == .business ? "生意" : "生活")那边", author: author)
     }
 
+    /// 估一次货值（同一天再估就换掉那天的）。只记一个估的数，流水不动。能撤销。
+    @discardableResult
+    public mutating func addStockEstimate(_ value: Money, note: String? = nil, date: LocalDate, author: String) throws -> ChangeRecord {
+        guard var settings = business, businessBook != nil else { throw BusinessError(message: "请先打开生意模式") }
+        guard value > .zero else { throw EditError.amountMustBePositive }
+        var list = (settings.stockEstimates ?? []).filter { $0.date != date }
+        let clean = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        list.append(StockEstimate(date: date, value: value, note: clean?.isEmpty == false ? clean : nil))
+        settings.stockEstimates = list.sorted { $0.date < $1.date }
+        return changeBusinessSettings(settings, summary: "估了一次货值：\(value.formatted)", author: author)
+    }
+
+    /// 这天是不是标了休息。
+    public func isShopRest(_ date: LocalDate) -> Bool { business?.restDays?.contains(date) ?? false }
+
+    /// 把一天标成休息（或者取消）。只记这天没开门，流水不动。能撤销。
+    @discardableResult
+    public mutating func setShopRest(_ date: LocalDate, rest: Bool, author: String) throws -> ChangeRecord {
+        guard var settings = business, businessBook != nil else { throw BusinessError(message: "请先打开生意模式") }
+        var days = Set(settings.restDays ?? [])
+        guard days.contains(date) != rest else { throw ManageError.nothingToChange }
+        if rest { days.insert(date) } else { days.remove(date) }
+        settings.restDays = days.isEmpty ? nil : days.sorted()
+        return changeBusinessSettings(settings, summary: rest ? "\(date.month) 月 \(date.day) 日店里休息" : "\(date.month) 月 \(date.day) 日不算休息了", author: author)
+    }
+
     /// 两边之间转钱：从一边的账户转到另一边的账户。记两笔（同一个 transferID），不算收入也不算开销；
     /// 从生意转到生活就是「给自己发了」，首页那一行会加上。
     @discardableResult

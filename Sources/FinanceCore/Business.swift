@@ -49,6 +49,12 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var accountSides: [String: Side]?
     /// 每天记账的收款方式（现金、刷卡之外还能加 Bizum、外卖平台……）。没设过就用默认两种。
     public var paymentMethods: [PaymentMethod]?
+    /// 休息的日子（店那天没开门）。回本、不亏线、开门天数都按它算。老账本没有这个字段，就是一天都没标过。
+    public var restDays: [LocalDate]?
+    /// 估的货值：哪天估的、店里的货大概值多少。新的在后。老账本没有这个字段。
+    public var stockEstimates: [StockEstimate]?
+    /// 管哪边（只生活 / 只生意 / 都管）。没选过就是 nil：生意模式开着算两边都管。老账本没有这个字段。
+    public var manages: ManagedSides?
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -59,7 +65,17 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         debtExtras = try c.decodeIfPresent([String: DebtExtra].self, forKey: .debtExtras)
         accountSides = try c.decodeIfPresent([String: Side].self, forKey: .accountSides)
         paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods)
+        restDays = try c.decodeIfPresent([LocalDate].self, forKey: .restDays)
+        stockEstimates = try c.decodeIfPresent([StockEstimate].self, forKey: .stockEstimates)
+        manages = (try? c.decodeIfPresent(String.self, forKey: .manages)).flatMap { $0 }.flatMap(ManagedSides.init(rawValue:))
     }
+}
+/// 估一次货值：店里还没卖掉的货大概值多少。
+public struct StockEstimate: Codable, Hashable, Sendable {
+    public var date: LocalDate
+    public var value: Money
+    public var note: String?
+    public init(date: LocalDate, value: Money, note: String? = nil) { self.date = date; self.value = value; self.note = note }
 }
 public struct Receivable: Codable, Hashable, Sendable, Identifiable {
     public var id: UUID

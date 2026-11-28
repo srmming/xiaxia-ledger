@@ -322,24 +322,26 @@ extension BusinessTests {
 }
 
 extension BusinessTests {
-    func testPhoneRejectsBusinessChangesBeforeWritingNote() throws {
+    /// 2026-11-28 起：手机上改生意设置、客人欠款也写成纸条传给 Mac（以前是直接拒绝「请在 Mac 上修改」）。
+    /// 收的那边按字段合并，同一项两边都改了留电脑的并记一条冲突（见 PhoneSyncBusinessTests）。
+    func testPhoneWritesNotesForBusinessChanges() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }
         let phone = PhoneSyncStore(folder: dir, cache: dir.appendingPathComponent("cache.sqlite"))
-        let original = try phone.load()
-        var settings = original
+        var settings = try phone.load()
         _ = try settings.enableBusinessMode(author: author)
-        var debt = original
+        try phone.save(settings)
+        XCTAssertEqual(SyncNotes.files(in: SyncNotes.inbox(dir)).count, 1)
+        XCTAssertEqual(try phone.load().business?.enabled, true, "手机上马上看得到")
+        var debt = try phone.load()
         debt.receivables = [.init(name: "模拟应收", amount: .init(cents: 20))]
-        for change in [settings, debt] {
-            XCTAssertThrowsError(try phone.save(change)) { XCTAssertTrue($0.localizedDescription.contains("在 Mac 上修改")) }
-            XCTAssertTrue(SyncNotes.files(in: SyncNotes.inbox(dir)).isEmpty)
-            XCTAssertEqual(try phone.load(), original)
-        }
-        var ordinary = original
+        try phone.save(debt)
+        XCTAssertEqual(SyncNotes.files(in: SyncNotes.inbox(dir)).count, 2)
+        XCTAssertEqual(try phone.load().receivables.map(\.name), ["模拟应收"])
+        var ordinary = try phone.load()
         ordinary.transactions.append(tx("手机记账", 200, book: "personal"))
         try phone.save(ordinary)
-        XCTAssertEqual(SyncNotes.files(in: SyncNotes.inbox(dir)).count, 1)
+        XCTAssertEqual(SyncNotes.files(in: SyncNotes.inbox(dir)).count, 3)
     }
 
     func testCannotSwitchBooksWithCapital() throws {

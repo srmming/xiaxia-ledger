@@ -1,0 +1,327 @@
+#if os(macOS)
+import AppKit
+import FinanceCore
+import SwiftUI
+import XCTest
+@testable import LedgerUI
+
+/// 不开窗口，把界面 v3 的页面直接画成图（离屏），给人看效果用。
+/// 只有设了环境变量 XIAXIA_RENDER_DIR 才跑；平时跳过。数据全是示例。
+@MainActor
+final class V3RenderTests: XCTestCase {
+    private func write<V: View>(_ view: V, _ name: String, to dir: String) throws {
+        let r = ImageRenderer(content: view.frame(width: 1280, height: 800).background(V3.bg).environment(\.colorScheme, .light))
+        r.scale = 1
+        guard let cg = r.cgImage, let data = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) else {
+            XCTFail("\(name) 没画出来"); return
+        }
+        try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+    }
+
+    /// 正式账本上那张流水确认卡、设置首页（数据是内存里的示例账本和一份编出来的流水）。
+    func testRenderRealLedgerCardsOffscreen() throws {
+        guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_REAL_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_REAL_DIR") }
+        let model = LedgerModel.demo()
+        let s = V3State(model: model)
+        s.statementFiles["晴空银行 流水.csv"] = "Fecha;Concepto;Importe\n03/11/2026;Papeleria Nube;-7,35\n04/11/2026;Cafe Brisa;-3,10\nTOTAL;;-10,45\n"
+        let m = s.statementReply("晴空银行 流水.csv", account: s.statementAccounts.first ?? "")
+        var done = m; done.done = "进来 2 笔，放在「\(s.statementAccounts.first ?? "")」。不对就点底下的「撤销」"
+        let cards = VStack(alignment: .leading, spacing: 24) {
+            if let c = m.confirm { V3ConfirmCard(message: m, confirm: c).frame(width: 460) }
+            if let c = done.confirm { V3ConfirmCard(message: done, confirm: c).frame(width: 460) }
+        }
+        try write(cards.environment(s), "real-statement-card", to: dir)
+        // 夏夏滑下来的那条消息：像聊天列表里的一行
+        let says = VStack(spacing: 20) {
+            V3SayCard(saying: V3Saying(id: "a", face: "happy", text: "比上月同期少花 126 €，照这样月底能多存一点。", tone: 0, extra: AnyView(EmptyView())))
+            V3SayCard(saying: V3Saying(id: "b", face: "worried", text: "信用卡 5 号要还 640 €，日常卡里够。", tone: 2, extra: AnyView(EmptyView())), muteKind: "card")
+        }
+        try write(says.environment(V3State()), "say-card", to: dir)
+        // 记一笔「自己填」的三种：支出、收入、两个账户之间转（试用数字，生活这边）
+        for k in 0..<3 {
+            let st = V3State(); st.onboardingStep = nil; st.side = .life
+            st.manualStartKind = k
+            try write(V3ManualSheet(startKind: k).environment(st), "manual-\(k)", to: dir)
+        }
+        let shopAcc = V3State(); shopAcc.onboardingStep = nil; shopAcc.side = .biz
+        try write(V3ShopAccountSheet().environment(shopAcc), "shop-account-sheet", to: dir)
+        for k in 0..<2 {
+            let day = V3State(); day.onboardingStep = nil; day.side = .biz
+            try write(V3ShopDaySheet(start: day.book.todayDay, startKind: k).environment(day), "shop-day-\(k)", to: dir)
+        }
+        let fixedState = V3State(); fixedState.onboardingStep = nil; fixedState.side = .biz
+        try write(V3FixedSheet().environment(fixedState), "fixed-sheet", to: dir)
+        let goalsDemo = V3State(); goalsDemo.onboardingStep = nil
+        try write(V3GoalsPage().padding(20).environment(goalsDemo), "demo-goals", to: dir)
+        let subs = V3State(); subs.onboardingStep = nil
+        try write(V3SubscriptionSheet().environment(subs), "subscription-sheet", to: dir)
+        let open = V3State(); open.onboardingStep = nil; open.side = .life
+        try write(V3ManualSheet(startKind: 2, jarsOpen: true).environment(open), "manual-2-jars", to: dir)
+        s.page = .settings
+        try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
+        XCTAssertNotNil(s.model); _ = model
+        try write(V3TrendsPage().padding(20).environment(s), "real-trends", to: dir)
+        // 设置里接正式账本的五页（内存里的示例账本：不碰任何真文件，AI 那页看的是临时文件夹里的假设置）
+        for sub in [V3State.SettingsSub.ai, .business, .money, .sync, .data] {
+            s.settingsSub = sub
+            try write(V3SettingsPage().environment(s), "real-set-\(sub.rawValue)", to: dir)
+        }
+        s.settingsSub = .speak
+        try write(V3SettingsPage().environment(s), "set-speak", to: dir)
+        s.settingsSub = nil
+        // 生意首页和回本页：回本的日子是同一个
+        s.side = .biz
+        try write(V3BizHomePage().padding(20).environment(s), "real-biz-home", to: dir)
+        try write(V3PaybackPage().padding(20).environment(s), "real-payback", to: dir)
+        s.side = .life
+        let demoBiz = V3State(); demoBiz.onboardingStep = nil; demoBiz.side = .biz
+        try write(V3PaybackPage().padding(20).environment(demoBiz), "demo-payback", to: dir)
+        // 过去月份的生意流水：正式账本是一笔笔的；试用数字只有合计的那一行
+        s.side = .biz; s.setMonth(.init(2026, 10))
+        try write(V3ShopFlowPage().padding(20).environment(s), "real-shopflow-oct", to: dir)
+        s.setMonth(s.book.thisMonth); s.side = .life
+        try write(V3MonthlyPage().padding(20).environment(s), "real-monthly", to: dir)
+        // 生活这边每一页在正式账本上的样子（专门用来找写死的示例）
+        try write(V3OverviewPage().padding(20).environment(s), "real-overview", to: dir)
+        try write(V3SpendingPage().padding(20).environment(s), "real-spending", to: dir)
+        try write(V3GoalsPage().padding(20).environment(s), "real-goals", to: dir)
+        try write(V3WealthPage().padding(20).environment(s), "real-wealth", to: dir)
+        try write(V3TransactionsPage().padding(20).environment(s), "real-transactions", to: dir)
+        // 整个窗口：夏夏在上面问「这家店那一笔，算不算某一类」
+        s.onboardingStep = nil; s.page = .transactions
+        try write(V3Shell().environment(s), "real-place-question", to: dir)
+        s.page = .overview
+        try write(V3DebtsPage().padding(20).environment(s), "real-debts", to: dir)
+        s.side = .biz
+        try write(V3SalesPage().padding(20).environment(s), "real-sales", to: dir)
+        try write(V3FixedPage().padding(20).environment(s), "real-fixed", to: dir)
+        try write(V3StockPage().padding(20).environment(s), "real-stock", to: dir)
+        try write(V3ShopWealthPage().padding(20).environment(s), "real-shop-wealth", to: dir)
+        try write(V3BizDebtsPage().padding(20).environment(s), "real-biz-debts", to: dir)
+        try write(V3CheckupPage().padding(20).environment(s), "real-checkup", to: dir)
+        // 补接的那几样：店里的分期点开（还这一期 / 删掉）、管理分类（换图标、删掉）
+        if let inst = s.book.shopDebts.first(where: { $0.perPayment != nil }) {
+            try write(V3ShopItemSheet(id: inst.id).padding(30).environment(s), "real-shop-item-sheet", to: dir)
+        }
+        s.side = .life
+        try write(V3CategoriesSheet().padding(30).environment(s), "real-categories-sheet", to: dir)
+        let demoLife = V3State(); demoLife.onboardingStep = nil
+        try write(V3MonthlyPage().padding(20).environment(demoLife), "demo-monthly", to: dir)
+        demoBiz.setMonth(.init(2026, 10))
+        try write(V3ShopFlowPage().padding(20).environment(demoBiz), "demo-shopflow-oct", to: dir)
+        let demo = V3State(); demo.onboardingStep = nil
+        try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
+    }
+
+    func testRenderOnboardingOffscreen() throws {
+        guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_DIR") }
+        for step in 0..<5 {
+            let s = V3State()
+            s.onboardingStep = step
+            if step >= 2 { s.wish = "三年后不用为钱发愁" }
+            try write(V3Onboarding().environment(s).environment(\.v3InlineXia, true), "ob\(step + 1)", to: dir)
+        }
+        // 最后一步选中一张卡的样子
+        let picked = V3State()
+        picked.onboardingStep = 4; picked.ai = "Claude"
+        try write(V3Onboarding().environment(picked).environment(\.v3InlineXia, true), "ob5-picked", to: dir)
+        // 「自己的 API」已经填了的样子（假密钥，内存里的假钥匙串）
+        let own = V3State()
+        own.onboardingStep = 4
+        own.keyStore = MemorySecretStore()
+        own.saveAPIKey("sk-demo-000", provider: .anthropic)
+        own.toast = nil
+        try write(V3Onboarding().environment(own).environment(\.v3InlineXia, true), "ob5-own-api", to: dir)
+        own.onboardingStep = nil; own.page = .settings; own.settingsSub = .ai
+        try write(V3Shell().environment(own), "set-ai-own-api", to: dir)
+        // 走完引导直接到总览；目标页空着的样子
+        let done = V3State()
+        done.onboardingStep = 4; done.ai = "Claude"
+        done.nextStep(); done.toast = nil
+        XCTAssertNil(done.moment)
+        try write(V3Shell().environment(done), "after-onboarding", to: dir)
+        done.lastSaid = ("照这样花，这个月存钱差一点。", Date()); done.sayCardID = nil; done.sayUnreadID = "照这样花，这个月存钱差一点。"
+        try write(V3Shell().environment(done), "sidebar-chat-unread", to: dir)
+        done.sayUnreadID = nil; done.sayDismissed = ["照这样花，这个月存钱差一点。"]
+        try write(V3Shell().environment(done), "sidebar-chat-read", to: dir)
+        done.side = .biz; done.page = .bizHome
+        try write(V3Shell().environment(done), "sidebar-xia-biz", to: dir)
+        done.side = .life; done.page = .overview
+        done.updateVersion = "0.3.1"
+        try write(V3Shell().environment(done), "sidebar-update", to: dir)
+        let nogoal = V3State()
+        nogoal.onboardingStep = nil; nogoal.patch { $0.wipe() }; nogoal.page = .goals
+        try write(V3Shell().environment(nogoal), "goals-empty", to: dir)
+        // 新导航、右上角主按钮跟着页面变
+        func shell(_ name: String, _ setup: (V3State) -> Void) throws {
+            let s = V3State(); s.onboardingStep = nil; setup(s); s.toast = nil
+            try write(V3Shell().environment(s), name, to: dir)
+        }
+        try shell("tx-importing") { $0.page = .transactions; $0.importProgress = ("晴空银行 11 月流水", 40, 52) }
+        try shell("spending-donut") { $0.page = .spending }
+        try shell("trends-weekly") { $0.page = .trends }
+        try shell("sheet-sub-accounts") { s in
+            s.page = .subscriptions
+            _ = s.addAccount(emoji: "💳", name: "新开的卡", note: "", balance: Money(cents: 300_00), kind: .own)
+            _ = s.addAccount(emoji: "💳", name: "第二张卡", note: "", balance: Money(cents: 120_00), kind: .own)
+            s.sheet = .subscription
+        }
+        // 生活和生意的账户分开：生活的总览、家底、管理账户里没有店里的；店里的在生意那边管
+        try shell("split-overview") { $0.page = .overview }
+        try shell("split-wealth") { $0.page = .wealth }
+        try shell("split-accounts-life") { $0.page = .wealth; $0.sheet = .accounts }
+        try shell("split-accounts-biz") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .accounts }
+        try shell("split-manual-biz") { $0.side = .biz; $0.page = .bizHome; $0.sheet = .manual }
+        try shell("biz-fixed") { $0.side = .biz; $0.page = .fixed }
+        try shell("sheet-fixed-add") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixed }
+        try shell("sheet-fixed-edit") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixedEdit("水电") }
+        try shell("biz-flow") { $0.side = .biz; $0.page = .shopFlow }
+        try shell("sheet-shopday-channels") { $0.side = .biz; $0.page = .bizHome; $0.sheet = .shopDay(18) }
+        try shell("sheet-shopday-expense") { $0.side = .biz; $0.page = .shopFlow; $0.shopDayExpense = true; $0.sheet = .shopDay(18) }
+        try shell("biz-home-channels") { s in
+            s.side = .biz; s.page = .bizHome
+            s.change("记好了") { try $0.recordShopDay(18, channels: [.init("小店账户", Money(cents: 112_00)), .init("店里现金", Money(cents: 74_00))]) }
+        }
+        try shell("sheet-purchase") { $0.side = .biz; $0.page = .stock; $0.sheet = .purchase }
+        try shell("biz-debts") { $0.side = .biz; $0.page = .bizDebts }
+        try shell("sheet-transfer-life") { $0.page = .overview; $0.manualStartKind = 2; $0.sheet = .manual }
+        try shell("sheet-transfer-biz") { $0.side = .biz; $0.page = .bizHome; $0.manualStartKind = 2; $0.sheet = .manual }
+        try shell("sheet-goal-delete") { $0.page = .goals; $0.sheet = .goalDelete(nil) }
+        try shell("sheet-goal-edit") { $0.page = .goals; $0.sheet = .goalEdit }
+        try shell("goals-no-big") { s in s.page = .goals; s.change("删") { try $0.removeBigGoal(moneyTo: .account("日常卡")) } }
+        try shell("goals-finished") { s in
+            s.page = .goals
+            s.change("存") { _ = try $0.deposit($0.journey.total - $0.journey.saved, from: "储蓄") }
+            let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
+            s.change("存") { try $0.depositSmall(shoes.id, amount: Money(cents: 35_00), from: "日常卡") }
+        }
+        try shell("month-spending-oct") { $0.page = .spending; $0.setMonth(.init(2026, 10)) }
+        try shell("month-overview-oct") { $0.page = .overview; $0.setMonth(.init(2026, 10)) }
+        try shell("month-trends-oct") { $0.page = .trends; $0.setMonth(.init(2026, 10)) }
+        try shell("month-bizflow-oct") { $0.side = .biz; $0.page = .shopFlow; $0.setMonth(.init(2026, 10)) }
+        try shell("month-bizhome-oct") { $0.side = .biz; $0.page = .bizHome; $0.setMonth(.init(2026, 10)) }
+        try shell("tx-ranges") { $0.page = .transactions }
+        // 决策模型：假密钥、内存里的假钥匙串，不联网
+        try shell("set-decision") { s in
+            s.keyStore = MemorySecretStore(); _ = s.saveAPIKey("sk-demo-000-fake", provider: .openrouter)
+            s.page = .settings; s.settingsSub = .decision
+            s.decisionTry = "是的概率 83%，超过 70% → 会提醒"
+        }
+        try shell("set-decision-empty") { $0.page = .settings; $0.settingsSub = .decision }
+        try shell("set-ai-openrouter") { $0.page = .settings; $0.settingsSub = .ai }
+        try shell("remind-card") { s in
+            s.page = .overview
+            s.reminder = V3Reminder(key: "shortBalance:房租", kind: "shortBalance", text: "3 天后要扣房租 650,00 €，日常卡里只有 412,60 €，还差 237,40 €。")
+            s.sayCardID = "remind:shortBalance:房租"
+        }
+        try shell("sheet-goal-place") { s in
+            s.page = .goals; s.change("删") { try $0.removeBigGoal(moneyTo: .account("日常卡")) }
+            s.goalSheetStep = 1; s.sheet = .goalNew
+        }
+        try shell("sheet-smallgoal-place") { s in
+            s.page = .goals
+            let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
+            s.change("删") { try $0.removeSmallGoal(shoes.id, moneyTo: .account("日常卡")) }
+            s.goalSheetStep = 1; s.sheet = .smallGoal(nil)
+        }
+        try shell("monthly-surprises") { $0.page = .monthly }
+        try shell("overview-surprise") { s in
+            s.page = .overview
+            s.change("记") { try $0.record(name: "看病", emoji: "💊", amount: Money(cents: 120_00), account: "日常卡", place: "牙科诊所 Sonrisa") }
+        }
+        // 接正式账本第 1 步：示例正式账本（DemoData，内存里现造的）整理出来的只读数
+        for (name, page) in [("real-overview", V3State.Page.overview), ("real-transactions", .transactions), ("real-spending", .spending), ("real-wealth", .wealth)] {
+            let s = V3State(snapshotOf: DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 18)), today: LocalDate(year: 2026, month: 11, day: 18))
+            s.page = page; s.toast = nil
+            try write(V3Shell().environment(s), name, to: dir)
+        }
+        try shell("goals-big-and-small") { $0.page = .goals }
+        try shell("sheet-holdback") { $0.sheet = .holdBack }
+        try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }
+        try shell("biz-home-wealth-card") { $0.side = .biz; $0.page = .bizHome }
+        try shell("sheet-shop-account") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .shopAccount }
+        let lockedState = V3State(); lockedState.onboardingStep = nil; lockedState.locked = true
+        try write(V3LockScreen().environment(lockedState), "lock-screen", to: dir)
+        try shell("set-lock") { $0.page = .settings; $0.settingsSub = .privacy }
+        try shell("nav-wealth") { $0.page = .wealth }
+        try shell("nav-goals") { $0.page = .goals }
+        try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }
+        // 问夏夏：带一张图问要不要买
+        try shell("chat-buy") { s in
+            s.chatOpen = true
+            s.chat = [.init(mine: true, text: "想买个降噪耳机 279", attachment: "🖼 耳机.jpg")]
+            if let c = try? s.book.checkPurchase(name: "降噪耳机", price: Money(cents: 279_00)) { s.chat.append(.init(mine: false, text: c.line, check: c)) }
+            s.chat.append(.init(mine: true, text: "", attachment: "🔗 shop.example.com"))
+            s.chat.append(.init(mine: false, text: "多少钱？"))
+        }
+        // 「要不要买」那张小卡单独画一张（聊天页是能滚动的，离屏画不出里面的内容）
+        let buy = V3State()
+        if let c = try? buy.book.checkPurchase(name: "降噪耳机", price: Money(cents: 279_00)) {
+            let m = V3State.ChatMessage(mine: false, text: c.line, check: c)
+            try write(V3BuyCard(message: m, check: c).environment(buy).frame(width: 1280, height: 800), "chat-buy-card", to: dir)
+        }
+        // 记一笔：三种方式
+        let old = UserDefaults.standard.object(forKey: "xiaxia.v3.addWay")
+        for (i, name) in ["add-say", "add-manual", "add-file"].enumerated() {
+            UserDefaults.standard.set(i, forKey: "xiaxia.v3.addWay")
+            try shell(name) { $0.showAdd = true }
+        }
+        if let old { UserDefaults.standard.set(old, forKey: "xiaxia.v3.addWay") } else { UserDefaults.standard.removeObject(forKey: "xiaxia.v3.addWay") }
+        // 刚进总览、还没有流水：顶上夏夏说一句去导入
+        let empty = V3State()
+        empty.onboardingStep = nil
+        empty.patch { $0.wipe() }
+        empty.sayCardID = "想省事？把银行流水拖进来，我帮你填"
+        try write(V3Shell().environment(empty), "overview-empty", to: dir)
+        // 管哪边：只管生活、只管生意、设置里的两个开关
+        for (mode, name) in [(V3State.Mode.life, "sides-life"), (.biz, "sides-biz")] {
+            let s = V3State()
+            s.onboardingStep = nil
+            s.mode = mode
+            try write(V3Shell().environment(s), name, to: dir)
+        }
+        let set = V3State()
+        set.onboardingStep = nil; set.page = .settings; set.settingsSub = .business
+        try write(V3Shell().environment(set), "sides-settings", to: dir)
+    }
+
+    /// 规格对照的那四组图（有数据、没数据、设置、弹窗）全部离屏重画一遍。
+    func testRenderSpecSetOffscreen() throws {
+        guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_SPEC_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_SPEC_DIR") }
+        func out(_ sub: String) throws -> String {
+            let d = (dir as NSString).appendingPathComponent(sub)
+            try FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
+            return d
+        }
+        func fresh() -> V3State { let s = V3State(); s.onboardingStep = nil; return s }
+        for p in V3State.Page.life + V3State.Page.biz {
+            let s = fresh(); s.go(p); if V3State.Page.biz.contains(p) { s.side = .biz; s.page = p }
+            try write(V3Shell().environment(s), p.rawValue, to: try out("有数据"))
+            let e = fresh(); e.patch { $0.wipe() }; if V3State.Page.biz.contains(p) { e.side = .biz }; e.page = p
+            try write(V3Shell().environment(e), p.rawValue, to: try out("没数据"))
+        }
+        let log = fresh(); log.page = .settings; log.showLog = true
+        try write(V3Shell().environment(log), "log", to: try out("有数据"))
+        for f in [V3State.Forced.loading, .error] {
+            let s = fresh(); s.forced = f
+            try write(V3Shell().environment(s), f.rawValue, to: try out("没数据"))
+        }
+        let txErr = fresh(); txErr.page = .transactions; txErr.forced = .error
+        try write(V3Shell().environment(txErr), "出错-流水", to: try out("没数据"))
+        let home = fresh(); home.page = .settings
+        try write(V3Shell().environment(home), "settings", to: try out("设置"))
+        for sub in ["ai", "xia", "memory", "speak", "privacy", "author", "books", "business", "money", "sync", "data"] {
+            let s = fresh(); s.page = .settings; s.settingsSub = V3State.SettingsSub(rawValue: sub)
+            try write(V3Shell().environment(s), "set-" + sub, to: try out("设置"))
+        }
+        for name in ["sheet-save", "sheet-cat", "sheet-amount", "sheet-sub", "sheet-debt", "sheet-repay", "sheet-daily", "sheet-fixed", "sheet-purchase",
+                     "sheet-stock", "sheet-capital", "sheet-captotal", "sheet-transfer", "sheet-shopdebt", "sheet-memo", "sheet-forget", "sheet-tidy", "sheet-meet",
+                     "sheet-del1", "sheet-del2", "sheet-restore", "sheet-feedback", "sheet-books", "sheet-accounts", "sheet-cats", "sheet-base",
+                     "sheet-plan", "sheet-subinfo", "sheet-fixededit"] {
+            let s = fresh()
+            V3Sheet.fromLaunch(name, s)
+            try write(V3Shell().environment(s), name, to: try out("弹窗"))
+        }
+    }
+}
+#endif

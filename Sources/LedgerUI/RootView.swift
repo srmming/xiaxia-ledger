@@ -570,7 +570,13 @@ public struct XiaxiaScene: Scene {
         #else
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
-        if useDemo {
+        // V3Launch 只有 Mac 有；iPhone 上没有这个开关
+        #if os(macOS)
+        let v3 = V3Launch.enabled
+        #else
+        let v3 = false
+        #endif
+        if useDemo || v3 {
             // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
             let persona = args.firstIndex(of: "-XiaxiaPersona").flatMap { $0 + 1 < args.count ? Persona(rawValue: args[$0 + 1]) : nil }
             model = LedgerModel.demo(persona: persona)
@@ -652,10 +658,18 @@ public struct XiaxiaScene: Scene {
         #if os(macOS)
         // Mac 上只有一个主窗口，用 Window 而不是 WindowGroup：每次启动都一定会出主窗口，关掉窗口就退出。
         Window(tr("夏夏账本"), id: "main") {
-            RootView()
-                .environment(model)
-                // 窗口最窄也要放得下：侧栏 190 + 页面 460 + 对话栏 340。宽度固定不变，开关对话栏时不改窗口最小宽度。
-                .frame(minWidth: 1000, minHeight: 560)
+            if V3Launch.enabled {
+                // 界面 v3 开发版（-XiaxiaV3 1）：只用编的示例数字，不打开任何账本。
+                V3RootView().frame(minWidth: 1000, minHeight: 612)
+            } else if V3Launch.newLook {
+                // 新界面接着正式账本（和旧界面是同一本、同一个模型）。默认不开，见 V3Launch.newLook。
+                V3RootView(model: model).frame(minWidth: 1000, minHeight: 612)
+            } else {
+                RootView()
+                    .environment(model)
+                    // 窗口最窄也要放得下：侧栏 190 + 页面 460 + 对话栏 340。宽度固定不变，开关对话栏时不改窗口最小宽度。
+                    .frame(minWidth: 1000, minHeight: 560)
+            }
         }
         .defaultSize(width: 1240, height: 820)
         .commands {
