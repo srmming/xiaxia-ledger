@@ -570,7 +570,13 @@ public struct XiaxiaScene: Scene {
         #else
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
-        if useDemo || V3Launch.enabled {
+        // V3Launch 只有 Mac 有；iPhone 上没有这个开关
+        #if os(macOS)
+        let v3 = V3Launch.enabled
+        #else
+        let v3 = false
+        #endif
+        if useDemo || v3 {
             // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
             let persona = args.firstIndex(of: "-XiaxiaPersona").flatMap { $0 + 1 < args.count ? Persona(rawValue: args[$0 + 1]) : nil }
             model = LedgerModel.demo(persona: persona)

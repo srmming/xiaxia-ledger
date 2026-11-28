@@ -2,10 +2,11 @@ import Foundation
 
 /// 用自己的 API 密钥连 AI：哪几家、填的东西对不对。密钥本身不在这里存，交给 `SecretStore`（app 里是这台 Mac 的钥匙串）。
 public enum AIKeyProvider: String, CaseIterable, Sendable {
-    case anthropic, openai, google, custom
+    case openrouter, anthropic, openai, google, custom
 
     public var title: String {
         switch self {
+        case .openrouter: "OpenRouter"
         case .anthropic: "Anthropic"
         case .openai: "OpenAI"
         case .google: "Google"
@@ -53,6 +54,8 @@ public protocol SecretStore: Sendable {
     /// 只问有没有，不把密钥读出来。
     func has(_ account: String) -> Bool
     func delete(_ account: String) throws
+    /// 把密钥读出来：只在真的要拿它发请求的那一下用，读出来的不显示、不记日志、不落盘。
+    func read(_ account: String) -> String?
 }
 
 /// 只活在内存里的假钥匙串（测试、离屏出图用）。
@@ -63,6 +66,7 @@ public final class MemorySecretStore: SecretStore, @unchecked Sendable {
     public func save(_ secret: String, for account: String) throws { lock.lock(); items[account] = secret; lock.unlock() }
     public func has(_ account: String) -> Bool { lock.lock(); defer { lock.unlock() }; return items[account] != nil }
     public func delete(_ account: String) throws { lock.lock(); items[account] = nil; lock.unlock() }
+    public func read(_ account: String) -> String? { peek(account) }
     /// 只给测试核对用。
     public func peek(_ account: String) -> String? { lock.lock(); defer { lock.unlock() }; return items[account] }
 }

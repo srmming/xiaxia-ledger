@@ -561,7 +561,7 @@ private struct V3ConnectStep: View {
         ("Claude", "sparkles"), ("ChatGPT", "bubble.left.and.bubble.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"),
         (V3State.aiOwnAPI, "key"), ("还没用过", "leaf"),
     ]
-    /// 点了「自己的 API」：下面那一行换成填密钥的。
+    /// 点了「OpenRouter」：下面那一行换成填密钥的。
     @State private var ownOpen = false
     @State private var provider = AIKeyProvider.anthropic
     @State private var key = ""
@@ -612,7 +612,7 @@ private struct V3ConnectStep: View {
             .frame(height: 40).padding(.top, 30)
             V3StepButtons(skipText: nil, next: "出发") {
                 // 没选也能走：等于「还没用过」
-                // 「自己的 API」没存密钥也不卡人：当成还没用过，进去以后在设置里再填
+                // 「OpenRouter」没存密钥也不卡人：当成还没用过，进去以后在设置里再填
                 if state.ai == nil || (state.ai == V3State.aiOwnAPI && state.apiProvider == nil) { state.ai = "夏夏自带的" }
                 key = ""
                 state.say("出发！")

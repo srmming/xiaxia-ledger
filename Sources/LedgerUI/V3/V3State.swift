@@ -121,6 +121,16 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var showAddAccount = false
+    // 决策模型（OpenRouter）
+    var transport: V3Transport = V3State.defaultTransport()
+    var decisionPrefs = V3DecisionPrefs.load()
+    var decisionTry = ""
+    var decisionTrying = false
+    var models: [String] = []
+    var modelsLoading = false
+    /// 夏夏主动提醒的那一句（D1 判断要说的时候才有）。
+    var reminder: V3Reminder?
+    var dailyTask: Task<Void, Never>?
     /// 正在看哪个月（nil 是这个月）。总览、花销、趋势、小结、生意那几页共用，换页不变。
     var viewMonth: TrialBook.MonthKey?
     var monthKey: TrialBook.MonthKey { book.clampMonth(viewMonth ?? book.thisMonth) }
@@ -221,6 +231,10 @@ final class V3State {
             try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
             localUndo = nil
             show(Toast(text: text, canUndo: true))
+            // 每记一笔、每次导入：跑一次「要不要提醒」（跑测试时不自动跑，测试自己叫）
+            if kind == .add || kind == .importBatch, NSClassFromString("XCTestCase") == nil {
+                Task { @MainActor [weak self] in await self?.runReminderCheck(newEntries: [text]) }
+            }
             return true
         } catch let e as TrialError {
             fail(e.message)

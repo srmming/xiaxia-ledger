@@ -106,6 +106,19 @@ final class V3RenderTests: XCTestCase {
         try shell("month-bizflow-oct") { $0.side = .biz; $0.page = .shopFlow; $0.setMonth(.init(2026, 10)) }
         try shell("month-bizhome-oct") { $0.side = .biz; $0.page = .bizHome; $0.setMonth(.init(2026, 10)) }
         try shell("tx-ranges") { $0.page = .transactions }
+        // 决策模型：假密钥、内存里的假钥匙串，不联网
+        try shell("set-decision") { s in
+            s.keyStore = MemorySecretStore(); _ = s.saveAPIKey("sk-demo-000-fake", provider: .openrouter)
+            s.page = .settings; s.settingsSub = .decision
+            s.decisionTry = "是的概率 83%，超过 70% → 会提醒"
+        }
+        try shell("set-decision-empty") { $0.page = .settings; $0.settingsSub = .decision }
+        try shell("set-ai-openrouter") { $0.page = .settings; $0.settingsSub = .ai }
+        try shell("remind-card") { s in
+            s.page = .overview
+            s.reminder = V3Reminder(key: "shortBalance:房租", kind: "shortBalance", text: "3 天后要扣房租 650,00 €，日常卡里只有 412,60 €，还差 237,40 €。")
+            s.sayCardID = "remind:shortBalance:房租"
+        }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }
