@@ -637,6 +637,8 @@ struct V3ShopWealthPage: View {
                         VStack(alignment: .leading, spacing: 2) {
                             V3Label("店里一共值")
                             V3Gold(amount: w.net, size: 40, whole: w.net.cents % 100 == 0)
+                            // 是负数时说一句人话；不是负数不显示（ming 2026-11-28）
+                            if let note = b.shopWorthNote { V3Label(note, color: V3.red, weight: .bold) }
                         }
                         .padding(.horizontal, 18).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
                         .layoutPriority(1)

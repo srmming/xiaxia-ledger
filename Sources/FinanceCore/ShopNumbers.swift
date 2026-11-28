@@ -58,6 +58,12 @@ extension TrialBook {
     public var shopBack: Money { shopBackBefore + max(shopMonth().earned, .zero) }
     public var paybackLeft: Money { max(capitalTotal - shopBack, .zero) }
     public var paybackFraction: Double { capitalTotal > .zero ? min(Double(shopBack.cents) / Double(capitalTotal.cents), 1) : 0 }
+    /// 「店里一共值」是负数时，数字下面那句人话：「欠的比有的多 X」。不是负数就没有这句。
+    public var shopWorthNote: String? {
+        let net = shopWorth.net
+        return net < .zero ? "欠的比有的多 \(net.magnitude.formatted)" : nil
+    }
+
     /// 一期一期还的欠款带的记号（从正式账本整理过来时打上）。
     public static let paidMonthlyTags: Set<String> = ["分期", "按月还"]
 
