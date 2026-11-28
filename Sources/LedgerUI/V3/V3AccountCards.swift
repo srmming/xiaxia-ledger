@@ -33,7 +33,7 @@ enum V3CardLook {
         case .debt: a.isCreditCard ? "信用卡 · 欠的" : "欠的"
         case .lent: "借出去的"
         case .secret: "私房钱"
-        case .own: a.block == .goal ? "存在目标里" : a.block == .emergency ? "应急钱" : a.name.contains("现金") ? "现金" : "日常能用"
+        case .own: a.block == .goal ? "存在目标里" : a.block == .emergency ? "储蓄" : a.name.contains("现金") ? "现金" : "日常能用"
         }
     }
 }
@@ -149,34 +149,33 @@ struct V3AccountMenu: View {
 /// 没置顶的账户：按小标题分组，一行一个。放得下就一栏，多了分成两栏。
 struct V3AccountList: View {
     let side: TrialBook.Side
-    /// 生活那边排在最后的私房钱卡。
-    var secret: V3State.Account?
+    /// 铺满整行时用：有两组以上就分两栏。
+    var wide = false
     @Environment(V3State.self) private var state
 
     var body: some View {
         let groups = state.book.listed(on: side)
-        let rows = groups.map { $0.accounts.count + 1 }.reduce(0, +) + (secret == nil ? 0 : 2)
-        let two = rows > 8
+        let rows = groups.map { $0.accounts.count + 1 }.reduce(0, +)
+        let two = rows > 8 || (wide && groups.count > 1)
         // 两栏时尽量两边一样长
         let cut: Int = {
             guard two else { return groups.count }
             var seen = 0
-            for (i, g) in groups.enumerated() { seen += g.accounts.count + 1; if seen * 2 >= rows - (secret == nil ? 0 : 2) { return i + 1 } }
+            for (i, g) in groups.enumerated() { seen += g.accounts.count + 1; if seen * 2 >= rows { return i + 1 } }
             return groups.count
         }()
         HStack(alignment: .top, spacing: 16) {
-            column(Array(groups.prefix(cut)), secret: two ? nil : secret)
-            if two { column(Array(groups.dropFirst(cut)), secret: secret) }
+            column(Array(groups.prefix(cut)))
+            if two { column(Array(groups.dropFirst(cut))) }
         }
     }
 
-    private func column(_ groups: [TrialBook.AccountGroup], secret: V3State.Account?) -> some View {
+    private func column(_ groups: [TrialBook.AccountGroup]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(groups) { g in
                 Text(g.title).font(V3.font(12.5, .bold)).foregroundStyle(V3.ink2).padding(.top, 6).padding(.leading, 4)
                 ForEach(g.accounts) { a in row(a) }
             }
-            if let secret { secretRow(secret).padding(.top, 8) }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -202,23 +201,6 @@ struct V3AccountList: View {
         .buttonStyle(V3SinkStyle(depth: 1))
         .contextMenu { V3AccountMenu(account: a) }
         .help(side == .life && (a.kind == .debt || a.kind == .lent) ? "去欠款与还债" : "改这个账户")
-    }
-
-    /// 私房钱：默认藏着，点一下显示几秒，不算进上面的数。
-    private func secretRow(_ a: V3State.Account) -> some View {
-        Button { state.revealSecret() } label: {
-            HStack(spacing: 10) {
-                V3Ico(emoji: state.secretShown ? "👀" : "🙈", size: 34)
-                Text(a.name).font(V3.font(14, .heavy)).foregroundStyle(V3.ink)
-                Spacer(minLength: 6)
-                V3Amount(state.secretShown ? a.balance.v3 : "•••••\u{00A0}€", size: 15.5, weight: .heavy)
-            }
-            .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(V3.dash, style: StrokeStyle(lineWidth: 2, dash: [6, 5])))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(V3SinkStyle(depth: 1))
-        .accessibilityLabel(state.secretShown ? "私房钱 \(a.balance.v3)" : "私房钱，藏着，点一下显示")
     }
 }
 #endif

@@ -12,7 +12,7 @@ public struct PurchaseCheck: Equatable, Sendable {
     public var days: Int?
     /// 如果从目标里拿，目标晚几周（没有目标或没定每月存多少就是 nil）。
     public var weeksLate: Int?
-    /// 日常的钱够不够付（不够就得动应急钱）。
+    /// 日常的钱够不够付（不够就得动存着的钱）。
     public var fitsDaily: Bool
     public var verdict: Verdict
 
@@ -21,7 +21,7 @@ public struct PurchaseCheck: Equatable, Sendable {
         switch verdict {
         case .ok: "买得起，不耽误事。"
         case .wait: leftAfter >= .zero ? "买得起，这个月会紧一点。先放两天？" : "这个月随便花的不够了，等下个月？"
-        case .no: "现在买得动应急钱，先别买。"
+        case .no: "现在买得动存着的钱，先别买。"
         }
     }
 
@@ -39,7 +39,7 @@ public struct PurchaseCheck: Equatable, Sendable {
 
 extension TrialBook {
     /// 买之前算一算。规则：
-    /// - 日常账户里的钱不够付 → 别买（要动应急钱）
+    /// - 日常账户里的钱不够付 → 别买（要动存着的钱）
     /// - 买完这个月随便花的变成负的 → 先等等
     /// - 一下花掉这个月剩下随便花的三成以上 → 买得起，但先放两天
     /// - 其余 → 买得起

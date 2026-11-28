@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     // 设置里的
-    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, emergency, smallGoal(UUID?), holdBack, shopAccount
+    case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, smallGoal(UUID?), holdBack, shopAccount
 
     /// 启动参数 `-XiaxiaV3Page sheet-xxx`：截图和检查用。
     @MainActor static func fromLaunch(_ p: String, _ state: V3State) {
@@ -19,7 +19,7 @@ enum V3Sheet: Equatable {
             "sheet-sub": (.subscriptions, .life, .subscription), "sheet-debt": (.debts, .life, .debt),
             "sheet-repay": (.debts, .life, .repay("信用卡")),
             "sheet-plan": (.goals, .life, .monthlyPlan), "sheet-subinfo": (.subscriptions, .life, .subscriptionInfo("云盘 Plus")),
-            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")), "sheet-emergency": (.wealth, .life, .emergency), "sheet-holdback": (.overview, .life, .holdBack), "sheet-smallgoal": (.goals, .life, .smallGoal(nil)),
+            "sheet-fixededit": (.fixed, .biz, .fixedEdit("广告")), "sheet-holdback": (.overview, .life, .holdBack), "sheet-smallgoal": (.goals, .life, .smallGoal(nil)),
             "sheet-daily": (.bizHome, .biz, .shopDay(18)), "sheet-fixed": (.fixed, .biz, .fixed),
             "sheet-purchase": (.stock, .biz, .purchase), "sheet-stock": (.stock, .biz, .stock),
             "sheet-capital": (.payback, .biz, .capital), "sheet-transfer": (.bizHome, .biz, .transfer),
@@ -87,7 +87,6 @@ struct V3SheetHost: View {
                 case .subscriptionInfo(let n): V3SubscriptionInfoSheet(name: n)
                 case .fixedEdit(let n): V3FixedEditSheet(name: n)
                 case .apiKey: V3APIKeySheet()
-                case .emergency: V3EmergencySheet()
                 case .smallGoal(let id): V3SmallGoalSheet(id: id)
                 case .holdBack: V3HoldBackSheet()
                 case .shopAccount: V3ShopAccountSheet()
@@ -1018,50 +1017,6 @@ struct V3FixedEditSheet: View {
     }
 }
 
-/// 设应急钱：放在哪几个账户（能多选）、想存够几个月。
-struct V3EmergencySheet: View {
-    @Environment(V3State.self) private var state
-    @State private var picked: Set<String> = []
-    @State private var months = 1
-    private static let choices = [1, 3, 6]
-
-    var body: some View {
-        let b = state.book
-        let total = b.emergencyCandidates.filter { picked.contains($0.name) }.map(\.balance).reduce(.zero, +)
-        let goal = Money(cents: b.monthlyMust.cents * Int64(Self.choices[months]))
-        V3SheetBox(width: 560, title: "应急钱", primary: "存好",
-                   save: {
-                       let m = Self.choices[months]
-                       let text = picked.isEmpty ? "好，先不设应急钱" : "设好了：应急钱放在\(picked.sorted().joined(separator: "、"))，存够 \(m) 个月"
-                       if state.change(text, { try $0.setEmergency(accounts: picked, months: m) }) { state.closeSheet() }
-                   }) {
-            VStack(alignment: .leading, spacing: 6) {
-                V3Label("放在哪", size: 12.5, weight: .bold)
-                ForEach(b.emergencyCandidates.prefix(6)) { a in
-                    let on = picked.contains(a.name)
-                    Button { withAnimation(.snappy(duration: 0.12)) { if on { picked.remove(a.name) } else { picked.insert(a.name) } } } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.system(size: 17, weight: .semibold)).foregroundStyle(on ? V3.navy : V3.ink2)
-                            Text("\(a.emoji) \(a.name)").font(V3.font(14.5, .bold)).foregroundStyle(V3.ink)
-                            Spacer()
-                            Text(a.balance.v3).font(V3.num(14.5)).foregroundStyle(V3.navy)
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(on ? V3.goodBG : V3.bg))
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            V3FormPick(label: "想存够几个月", options: Self.choices.map { "\($0) 个月" }, pick: $months)
-            V3FormPreview(text: "现在有 \(total.v3Short)，存够要", amount: goal.v3Short)
-        }
-        .onAppear {
-            picked = Set(b.emergencyAccounts.map(\.name))
-            months = Self.choices.firstIndex(of: b.emergencyGoalMonths) ?? 1
-        }
-    }
-}
 
 /// 给店里加一个账户：现金、银行卡、信用卡、收款机里没结的、储蓄、贷款、欠供应商的，或者自己起名。
 struct V3ShopAccountSheet: View {

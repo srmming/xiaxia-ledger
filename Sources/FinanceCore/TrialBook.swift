@@ -262,6 +262,10 @@ public struct TrialBook: Equatable, Sendable {
     public var totals: HouseholdTotals { HouseholdTotals(holdings: owned.map(\.balance), debts: debts.map(\.balance)) }
     public func sum(_ block: Account.Block) -> Money { owned.filter { $0.block == block }.map(\.balance).reduce(.zero, +) }
     public var runway: EmergencyRunway { EmergencyRunway(fund: sum(.emergency), monthlyMust: monthlyMust) }
+    /// 平时一个月大概花多少：固定要付的 + 平时每天花的 × 30。不用谁来设。
+    public var usualMonthlySpend: Money { month.fixed + Money(cents: usualDailySpend.cents * 30) }
+    /// 手里的钱（不含存在目标里的）按平时每月花，够撑几个月。自动算，没有设置。
+    public var handRunway: EmergencyRunway { EmergencyRunway(fund: totals.have - sum(.goal), monthlyMust: usualMonthlySpend) }
     public func account(_ name: String) -> Account? { accounts.first { $0.name == name } }
     /// 能拿来付钱的账户（自己的、店里的；不含欠款、借出、私房钱）。
     public func payable(_ side: Side) -> [Account] {

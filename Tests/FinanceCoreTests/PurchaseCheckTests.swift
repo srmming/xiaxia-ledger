@@ -30,7 +30,7 @@ final class PurchaseCheckTests: XCTestCase {
     func testVerdicts() throws {
         XCTAssertEqual(try book.checkPurchase(name: "手机", price: eur("400")).verdict, .wait, "一下花掉三成以上：先放两天")
         XCTAssertEqual(try book.checkPurchase(name: "相机", price: eur("1200")).verdict, .wait, "这个月随便花的不够")
-        XCTAssertEqual(try book.checkPurchase(name: "摩托", price: eur("1800")).verdict, .no, "日常的钱不够付，要动应急钱")
+        XCTAssertEqual(try book.checkPurchase(name: "摩托", price: eur("1800")).verdict, .no, "日常的钱不够付，要动存着的钱")
         XCTAssertThrowsError(try book.checkPurchase(name: "空", price: .zero))
     }
 
@@ -55,7 +55,7 @@ final class PurchaseCheckTests: XCTestCase {
         try b.setEmergency(accounts: [], months: 1)
         XCTAssertTrue(b.emergencyAccounts.isEmpty)
         XCTAssertEqual(b.account("储蓄")?.block, .daily, "不算应急钱的回到日常")
-        // 应急钱不算日常能花的：钱都设成应急以后，买东西要动应急钱
+        // 应急钱不算日常能花的：钱都设成应急以后，买东西要动存着的钱
         try b.setEmergency(accounts: ["日常卡", "储蓄"], months: 3)
         XCTAssertEqual(try b.checkPurchase(name: "耳机", price: eur("100")).verdict, .no)
     }

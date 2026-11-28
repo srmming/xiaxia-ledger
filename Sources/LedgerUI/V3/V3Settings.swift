@@ -302,7 +302,7 @@ struct V3SettingsPage: View {
                     V3SetLink(title: "\(state.prefs.xiaName)什么时候开口", sub: "提醒、小结、到站的信", value: speakOn == V3SetSpeakPage.items.count ? "\(speakOn) 样都开着" : "开着 \(speakOn) 样") { state.openSettings(.speak) }
                 }
                 V3SetGroup(title: "这台 Mac", grow: true) {
-                    V3SetLink(title: "隐私与语言", sub: "私房钱、上锁、界面语言", value: "\(state.lockPolicy.enabled ? "上着锁" : "没上锁") · \(V3SetPrivacyPage.languages[state.prefs.language])", line: false) { state.openSettings(.privacy) }
+                    V3SetLink(title: "隐私与语言", sub: "上锁、界面语言", value: "\(state.lockPolicy.enabled ? "上着锁" : "没上锁") · \(V3SetPrivacyPage.languages[state.prefs.language])", line: false) { state.openSettings(.privacy) }
                     V3SetLink(title: "记账人", sub: "改动记录里用这个名字", value: state.author) { state.openSettings(.author) }
                 }
             }
@@ -601,9 +601,6 @@ private struct V3SetPrivacyPage: View {
     var body: some View {
         @Bindable var s = state
         V3SetColumn {
-            V3SetGroup(title: "隐私", note: "AI 给别人看的小结里，也不会提私房钱。", grow: true) {
-                V3SetRow(title: "一直显示私房钱", sub: "关着时家底页点一下才显示，3 秒后自己藏回去", line: false) { V3Switch(on: $s.secretPinned, label: "一直显示私房钱") }
-            }
             V3SetGroup(title: "上锁", note: "解锁用这台 Mac 的指纹或登录密码，夏夏账本自己不存密码。") {
                 V3SetRow(title: "打开 app 时要解锁", line: false) {
                     V3Switch(on: Binding(get: { state.lockPolicy.enabled }, set: { v in Task { await state.setLock(enabled: v) } }), label: "打开 app 时要解锁")
@@ -672,7 +669,7 @@ private struct V3SetBooksPage: View {
             }
             V3SetGroup(title: "管理", grow: true) {
                 V3SetLink(title: "管理账本", sub: "改名", value: "\(state.mode == .both ? 2 : 1) 个", line: false) { state.open(.books) }
-                V3SetLink(title: "管理账户", sub: "加、改、删，标成私房钱", value: "\(b.accounts(on: state.side == .biz ? .biz : .life).count) 个") { state.open(.accounts) }
+                V3SetLink(title: "管理账户", sub: "加、改、删，置顶成卡片", value: "\(b.accounts(on: state.side == .biz ? .biz : .life).count) 个") { state.open(.accounts) }
                 V3SetLink(title: "管理分类", sub: "换图标、改名、把两个并成一个", value: "\(b.categories.count) 个") { state.open(.categories) }
             }
         }
@@ -1057,7 +1054,6 @@ struct V3AccountsSheet: View {
     @State private var pick = ""
     @State private var name = ""
     @State private var amount = ""
-    @State private var secret = false
     /// 这次管的是哪一边的账户：生活和店里的分开管，不混在一张单子里。
     @State private var side: TrialBook.Side = .life
 
@@ -1066,8 +1062,8 @@ struct V3AccountsSheet: View {
         guard let a = state.book.account(pick) else { return true }
         guard let m = V3Form.amountOrZero(amount) else { state.fail("这个数我没看懂。写成 1500 或者 1.500,00 这样就行。"); return false }
         let clean = name.trimmingCharacters(in: .whitespaces)
-        guard clean != a.name || m != a.balance || secret != (a.kind == .secret) else { return true }
-        guard state.change("存好了：\(clean)", kind: .account, { try $0.editAccount(pick, newName: name, balance: m, secret: secret) }) else { return false }
+        guard clean != a.name || m != a.balance else { return true }
+        guard state.change("存好了：\(clean)", kind: .account, { try $0.editAccount(pick, newName: name, balance: m, secret: a.kind == .secret) }) else { return false }
         pick = clean
         return true
     }
@@ -1077,7 +1073,6 @@ struct V3AccountsSheet: View {
         let a = accounts.first { $0.name == pick }
         let m = V3Form.amountOrZero(amount)
         let n = state.book.entries.filter { $0.account == pick }.count
-        let canSecret = a.map { ($0.kind == .own && $0.block == .daily) || $0.kind == .secret } ?? false
         V3SheetBox(width: 820, title: side == .biz ? "管理店里的账户" : "管理账户", primary: "完成", single: true,
                    save: { if commit() { state.closeSheet() } }) {
             HStack(alignment: .top, spacing: 20) {
@@ -1131,15 +1126,6 @@ struct V3AccountsSheet: View {
                             }
                         }
                     }
-                    if canSecret { V3FormSwitch(title: "这是私房钱", sub: "默认藏着，不算进家底的三个数", on: $secret) }
-                    if let a, a.kind == .own, a.block != .goal {
-                        V3FormSwitch(title: "算应急钱", on: Binding(get: { a.block == .emergency }, set: { v in
-                            var names = Set(state.book.emergencyAccounts.map(\.name))
-                            if v { names.insert(a.name) } else { names.remove(a.name) }
-                            let months = state.book.emergencyGoalMonths
-                            state.change(v ? "好，\(a.name)算应急钱" : "好，\(a.name)不算应急钱了") { try $0.setEmergency(accounts: names, months: months) }
-                        }))
-                    }
                     V3Divider()
                     HStack {
                         V3Label(n > 0 ? "里面还有 \(n) 笔流水" : "", size: 12.5)
@@ -1163,7 +1149,7 @@ struct V3AccountsSheet: View {
     }
 
     private func load(_ a: V3State.Account) {
-        pick = a.name; name = a.name; amount = V3Form.plain(a.balance); secret = a.kind == .secret
+        pick = a.name; name = a.name; amount = V3Form.plain(a.balance)
     }
 
     static func kindName(_ a: V3State.Account) -> String {

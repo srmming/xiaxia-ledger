@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 // 生活这边其余的页：花销、趋势、流水、花钱前想想（含大决定）、订阅、欠款与还债、每月小结。
-// 数字是设计稿里那套编的示例；能跟着动的（还能随便花、目标、应急钱）都从同一份状态里算。
+// 数字是设计稿里那套编的示例；能跟着动的（还能随便花、目标）都从同一份状态里算。
 
 /// 点了弹一句提示的小按钮（夏夏气泡里的回答）。
 struct V3SayButton: View {
@@ -247,7 +247,7 @@ struct V3TrendsPage: View {
     @State private var gym: Bool?
 
     var body: some View {
-        let run = state.book.runway
+        let run = state.book.handRunway
         let due = Money(cents: gym == true ? 1_561_00 : 1_532_00)
         V3Cols(left: 1.3, right: 1) {
             VStack(spacing: 14) {
@@ -259,7 +259,7 @@ struct V3TrendsPage: View {
                     }
                     .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
                     stat("12 月要付", due.v3, "钱够，还多 \((Money(cents: 2_340_00) - due).v3Short)", V3.green)
-                    stat("没了收入，钱还能撑", "\(run.monthsText) 个月", "和家底里的应急钱同一个算法", V3.ink2)
+                    stat("没了收入，钱还能撑", "\(run.monthsText) 个月", "按平时每月花算", V3.ink2)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 V3GrowCard {

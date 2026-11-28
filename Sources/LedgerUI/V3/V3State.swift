@@ -119,9 +119,6 @@ final class V3State {
     var toast: Toast?
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
-    var secretShown = false
-    /// 设置里打开了「一直显示私房钱」。
-    var secretPinned = false { didSet { secretShown = secretPinned } }
     var showAddAccount = false
     var showAdd = false
     /// 正开着的弹窗（自己填、存一笔、改分类……）。
@@ -184,7 +181,6 @@ final class V3State {
 
     private var toastTask: Task<Void, Never>?
     private var localUndo: (() -> Void)?
-    private var secretTask: Task<Void, Never>?
 
     init() { ledger = TrialLedger(book: Self.demoBook, changes: Self.demoChanges) }
 
@@ -307,18 +303,6 @@ final class V3State {
         return ok ? reached : []
     }
 
-    func revealSecret() {
-        secretTask?.cancel()
-        withAnimation(.snappy) { secretShown = true }
-        say("私房钱显示出来了，3 秒后自己藏回去")
-        secretTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(3))
-            guard !Task.isCancelled else { return }
-            guard let self, !self.secretPinned else { return }
-            withAnimation(.snappy) { self.secretShown = false }
-        }
-    }
-
     @discardableResult
     func addAccount(emoji: String, name: String, note: String, balance: Money, kind: Account.Kind) -> Bool {
         change("加好了：\(name)", kind: .account) { try $0.addAccount(emoji: emoji, name: name, note: note, balance: balance, kind: kind) }
@@ -356,7 +340,7 @@ final class V3State {
         var b = Book(
             accounts: [
                 Account(emoji: "💳", name: "日常卡", note: "晴空银行 · 今天刚导入", balance: eur("1496,61")),
-                Account(emoji: "🏦", name: "储蓄", note: "应急钱放这里 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄 · 应急钱"),
+                Account(emoji: "🏦", name: "储蓄", note: "存着 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄"),
                 Account(emoji: "⭐", name: "目标罐", note: goalNote(j), balance: eur("519"), block: .goal),
                 Account(emoji: "💶", name: "现金", note: "钱包里 · 上次点数 11 月 10 日", balance: eur("85")),
                 Account(emoji: "🏪", name: "小店账户", note: "店的银行卡 · 晴空银行", balance: eur("3679,39"), kind: .shop, block: .shop),
@@ -366,7 +350,6 @@ final class V3State {
                 Account(emoji: "💳", name: "信用卡", note: "欠 · 12 月 5 日要还", balance: eur("640"), kind: .debt, block: .none, short: "信用卡 · 欠"),
                 Account(emoji: "📱", name: "手机分期", note: "欠 · 还剩 6 期，每月 200 €", balance: eur("1200"), kind: .debt, block: .none, short: "手机分期 · 欠"),
                 Account(emoji: "🧑", name: "借给小李", note: "他欠我 · 说好 12 月还", balance: eur("120"), kind: .lent, block: .none, short: "小李欠我"),
-                Account(emoji: "🙈", name: "私房钱", note: "默认藏着，点一下才显示，不算进上面的数", balance: eur("1250"), kind: .secret, block: .none),
             ],
             entries: [
                 Entry(emoji: "🛒", name: "超市", meta: "Super Sol · 日常卡", amount: eur("-23,40"), tag: "流水导入", place: "Super Sol", account: "日常卡"),

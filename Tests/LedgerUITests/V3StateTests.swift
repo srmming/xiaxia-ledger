@@ -21,6 +21,16 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(blocks, s.book.totals.have)
     }
 
+    func testNoSecretStashAndTwoBlocks() {
+        let s = V3State()
+        XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
+        XCTAssertFalse(s.book.accounts.contains { $0.name.contains("私房") || $0.note.contains("应急") || $0.label.contains("应急") })
+        // 两块：存在目标里 + 日常能用 = 一共有
+        XCTAssertEqual(s.book.sum(.goal) + (s.book.totals.have - s.book.sum(.goal)), s.book.totals.have)
+        XCTAssertEqual(s.book.usualMonthlySpend, eur("1822"), "固定要付 892 + 平时每天 31 × 30")
+        XCTAssertEqual(s.book.handRunway.monthsText, "2,2", "手里 3.981,61（不含目标里的 519）÷ 1.822")
+    }
+
     func testRecordThenUndo() {
         let s = V3State()
         let before = s.book

@@ -42,14 +42,8 @@ struct V3OverviewPage: View {
         let m = b.month
         let j = b.journey
         return VStack(spacing: 14) {
-            if b.emergencyAccounts.isEmpty {
-                V3Ask(face: "calm", text: "要不要把一个账户设成应急钱？") {
-                    Button("设一下") { state.closeChat(); state.open(.emergency) }.buttonStyle(.v3(.primary, .small))
-                }
-            } else {
-                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
-                }
+            V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
             }
             // 这一页最重要的数
             VStack(alignment: .leading, spacing: 8) {
@@ -188,7 +182,7 @@ struct V3OverviewPage: View {
 struct V3WealthPage: View {
     @Environment(V3State.self) private var state
 
-    // 三层：上面三个数 + 三块钱；中间一排置顶的卡片；下面其余账户的列表 + 应急钱。
+    // 三层：上面三个数 + 两块钱；中间一排置顶的卡片；下面其余账户的列表。
     var body: some View {
         GeometryReader { g in
             let leftW = (g.size.width - 18) * 1.5 / 2.5
@@ -199,12 +193,8 @@ struct V3WealthPage: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 V3PinnedCards(side: .life)
-                HStack(alignment: .top, spacing: 18) {
-                    V3AccountList(side: .life, secret: state.book.accounts.first { $0.kind == .secret })
-                        .frame(width: leftW, alignment: .topLeading)
-                    emergency
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
+                V3AccountList(side: .life, wide: true)
+                    .frame(maxHeight: .infinity, alignment: .top)
             }
         }
     }
@@ -213,8 +203,13 @@ struct V3WealthPage: View {
         let b = state.book
         let delta = b.totals.net - state.lastMonthNet
         return HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) { V3Label("一共有"); V3Amount(b.totals.have.v3, size: 25, weight: .heavy) }
-                .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
+            VStack(alignment: .leading, spacing: 4) {
+                V3Label("一共有")
+                V3Amount(b.totals.have.v3, size: 25, weight: .heavy)
+                // 自动算的一小行：手里的钱按平时每月花，够撑几个月。没有设置。
+                V3Label("够撑 \(b.handRunway.monthsText) 个月", size: 12.5).help("按平时每个月花 \(b.usualMonthlySpend.v3Short) 算")
+            }
+            .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
             VStack(alignment: .leading, spacing: 4) { V3Label("欠别人"); V3Amount(b.totals.owe.v3, color: V3.red, size: 25, weight: .heavy) }
                 .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
             VStack(alignment: .leading, spacing: 2) {
@@ -231,12 +226,11 @@ struct V3WealthPage: View {
     private var blocks: some View {
         let b = state.book
         let parts: [(String, Money, Color)] = [
-            ("应急钱", b.sum(.emergency), V3.navy), ("存在目标里", b.sum(.goal), V3.star),
-            ("日常能用", b.sum(.daily), V3.sky),
+            ("存在目标里", b.sum(.goal), V3.star), ("日常能用", b.totals.have - b.sum(.goal), V3.sky),
         ]
         let total = max(b.totals.have.cents, 1)
         return VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle("这些钱分成三块")
+                V3CardTitle("这些钱分成两块")
                 GeometryReader { g in
                     HStack(spacing: 0) {
                         ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
@@ -260,56 +254,6 @@ struct V3WealthPage: View {
                 }
         }
         .padding(.horizontal, 20).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).v3Soft()
-    }
-
-    private var emergency: some View {
-        let b = state.book
-        let run = b.runway
-        return VStack(alignment: .leading, spacing: 10) {
-                if b.emergencyAccounts.isEmpty {
-                    V3CardTitle("应急钱")
-                    Text("还没设应急钱").font(V3.font(20, .heavy)).foregroundStyle(V3.ink)
-                    Button("设一下") { state.open(.emergency) }.buttonStyle(.v3(.primary, .small))
-                } else {
-                    // 点这一块：改放在哪几个账户、想存够几个月
-                    Button { state.open(.emergency) } label: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            V3CardTitle(title: "应急钱") { V3Tag(text: b.emergencyAccounts.map(\.name).joined(separator: "、")) } trail: {
-                                Image(systemName: "slider.horizontal.3").font(.system(size: 13, weight: .semibold)).foregroundStyle(V3.ink2)
-                            }
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                V3Label("万一没了收入，能撑")
-                                V3Amount("\(run.monthsText) 个月", size: 32, weight: .heavy)
-                            }
-                            V3Bar(fraction: run.fraction(of: Double(b.emergencyGoalMonths)), height: 16)
-                            HStack {
-                                V3Label("有 \(b.sum(.emergency).v3Short)", size: 12.5)
-                                Spacer()
-                                V3Label("想存够 \(b.emergencyGoalMonths) 个月 · \(b.emergencyGoal.v3Short)", size: 12.5)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(V3SinkStyle(depth: 2)).help("改应急钱放在哪、想存够几个月")
-                }
-                Spacer(minLength: 0)
-                switch b.emergencyAccounts.isEmpty ? Bool?.some(false) : b.splitWithEmergency {
-                case nil:
-                    V3Ask(face: "calm", text: "应急钱才 \(run.monthsText) 个月。存的钱分一半给它？") {
-                        HStack(spacing: 8) {
-                            Button("好，一半一半") { state.change("好，以后存钱自动对半分") { $0.splitWithEmergency = true } }.buttonStyle(.v3(.primary, .small))
-                            Button("全给电脑") { state.change("好，全给电脑") { $0.splitWithEmergency = false } }.buttonStyle(.v3(.ghost, .small))
-                        }
-                    }
-                case true?:
-                    V3Ask(face: "happy", text: "记住了，以后对半分。", tone: .good)
-                case false?:
-                    V3Ask(face: "calm", text: "好，全给电脑。想改再说。")
-                }
-            }
-            .padding(.horizontal, 20).padding(.vertical, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .v3Soft()
     }
 }
 

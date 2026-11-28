@@ -88,7 +88,6 @@ final class V3RenderTests: XCTestCase {
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }
-        try shell("sheet-emergency") { $0.page = .wealth; $0.sheet = .emergency }
         // 问夏夏：带一张图问要不要买
         try shell("chat-buy") { s in
             s.chatOpen = true
@@ -160,7 +159,7 @@ final class V3RenderTests: XCTestCase {
         for name in ["sheet-save", "sheet-cat", "sheet-amount", "sheet-sub", "sheet-debt", "sheet-repay", "sheet-daily", "sheet-fixed", "sheet-purchase",
                      "sheet-stock", "sheet-capital", "sheet-captotal", "sheet-transfer", "sheet-shopdebt", "sheet-memo", "sheet-forget", "sheet-tidy", "sheet-meet",
                      "sheet-del1", "sheet-del2", "sheet-restore", "sheet-feedback", "sheet-books", "sheet-accounts", "sheet-cats", "sheet-base",
-                     "sheet-plan", "sheet-subinfo", "sheet-fixededit", "sheet-emergency"] {
+                     "sheet-plan", "sheet-subinfo", "sheet-fixededit"] {
             let s = fresh()
             V3Sheet.fromLaunch(name, s)
             try write(V3Shell().environment(s), name, to: try out("弹窗"))
