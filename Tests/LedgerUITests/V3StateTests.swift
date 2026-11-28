@@ -474,6 +474,9 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(oct.have - oct.owe, oct.net, "月底净剩 = 有 − 欠")
         XCTAssertEqual(s.book.netChange(in: .init(2026, 10)), eur("385,41"))
         XCTAssertEqual(oct.left, eur("635,60"), "总览切到 10 月和小结用的是同一份")
+        // 趋势页的两个数也是现算的
+        XCTAssertEqual(s.book.projectedMonthSpend, eur("1535,39"), "已经花掉 1.163,39 + 一天 31 × 还有 12 天")
+        XCTAssertEqual(s.book.upcomingTotal, eur("1490"), "房租 650 + 信用卡 640 + 手机分期 200")
         // 记一笔以后，「比上月同期」跟着变
         XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("86"), account: "日常卡") })
         XCTAssertEqual(s.book.spentLessThanLastMonthSameDay, .zero)

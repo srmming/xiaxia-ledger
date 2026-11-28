@@ -71,6 +71,11 @@ extension TrialBook {
         return a.net - b.net
     }
 
+    /// 照这样花，月底大概一共花掉多少：已经花掉的 + 平时一天花的 × 到月底还有几天。
+    public var projectedMonthSpend: Money { month.spentTotal + Money(cents: usualDailySpend.cents * Int64(max(month.daysLeft, 0))) }
+    /// 接下来要付的那几笔加起来（总览「接下来要付的」同一份）。
+    public var upcomingTotal: Money { upcoming.map(\.amount.magnitude).reduce(.zero, +) }
+
     /// 今天在哪个月。
     public var thisMonth: MonthKey {
         let c = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: todayDate)
