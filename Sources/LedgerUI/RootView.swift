@@ -570,11 +570,11 @@ public struct XiaxiaScene: Scene {
         #else
         let useDemo = args.contains("-XiaxiaDemo")
         #endif
-        // V3Launch 只有 Mac 有；iPhone 上没有这个开关
+        // V3Launch 只有 Mac 有；iPhone 上是 PhoneV3Launch
         #if os(macOS)
         let v3 = V3Launch.enabled
         #else
-        let v3 = false
+        let v3 = PhoneV3Launch.enabled
         #endif
         if useDemo || v3 {
             // -XiaxiaPersona sharp / calm / cheer：示例账本换个夏夏性格（截图用，不写任何文件）。
@@ -713,8 +713,16 @@ public struct XiaxiaScene: Scene {
         }
         #else
         WindowGroup(tr("夏夏账本")) {
-            RootView()
-                .environment(model)
+            if PhoneV3Launch.enabled {
+                // iPhone 界面 v3 试用版（-XiaxiaV3 1，或包里写了 XiaxiaV3）：只用编的示例数字，不打开任何账本。
+                PhoneV3Root()
+            } else if PhoneV3Launch.newLook {
+                // 新界面接着正式账本（和旧界面同一本、同一个模型）。默认不开，和 Mac 一样（-XiaxiaNewLook 1 或偏好 xiaxia.ui.newLook）。
+                PhoneV3Root(model: model)
+            } else {
+                RootView()
+                    .environment(model)
+            }
         }
         #endif
     }
