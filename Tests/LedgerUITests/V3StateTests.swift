@@ -11,9 +11,9 @@ final class V3StateTests: XCTestCase {
     func testDemoNumbersMatchTheDesign() {
         let s = V3State()
         XCTAssertEqual(s.book.month.left, eur("976,61"))
-        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "生活的「一共有」不含店里的钱")
+        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "生活的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"))
-        XCTAssertEqual(s.book.totals.net, eur("2660,61"))
+        XCTAssertEqual(s.book.totals.net, eur("2855,61"))
         XCTAssertEqual(s.book.journey.remainingToNext, eur("181"))
         XCTAssertEqual(s.book.runway.monthsText, "2,8")
         // 三块加起来就是「一共有」；店里的钱、私房钱、借出去的不算
@@ -132,6 +132,30 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.smallGoals.count, 2)
     }
 
+    func testJarMatchesGoalsAndFinishedBigGoal() {
+        let s = V3State()
+        XCTAssertEqual(s.book.sum(.goal), eur("714"), "519 + 120 + 60 + 15")
+        XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney)
+        XCTAssertFalse(s.book.journey.isFinished, "示例的大目标还在走")
+        XCTAssertFalse(s.change("收") { try $0.archiveBigGoal() }, "没存够不能收")
+        let have = s.book.totals.have
+        // 存够大目标 → 收进走完的路，钱放回日常卡，位置空出来
+        XCTAssertTrue(s.change("存") { _ = try $0.deposit($0.journey.total - $0.journey.saved, from: "储蓄") })
+        XCTAssertTrue(s.book.journey.isFinished)
+        XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney)
+        XCTAssertTrue(s.change("收") { try $0.archiveBigGoal() })
+        XCTAssertEqual(s.book.journey.total, .zero)
+        XCTAssertEqual(s.book.finishedGoals.first?.name, "换新电脑")
+        XCTAssertEqual(s.book.finishedGoals.first?.date, "2026 年 11 月")
+        XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney)
+        XCTAssertEqual(s.book.sum(.goal), eur("195"), "只剩小目标的钱")
+        XCTAssertEqual(s.book.totals.have, have)
+        // 定一个新的大目标：从 0 开始，不会把小目标的钱算成它的
+        XCTAssertTrue(s.change("定") { try $0.startGoal(name: "去海边住一周", total: self.eur("800")) })
+        XCTAssertEqual(s.book.journey.saved, .zero)
+        XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
@@ -166,7 +190,7 @@ final class V3StateTests: XCTestCase {
         let net = s.book.totals.net
         XCTAssertTrue(s.deposit().isEmpty)
         XCTAssertEqual(s.book.journey.saved, eur("539"))
-        XCTAssertEqual(s.book.accounts.first { $0.block == .goal }?.balance, eur("539"))
+        XCTAssertEqual(s.book.accounts.first { $0.block == .goal }?.balance, eur("734"), "目标罐 = 大目标 539 + 小目标 195")
         XCTAssertEqual(s.book.accounts.first { $0.name == "日常卡" }?.balance, eur("1476,61"))
         XCTAssertEqual(s.book.totals.net, net, "自己账户之间挪钱，净剩不变")
         XCTAssertEqual(s.starDrops, 1)
@@ -190,9 +214,9 @@ final class V3StateTests: XCTestCase {
         let s = V3State()
         s.addAccount(emoji: "🤝", name: "跟朋友借的", note: "欠的钱", balance: eur("300"), kind: .debt)
         XCTAssertEqual(s.book.totals.owe, eur("2140"))
-        XCTAssertEqual(s.book.totals.net, eur("2360,61"))
+        XCTAssertEqual(s.book.totals.net, eur("2555,61"))
         s.addAccount(emoji: "🧑", name: "借给小王", note: "别人欠我", balance: eur("50"), kind: .lent)
-        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "借出去的收回来之前不算进一共有")
+        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "借出去的收回来之前不算进一共有")
     }
 
     func testOnboardingStepsGoStraightIn() {
@@ -496,7 +520,10 @@ final class V3StateTests: XCTestCase {
         let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
         let saved = s.book.journey.saved
         XCTAssertTrue(s.change("存好了") { try $0.depositSmall(shoes.id, amount: self.eur("35"), from: "日常卡") })
-        XCTAssertTrue(s.book.smallGoals.first { $0.id == shoes.id }!.isDone)
+        XCTAssertNil(s.book.smallGoals.first { $0.id == shoes.id }, "存够了：从小目标里拿走")
+        XCTAssertEqual(s.book.finishedGoals.first?.name, "新跑鞋", "收进走完的路")
+        XCTAssertEqual(s.book.finishedGoals.first?.total, eur("95"))
+        XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney, "目标罐 = 还在走的目标已存之和")
         XCTAssertEqual(s.book.journey.saved, saved)
         XCTAssertTrue(s.book.canAddSmallGoal, "存够了的不算，位置空出来了")
         // 设成大目标：原来的大目标变成小目标
@@ -540,7 +567,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(w.owes, eur("8900"), "贷款 8.400 + 信用卡 180 + 欠供货商 320")
         XCTAssertEqual(w.net, eur("-2295,61"))
         XCTAssertEqual(w.monthsText, "2,2")
-        XCTAssertEqual(s.book.totals.have, eur("4500,61"), "生活家底的「一共有」不含店里的钱")
+        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "生活家底的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"), "店里欠的不算进生活的欠款")
         // 店里新加一张卡：家底、记账选账户、两边转钱都看得到
         XCTAssertTrue(s.change("加好了") { try $0.addShopAccount(emoji: "🏪", name: "店的第二张卡", balance: self.eur("500"), owes: false) })

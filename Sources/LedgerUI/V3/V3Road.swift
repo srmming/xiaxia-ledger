@@ -12,14 +12,35 @@ struct V3Road: View {
     var endEmoji = "💻"
     var markerText = "你在这儿"
     var accent: Color = V3.navy
+    /// 点了路上第几站的信封（走过的站才有）。
+    var onLetter: ((Int) -> Void)?
 
     var body: some View {
         let pos = journey.position
         let f = V3RoadGeometry.fraction(passed: pos.passed, within: pos.fraction, count: journey.stations.count)
-        V3Fit(design: CGSize(width: 620, height: mini ? 350 : 400)) {
-            V3RoadCanvas(walk: journey.isFinished ? 1 : f, journey: journey, mini: mini, captions: captions,
-                         endEmoji: endEmoji, markerText: markerText, accent: accent)
-                .animation(.spring(duration: 0.7), value: f)
+        GeometryReader { g in
+            // 大号的路按卡片的高矮拉长，铺满，不在上面留一大片空
+            let tall = mini ? 350 : min(max(620 * g.size.height / max(g.size.width, 1), 400), 700)
+            V3Fit(design: CGSize(width: 620, height: tall)) {
+                ZStack {
+                    V3RoadCanvas(walk: journey.isFinished ? 1 : f, journey: journey, mini: mini, captions: captions,
+                                 endEmoji: endEmoji, markerText: markerText, accent: accent, tall: mini ? 400 : tall)
+                        .animation(.spring(duration: 0.7), value: f)
+                    // 走过的站上那封信：点得开
+                    if !mini, let onLetter {
+                        let n = journey.stations.count
+                        ForEach(Array(journey.stations.enumerated()), id: \.element.id) { i, st in
+                            if i > 0, st.target <= journey.saved {
+                                let p = V3RoadGeometry.point(at: V3RoadGeometry.stationFraction(i, count: n))
+                                let y = 90 + (p.y - 55) * (tall - 145) / 290
+                                Button { onLetter(i) } label: { Color.clear.frame(width: 40, height: 34).contentShape(Rectangle()) }
+                                    .buttonStyle(.plain).position(x: p.x, y: y - 35)
+                                    .help("打开这一站的信").accessibilityLabel("第 \(i) 站的信")
+                            }
+                        }
+                    }
+                }
+            }
         }
         .accessibilityElement()
         .accessibilityLabel("\(journey.name)的路")
@@ -99,6 +120,8 @@ private struct V3RoadCanvas: View, Animatable {
     let endEmoji: String
     let markerText: String
     let accent: Color
+    /// 画布有多高。比 400 高时，路在竖直方向拉长（站和字不变形）。
+    var tall: CGFloat = 400
 
     var animatableData: Double {
         get { walk }
@@ -109,13 +132,18 @@ private struct V3RoadCanvas: View, Animatable {
         Canvas { ctx, _ in
             if mini { ctx.translateBy(x: -8, y: -14) }
             let ink = GraphicsContext.Shading.color(V3.ink)
-            let path = V3RoadGeometry.path
+            // 顶上留 90、底下留 55，中间那段按高度拉长
+            let k = (tall - 145) / 290
+            let lift = CGAffineTransform(translationX: 0, y: 90).scaledBy(x: 1, y: k).translatedBy(x: 0, y: -55)
+            func at(_ t: Double) -> CGPoint { V3RoadGeometry.point(at: t).applying(lift) }
+            let path = tall == 400 ? V3RoadGeometry.path : V3RoadGeometry.path.applying(lift)
             if !mini {
                 // 云、星星、远处的小山
-                for (x, y, rx, ry) in [(120.0, 90.0, 46.0, 15.0), (150, 78, 30, 14), (320, 50, 40, 12)] {
+                let up = tall / 400
+                for (x, y, rx, ry) in [(120.0, 90.0 * up, 46.0, 15.0), (150, 78 * up, 30, 14), (320, 50 * up, 40, 12)] {
                     ctx.fill(Path(ellipseIn: CGRect(x: x - rx, y: y - ry, width: rx * 2, height: ry * 2)), with: .color(.white.opacity(0.9)))
                 }
-                for (x, y) in [(236.0, 124.0), (461, 39), (76, 174)] {
+                for (x, y) in [(236.0, 124.0 * up), (461, 39 * up), (76, 174 * up)] {
                     ctx.draw(Text("★").font(.system(size: 18)).foregroundColor(V3.ink), at: CGPoint(x: x, y: y))
                     ctx.draw(Text("★").font(.system(size: 16)).foregroundColor(V3.star), at: CGPoint(x: x, y: y))
                 }
@@ -130,7 +158,7 @@ private struct V3RoadCanvas: View, Animatable {
             let n = journey.stations.count
             let next = journey.isFinished ? -1 : journey.nextIndex
             for (i, st) in journey.stations.enumerated() {
-                let p = V3RoadGeometry.point(at: V3RoadGeometry.stationFraction(i, count: n))
+                let p = tall == 400 ? V3RoadGeometry.point(at: V3RoadGeometry.stationFraction(i, count: n)) : at(V3RoadGeometry.stationFraction(i, count: n))
                 let reached = st.target <= journey.saved
                 let isNext = i == next
                 let r: CGFloat = isNext ? 15 : 11
@@ -169,7 +197,7 @@ private struct V3RoadCanvas: View, Animatable {
                 }
             }
             // 夏夏站在走到的地方
-            let here = V3RoadGeometry.point(at: walk)
+            let here = tall == 400 ? V3RoadGeometry.point(at: walk) : at(walk)
             let c = CGPoint(x: here.x, y: here.y - (mini ? 46 : 50))
             let ring = Path(ellipseIn: CGRect(x: c.x - 21, y: c.y - 21, width: 42, height: 42))
             ctx.fill(ring, with: .color(.white)); ctx.stroke(ring, with: ink, lineWidth: 3)

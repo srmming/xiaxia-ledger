@@ -636,7 +636,9 @@ public struct TrialBook: Equatable, Sendable {
         guard journey.total == .zero else { throw TrialError("已经有一个目标在走了") }
         guard total.cents >= 20_00 else { throw TrialError("目标至少 20 €") }
         let stops = [10, 25, 50, 75, 100].map { Money(cents: total.cents * Int64($0) / 100 / 100 * 100) }
-        journey = Journey(name: clean, stops: stops, saved: sum(.goal))
+        // 目标罐里已经有、又不属于哪个小目标的钱，算这个新目标已经存的
+        let free = sum(.goal) - smallGoals.map(\.saved).reduce(.zero, +)
+        journey = Journey(name: clean, stops: stops, saved: max(free, .zero))
     }
 
     public mutating func setMonthlyPlan(_ plan: Money) throws {
@@ -697,6 +699,7 @@ public struct TrialBook: Equatable, Sendable {
     /// 排在现在这个目标后面的下一个目标（大决定页「存成一个目标」）。
     public var nextGoals: [Item] = []
     /// 置顶成卡片的账户，按卡片排里的先后。生活、店里各一排；空着时默认置顶第一个日常能用的。
+    public var finishedGoals: [FinishedGoal] = []
     public var lifePins: [UUID] = []
     public var shopPins: [UUID] = []
 
@@ -893,6 +896,44 @@ public struct TrialBook: Equatable, Sendable {
         accounts[f].balance = accounts[f].balance - amount
         if let jar = accounts.firstIndex(where: { $0.block == .goal }) { accounts[jar].balance = accounts[jar].balance + amount }
         smallGoals[g].saved = smallGoals[g].saved + amount
+        // 存够了：收进「走完的路」，钱放回日常的账户，可以去买了
+        if smallGoals[g].isDone {
+            let done = smallGoals.remove(at: g)
+            try moveGoalMoney(done.saved, to: nil)
+            finishedGoals.insert(FinishedGoal(name: done.name, total: done.saved, date: Self.monthLabel(todayDate), small: true), at: 0)
+        }
+    }
+
+    /// 走完的目标。
+    public struct FinishedGoal: Identifiable, Equatable, Sendable {
+        public var id = UUID()
+        public var name: String
+        public var total: Money
+        /// 哪个月走完的（「2026 年 11 月」）。
+        public var date: String
+        public var small: Bool
+        public init(id: UUID = UUID(), name: String, total: Money, date: String, small: Bool) {
+            self.id = id; self.name = name; self.total = total; self.date = date; self.small = small
+        }
+    }
+
+    static func monthLabel(_ date: Date) -> String {
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: date)
+        return "\(c.year ?? 0) 年 \(c.month ?? 0) 月"
+    }
+
+    /// 目标罐里该有多少：大目标已存的 + 每个小目标已存的。
+    public var goalMoney: Money { journey.saved + smallGoals.map(\.saved).reduce(.zero, +) }
+
+    /// 大目标存够以后收起来：记进「走完的路」，钱放回日常的账户（可以去买了），大目标的位置空出来。
+    public mutating func archiveBigGoal() throws {
+        guard journey.total > .zero else { throw TrialError("现在没有大目标") }
+        guard journey.isFinished else { throw TrialError("「\(journey.name)」还没存够") }
+        let done = journey
+        try moveGoalMoney(done.saved, to: nil)
+        finishedGoals.insert(FinishedGoal(name: done.name, total: done.total, date: Self.monthLabel(todayDate), small: false), at: 0)
+        journey = Journey(name: "", stops: [])
+        if let i = accounts.firstIndex(where: { $0.block == .goal }) { accounts[i].note = "" }
     }
 
     /// 把一个小目标设成大目标：原来的大目标变成小目标。小目标已经满了、原来的大目标又没存够，就换不了。

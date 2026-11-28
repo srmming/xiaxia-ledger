@@ -501,7 +501,10 @@ private struct V3TopBar: View {
             if let d = b.debts.first(where: { $0.balance > .zero }) { return ("记一笔还款", { state.open(.repay(d.name)) }) }
             return ("加一笔欠款", { state.open(.debt) })
         case .subscriptions: return ("加订阅", { state.open(.subscription) })
-        case .goals: return b.journey.total > .zero ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
+        // 有在走的目标（大目标没存够，或者有小目标）就是存一笔；一个都没有才是定一个目标
+        case .goals:
+            let bigOpen = b.journey.total > .zero && !b.journey.isFinished
+            return bigOpen || !b.activeSmallGoals.isEmpty ? ("存一笔", { state.open(.save) }) : ("定一个目标", { state.open(.goalNew) })
         case .monthly, .settings: return nil
         case .bizHome, .sales, .shopFlow, .checkup: return ("记今天的账", { state.open(.shopDay(b.todayDay)) })
         case .shopWealth: return ("加账户", { state.open(.shopAccount) })

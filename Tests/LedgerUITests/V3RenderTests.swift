@@ -94,6 +94,12 @@ final class V3RenderTests: XCTestCase {
         try shell("sheet-goal-delete") { $0.page = .goals; $0.sheet = .goalDelete(nil) }
         try shell("sheet-goal-edit") { $0.page = .goals; $0.sheet = .goalEdit }
         try shell("goals-no-big") { s in s.page = .goals; s.change("删") { try $0.removeBigGoal(moneyTo: .account("日常卡")) } }
+        try shell("goals-finished") { s in
+            s.page = .goals
+            s.change("存") { _ = try $0.deposit($0.journey.total - $0.journey.saved, from: "储蓄") }
+            let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
+            s.change("存") { try $0.depositSmall(shoes.id, amount: Money(cents: 35_00), from: "日常卡") }
+        }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

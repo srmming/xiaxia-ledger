@@ -10,7 +10,7 @@ enum V3Sheet: Equatable {
     case manual, save, category(UUID), amount(UUID), subscription, debt, repay(String)
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     /// 删目标（nil 是大目标）、改大目标
-    case goalDelete(UUID?), goalEdit
+    case goalDelete(UUID?), goalEdit, finishedGoal(UUID)
     // 设置里的
     case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, smallGoal(UUID?), holdBack, shopAccount
 
@@ -92,6 +92,7 @@ struct V3SheetHost: View {
                 case .smallGoal(let id): V3SmallGoalSheet(id: id)
                 case .goalDelete(let id): V3GoalDeleteSheet(id: id)
                 case .goalEdit: V3GoalEditSheet()
+                case .finishedGoal(let id): V3FinishedGoalSheet(id: id)
                 case .holdBack: V3HoldBackSheet()
                 case .shopAccount: V3ShopAccountSheet()
                 }
@@ -478,17 +479,25 @@ private struct V3SaveSheet: View {
         let m = V3Form.amount(amount)
         let from = accounts.indices.contains(account) ? accounts[account] : nil
         let enough = m.map { ($0) <= (from?.balance ?? .zero) } ?? true
-        let picked = goal > 0 && small.indices.contains(goal - 1) ? small[goal - 1] : nil
+        // 大目标没有或者已经存够了：只能存进小目标
+        let bigOpen = j.total > .zero && !j.isFinished
+        let picked = (goal > 0 || !bigOpen) && small.indices.contains(max(goal - 1, 0)) ? small[max(goal - 1, 0)] : nil
         let gap = (picked.map { $0.target - $0.saved } ?? j.remainingToNext) - (m ?? .zero)
         V3SheetBox(width: 540, title: "存一笔", primary: "存好",
-                   canSave: m != nil && enough && from != nil,
+                   canSave: m != nil && enough && from != nil && (picked != nil || bigOpen),
                    save: {
                        guard let m, let from else { return }
                        if let picked {
-                           if state.change("存好了 +\(m.v3Short) · \(picked.name)", kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) { state.closeSheet() }
+                           let done = picked.saved + m >= picked.target
+                           let text = done ? "🎉「\(picked.name)」存够了！收进走完的路，钱放回日常卡，可以去买了" : "存好了 +\(m.v3Short) · \(picked.name)"
+                           if state.change(text, kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) {
+                               if done { state.starDrops += 1 }
+                               state.closeSheet()
+                           }
                        } else if state.depositAndCelebrate(m, from: from.name) { state.closeSheet() }
                    }) {
-            if !small.isEmpty { V3FormPick(label: "存进哪个目标", options: [j.name] + small.map(\.name), pick: $goal) }
+            if !small.isEmpty, bigOpen { V3FormPick(label: "存进哪个目标", options: [j.name] + small.map(\.name), pick: $goal) }
+            else if small.count > 1 { V3FormPick(label: "存进哪个目标", options: small.map(\.name), pick: Binding(get: { max(goal - 1, 0) }, set: { goal = $0 + 1 })) }
             V3FormField(label: "存多少", prompt: "20", text: $amount, big: true, focus: true)
             V3AmountHint(text: amount)
             HStack(spacing: 6) {
@@ -571,6 +580,25 @@ struct V3GoalDeleteSheet: View {
                 V3FormPick(label: "里面存的 \(saved.v3) 放到哪", options: places.map(\.title), pick: $pick)
             } else {
                 V3Label("里面还没存钱，删掉不动别的。", size: 14)
+            }
+        }
+    }
+}
+
+/// 走完的一条路：点开看那条路和最后那封信。
+struct V3FinishedGoalSheet: View {
+    let id: UUID
+    @Environment(V3State.self) private var state
+    var body: some View {
+        let f = state.book.finishedGoals.first { $0.id == id }
+        let letter = state.book.letters.last
+        V3SheetBox(width: 600, title: "\(f?.name ?? "")的路", sub: f.map { "\($0.date)走完 · \($0.total.v3)" } ?? "", primary: "好", single: true, save: { state.closeSheet() }) {
+            if let f {
+                let stops = [10, 25, 50, 75, 100].map { Money(cents: max(f.total.cents * Int64($0) / 100 / 100 * 100, 100)) }
+                V3Road(journey: Journey(name: f.name, stops: stops, saved: f.total), mini: true, markerText: "").frame(height: 250)
+                if !f.small, let letter {
+                    Button("看最后那封信") { state.closeSheet(); state.openMoment(.letter(letter)) }.buttonStyle(.v3(.ghost, .small))
+                }
             }
         }
     }
