@@ -54,4 +54,31 @@ final class TrialMonthsTests: XCTestCase {
         XCTAssertEqual(b.monthData(.init(2026, 10)), oct)
         XCTAssertEqual(b.monthData(b.thisMonth).spent, eur("283,39"))
     }
+
+    /// 检查报告第 16 条：数据页、账本页的笔数是同一份；改动记录页「自己进来 + 手记」不超过总数。
+    func testEntryCountsAgreeEverywhere() throws {
+        var b = TrialBook.demo
+        XCTAssertEqual(b.counts.entries, b.entryCounts.life + b.entryCounts.shop)
+        let before = b.counts.entries, hand = b.entrySources.hand
+        let pay = b.accounts(for: .pay, side: .life).first!.name
+        try b.record(name: "咖啡", emoji: "☕", amount: Money(cents: 3_20), account: pay)
+        XCTAssertEqual(b.counts.entries, before + 1)
+        XCTAssertEqual(b.entrySources.hand, hand + 1, "手记的多一笔")
+        XCTAssertLessThanOrEqual(b.entrySources.auto + b.entrySources.hand, b.counts.entries)
+    }
+
+    /// 趋势页的折线：累计到今天 = 这个月一共花掉；记一笔，线的末端跟着涨；每天只增不减。
+    func testSpendPaceFollowsTheBook() throws {
+        var b = TrialBook.demo
+        let p = b.spendPace
+        XCTAssertEqual(p.soFar.count, b.todayDay)
+        XCTAssertEqual(p.soFar.last, b.month.spentTotal)
+        XCTAssertTrue(zip(p.soFar, p.soFar.dropFirst()).allSatisfy { $0 <= $1 })
+        XCTAssertEqual(p.last.last, b.previousMonthData?.spentTotal)
+        XCTAssertEqual(p.weeks.reduce(.zero, +), b.month.spent, "每周平时花的加起来 = 这个月平时花的")
+        let pay = b.accounts(for: .pay, side: .life).first!.name
+        try b.record(name: "咖啡", emoji: "☕", amount: Money(cents: 3_20), account: pay)
+        XCTAssertEqual(b.spendPace.soFar.last, p.soFar.last! + Money(cents: 3_20))
+        XCTAssertEqual(b.spendPace.soFar.last, b.month.spentTotal)
+    }
 }

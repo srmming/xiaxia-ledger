@@ -260,8 +260,17 @@ struct V3DonutSlice: Shape {
 struct V3WeeklyBars: View {
     /// 小号：放在花销页圆环旁边。
     var compact = false
-    private let weeks: [(Double, Double)] = [(58, 74), (66, 61), (49, 70), (0, 52)]
+    @Environment(V3State.self) private var state
     var body: some View {
+        // 从账本现算：每周平时花的，和上个月同一周比。柱子的高矮按两个月里最大的那一周算；还没到的那周画虚框
+        let pace = state.book.spendPace
+        let count = max(pace.lastWeeks.count, pace.weeks.count, (pace.days + 6) / 7)
+        let top = Double(max((pace.weeks + pace.lastWeeks).map(\.cents).max() ?? 0, 1))
+        let weeks: [(Double, Double)] = (0..<min(count, 5)).map { i in
+            (i < pace.weeks.count ? max(Double(pace.weeks[i].cents) / top * 100, pace.weeks[i] > .zero ? 3 : 0) : 0,
+             i < pace.lastWeeks.count ? Double(pace.lastWeeks[i].cents) / top * 100 : 0)
+        }
+        let fewer = zip(pace.weeks, pace.lastWeeks).filter { $0 < $1 }.count
         let bw: CGFloat = compact ? 13 : 26
         HStack(alignment: .bottom, spacing: compact ? 8 : 18) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { i, w in
@@ -282,7 +291,7 @@ struct V3WeeklyBars: View {
                 }
             }
         }
-        .accessibilityElement().accessibilityLabel("每周平时花的和上个月比：前三周有两周比上个月少")
+        .accessibilityElement().accessibilityLabel(pace.lastWeeks.isEmpty ? "每周平时花的" : "每周平时花的和上个月比：过了的 \(pace.weeks.count) 周里有 \(fewer) 周比上个月少")
     }
 }
 
@@ -320,6 +329,11 @@ struct V3TrendsPage: View {
         let due = b.upcomingTotal + (gym == true ? Money(cents: 29_00) : .zero)
         let end = b.projectedMonthSpend
         let last = b.previousMonthData?.spentTotal
+        let pace = b.spendPace
+        let nowLine: [(Double, Double)] = [(0, 215)] + pace.soFar.enumerated().map { point($0.offset + 1, $0.element, days: pace.days, top: pace.top) }
+        let lastLine: [(Double, Double)] = pace.last.isEmpty ? [] : [(0, 215)] + pace.last.enumerated().map { point(min($0.offset + 1, pace.days), $0.element, days: pace.days, top: pace.top) }
+        let demo = state.real == nil
+        let nextMonth = b.thisMonth.next.month
         V3Cols(left: 1.3, right: 1) {
             VStack(spacing: 14) {
                 HStack(spacing: 14) {
@@ -336,20 +350,32 @@ struct V3TrendsPage: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 V3GrowCard {
-                    V3CardTitle(title: "花钱速度") { V3Tag(text: "正常", tone: .green) } trail: {
-                        Text("━ 这个月　┅ 上个月　┈ 照这样到月底").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+                    V3CardTitle(title: "花钱速度") {
+                        if let slower = pace.slower { V3Tag(text: slower ? "比上个月慢" : "比上个月快", tone: slower ? .green : .gold) }
+                    } trail: {
+                        Text(pace.last.isEmpty ? "━ 这个月　┈ 照这样到月底" : "━ 这个月　┅ 上个月　┈ 照这样到月底").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                     }
+                    // 折线从账本现算（TrialMonths.swift 的 spendPace）：横轴是这个月的每一天，纵轴是到那天一共花掉多少
                     V3Lines(height: 220, grid: [55, 110, 165, 219], lines: [
-                        .init(points: [(0, 215), (60, 196), (120, 188), (180, 170), (240, 158), (300, 140), (336, 128)], color: .clear, width: 0, fill: V3.soft),
-                        .init(points: [(0, 215), (60, 190), (120, 176), (180, 160), (240, 140), (300, 118), (360, 100), (420, 84), (480, 66), (560, 44)], color: V3.dash, width: 3, dash: [6, 6]),
-                        .init(points: [(0, 215), (60, 196), (120, 188), (180, 170), (240, 158), (300, 140), (336, 128)], color: V3.navy),
-                        .init(points: [(336, 128), (560, 62)], color: V3.navy, width: 3, dash: [3, 7]),
-                    ], dot: (336, 128))
+                        .init(points: nowLine, color: .clear, width: 0, fill: V3.soft),
+                        .init(points: lastLine, color: V3.dash, width: 3, dash: [6, 6]),
+                        .init(points: nowLine, color: V3.navy),
+                        .init(points: [nowLine.last ?? (0, 215), point(pace.days, pace.projected, days: pace.days, top: pace.top)], color: V3.navy, width: 3, dash: [3, 7]),
+                    ], dot: nowLine.last)
                     .frame(maxHeight: .infinity)
-                    HStack { V3Label("1 日"); Spacer(); V3Label("10 日"); Spacer(); V3Label("今天 18 日"); Spacer(); V3Label("30 日") }
+                    // 「今天」写在它那一天的正下方；太靠两头就不写，免得和 1 日、月底叠在一起
+                    HStack { V3Label("1 日"); Spacer(); V3Label("\(pace.days) 日") }
+                        .overlay {
+                            GeometryReader { g in
+                                let x = g.size.width * Double(pace.today) / Double(max(pace.days, 1))
+                                if x > 70, x < g.size.width - 80 { V3Label("今天 \(pace.today) 日").fixedSize().position(x: x, y: g.size.height / 2) }
+                            }
+                        }
                 }
-                .accessibilityLabel("花钱速度正常，比上个月同期慢")
-                if let gym {
+                .accessibilityLabel(pace.slower == nil ? "花钱速度" : pace.slower == true ? "花钱速度比上个月同期慢" : "花钱速度比上个月同期快")
+                if !demo {
+                    EmptyView()
+                } else if let gym {
                     V3Ask(face: "happy", text: gym ? "算进去了，12 月要付 1.561 €。" : "好，不算，不再问了。", tone: .good)
                 } else {
                     V3Ask(face: "think", text: "健身房 29 € 扣了 3 个月，算固定的吗？") {
@@ -362,15 +388,30 @@ struct V3TrendsPage: View {
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
-                V3CardTitle("12 月要付的")
-                V3RowList(rows: [
-                    .init("🏠", "房租", "12 月 1 日 · 固定", "650,00 €"), .init("💳", "信用卡", "12 月 5 日 · 固定", "640,00 €", V3.red),
-                    .init("📱", "手机分期", "12 月 8 日 · 第 7 / 12 期", "200,00 €", V3.red), .init("🔁", "订阅 5 个", "2 日到 21 日陆续扣", "42,00 €"),
-                ] + (gym == true ? [.init("🏋️", "健身房", "刚算进来的", "29,00 €")] : []), compact: true)
-                V3CardTitle("平时花的").padding(.top, 6)
-                V3RowList(rows: [.init("🛒", "吃饭和超市", "大概", "310,00 €"), .init("🚇", "交通和别的", "大概", "140,00 €")], compact: true)
-                V3CardTitle("提前知道的大开销").padding(.top, 6)
-                V3RowList(rows: [.init("🎁", "过年礼物", "去年 12 月花了 180 €", "大概 180 €", tag: "去年有过", tone: .gold)], compact: true)
+                if demo {
+                    V3CardTitle("12 月要付的")
+                    V3RowList(rows: [
+                        .init("🏠", "房租", "12 月 1 日 · 固定", "650,00 €"), .init("💳", "信用卡", "12 月 5 日 · 固定", "640,00 €", V3.red),
+                        .init("📱", "手机分期", "12 月 8 日 · 第 7 / 12 期", "200,00 €", V3.red), .init("🔁", "订阅 5 个", "2 日到 21 日陆续扣", "42,00 €"),
+                    ] + (gym == true ? [.init("🏋️", "健身房", "刚算进来的", "29,00 €")] : []), compact: true)
+                    V3CardTitle("平时花的").padding(.top, 6)
+                    V3RowList(rows: [.init("🛒", "吃饭和超市", "大概", "310,00 €"), .init("🚇", "交通和别的", "大概", "140,00 €")], compact: true)
+                    V3CardTitle("提前知道的大开销").padding(.top, 6)
+                    V3RowList(rows: [.init("🎁", "过年礼物", "去年 12 月花了 180 €", "大概 180 €", tag: "去年有过", tone: .gold)], compact: true)
+                } else {
+                    // 正式账本：都从账本里来，没有的就不写
+                    V3CardTitle("接下来要付的")
+                    if b.upcoming.isEmpty {
+                        V3Label("\(nextMonth) 月之前没有已经知道要付的").padding(.vertical, 6)
+                    } else {
+                        V3RowList(rows: b.upcoming.prefix(5).map { .init($0.emoji, $0.name, $0.meta, $0.amount.magnitude.v3) }, compact: true)
+                    }
+                    let top = b.spendSlices(limit: 4)
+                    if !top.isEmpty {
+                        V3CardTitle("这个月花得最多的").padding(.top, 6)
+                        V3RowList(rows: top.prefix(3).map { .init($0.emoji, $0.name, "到今天", $0.amount.v3) }, compact: true)
+                    }
+                }
                 V3CardTitle(title: "平时花的 · 每周和上个月比") { EmptyView() } trail: {
                     HStack(spacing: 8) {
                         HStack(spacing: 4) { Circle().fill(V3.navy).frame(width: 8, height: 8); V3Label("这个月", size: 12) }
@@ -381,6 +422,13 @@ struct V3TrendsPage: View {
                 V3WeeklyBars().frame(maxHeight: .infinity).padding(.horizontal, 8)
             }
         }
+    }
+
+    /// 把「第几天、到那天一共花掉多少」放到图上的位置（图宽 560、高 220，底边留一点）。
+    private func point(_ day: Int, _ amount: Money, days: Int, top: Money) -> (Double, Double) {
+        let x = Double(day) / Double(max(days, 1)) * 560
+        let y = 215 - (top > .zero ? Double(amount.cents) / Double(top.cents) : 0) * 190
+        return (x, y)
     }
 
     private func stat(_ label: String, _ value: String, _ note: String, _ noteColor: Color) -> some View {

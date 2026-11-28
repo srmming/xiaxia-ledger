@@ -37,6 +37,8 @@ extension TrialBook {
         public var owe: Money = .zero
         /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
         public var sameDaySpent: Money?
+        /// 那个月每天花了多少（第 1 天…）。没存就是空的。
+        public var daily: [Money] = []
 
         public init(key: MonthKey, income: Money, fixed: Money, forGoals: Money, spent: Money, slices: [SpendSlice] = [], entries: [Entry] = [],
                     weekly: [Money] = [], shopIn: Money = .zero, shopOut: Money = .zero, net: Money = .zero) {
@@ -75,6 +77,72 @@ extension TrialBook {
     public var projectedMonthSpend: Money { month.spentTotal + Money(cents: usualDailySpend.cents * Int64(max(month.daysLeft, 0))) }
     /// 接下来要付的那几笔加起来（总览「接下来要付的」同一份）。
     public var upcomingTotal: Money { upcoming.map(\.amount.magnitude).reduce(.zero, +) }
+
+    /// 花钱的速度：这个月到今天、上个月整月，一天天累计花了多少；每周平时花的。趋势页的折线和柱子都从这里来。
+    public struct SpendPace: Equatable, Sendable {
+        /// 这个月一共几天、今天几号。
+        public var days: Int
+        public var today: Int
+        /// 这个月到每一天为止一共花掉多少（第 1 天…今天），最后一个数 = 这个月一共花掉。
+        public var soFar: [Money]
+        /// 上个月到每一天为止一共花掉多少。上个月没数就是空的。
+        public var last: [Money]
+        /// 照这样花到月底大概多少。
+        public var projected: Money
+        /// 每周平时花的（7 天一周）：这个月的（只到今天所在那周）、上个月的。
+        public var weeks: [Money]
+        public var lastWeeks: [Money]
+        /// 画图时纵轴的顶：几条线里最大的那个数。
+        public var top: Money { max(max(soFar.last ?? .zero, last.last ?? .zero), projected) }
+        /// 和上个月同一天比，这个月花得慢（true）、快（false），比不了是 nil。
+        public var slower: Bool? {
+            guard let now = soFar.last, last.count >= 1 else { return nil }
+            return now <= last[min(today, last.count) - 1]
+        }
+    }
+
+    public var spendPace: SpendPace {
+        let cal = Calendar(identifier: .gregorian)
+        let days = cal.range(of: .day, in: .month, for: todayDate)?.count ?? 30
+        let today = min(max(todayDay, 1), days)
+        // 这个月：一笔笔按日子加；账本里记的总数（含没有逐笔流水的固定开销）比逐笔的多，多的算在 1 号
+        var perDay = [Int64](repeating: 0, count: today), usual = [Int64](repeating: 0, count: today)
+        for e in entries where e.side == .life && e.amount < .zero && e.daysAgo >= 0 && e.daysAgo < today {
+            let i = today - 1 - e.daysAgo
+            perDay[i] += e.amount.magnitude.cents
+            usual[i] += max(e.amount.magnitude.cents - e.fixedPart.cents, 0)
+        }
+        // 账本里记的总数比逐笔流水多的那部分（没有逐笔流水的）：固定要付的算在 1 号，平时花的摊到每一天
+        let usualGap = max(month.spent.cents - usual.reduce(0, +), 0)
+        let fixedGap = max(month.spentTotal.cents - perDay.reduce(0, +) - usualGap, 0)
+        perDay[0] += fixedGap
+        if usualGap > 0 {
+            for i in 0..<today {
+                let share = usualGap * Int64(i + 1) / Int64(today) - usualGap * Int64(i) / Int64(today)
+                perDay[i] += share; usual[i] += share
+            }
+        }
+        func running(_ a: [Int64]) -> [Money] { var t: Int64 = 0; return a.map { t += $0; return Money(cents: t) } }
+        func weekly(_ a: [Int64]) -> [Money] { stride(from: 0, to: a.count, by: 7).map { Money(cents: a[$0..<min($0 + 7, a.count)].reduce(0, +)) } }
+        // 上个月：有每天的数就用；没有就照「同期花到多少、整月花了多少」连成线
+        var last: [Money] = [], lastWeeks: [Money] = []
+        if let p = previousMonthData {
+            if !p.daily.isEmpty {
+                last = running(p.daily.map(\.cents))
+                lastWeeks = p.weekly.isEmpty ? weekly(p.daily.map(\.cents)) : p.weekly
+            } else if p.spentTotal > .zero {
+                let n = cal.range(of: .day, in: .month, for: cal.date(byAdding: .month, value: -1, to: todayDate) ?? todayDate)?.count ?? 30
+                let mid = min(today, n), at = p.sameDaySpent ?? Money(cents: p.spentTotal.cents * Int64(mid) / Int64(n))
+                last = (1...n).map { d in
+                    d <= mid ? Money(cents: at.cents * Int64(d) / Int64(mid))
+                             : Money(cents: at.cents + (p.spentTotal.cents - at.cents) * Int64(d - mid) / Int64(max(n - mid, 1)))
+                }
+                lastWeeks = p.weekly
+            }
+        }
+        return SpendPace(days: days, today: today, soFar: running(perDay), last: last, projected: projectedMonthSpend,
+                         weeks: weekly(usual), lastWeeks: lastWeeks)
+    }
 
     /// 今天在哪个月。
     public var thisMonth: MonthKey {

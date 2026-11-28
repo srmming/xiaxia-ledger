@@ -580,8 +580,23 @@ public struct TrialBook: Equatable, Sendable {
     // MARK: 删除数据
 
     /// 一共有多少笔流水、多少个计划、多少个订阅（删除前给人看的）。
+    /// 一共几笔流水，各处都用这一份（数据页、账本页、改动记录页的数要对得上）。
+    /// 生活的 = 生活那边记的每一笔；店里的 = 店里记的每一笔 + 记过收入的天数（一天算一笔）。
+    /// 从正式账本整理过来时，每天的收入本来就是流水里的一笔，不再另加天数。
+    public var entryCounts: (life: Int, shop: Int) {
+        (entries.filter { $0.side == .life }.count,
+         entries.filter { $0.side == .biz }.count + (shopDaysHoldIncome ? 0 : shopOpenDays))
+    }
+    /// 这个月的流水里，自己进来的（导入、自动记的）几笔、手记的几笔。两个数加起来 = 这个月一共几笔。
+    public var entrySources: (auto: Int, hand: Int) {
+        let byHand: Set<String> = ["", "刚记的", "手记", "说一句", "补记的", "拍小票", "每天记账", "语音"]
+        let month = entries.filter { $0.daysAgo < todayDay }
+        let hand = month.filter { byHand.contains($0.tag) }.count + (shopDaysHoldIncome ? 0 : shopOpenDays)
+        return (month.count + (shopDaysHoldIncome ? 0 : shopOpenDays) - hand, hand)
+    }
+
     public var counts: (entries: Int, plans: Int, subscriptions: Int) {
-        (entries.count + shopDays.filter { $0.state == .open }.count + purchases.count,
+        (entryCounts.life + entryCounts.shop,
          (journey.total > .zero ? 1 : 0) + debts.count + lent.count + shopDebts.count, subscriptions.count)
     }
 

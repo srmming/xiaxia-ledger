@@ -216,7 +216,7 @@ struct V3LogPage: View {
                     Spacer(minLength: 0)
                     VStack(alignment: .leading, spacing: 2) {
                         V3Label("这个月", size: 12.5)
-                        Text("自己进来 96 笔 · 你手记 \(4 + state.ledger.changes.filter { !$0.undone && $0.author == state.author && $0.kind == .add }.count) 笔").font(V3.num(16)).contentTransition(.numericText())
+                        Text("自己进来 \(state.book.entrySources.auto) 笔 · 手记 \(state.book.entrySources.hand) 笔").font(V3.num(16)).contentTransition(.numericText())
                     }
                     .padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 14).fill(V3.bg))
