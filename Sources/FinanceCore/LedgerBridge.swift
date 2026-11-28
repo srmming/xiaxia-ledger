@@ -272,7 +272,8 @@ public enum LedgerBridge {
         let subs = Subscriptions.status(ledger, today: today)
         b.subscriptions = subs.map { s in
             .init(id: s.id, emoji: "🔁", name: s.name, note: s.nextDate.map { "\($0.month) 月 \($0.day) 日扣" } ?? "停了", amount: s.amount,
-                  off: s.nextDate == nil, cycle: [Subscription.Cycle.weekly, .monthly, .quarterly, .yearly].firstIndex(of: s.cycle) ?? 1)
+                  off: s.nextDate == nil, cycle: [Subscription.Cycle.weekly, .monthly, .quarterly, .yearly].firstIndex(of: s.cycle) ?? 1,
+                  account: s.accountID.flatMap { names[$0] } ?? "")
         }
         b.upcoming = subs.compactMap { s in
             guard let d = s.nextDate, let left = s.daysLeft, left <= 31 else { return nil }
@@ -717,10 +718,14 @@ extension LedgerBridge {
             guard let o = before.subscriptions.first(where: { $0.name == n.name }) else {
                 // 下次扣款：新界面加订阅时不问哪天扣，先按「从今天起过一个周期」算（每周 7 天后、每月下个月今天…），以后对上流水会自己校准
                 let cycle = cycles[min(max(n.cycle, 0), 3)]
-                let next = cycle == .weekly ? today.adding(days: 7) : today.adding(months: cycle == .monthly ? 1 : cycle == .quarterly ? 3 : 12)
+                // 选了哪天扣就用那天；没选才按周期估
+                let next = n.dueIn.map { today.adding(days: $0) }
+                    ?? (cycle == .weekly ? today.adding(days: 7) : today.adding(months: cycle == .monthly ? 1 : cycle == .quarterly ? 3 : 12))
                 // 标了「赚钱用的」又开着生意：记在生意账本上；别的记在生活账本上
                 let book = (n.flag ? work.books.first { $0.isBusiness } : nil) ?? work.books.first { !$0.isBusiness }
-                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycle, nextDate: next,
+                // 从哪个账户扣：界面上选的那个（信用卡也行）
+                let charge = n.account.isEmpty ? nil : work.accounts.first { $0.name == n.account }?.id
+                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycle, nextDate: next, accountID: charge,
                                                                       bookID: book?.id, note: n.note.isEmpty ? nil : n.note), author: who))
                 continue
             }

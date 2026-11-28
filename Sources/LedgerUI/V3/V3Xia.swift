@@ -212,22 +212,31 @@ struct V3XiaLayer: View {
     }
 }
 
-/// 从顶上滑下来的小消息：左边小头像，右边一句话，最右一个叉。点卡片本身打开对话。
-private struct V3SayCard: View {
+/// 从顶上滑下来的小消息，样子像聊天列表里的一行：左边头像，名字和时间，下面一句话，最右一个叉。点这一行打开对话。
+struct V3SayCard: View {
     let saying: V3Saying
     /// 是主动提醒的那种卡：给一个「别再提醒这个」。
     var muteKind: String?
     @Environment(V3State.self) private var state
     @State private var hover = false
+    /// 这一句是什么时候滑下来的。
+    @State private var shownAt = Date()
 
     var body: some View {
         HStack(spacing: 10) {
             Button { state.openChat() } label: {
                 HStack(spacing: 10) {
-                    V3Face(face: saying.face, width: 40)
-                    Text(saying.text).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(2)
-                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
+                    // 像聊天列表里的一行（ming 2026-11-28）：左边头像，上面名字、右上角时间，下面是她说的那句
+                    V3Face(face: saying.face, width: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(state.prefs.xiaName).font(V3.font(15, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
+                            Spacer(minLength: 6)
+                            Text(shownAt.formatted(date: .omitted, time: .shortened)).font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+                        }
+                        Text(saying.text).font(V3.font(13.5, .semibold)).foregroundStyle(V3.ink2).lineLimit(2)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .contentShape(Rectangle())
             }

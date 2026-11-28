@@ -103,6 +103,8 @@ public struct TrialBook: Equatable, Sendable {
         public var account = ""
         public var day = 0
         public var lastMonth: Money?
+        /// 订阅：下次扣款离今天还有几天（nil = 没选日子）。
+        public var dueIn: Int?
         public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false, cycle: Int = 1,
                     account: String = "", day: Int = 0, lastMonth: Money? = nil) {
             self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.amount = amount; self.tag = tag; self.off = off; self.flag = flag; self.cycle = cycle
@@ -829,13 +831,31 @@ public struct TrialBook: Equatable, Sendable {
 
     // MARK: 订阅、想要清单
 
-    public mutating func addSubscription(name: String, amount: Money, note: String, forWork: Bool, cycle: Int = 1) throws {
+    /// 订阅能从哪些账户扣：这一边所有放着钱的账户（目标的存钱罐除外）和信用卡。卡在前，现金在最后。
+    public func subscriptionAccounts(_ side: Side = .life) -> [Account] {
+        let list = accounts.filter { a in
+            a.side == side && ((a.kind == .own && a.block != .goal) || a.kind == .shop || a.isCreditCard)
+        }
+        func rank(_ a: Account) -> Int { a.name.contains("现金") ? 2 : a.isCreditCard ? 1 : 0 }
+        return list.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }.map(\.element)
+    }
+
+    public mutating func addSubscription(name: String, amount: Money, note: String, forWork: Bool, cycle: Int = 1,
+                                         account: String = "", dueIn: Int? = nil) throws {
+        if !account.isEmpty {
+            guard accounts.contains(where: { $0.name == account && ($0.kind == .own || $0.kind == .shop || $0.isCreditCard) && $0.block != .goal }) else {
+                throw TrialError("「\(account)」扣不了订阅，换一个账户")
+            }
+        }
+        if let dueIn, dueIn < 0 { throw TrialError("下次扣款的日子不能在今天以前") }
         try Self.positive(amount)
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { throw TrialError("先写一下订阅叫什么") }
         guard !subscriptions.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这个订阅了") }
         guard (0...3).contains(cycle) else { throw TrialError("多久扣一次没选对") }
-        subscriptions.append(Item(emoji: "🔁", name: clean, note: note, amount: amount, tag: forWork ? "赚钱用的" : "", flag: forWork, cycle: cycle))
+        var item = Item(emoji: "🔁", name: clean, note: note, amount: amount, tag: forWork ? "赚钱用的" : "", flag: forWork, cycle: cycle, account: account)
+        item.dueIn = dueIn
+        subscriptions.append(item)
     }
 
     public mutating func setSubscription(_ name: String, dropped: Bool) throws {

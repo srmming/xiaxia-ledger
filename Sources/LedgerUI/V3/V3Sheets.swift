@@ -276,6 +276,16 @@ struct V3ManualSheet: View {
     var done: () -> Void = {}
     @Environment(V3State.self) private var state
     @State private var kind = 0
+    /// 一打开就停在哪一种（0 支出、1 收入、2 转账）。出图和从别处直接跳到某一种时用。
+    init(embedded: Bool = false, done: @escaping () -> Void = {}, startKind: Int = 0) {
+        self.embedded = embedded; self.done = done
+        _kind = State(initialValue: startKind)
+    }
+    /// 出图用：转账那一种，目标那一行一打开就是展开的。
+    init(startKind: Int, jarsOpen: Bool) {
+        self.init(startKind: startKind)
+        _showJars = State(initialValue: jarsOpen)
+    }
     @State private var amount = ""
     @State private var place = ""
     /// 分类一开始不选：免得什么都被记成同一类。
@@ -284,6 +294,8 @@ struct V3ManualSheet: View {
     @State private var account = 0
     @State private var from = ""
     @State private var to = ""
+    /// 转账「到」那一行：目标的存钱罐展开没有。
+    @State private var showJars = false
     @State private var daysAgo = 0
     @State private var pickingDate = false
     @State private var note = ""
@@ -360,14 +372,33 @@ struct V3ManualSheet: View {
         V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220)
         V3AmountHint(text: amount)
         pillRow("从", b.transferSources(bookSide), picked: from, other: to) { from = $0 }
-        pillRow("到", b.transferTargets(bookSide), picked: to, other: from) { to = $0 }
+        // 「到」这一行：目标的存钱罐有好几个时收成一个「存进目标 ›」，点开再挑哪个目标，免得一排排满（ming 2026-11-28）
+        let targets = b.transferTargets(bookSide)
+        let jars = targets.filter { $0.block == .goal }
+        if jars.count > 1 {
+            let inJar = jars.contains { $0.name == to }
+            pillRow("到", targets.filter { $0.block != .goal }, picked: to, other: from,
+                    extra: (title: inJar ? "⭐ 存进目标 · \(Self.goalName(to))" : "⭐ 存进目标 ›", on: inJar, action: { withAnimation(.snappy(duration: 0.15)) { showJars.toggle() } })) { to = $0; showJars = false }
+            if showJars {
+                pillRow("存进哪个目标", jars, picked: to, other: from) { to = $0; showJars = false }
+            }
+        } else {
+            pillRow("到", targets, picked: to, other: from) { to = $0 }
+        }
         if !cross.isEmpty {
             pillRow(bookSide == .life ? "到 · 店里的" : "到 · 生活的", cross, picked: to, other: from) { to = $0 }
         }
     }
 
     /// 一行账户胶囊：图标 + 名字 + 余额。选中的深色；另一行已经选了的那个变灰、点不了。
-    private func pillRow(_ label: String, _ choices: [V3State.Account], picked: String, other: String, pick: @escaping (String) -> Void) -> some View {
+    /// 存钱罐的名字去掉后面的「存钱罐」三个字，就是目标叫什么。
+    static func goalName(_ jar: String) -> String {
+        let n = jar.replacingOccurrences(of: "存钱罐", with: "").trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? jar : n
+    }
+
+    private func pillRow(_ label: String, _ choices: [V3State.Account], picked: String, other: String,
+                         extra: (title: String, on: Bool, action: () -> Void)? = nil, pick: @escaping (String) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             V3Label(label, size: 12.5, weight: .bold)
             FlowLayout(spacing: 6) {
@@ -385,6 +416,15 @@ struct V3ManualSheet: View {
                     }
                     .buttonStyle(V3SinkStyle(depth: 2)).disabled(taken).opacity(taken ? 0.35 : 1)
                     .accessibilityLabel("\(label)：\(a.name)").accessibilityAddTraits(on ? .isSelected : [])
+                }
+                if let extra {
+                    Button(action: extra.action) {
+                        Text(extra.title).font(V3.font(13.5, .bold)).lineLimit(1)
+                            .foregroundStyle(extra.on ? .white : V3.ink)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(Capsule().fill(extra.on ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 2)).accessibilityLabel("\(label)：存进目标，点开挑哪一个")
                 }
             }
         }
@@ -758,7 +798,7 @@ private struct V3AmountSheet: View {
 
 // MARK: - 加一个订阅
 
-private struct V3SubscriptionSheet: View {
+struct V3SubscriptionSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
@@ -771,7 +811,8 @@ private struct V3SubscriptionSheet: View {
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let accounts = state.book.accounts(for: .pay, side: .life)
+        // 能扣订阅的账户都列出来：银行卡、储蓄、信用卡、现金（ming 2026-11-28：有那么多付款的，不能只给两个）
+        let accounts = state.book.subscriptionAccounts(.life)
         let today = state.book.todayDate
         let cal = Calendar(identifier: .gregorian)
         let nextDate = nextIn.flatMap { cal.date(byAdding: .day, value: $0, to: today) }
@@ -786,7 +827,7 @@ private struct V3SubscriptionSheet: View {
                        let day = nextLabel ?? ""
                        let acc = accounts.indices.contains(account) ? accounts[account].name : ""
                        let note = [day.isEmpty ? "\(cyc)扣" : "\(day)扣", acc].filter { !$0.isEmpty }.joined(separator: " · ")
-                       if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle) }) { state.closeSheet() }
+                       if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle, account: acc, dueIn: nextIn) }) { state.closeSheet() }
                    }) {
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "叫什么", prompt: "健身房", text: $name, focus: true)

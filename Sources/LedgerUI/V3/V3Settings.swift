@@ -395,13 +395,14 @@ private struct V3SetAIPage: View {
                         .background(RoundedRectangle(cornerRadius: 14).fill(V3.bg))
                     HStack(spacing: 8) {
                         Button("复制这句话") { state.copy(V3State.trySentence) }.buttonStyle(.v3(.ghost, .small))
-                        Button("在问\(state.prefs.xiaName)里试") {
+                        // 这个按钮会真的记一笔咖啡 3,50 €：只在试用数字里有。正式账本上不替人记假的账
+                        if state.real == nil { Button("在问\(state.prefs.xiaName)里试") {
                             state.chat.append(.init(mine: true, text: V3State.trySentence))
                             let ok = state.record(QuickPhrase(name: "咖啡", emoji: "☕", amount: Money(cents: 3_50)), account: "现金")
                             state.chat.append(.init(mine: false, text: ok ? "记好了：咖啡 3,50 €，现金。记错了点底下的「撤销」。" : "没记成，再试一次。"))
                             state.openChat()
                         }
-                        .buttonStyle(.v3(.ghost, .small))
+                        .buttonStyle(.v3(.ghost, .small)) }
                     }
                     .padding(.top, 10)
                 }
@@ -600,9 +601,9 @@ private struct V3SetSpeakPage: View {
                         V3SetMenu(options: VoiceRules.pauses.indices.map(VoiceRules.title), pick: $s.prefs.voicePause)
                     }
                 }
-                V3SetGroup(title: "试用", note: "把今天说过的次数清零，回到总览再看她说一句。") {
+                if state.real == nil { V3SetGroup(title: "试用", note: "把今天说过的次数清零，回到总览再看她说一句。") {
                     V3SetRow(title: "让她再说一次", line: false) { Button("去看") { state.sayAgain(); state.go(.overview) }.buttonStyle(.v3(.ghost, .small)) }
-                }
+                } }
             }
         }
     }
@@ -627,11 +628,11 @@ private struct V3SetPrivacyPage: View {
                                             set: { state.setLock(grace: AppLockPolicy.graceChoices[$0].seconds) }))
                 }
             }
-            V3SetGroup(title: "语言", note: "试用版只有中文。英文和西班牙语还在翻译，选了以后没翻到的地方先显示中文。", grow: true) {
+            V3SetGroup(title: "语言", note: state.real == nil ? "试用版只有中文。英文和西班牙语还在翻译，选了以后没翻到的地方先显示中文。" : "新界面现在只有中文。英文和西班牙语还在翻译，选了以后没翻到的地方先显示中文。", grow: true) {
                 V3SetRow(title: "界面语言", line: false) {
                     V3SetMenu(options: Self.languages, pick: Binding(get: { state.prefs.language }, set: { v in
                         state.prefs.language = v
-                        state.say(v == 0 ? "好，用中文" : "记下了：\(Self.languages[v])。试用版还没翻译，先显示中文")
+                        state.say(v == 0 ? "好，用中文" : "记下了：\(Self.languages[v])。还没翻译好，先显示中文")
                     }))
                 }
             }
@@ -925,7 +926,7 @@ struct V3MemoMeetSheet: View {
     private var guesses: [(String, String)] {
         let b = state.book
         var out: [(String, String)] = []
-        if let rent = b.upcoming.first(where: { $0.name == "房租" }) { out.append(("房租", "每月 1 日付，\(rent.amount.v3Short) 左右")) }
+        if let rent = b.upcoming.first(where: { $0.name == "房租" }) { out.append(("房租", "\(rent.meta.isEmpty ? "每月都付" : rent.meta)，\(rent.amount.magnitude.v3Short) 左右")) }
         if let top = Dictionary(grouping: b.entries.filter { !$0.place.isEmpty && $0.amount.cents < 0 }, by: \.place).max(by: { $0.value.count < $1.value.count }) {
             out.append((top.key, "常去，用\(top.value.first?.account ?? "现金")付"))
         }
@@ -1015,7 +1016,7 @@ struct V3FeedbackSheet: View {
     private var bodyText: String {
         let os = ProcessInfo.processInfo.operatingSystemVersionString
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return withInfo ? "\(t)\n\n——\n夏夏账本 界面 v3 试用版 · Mac · \(os)" : t
+        return withInfo ? "\(t)\n\n——\n夏夏账本 \(state.real == nil ? "界面 v3 试用版" : "新界面") · Mac · \(os)" : t
     }
 
     var body: some View {
@@ -1052,7 +1053,7 @@ struct V3BooksSheet: View {
     @State private var life = ""
     @State private var shop = ""
     var body: some View {
-        V3SheetBox(width: 520, title: "管理账本", hint: "试用版只有这两本，不能新建和删除。", primary: "存好", save: {
+        V3SheetBox(width: 520, title: "管理账本", hint: state.real == nil ? "试用版只有这两本，不能新建和删除。" : "新建、删除账本先回旧界面。", primary: "存好", save: {
             var ok = true
             if life != state.book.lifeName { ok = state.change("改好了：\(state.book.lifeName) → \(life)") { try $0.renameBook(.life, to: life) } }
             if ok, state.showsBiz, shop != state.book.shopName { ok = state.change("改好了：\(state.book.shopName) → \(shop)") { try $0.renameBook(.biz, to: shop) } }

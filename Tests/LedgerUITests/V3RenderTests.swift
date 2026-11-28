@@ -31,6 +31,22 @@ final class V3RenderTests: XCTestCase {
             if let c = done.confirm { V3ConfirmCard(message: done, confirm: c).frame(width: 460) }
         }
         try write(cards.environment(s), "real-statement-card", to: dir)
+        // 夏夏滑下来的那条消息：像聊天列表里的一行
+        let says = VStack(spacing: 20) {
+            V3SayCard(saying: V3Saying(id: "a", face: "happy", text: "比上月同期少花 126 €，照这样月底能多存一点。", tone: 0, extra: AnyView(EmptyView())))
+            V3SayCard(saying: V3Saying(id: "b", face: "worried", text: "信用卡 5 号要还 640 €，日常卡里够。", tone: 2, extra: AnyView(EmptyView())), muteKind: "card")
+        }
+        try write(says.environment(V3State()), "say-card", to: dir)
+        // 记一笔「自己填」的三种：支出、收入、两个账户之间转（试用数字，生活这边）
+        for k in 0..<3 {
+            let st = V3State(); st.onboardingStep = nil; st.side = .life
+            st.manualStartKind = k
+            try write(V3ManualSheet(startKind: k).environment(st), "manual-\(k)", to: dir)
+        }
+        let subs = V3State(); subs.onboardingStep = nil
+        try write(V3SubscriptionSheet().environment(subs), "subscription-sheet", to: dir)
+        let open = V3State(); open.onboardingStep = nil; open.side = .life
+        try write(V3ManualSheet(startKind: 2, jarsOpen: true).environment(open), "manual-2-jars", to: dir)
         s.page = .settings
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model
