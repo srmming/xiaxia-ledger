@@ -19,6 +19,8 @@ public struct QuickPhrase: Equatable, Sendable {
         case lend(to: String)
         /// 别人把借的钱还我。
         case repaidToMe(from: String)
+        /// 向别人借了钱（钱进来，欠着）。
+        case borrow(from: String)
     }
     public var kind: Kind = .spend
     /// 话里说了「店里」「店」：记到生意那边。
@@ -50,6 +52,9 @@ public struct QuickPhrase: Equatable, Sendable {
         }
         // 「小李还我 50」「小李还了我 50」
         if let who = capture(#"([^\d\s，,。]{1,8}?)还了?给?我"#), !who.isEmpty { return .repaidToMe(from: who) }
+        // 「向阿青借了 500」「跟阿青借 500」「阿青借我 500」
+        if let who = capture(#"(?:向|跟|找|问)\s*([^\d\s，,。]{1,8}?)借"#), !who.isEmpty { return .borrow(from: who) }
+        if let who = capture(#"([^\d\s，,。]{1,8}?)借给?了?我"#), !who.isEmpty { return .borrow(from: who) }
         // 「借给小李 50」
         if let who = capture(#"借给?了?\s*([^\d\s，,。]{1,8}?)\s*\d"#), !who.isEmpty, !text.contains("借我") { return .lend(to: who) }
         // 「转 200 到储蓄」「存 100 进旅行」
@@ -98,6 +103,7 @@ public struct QuickPhrase: Equatable, Sendable {
         case .transfer(let to): return QuickPhrase(name: "转到\(to)", emoji: "🔀", amount: amount, kind: kind, shop: shop)
         case .lend(let to): return QuickPhrase(name: "借给\(to)", emoji: "🧑", amount: amount, kind: kind, shop: shop)
         case .repaidToMe(let from): return QuickPhrase(name: "\(from)还我", emoji: "🧑", amount: amount, kind: kind, shop: shop)
+        case .borrow(let from): return QuickPhrase(name: "向\(from)借", emoji: "🤝", amount: amount, kind: kind, shop: shop)
         case .spend: break
         }
         if let hit = known.first(where: { text.contains($0.0) }) {
@@ -176,6 +182,16 @@ extension TrialBook {
             let from = try at(account)
             accounts[from].balance = accounts[from].balance - q.amount
             return "记好了 · 借给\(to) \(q.amount.formatted) · 从\(account)，不算花销"
+        case .borrow(let from):
+            // 向别人借：钱进账户，多欠一笔。已经欠着这个人的，加在同一行上
+            if let i = accounts.firstIndex(where: { $0.kind == .debt && !$0.isCreditCard && $0.side == .life && $0.name == from }) {
+                accounts[i].balance = accounts[i].balance + q.amount
+            } else {
+                try addDebt(name: from, amount: q.amount, owedToMe: false, note: "")
+            }
+            let into = try at(account)
+            accounts[into].balance = accounts[into].balance + q.amount
+            return "记好了 · 向\(from)借了 \(q.amount.formatted) · 进\(account)，不算收入"
         case .repaidToMe(let from):
             guard let i = accounts.firstIndex(where: { $0.kind == .lent && $0.balance > .zero && ($0.name.contains(from) || from.contains($0.name)) }) else {
                 throw TrialError("没找到「\(from)」欠你的那一笔")

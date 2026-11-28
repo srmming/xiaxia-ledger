@@ -17,6 +17,9 @@ final class QuickPhraseKindTests: XCTestCase {
         XCTAssertEqual(QuickPhrase.parse("借给小李 50")?.kind, .lend(to: "小李"))
         XCTAssertEqual(QuickPhrase.parse("小李还我 50")?.kind, .repaidToMe(from: "小李"))
         XCTAssertEqual(QuickPhrase.parse("小李还了我 50")?.kind, .repaidToMe(from: "小李"))
+        XCTAssertEqual(QuickPhrase.parse("向阿青借了 500")?.kind, .borrow(from: "阿青"))
+        XCTAssertEqual(QuickPhrase.parse("跟阿青借 500")?.kind, .borrow(from: "阿青"))
+        XCTAssertEqual(QuickPhrase.parse("阿青借我 500")?.kind, .borrow(from: "阿青"))
         XCTAssertEqual(QuickPhrase.parse("店里买了胶带 12")?.kind, .spend); XCTAssertEqual(QuickPhrase.parse("店里买了胶带 12")?.shop, true)
         XCTAssertEqual(QuickPhrase.parse("咖啡 3,5")?.name, "咖啡")
         // 哪些话算在说一笔账
@@ -61,6 +64,11 @@ final class QuickPhraseKindTests: XCTestCase {
         try b.record(QuickPhrase.parse("借给阿树 15")!, account: pay)
         XCTAssertEqual(bal("借给阿树"), eur("15")); XCTAssertEqual(b.totals.net, n2)
         XCTAssertEqual(b.month.spentTotal, month.spentTotal); XCTAssertEqual(b.month.income, month.income + eur("1850"))
+        // 向阿树借了 80：钱进来了，但欠着，不算收入，净剩不变
+        let n3 = b.totals.net, d4 = bal(pay), inc3 = b.month.income
+        XCTAssertTrue(try b.record(QuickPhrase.parse("向阿树爸借了 80")!, account: pay).contains("不算收入"))
+        XCTAssertEqual(bal(pay), d4 + eur("80")); XCTAssertEqual(bal("阿树爸"), eur("80"))
+        XCTAssertEqual(b.totals.net, n3); XCTAssertEqual(b.month.income, inc3)
         // 说不清的：不猜，说人话，什么都不动
         let keep = b
         XCTAssertThrowsError(try b.record(QuickPhrase.parse("还阿毛 10")!, account: pay))
@@ -96,6 +104,11 @@ final class QuickPhraseKindTests: XCTestCase {
         _ = try say("借给小李 10")
         let b = LedgerBridge.snapshot(of: l, today: today)
         XCTAssertEqual(b.month.spentTotal, spent); XCTAssertEqual(b.month.income, income, "借出去、还回来都不算收支")
+        let debts = l.debts.count
+        _ = try say("向阿青借了 300")
+        XCTAssertEqual(l.debts.count, debts + 1); XCTAssertEqual(l.debts.last?.direction, .iOweThem)
+        XCTAssertEqual(l.transactions.last?.amount, Money(cents: 300_00)); XCTAssertEqual(l.transactions.last?.flow, .debt)
+        XCTAssertEqual(LedgerBridge.snapshot(of: l, today: today).month.income, income, "借来的钱不算收入")
         _ = try say("发工资 500")
         XCTAssertEqual(LedgerBridge.snapshot(of: l, today: today).month.income, income + Money(cents: 500_00))
         XCTAssertEqual(l.transactions.last?.amount, Money(cents: 500_00))
