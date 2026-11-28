@@ -16,29 +16,32 @@ struct V3BizHomePage: View {
         guard let m = V3Form.amount(todayText) else { state.fail("这个数没看懂，写成 186 这样就行"); return }
         let need = state.book.dailyBreakEven
         let day = state.book.todayDay
-        state.change(m >= need ? "记好了 · 今天 \(m.v3)，够付今天的固定开销了" : "记好了 · 今天 \(m.v3)，还差 \((need - m).v3Short)", kind: .add) { try $0.recordShopDay(day, cash: .zero, card: m) }
+        state.change(m >= need ? "记好了 · 今天 \(m.v3)，今天不亏了" : "记好了 · 今天 \(m.v3)，离不亏还差 \((need - m).v3Short)", kind: .add) { try $0.recordShopDay(day, cash: .zero, card: m) }
     }
 
     var body: some View {
         let b = state.book
         let today = b.shopDays.first { $0.day == b.todayDay }
         let done = today?.state == .open
-        let back = Money(cents: 16_728_00)
+        let back = b.shopBack
+        // 店里赚多少只有一个算法（ShopNumbers.swift）：真正赚了 = 收的 − 开销；手里实际多了 = 再减进的货和还的贷款
+        let m = b.shopMonth()
         V3Cols(left: 1.35, right: 1) {
             VStack(spacing: 16) {
-                V3Ask(face: "think", text: "周六一天顶两天。后面收的都是你的了。", kicker: "每周一句")
-                    .frame(maxWidth: 560).frame(maxWidth: .infinity, alignment: .leading)
-                V3KeyCard(label: "11 月 · 真正赚了", amount: Money(cents: 1_520_26), wave: V3.tealSoft) {
-                    V3Label("比上个月同期多 140 €", size: 14, color: V3.green, weight: .bold)
+                V3KeyCard(label: "\(state.monthLabel) · 真正赚了", amount: m.earned, wave: V3.tealSoft) {
+                    HStack(spacing: 26) {
+                        V3KV(value: m.income.v3, label: "收了", color: V3.teal)
+                        V3KV(value: m.costs.v3, label: "开销", color: V3.red)
+                    }
                 }
                 V3GrowCard {
                     V3CardTitle("「赚了」和「手里实际多了」为什么不一样")
                     HStack(spacing: 16) {
-                        V3Tile(label: "账上赚了", value: "1.520,26\u{00A0}€", color: V3.teal)
-                        V3Label("差的 690 € 去了").fixedSize()
-                        V3Tile(label: "手里实际多了", value: "830,26\u{00A0}€", color: V3.teal)
+                        V3Tile(label: "真正赚了", value: m.earned.v3, color: V3.teal)
+                        V3Label("差的 \((m.earned - m.cashChange).v3Short) 去了").fixedSize()
+                        V3Tile(label: "手里实际多了", value: m.cashChange.v3, color: V3.teal)
                     }
-                    V3RowList(rows: [.init("📦", "多进了货", "还在店里，没卖完", "−340,00 €"), .init("🏦", "还贷款本金", "不算开销，但钱出去了", "−350,00 €")])
+                    V3RowList(rows: [.init("📦", "进了货", "还在店里，卖掉才算", (-m.purchases).v3), .init("🏦", "还贷款", "是还钱，不算开销", (-m.loanPaid).v3)])
                 }
             }
         } trailing: {
@@ -48,7 +51,7 @@ struct V3BizHomePage: View {
                     HStack(spacing: 10) {
                         if done, let today {
                             V3Amount(today.total.v3, color: V3.teal, size: 30, weight: .heavy)
-                            if today.total >= b.dailyBreakEven { V3Tag(text: "够付今天的固定开销", tone: .teal) }
+                            if today.total >= b.dailyBreakEven { V3Tag(text: "今天不亏了", tone: .teal) }
                         }
                         if !done {
                             V3Field(prompt: "0,00", text: $todayText, size: 22, rounded: true) { quick() }
@@ -138,7 +141,9 @@ struct V3SalesPage: View {
                 V3GrowCard {
                     V3CardTitle("一周里哪天最旺")
                     HStack(alignment: .bottom, spacing: 8) {
-                        ForEach(Array([(42.0, "一"), (48, "二"), (45, "三"), (55, "四"), (70, "五"), (100, "六"), (0, "日")].enumerated()), id: \.offset) { _, w in
+                        let avgs = b.shopWeekdayAverages
+                        let top = max(avgs.map(\.cents).max() ?? 1, 1)
+                        ForEach(Array(zip(avgs.map { Double($0.cents) / Double(top) * 100 }, ["一", "二", "三", "四", "五", "六", "日"]).enumerated()), id: \.offset) { _, w in
                             VStack(spacing: 4) {
                                 GeometryReader { g in
                                     UnevenRoundedRectangle(topLeadingRadius: 7, topTrailingRadius: 7)
@@ -150,7 +155,7 @@ struct V3SalesPage: View {
                         }
                     }
                     .frame(maxHeight: .infinity)
-                    .accessibilityElement().accessibilityLabel("一周里周六最旺，周日休息")
+                    .accessibilityElement().accessibilityLabel("一周里每天平均收多少")
                 }
             }
         } trailing: {
@@ -230,7 +235,8 @@ struct V3FixedPage: View {
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "每月固定要付", amount: b.fixedTotal, wave: V3.tealSoft) {
-                    Text("等于每天一开门，要先收 \(b.dailyBreakEven.v3Short) 才够付").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
+                    Text("每个开门的日子收够 \(b.dailyBreakEven.v3Short) 才不亏").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
+                        .help("这个月固定要付的 + 贷款月供 + 进的货，除以打算开门的 \(b.plannedOpenDays) 天（休息日不算）")
                 }
                 if let ads {
                     if ads.off {
@@ -283,9 +289,11 @@ struct V3PaybackPage: View {
 
     var body: some View {
         let b = state.book
-        let back = Money(cents: 16_728_00)
-        let left = b.capitalTotal - back
-        let frac = Double(back.cents) / Double(max(b.capitalTotal.cents, 1))
+        let back = b.shopBack
+        let left = b.paybackLeft
+        let frac = b.paybackFraction
+        let months = b.paybackMonths()
+        let faster = b.paybackMonths(extra: Money(cents: 150_00))
         V3Cols(left: 1.35, right: 1) {
             VStack(spacing: 16) {
                 HStack(spacing: 22) {
@@ -293,7 +301,7 @@ struct V3PaybackPage: View {
                     VStack(alignment: .leading, spacing: 4) {
                         V3Label("开店本钱还差")
                         V3Gold(amount: left, size: 56)
-                        Text("照现在的速度，2027 年 9 月回本").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
+                        Text(months.map { "照这个月赚的速度，再 \($0) 个月回本" } ?? "这个月还没赚到钱，算不出什么时候回本").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
                     }
                     Spacer(minLength: 0)
                 }
@@ -306,10 +314,12 @@ struct V3PaybackPage: View {
                         .init(points: [(290, 104), (520, 14)], color: V3.teal, width: 3, dash: [3, 7]),
                     ], dot: (290, 104))
                     .frame(maxHeight: .infinity)
-                    HStack { V3Label("开店 · 2025 年 10 月"); Spacer(); V3Label("今天"); Spacer(); V3Label("2027 年 9 月 · 回本") }
+                    HStack { V3Label("开店 · 2025 年 10 月"); Spacer(); V3Label("今天"); Spacer(); V3Label(months.map { "再 \($0) 个月 · 回本" } ?? "回本") }
                 }
                 .accessibilityLabel("回本走了 \(Int(frac * 100))%")
-                V3Ask(face: "think", text: "每月多赚 150 €，早 4 个月回本。", tone: .good)
+                if let months, let faster, months > faster {
+                    V3Ask(face: "think", text: "每月多赚 150 €，早 \(months - faster) 个月回本。", tone: .good)
+                }
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
@@ -385,8 +395,10 @@ struct V3StockPage: View {
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
-                V3CardTitle("这个季度进的货", note: "\(b.purchases.count) 次 · \(b.purchases.map(\.amount).reduce(.zero, +).v3Short)")
-                V3RowList(rows: b.purchases.prefix(5).map { .init($0.emoji, $0.name, $0.note, (-$0.amount).v3) }, fill: true)
+                // 这个月进的货：和流水页是同一份，不另记一本
+                let bought = b.purchasesThisMonth
+                V3CardTitle("这个月进的货", note: "\(bought.count) 次 · \(bought.map(\.amount).reduce(.zero, +).magnitude.v3Short)")
+                V3RowList(rows: bought.prefix(5).map { .init($0.emoji, $0.detail.isEmpty ? $0.title : $0.detail, "\(state.monthKey.month) 月 \($0.day) 日", $0.amount.v3) }, fill: true)
                 Spacer(minLength: 0)
             }
         }
@@ -403,51 +415,64 @@ struct V3StockPage: View {
 // MARK: - 店的体检
 
 struct V3CheckupPage: View {
-    private let split: [(String, Double, UInt32)] = [("房租", 22, 0x7FA3F0), ("进货", 18, 0xF2A65A), ("水电杂费", 12, 0xC9A0DC), ("给自己的工资", 22, 0x2E3A82), ("真正赚的", 26, 0xF2B93B)]
+    @Environment(V3State.self) private var state
+    private static let colors: [UInt32] = [0x7FA3F0, 0xF2A65A, 0xC9A0DC, 0xF2B93B]
 
     var body: some View {
+        let b = state.book
+        let m = b.shopMonth()
+        let split = b.shopPer100
+        let ads = b.fixedCosts.first { $0.name == "广告" && !$0.off }
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "你每小时赚", amount: Money(cents: 10_49), wave: V3.tealSoft) {
-                }
-                V3Card {
-                    V3CardTitle("营业额每 100 € 去哪了")
-                    GeometryReader { g in
-                        HStack(spacing: 0) {
-                            ForEach(Array(split.enumerated()), id: \.offset) { _, s in Rectangle().fill(V3.hex(s.2)).frame(width: g.size.width * s.1 / 100) }
-                        }
+                V3KeyCard(label: "\(state.monthLabel) · 真正赚了", amount: m.earned, wave: V3.tealSoft) {
+                    HStack(spacing: 26) {
+                        V3KV(value: m.income.v3, label: "收了", color: V3.teal)
+                        V3KV(value: m.costs.v3, label: "开销", color: V3.red)
+                        V3KV(value: m.cashChange.v3, label: "手里实际多了")
                     }
-                    .frame(height: 30).clipShape(Capsule()).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2.5))
-                    HStack(spacing: 22) {
-                        ForEach(Array(split.enumerated()), id: \.offset) { i, s in
-                            VStack(alignment: .leading, spacing: 0) {
-                                V3Amount("\(Int(s.1)) €", color: i == 4 ? V3.gold : V3.ink, size: 17)
-                                HStack(spacing: 4) { Circle().fill(V3.hex(s.2)).frame(width: 8, height: 8); Text(s.0).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1).fixedSize() }
+                }
+                if !split.isEmpty {
+                    V3Card {
+                        V3CardTitle("营业额每 100 € 去哪了")
+                        GeometryReader { g in
+                            HStack(spacing: 0) {
+                                ForEach(Array(split.enumerated()), id: \.offset) { i, s in
+                                    Rectangle().fill(V3.hex(Self.colors[i % 4])).frame(width: g.size.width * CGFloat(max(s.euros, 0)) / 100)
+                                }
+                            }
+                        }
+                        .frame(height: 30).clipShape(Capsule()).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2.5))
+                        HStack(spacing: 22) {
+                            ForEach(Array(split.enumerated()), id: \.offset) { i, s in
+                                VStack(alignment: .leading, spacing: 0) {
+                                    V3Amount("\(s.euros) €", color: i == 3 ? V3.gold : V3.ink, size: 17)
+                                    HStack(spacing: 4) { Circle().fill(V3.hex(Self.colors[i % 4])).frame(width: 8, height: 8); Text(s.name).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1).fixedSize() }
+                                }
                             }
                         }
                     }
                 }
                 Spacer(minLength: 0)
-                V3Question(face: "think", text: "下个季度先试哪个？一次试一个。",
-                           answers: [("周六多开 2 小时", "好，这就是店里下个季度的那一站：周六多开 2 小时"), ("停掉广告", "好，下个季度先试停掉广告"), ("先不试", "好，下个季度再问你")])
             }
         } trailing: {
             VStack(spacing: 16) {
                 V3GrowCard(spacing: 6) {
                     V3CardTitle("怎么多赚一点")
-                    V3RowList(rows: [
-                        .init("🕑", "周六多开 2 小时", "周六一小时收的是平时的 2 倍", "大约 +160 € / 月", V3.green),
-                        .init("📣", "停掉广告试一个月", "每月 80 €，看不出带来客人", "+80 € / 月", V3.green),
-                        .init("📦", "进货少囤一点", "上季度损耗 210 €", "大约 +70 € / 月", V3.green),
-                    ], fill: true)
+                    // 只放从账本里看得出来的：和钱无关的（排班、开门时间）不放
+                    if let ads {
+                        V3RowList(rows: [.init("📣", "停掉广告试一个月", "每月 \(ads.amount.v3Short)", "+\(ads.amount.v3Short) / 月", V3.green,
+                                               action: { state.open(.fixedEdit(ads.name)) })], fill: true)
+                    } else {
+                        V3Label("这个月没有看得出来能省的。", size: 14)
+                    }
                     Spacer(minLength: 0)
                 }
                 V3Card {
-                    V3CardTitle("和上个季度比")
+                    V3CardTitle("回本")
                     HStack(spacing: 26) {
-                        V3KV(value: "+6%", label: "营业额", color: V3.green)
-                        V3KV(value: "+0,80\u{00A0}€", label: "每小时赚的", color: V3.green)
-                        V3KV(value: "52%", label: "回本走到")
+                        V3KV(value: "\(Int((b.paybackFraction * 100).rounded()))%", label: "回本走到")
+                        V3KV(value: b.paybackLeft.v3Short, label: "还差", color: V3.gold)
                     }
                 }
             }
@@ -469,9 +494,9 @@ struct V3BizDebtsPage: View {
         let first = owe.first { !$0.off }
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "12 月店里要还", amount: Money(cents: 350_00) + open, wave: V3.tealSoft) {
+                V3KeyCard(label: "12 月店里要还", amount: b.shopDueNext, wave: V3.tealSoft) {
                     HStack(spacing: 26) {
-                        V3KV(value: (b.shopOwedAccounts.map(\.balance).reduce(.zero, +) + open).v3, label: "店一共欠", color: V3.red)
+                        V3KV(value: b.shopOwesTotal.v3, label: "店一共欠", color: V3.red)
                         V3KV(value: owed.filter { !$0.off }.map(\.amount).reduce(.zero, +).v3, label: "别人欠店里")
                     }
                 }
@@ -616,10 +641,12 @@ struct V3ShopFlowPage: View {
             .sorted { $0.total > $1.total }
         V3Cols(left: 1, right: 1.5) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "\(state.monthLabel) · 收的减花的", amount: d.shopIn - d.shopOut, wave: V3.tealSoft) {
+                let sm = b.shopMonth(state.monthKey)
+                V3KeyCard(label: "\(state.monthLabel) · 真正赚了", amount: sm.earned, wave: V3.tealSoft) {
                     HStack(spacing: 26) {
-                        V3KV(value: d.shopIn.v3, label: "收了", color: V3.teal)
-                        V3KV(value: d.shopOut.v3, label: "花了", color: V3.red)
+                        V3KV(value: sm.income.v3, label: "收了", color: V3.teal)
+                        V3KV(value: sm.costs.v3, label: "开销", color: V3.red)
+                        if sm.purchases > .zero { V3KV(value: sm.purchases.v3, label: "进货（不算开销）") }
                     }
                 }
                 V3GrowCard {

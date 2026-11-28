@@ -18,8 +18,12 @@ extension V3State {
     var deadline: String { "12 月 20 日" }
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }
-    var lastMonthSpentSoFar: Money { Money(cents: 1_249_39) }
-    var lastMonthNet: Money { Money(cents: 2_365_61) }
+    // 和上个月比的两个数：都从账本里存的上个月的数来，不写死（核心里 TrialMonths.swift）
+    var lastMonthSpentSoFar: Money { book.previousMonthData?.sameDaySpent ?? book.month.spentTotal }
+    var lastMonthNet: Money { book.previousMonthData?.net ?? book.totals.net }
+    /// 上个月的数不全时，不写「比上个月…」那句。
+    var canCompareSpend: Bool { book.spentLessThanLastMonthSameDay != nil }
+    var canCompareNet: Bool { book.netMoreThanLastMonth != nil }
 }
 
 // MARK: - 总览
@@ -71,7 +75,7 @@ struct V3OverviewPage: View {
                     V3KV(value: m.income.v3Signed, label: "进账", color: V3.green)
                     V3KV(value: (-m.fixed).v3Signed, label: "固定要付的")
                     V3KV(value: (-m.forGoals).v3Signed, label: "留给目标")
-                    V3KV(value: (-m.spent).v3Signed, label: "已经花掉")
+                    V3KV(value: (-m.spent).v3Signed, label: "随手花的")
                 }
                 .padding(.top, 2)
             }
@@ -82,12 +86,12 @@ struct V3OverviewPage: View {
 
             HStack(spacing: 14) {
                 let diff = state.lastMonthSpentSoFar - m.spentTotal
-                smallCard(now ? "这个月花掉" : "\(state.monthLabel)花掉", m.spentTotal.v3,
-                          !now || state.readOnly ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
+                smallCard(now ? "这个月一共花掉" : "\(state.monthLabel)一共花掉", m.spentTotal.v3,
+                          !now || !state.canCompareSpend ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
                           diff >= .zero ? V3.green : V3.navy) { state.go(.spending) }
                 let delta = b.totals.net - state.lastMonthNet
                 smallCard(now ? "家底 · 净剩" : "\(state.monthLabel)底 · 净剩", (now ? b.totals.net : m.net).v3,
-                          !now || state.readOnly ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
+                          !now || !state.canCompareNet ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
                           delta >= .zero ? V3.green : V3.navy) { state.go(.wealth) }
             }
 
@@ -234,8 +238,10 @@ struct V3WealthPage: View {
             VStack(alignment: .leading, spacing: 2) {
                 V3Label("净剩")
                 V3Gold(amount: b.totals.net, size: 36)
-                Text(delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)")
-                    .font(V3.font(13.5, .bold)).foregroundStyle(delta >= .zero ? V3.green : V3.navy).contentTransition(.numericText())
+                if state.canCompareNet {
+                    Text(delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)")
+                        .font(V3.font(13.5, .bold)).foregroundStyle(delta >= .zero ? V3.green : V3.navy).contentTransition(.numericText())
+                }
             }
             .padding(.horizontal, 18).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
             .layoutPriority(1)
@@ -244,12 +250,11 @@ struct V3WealthPage: View {
 
     private var blocks: some View {
         let b = state.book
-        let parts: [(String, Money, Color)] = [
-            ("存在目标里", b.sum(.goal), V3.star), ("日常能用", b.totals.have - b.sum(.goal), V3.sky),
-        ]
+        let colors: [String: Color] = ["存在目标里": V3.star, "存着不动": V3.navy, "日常能用": V3.sky, "借出去的": V3.hex(0xC9A0DC)]
+        let parts: [(String, Money, Color)] = b.wealthBlocks.map { ($0.name, $0.amount, colors[$0.name] ?? V3.sky) }
         let total = max(b.totals.have.cents, 1)
         return VStack(alignment: .leading, spacing: 10) {
-                V3CardTitle("这些钱分成两块")
+                V3CardTitle("这些钱分成\(["零", "一", "两", "三", "四"][min(parts.count, 4)])块")
                 GeometryReader { g in
                     HStack(spacing: 0) {
                         ForEach(Array(parts.enumerated()), id: \.offset) { _, p in

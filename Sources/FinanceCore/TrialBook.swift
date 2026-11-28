@@ -60,6 +60,8 @@ public struct TrialBook: Equatable, Sendable {
         public var place = ""
         public var account = ""
         public var note = ""
+        /// 这一笔里有多少是在付「固定要付的」（房租、订阅这些月初就算进去了的）。这部分不再从「还能随便花」里扣第二遍。
+        public var fixedPart: Money = .zero
         public init(id: UUID = UUID(), emoji: String, name: String, meta: String, amount: Money, tag: String = "",
                     red: Bool = false, daysAgo: Int = 0, side: Side = .life, place: String = "", account: String = "", note: String = "") {
             self.id = id; self.emoji = emoji; self.name = name; self.meta = meta; self.amount = amount; self.tag = tag
@@ -255,8 +257,10 @@ public struct TrialBook: Equatable, Sendable {
     public var todayDay = 18
     /// 示例账本里的「今天」：2026 年 11 月 18 日，周三。认「上周五」「12 号」这些时用它当今天。
     public var todayDate: Date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
-    /// 每天开门要先收多少才够付固定开销。
-    public var dailyBreakEven: Money { Money(cents: (fixedTotal.cents + 1500) / 3000 * 100) }
+    /// 店的贷款每月还多少（「一天收多少不亏」「手里实际多了」都要算它）。
+    public var shopLoanMonthly: Money = .zero
+    /// 这个月以前，开店本钱已经赚回来多少。
+    public var shopBackBefore: Money = .zero
     public var fixedTotal: Money { fixedCosts.filter { !$0.off }.map(\.amount).reduce(.zero, +) }
     public var capitalTotal: Money { capital.map(\.amount).reduce(.zero, +) }
 
@@ -277,13 +281,20 @@ public struct TrialBook: Equatable, Sendable {
     /// 生活这边欠的（店里欠的看 `shopOwed`）。
     public var debts: [Account] { accounts.filter { $0.kind == .debt && $0.side == .life } }
     public var lent: [Account] { accounts.filter { $0.kind == .lent && $0.side == .life } }
-    public var totals: HouseholdTotals { HouseholdTotals(holdings: owned.map(\.balance), debts: debts.map(\.balance)) }
+    /// 一共有：自己手里的钱 + 借出去还没收回来的（那也是你的钱；店里「别人欠店的」同样算进店的家底）。
+    public var totals: HouseholdTotals { HouseholdTotals(holdings: owned.map(\.balance) + lent.map(\.balance), debts: debts.map(\.balance)) }
+    /// 自己手里的钱（不含借出去的）。
+    public var inHand: Money { owned.map(\.balance).reduce(.zero, +) }
+    /// 家底分成几块：存在目标里、存着不动（储蓄）、日常能用（日常的卡和现金）、借出去的。加起来 = 一共有。是 0 的那块不列。
+    public var wealthBlocks: [(name: String, amount: Money)] {
+        [("存在目标里", sum(.goal)), ("存着不动", sum(.emergency)), ("日常能用", sum(.daily)), ("借出去的", lent.map(\.balance).reduce(.zero, +))].filter { $0.1 > .zero }
+    }
     public func sum(_ block: Account.Block) -> Money { owned.filter { $0.block == block }.map(\.balance).reduce(.zero, +) }
     public var runway: EmergencyRunway { EmergencyRunway(fund: sum(.emergency), monthlyMust: monthlyMust) }
     /// 平时一个月大概花多少：固定要付的 + 平时每天花的 × 30。不用谁来设。
     public var usualMonthlySpend: Money { month.fixed + Money(cents: usualDailySpend.cents * 30) }
     /// 手里的钱（不含存在目标里的）按平时每月花，够撑几个月。自动算，没有设置。
-    public var handRunway: EmergencyRunway { EmergencyRunway(fund: totals.have - sum(.goal), monthlyMust: usualMonthlySpend) }
+    public var handRunway: EmergencyRunway { EmergencyRunway(fund: inHand - sum(.goal), monthlyMust: usualMonthlySpend) }
     public func account(_ name: String) -> Account? { accounts.first { $0.name == name } }
     /// 能拿来付钱的账户（自己的、店里的；不含欠款、借出、私房钱）。
     public func payable(_ side: Side) -> [Account] {
@@ -342,13 +353,50 @@ public struct TrialBook: Equatable, Sendable {
         } else {
             accounts[i].balance = income ? accounts[i].balance + amount : accounts[i].balance - amount
         }
-        if side == .life {
-            if income { month.income = month.income + amount } else { month.spent = month.spent + amount }
-        }
-        let e = Entry(emoji: useEmoji, name: useName, meta: (place.isEmpty ? "" : place + " · ") + account,
+        var e = Entry(emoji: useEmoji, name: useName, meta: (place.isEmpty ? "" : place + " · ") + account,
                       amount: income ? amount : -amount, tag: tag, daysAgo: daysAgo, side: side, place: place, account: account, note: note)
+        count(&e)
         entries.insert(e, at: 0)
         return e
+    }
+
+    // MARK: 一笔流水怎么算进这个月（只有这一处；记、删、改分类、改金额、导入都走它）
+
+    /// 这一笔算不算这个月生活的收支：生活这边的、日子落在这个月里的。
+    private func inThisMonth(_ e: Entry) -> Bool { e.side == .life && e.daysAgo >= 0 && e.daysAgo < todayDay }
+
+    private mutating func addSlice(_ name: String, _ emoji: String, _ delta: Money) {
+        guard delta != .zero else { return }
+        if let i = spendByCategory.firstIndex(where: { $0.name == name }) {
+            spendByCategory[i].amount = max(spendByCategory[i].amount + delta, .zero)
+        } else if delta > .zero {
+            spendByCategory.append(SpendSlice(emoji: emoji, name: name, amount: delta, lastMonth: .zero))
+        }
+    }
+
+    /// 把一笔算进这个月：进账加到进账；支出先对「固定要付的」（房租、订阅这类月初已经算过的，不扣第二遍），
+    /// 对不上的部分才算平时花的，同时加到那一类的花销里。所以「这个月花掉」= 固定要付的 + 平时花的 = 各分类加起来，永远对得上。
+    private mutating func count(_ e: inout Entry) {
+        e.fixedPart = .zero
+        guard inThisMonth(e) else { return }
+        if e.amount > .zero { month.income = month.income + e.amount; return }
+        let a = e.amount.magnitude
+        let room = max((fixedPlan[e.name] ?? .zero) - (fixedPaid[e.name] ?? .zero), .zero)
+        let matched = min(a, room)
+        if matched > .zero { fixedPaid[e.name] = (fixedPaid[e.name] ?? .zero) + matched; e.fixedPart = matched }
+        let rest = a - matched
+        month.spent = month.spent + rest
+        addSlice(e.name, e.emoji, rest)
+    }
+
+    /// 把一笔从这个月里拿掉（`count` 的反过来）。
+    private mutating func uncount(_ e: Entry) {
+        guard inThisMonth(e) else { return }
+        if e.amount > .zero { month.income = month.income - e.amount; return }
+        if e.fixedPart > .zero { fixedPaid[e.name] = max((fixedPaid[e.name] ?? .zero) - e.fixedPart, .zero) }
+        let rest = e.amount.magnitude - e.fixedPart
+        month.spent = max(month.spent - rest, .zero)
+        addSlice(e.name, e.emoji, .zero - rest)
     }
 
     /// 删一笔：钱回到账户，「还能随便花」跟着回去。
@@ -359,9 +407,7 @@ public struct TrialBook: Equatable, Sendable {
         if let i = accounts.firstIndex(where: { $0.name == e.account }) {
             accounts[i].balance = accounts[i].kind == .debt ? accounts[i].balance + e.amount : accounts[i].balance - e.amount
         }
-        if e.side == .life {
-            if e.amount.cents < 0 { month.spent = month.spent + e.amount } else { month.income = month.income - e.amount }
-        }
+        uncount(e)
         return e
     }
 
@@ -370,12 +416,17 @@ public struct TrialBook: Equatable, Sendable {
         guard let k = entries.firstIndex(where: { $0.id == id }) else { throw TrialError("这一笔已经不在了") }
         let place = entries[k].place.isEmpty ? entries[k].name : entries[k].place
         entries[k].place = place
-        entries[k].emoji = emoji; entries[k].name = name
         entries[k].meta = entries[k].account.isEmpty ? place : "\(place) · \(entries[k].account)"
         if entries[k].tag == "等你看一眼" { entries[k].tag = "你认的" }
-        if always {
-            placeRules[place] = [emoji, name]
-            for j in entries.indices where entries[j].place == place { entries[j].emoji = emoji; entries[j].name = name }
+        if always { placeRules[place] = [emoji, name] }
+        // 这一笔（和「以后都这样」时同一家店的那几笔）：先从原来那一类里拿出来，再算进新的一类
+        for j in entries.indices where j == k || (always && entries[j].place == place) {
+            let was = entries[j]
+            uncount(was)
+            var e = was
+            e.emoji = emoji; e.name = name
+            count(&e)
+            entries[j] = e
         }
     }
 
@@ -386,12 +437,14 @@ public struct TrialBook: Equatable, Sendable {
         let old = entries[k].amount
         let new = old.cents < 0 ? -amount : amount
         let diff = new - old
-        entries[k].amount = new
+        let was = entries[k]
+        uncount(was)
+        var e = was
+        e.amount = new
+        count(&e)
+        entries[k] = e
         if let i = accounts.firstIndex(where: { $0.name == entries[k].account }) {
             accounts[i].balance = accounts[i].kind == .debt ? accounts[i].balance - diff : accounts[i].balance + diff
-        }
-        if entries[k].side == .life {
-            if old.cents < 0 { month.spent = month.spent - diff } else { month.income = month.income + diff }
         }
     }
 
@@ -415,10 +468,8 @@ public struct TrialBook: Equatable, Sendable {
             if entries.contains(where: { $0.daysAgo == r.daysAgo && $0.place == r.place && $0.amount == r.amount }) { skipped += 1; continue }
             var e = r
             e.id = UUID(); e.tag = "流水导入"
+            count(&e)
             entries.append(e)
-            if e.side == .life {
-                if e.amount.cents < 0 { month.spent = month.spent - e.amount } else { month.income = month.income + e.amount }
-            }
             added += 1
         }
         guard added > 0 else { throw TrialError("这 \(skipped) 笔都导过了，没有新的") }
@@ -710,6 +761,10 @@ public struct TrialBook: Equatable, Sendable {
     public var nextGoals: [Item] = []
     /// 置顶成卡片的账户，按卡片排里的先后。生活、店里各一排；空着时默认置顶第一个日常能用的。
     public var finishedGoals: [FinishedGoal] = []
+    /// 固定要付的，每一类这个月计划多少（房租 650、订阅 42…），加起来就是 `month.fixed`。月初就整个算进「花掉」里了。
+    public var fixedPlan: [String: Money] = [:]
+    /// 这个月每一类已经手记 / 导入付掉了多少（对上了计划的那部分）。
+    public var fixedPaid: [String: Money] = [:]
     /// 手动标过的：这笔算不算意外开销（标过的说了算，没标的按规则）。
     public var surpriseMarks: [UUID: Bool] = [:]
     /// 大目标的钱放在哪个账户（一个目标对一个账户）。没有大目标时是 nil。

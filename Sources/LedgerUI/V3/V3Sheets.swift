@@ -278,7 +278,8 @@ struct V3ManualSheet: View {
     @State private var kind = 0
     @State private var amount = ""
     @State private var place = ""
-    @State private var cat = 2
+    /// 分类一开始不选：免得什么都被记成同一类。
+    @State private var cat: Int? = nil
     @State private var incomeCat = 0
     @State private var account = 0
     @State private var from = ""
@@ -401,7 +402,7 @@ struct V3ManualSheet: View {
         let acc = accounts[account].name
         let shop = place.trimmingCharacters(in: .whitespaces)
         let c = kind == 1 ? TrialBook.incomeCategories[min(incomeCat, TrialBook.incomeCategories.count - 1)]
-                          : state.book.categories[min(cat, state.book.categories.count - 1)]
+                          : state.book.categories[min(cat ?? state.book.categories.count - 1, state.book.categories.count - 1)]   // 没选分类就记成「还没分」
         return state.change("记好了 · \(c.name) \(m.v3) · \(acc)", kind: .add) {
             try $0.record(name: c.name, emoji: c.emoji, amount: m, income: kind == 1, account: acc, place: shop,
                           tag: "自己记的", daysAgo: daysAgo, side: bookSide, note: note)
@@ -720,7 +721,7 @@ private struct V3CategorySheet: View {
         let e = state.book.entries.first { $0.id == id }
         let place = e.map { $0.place.isEmpty ? $0.name : $0.place } ?? ""
         let now = state.book.categories.firstIndex { $0.name == e?.name }
-        V3SheetBox(width: 580, title: "这笔算哪一类", sub: e.map { "\(place) · \($0.amount.v3)" } ?? "", foot: "点图标就选好，不用再点确定。", primary: "不改了",
+        V3SheetBox(width: 580, title: "这笔算哪一类", sub: e.map { "\(place) · \($0.amount.v3)" } ?? "", foot: "点图标就选好，不用再点确定。", primary: "不改了", single: true,
                    save: { state.closeSheet() }) {
             V3CatGrid(pick: now) { i in
                 let c = state.book.categories[i]
@@ -1001,7 +1002,7 @@ private struct V3ShopDaySheet: View {
                     }
                     Spacer()
                 }
-                V3FormPreview(text: total >= need ? "这天一共 · 够付这天的固定开销了" : "这天一共 · 离够付固定开销还差 \((need - total).v3Short)", amount: total.v3)
+                V3FormPreview(text: total >= need ? "这天一共 · 这天不亏了" : "这天一共 · 离不亏还差 \((need - total).v3Short)", amount: total.v3)
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     V3FormField(label: "花了多少", prompt: "0,00", text: $amount, big: true, focus: true).frame(width: 190)
@@ -1208,7 +1209,7 @@ struct V3SubscriptionInfoSheet: View {
     @Environment(V3State.self) private var state
     var body: some View {
         let x = state.book.subscriptions.first { $0.name == name }
-        V3SheetBox(width: 480, title: name, sub: x?.note ?? "", hint: "app 不能替你去退，到日子叫你。", primary: "好了", save: { state.closeSheet() },
+        V3SheetBox(width: 480, title: name, sub: x?.note ?? "", hint: "app 不能替你去退，到日子叫你。", primary: "好了", single: true, save: { state.closeSheet() },
                    extra: {
                        if let x {
                            Button(x.off ? "还是留着" : "标成要退") {

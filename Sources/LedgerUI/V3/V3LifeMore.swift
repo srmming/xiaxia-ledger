@@ -108,13 +108,13 @@ struct V3SpendingPage: View {
         let biggest = slices.map(\.amount.cents).max() ?? 1
         V3Cols(left: 1.1, right: 1) {
             VStack(spacing: 16) {
-                if now, !state.readOnly { V3Ask(face: diff >= .zero ? "happy" : "calm",
+                if now, state.canCompareSpend { V3Ask(face: diff >= .zero ? "happy" : "calm",
                       text: diff >= .zero ? "比上月同期少花 \(diff.v3Short)\(state.book.savedPhrase(diff).isEmpty ? "" : "，" + state.book.savedPhrase(diff))。" : "比上月同期多花 \(diff.magnitude.v3Short)，跟你说一声。",
                       tone: diff >= .zero ? .good : .plain) }
                 V3KeyCard(label: now ? "\(state.monthLabel)到今天花掉" : "\(state.monthLabel)花掉", amount: m.spentTotal, size: 56) {
                     HStack(spacing: 26) {
                         V3KV(value: m.fixed.v3, label: "固定要付的")
-                        V3KV(value: m.spent.v3, label: "平时花的")
+                        V3KV(value: m.spent.v3, label: "随手花的")
                     }
                 }
                 // 按分类的圆环：颜色和右边每一行一一对上，中间是这个月花掉的总数
@@ -680,22 +680,24 @@ struct V3MonthlyPage: View {
         let plan = b.journey.monthlyPlan
         return V3Cols(left: 1, right: 1.2) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "\(label)存下", amount: Money(cents: 200_00)) {
-                    V3Label("计划 200 €，做到了", size: 14, color: V3.green, weight: .bold)
+                // 这几个数都是那个月存下来的（和总览切到那个月看到的是同一份）
+                let d = b.monthData(key)
+                V3KeyCard(label: "\(label)存下", amount: d.forGoals) {
+                    V3Label("进账 \(d.income.v3Short)，花掉 \(d.spentTotal.v3Short)，最后剩下 \(d.left.v3Short)", size: 14, color: V3.ink2, weight: .bold)
                 }
                 V3Card {
-                    V3CardTitle("月底的家底")
+                    V3CardTitle("\(label)底的家底")
                     HStack(spacing: 26) {
-                        V3KV(value: "8.130\u{00A0}€", label: "有多少")
-                        V3KV(value: "2.040\u{00A0}€", label: "欠多少", color: V3.red)
-                        V3KV(value: "6.090\u{00A0}€", label: "净剩 · 比 9 月多 310 €", color: V3.gold)
+                        V3KV(value: d.have.v3Short, label: "有多少")
+                        V3KV(value: d.owe.v3Short, label: "欠多少", color: V3.red)
+                        V3KV(value: d.net.v3Short, label: b.netChange(in: key).map { "净剩 · 比 \(key.previous.month) 月\($0 >= .zero ? "多" : "少") \($0.magnitude.v3Short)" } ?? "净剩", color: V3.gold)
                     }
                 }
                 // 这个月的意外开销：大数是合计，下面每笔一行，最多 4 行
                 V3GrowCard(spacing: 4) {
-                    V3CardTitle("这个月的意外开销")
+                    V3CardTitle("\(label)的意外开销")
                     if odd.isEmpty {
-                        V3Label("这个月没有意外开销", size: 14)
+                        V3Label("\(label)没有意外开销", size: 14)
                     } else {
                         V3Amount(odd.map(\.amount).reduce(.zero, +).magnitude.v3, color: V3.navy, size: 26, weight: .heavy)
                         ForEach(Array(odd.prefix(4).enumerated()), id: \.element.id) { i, e in

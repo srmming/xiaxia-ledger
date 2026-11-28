@@ -28,7 +28,7 @@ final class LedgerBridgeTests: XCTestCase {
         }
         // 界面上生活 + 店里手里的钱，合起来 = 正式账本里不是信用卡的账户余额之和
         let held = l.accounts.filter { $0.kind != .credit }.map { sums[$0.id] ?? .zero }.reduce(.zero, +)
-        XCTAssertEqual(b.totals.have + b.shopHeld.map(\.balance).reduce(.zero, +), held, "前后合计一致")
+        XCTAssertEqual(b.inHand + b.shopHeld.map(\.balance).reduce(.zero, +), held, "前后合计一致")
     }
 
     func testOldPrivateAccountsShowByDefaultAndCanBeHidden() {
@@ -42,7 +42,7 @@ final class LedgerBridgeTests: XCTestCase {
         XCTAssertNil(off.account(hiddenName), "开关关掉：和旧界面一样不显示、不算进合计")
         XCTAssertNotNil(on.account(hiddenName))
         XCTAssertFalse(off.entries.contains { $0.account == hiddenName })
-        XCTAssertNotEqual(off.totals.have + off.shopHeld.map(\.balance).reduce(.zero, +), on.totals.have + on.shopHeld.map(\.balance).reduce(.zero, +))
+        XCTAssertNotEqual(off.inHand + off.shopHeld.map(\.balance).reduce(.zero, +), on.inHand + on.shopHeld.map(\.balance).reduce(.zero, +))
     }
 
     func testSidesMonthAndSlices() {

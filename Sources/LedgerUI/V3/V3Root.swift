@@ -494,7 +494,8 @@ private struct V3TopBar: View {
                     .buttonStyle(.v3(.ghost, .small)).help("回到设置")
             }
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
-            if V3MonthSwitch.pages.contains(state.page), !(state.page == .settings) { V3MonthSwitch() }
+            // 每月小结不放月份切换（标题已经写了是哪个月；要看别的月从总览切过去再回来）
+            if V3MonthSwitch.pages.contains(state.page), state.page != .monthly { V3MonthSwitch() }
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
             // 「问夏夏」不再放在右上角（左下角已经有夏夏那一行了，ming 2026-11-28）；⌘K 照旧打开聊天。
@@ -539,7 +540,12 @@ private struct V3TopBar: View {
     private var title: String {
         if state.page == .settings, state.showLog { return "改动记录" }
         if state.page == .settings, let sub = state.settingsSub { return sub.title }
-        if state.page == .monthly { return "每月小结" }
+        // 小结写的是哪个月，标题里直接说（停在这个月时写的是上个月：这个月还没过完）
+        if state.page == .monthly {
+            let b = state.book
+            let key = state.isThisMonth ? b.thisMonth.previous : state.monthKey
+            return "\(key.label(thisYear: b.thisMonth.year))小结"
+        }
         return state.page.title
     }
 

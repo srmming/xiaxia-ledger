@@ -13,14 +13,15 @@ final class V3StateTests: XCTestCase {
     func testDemoNumbersMatchTheDesign() {
         let s = V3State()
         XCTAssertEqual(s.book.month.left, eur("976,61"))
-        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "生活的「一共有」不含店里的钱")
+        XCTAssertEqual(s.book.totals.have, eur("4815,61"), "生活的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"))
-        XCTAssertEqual(s.book.totals.net, eur("2855,61"))
+        XCTAssertEqual(s.book.totals.net, eur("2975,61"))
         XCTAssertEqual(s.book.journey.remainingToNext, eur("181"))
         XCTAssertEqual(s.book.runway.monthsText, "2,8")
-        // 三块加起来就是「一共有」；店里的钱、私房钱、借出去的不算
-        let blocks = s.book.sum(.daily) + s.book.sum(.emergency) + s.book.sum(.goal) + s.book.sum(.shop)
-        XCTAssertEqual(blocks, s.book.totals.have)
+        // 几块加起来就是「一共有」；店里的钱不算
+        XCTAssertEqual(s.book.wealthBlocks.map(\.amount).reduce(.zero, +), s.book.totals.have)
+        XCTAssertEqual(s.book.wealthBlocks.first { $0.name == "日常能用" }?.amount, eur("1581,61"), "日常能用 = 日常卡 + 现金，不含储蓄的 2.400")
+        XCTAssertEqual(s.book.wealthBlocks.map(\.name), ["存在目标里", "存着不动", "日常能用", "借出去的"])
     }
 
     func testFixedCostsAccountDayAndRises() {
@@ -201,7 +202,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.monthLabel, "10 月")
         s.page = .spending; XCTAssertEqual(s.monthKey, .init(2026, 10), "换页还是同一个月")
         XCTAssertEqual(s.monthData.spentTotal, eur("1504,40"))
-        XCTAssertEqual(s.monthData.sliceTotal, eur("1464,40"))
+        XCTAssertEqual(s.monthData.sliceTotal, eur("1504,40"))
         XCTAssertEqual(s.monthData.left, eur("635,60"))
         XCTAssertNotEqual(s.monthData.topSlices().map(\.name), s.book.spendSlices().map(\.name), "圆环和单子是那个月的")
         s.setMonth(.init(2027, 3)); XCTAssertTrue(s.isThisMonth, "还没到的月份选不了")
@@ -361,6 +362,124 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.real, snapshot)
     }
 
+    // MARK: 检查报告里的数（每个数只有一处算法，记一笔后一起变）
+
+    /// 这个月花掉 = 固定要付的 + 平时花的 = 圆环各段加起来。任何时候都得成立。
+    private func assertSpendingAgrees(_ s: V3State, _ note: String, line: UInt = #line) {
+        XCTAssertEqual(s.book.spendSliceTotal, s.book.month.spentTotal, "花销页：大数和圆环、分类对不上 · \(note)", line: line)
+        XCTAssertEqual(s.monthData.spentTotal, s.book.month.spentTotal, "按月取的数和总览的不是一个 · \(note)", line: line)
+        XCTAssertEqual(s.monthData.sliceTotal, s.monthData.spentTotal, line: line)
+        XCTAssertEqual(s.book.month.left, s.book.month.income - s.book.month.spentTotal - s.book.month.forGoals, line: line)
+    }
+
+    func testSpendingPageAgreesWithItselfAfterEveryChange() {
+        let s = V3State()
+        assertSpendingAgrees(s, "一开始")
+        let total = s.book.month.spentTotal, left = s.book.month.left
+        // 记两笔：大数、圆环、那一类都跟着变
+        XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("100"), account: "日常卡", place: "Bar Luna") })
+        XCTAssertTrue(s.change("记") { try $0.record(name: "宠物", emoji: "🐾", amount: self.eur("650"), account: "日常卡", place: "宠物医院") })
+        XCTAssertEqual(s.book.month.spentTotal, total + eur("750"))
+        XCTAssertEqual(s.book.month.left, left - eur("750"))
+        XCTAssertEqual(s.book.spendSlices().first { $0.name == "餐饮" }?.amount, eur("168,40"))
+        XCTAssertEqual(s.book.spendSlices().first { $0.name == "宠物" }?.amount, eur("650"), "新的一类自己出现在圆环里")
+        assertSpendingAgrees(s, "记两笔后")
+        // 删一笔原来就有的超市：圆环也少
+        let market = s.book.entries.first { $0.name == "超市" && $0.daysAgo == 0 }!
+        XCTAssertTrue(s.change("删") { _ = try $0.delete(entry: market.id) })
+        XCTAssertEqual(s.book.spendSlices().first { $0.name == "超市" }?.amount, eur("142,19") + market.amount)
+        assertSpendingAgrees(s, "删一笔后")
+        // 改分类、改金额、撤销
+        let bar = s.book.entries.first { $0.place == "Bar Luna" }!
+        XCTAssertTrue(s.change("改") { try $0.recategorize(entry: bar.id, emoji: "☕", name: "咖啡", always: false) })
+        XCTAssertEqual(s.book.spendSlices().first { $0.name == "餐饮" }?.amount, eur("68,40"))
+        assertSpendingAgrees(s, "改分类后")
+        XCTAssertTrue(s.change("改") { try $0.setAmount(entry: bar.id, to: self.eur("40")) })
+        assertSpendingAgrees(s, "改金额后")
+        s.undo(); s.undo(); s.undo(); s.undo(); s.undo()
+        XCTAssertEqual(s.book.month.spentTotal, total)
+        assertSpendingAgrees(s, "全撤销后")
+        // 记到上个月的那一笔：不算进这个月
+        XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("30"), account: "日常卡", daysAgo: 25) })
+        XCTAssertEqual(s.book.month.spentTotal, total)
+        assertSpendingAgrees(s, "记到上个月后")
+        // 过去的月份：总数和分类也对得上
+        for k in s.book.months { XCTAssertEqual(s.book.monthData(k).sliceTotal, s.book.monthData(k).spentTotal, "\(k.month) 月") }
+    }
+
+    func testFixedCostsAreNotChargedTwice() {
+        let s = V3State()
+        let left = s.book.month.left, total = s.book.month.spentTotal
+        XCTAssertEqual(s.book.fixedPlan.values.reduce(.zero, +), s.book.month.fixed, "固定要付的 892 就是这几样加起来")
+        // 手记房租 650：固定开销里已经算过，「还能随便花」不动；账户里的钱照样少
+        let card = s.book.account("日常卡")!.balance
+        XCTAssertTrue(s.change("记") { try $0.record(name: "房租", emoji: "🏠", amount: self.eur("650"), account: "日常卡") })
+        XCTAssertEqual(s.book.month.left, left, "不扣第二遍")
+        XCTAssertEqual(s.book.month.spentTotal, total)
+        XCTAssertEqual(s.book.account("日常卡")?.balance, card - eur("650"))
+        XCTAssertEqual(s.book.fixedPaid["房租"], eur("650"))
+        assertSpendingAgrees(s, "手记房租后")
+        // 房租涨了，再交 50：多出来的才算平时花的
+        XCTAssertTrue(s.change("记") { try $0.record(name: "房租", emoji: "🏠", amount: self.eur("50"), account: "日常卡") })
+        XCTAssertEqual(s.book.month.left, left - eur("50"))
+        assertSpendingAgrees(s, "多交 50 后")
+        // 订阅同理：计划 42，记 9,99 不动；删掉房租那笔，也不会多退
+        XCTAssertTrue(s.change("记") { try $0.record(name: "订阅", emoji: "🔁", amount: self.eur("9,99"), account: "日常卡") })
+        XCTAssertEqual(s.book.month.left, left - eur("50"))
+        let rent = s.book.entries.first { $0.name == "房租" && $0.amount == -self.eur("650") }!
+        XCTAssertTrue(s.change("删") { _ = try $0.delete(entry: rent.id) })
+        XCTAssertEqual(s.book.month.left, left - eur("50"))
+        XCTAssertEqual(s.book.fixedPaid["房租"], .zero)
+        assertSpendingAgrees(s, "删掉房租那笔后")
+    }
+
+    func testShopNumbersHaveOneAlgorithmAndFollowTheBooks() {
+        let s = V3State()
+        let m = s.book.shopMonth()
+        XCTAssertEqual(m.income, eur("2881")); XCTAssertEqual(m.costs, eur("1124,50")); XCTAssertEqual(m.purchases, eur("460")); XCTAssertEqual(m.loanPaid, eur("350"))
+        XCTAssertEqual(m.earned, eur("1756,50"), "真正赚了 = 收的 − 开销")
+        XCTAssertEqual(m.cashChange, eur("946,50"), "手里实际多了 = 真正赚了 − 进的货 − 还的贷款")
+        XCTAssertEqual(m.income, s.book.shopFlowIn); XCTAssertEqual(m.out, s.book.shopFlowOut, "和流水页是同一份")
+        XCTAssertEqual(s.monthData.shopIn, m.income)
+        XCTAssertEqual(s.book.shopPer100.map(\.euros).reduce(0, +), 100)
+        XCTAssertEqual(s.book.purchasesThisMonth.map(\.amount).reduce(.zero, +), -eur("460"), "货值页和流水是同一份：鲜花 340 + 绿植 120")
+        // 一天收多少不亏：固定 1.790 + 贷款 350 + 进货 460，除以打算开门的 25 天（周日休息不算）
+        XCTAssertEqual(s.book.plannedOpenDays, 25)
+        XCTAssertEqual(s.book.dailyBreakEven, eur("104"))
+        // 店一共欠：贷款 8.400 + 店的信用卡 180 + 赊着的 320
+        XCTAssertEqual(s.book.shopOwesTotal, eur("8900")); XCTAssertEqual(s.book.shopOwesTotal, s.book.shopWorth.owes)
+        XCTAssertEqual(s.book.shopDueNext, eur("850"), "贷款月供 350 + 信用卡 180 + 赊着的 320")
+        let back = s.book.shopBack, months = s.book.paybackMonths()!
+        // 记收 2.000、进货 900：首页、回本、体检、不亏线都跟着变
+        XCTAssertTrue(s.change("记") { try $0.recordShopDay(18, channels: [.init("小店账户", self.eur("2000"))]) })
+        XCTAssertTrue(s.change("进") { try $0.recordShopExpense(name: "年底备货", amount: self.eur("900"), category: "进货", account: "小店账户") })
+        let n = s.book.shopMonth()
+        XCTAssertEqual(n.income, eur("4881")); XCTAssertEqual(n.earned, eur("3756,50")); XCTAssertEqual(n.purchases, eur("1360"))
+        XCTAssertEqual(n.cashChange, eur("2046,50"))
+        XCTAssertEqual(s.book.shopBack, back + eur("2000")); XCTAssertLessThan(s.book.paybackMonths()!, months)
+        XCTAssertEqual(s.book.dailyBreakEven, eur("140"), "(1.790 + 350 + 1.360) ÷ 25")
+        XCTAssertEqual(s.book.shopPer100.map(\.euros).reduce(0, +), 100)
+        // 记一笔开销（不是进货）：真正赚了少这么多
+        XCTAssertTrue(s.change("记") { try $0.recordShopExpense(name: "修门", amount: self.eur("56,50"), category: "维修", account: "店里现金") })
+        XCTAssertEqual(s.book.shopMonth().earned, eur("3700"))
+        // 周日休息：一周里那天的平均是 0
+        XCTAssertEqual(s.book.shopWeekdayAverages.count, 7); XCTAssertEqual(s.book.shopWeekdayAverages[6], .zero)
+    }
+
+    func testMonthComparisonsComeFromStoredMonths() {
+        let s = V3State()
+        XCTAssertEqual(s.book.netMoreThanLastMonth, eur("490"), "净剩 2.975,61 − 10 月底 2.485,61")
+        XCTAssertEqual(s.book.spentLessThanLastMonthSameDay, eur("86"), "10 月花到 18 号是 1.249,39")
+        let oct = s.book.monthData(.init(2026, 10))
+        XCTAssertEqual(oct.have - oct.owe, oct.net, "月底净剩 = 有 − 欠")
+        XCTAssertEqual(s.book.netChange(in: .init(2026, 10)), eur("385,41"))
+        XCTAssertEqual(oct.left, eur("635,60"), "总览切到 10 月和小结用的是同一份")
+        // 记一笔以后，「比上月同期」跟着变
+        XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("86"), account: "日常卡") })
+        XCTAssertEqual(s.book.spentLessThanLastMonthSameDay, .zero)
+        XCTAssertEqual(s.book.netMoreThanLastMonth, eur("404"))
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
@@ -420,9 +539,9 @@ final class V3StateTests: XCTestCase {
         let s = V3State()
         s.addAccount(emoji: "🤝", name: "跟朋友借的", note: "欠的钱", balance: eur("300"), kind: .debt)
         XCTAssertEqual(s.book.totals.owe, eur("2140"))
-        XCTAssertEqual(s.book.totals.net, eur("2555,61"))
+        XCTAssertEqual(s.book.totals.net, eur("2675,61"))
         s.addAccount(emoji: "🧑", name: "借给小王", note: "别人欠我", balance: eur("50"), kind: .lent)
-        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "借出去的收回来之前不算进一共有")
+        XCTAssertEqual(s.book.totals.have, eur("4865,61"), "借出去的也是自己的钱：再借出 50，一共有多 50")
     }
 
     func testOnboardingStepsGoStraightIn() {
@@ -773,7 +892,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(w.owes, eur("8900"), "贷款 8.400 + 信用卡 180 + 欠供货商 320")
         XCTAssertEqual(w.net, eur("-2295,61"))
         XCTAssertEqual(w.monthsText, "2,2")
-        XCTAssertEqual(s.book.totals.have, eur("4695,61"), "生活家底的「一共有」不含店里的钱")
+        XCTAssertEqual(s.book.totals.have, eur("4815,61"), "生活家底的「一共有」不含店里的钱")
         XCTAssertEqual(s.book.totals.owe, eur("1840"), "店里欠的不算进生活的欠款")
         // 店里新加一张卡：家底、记账选账户、两边转钱都看得到
         XCTAssertTrue(s.change("加好了") { try $0.addShopAccount(emoji: "🏪", name: "店的第二张卡", balance: self.eur("500"), owes: false) })
