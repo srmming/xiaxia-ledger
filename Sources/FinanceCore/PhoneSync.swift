@@ -223,6 +223,14 @@ extension Ledger {
         n.memories = take("memories", old.memories, memories, key: \.id, name: \.uuidString)
         n.captures = take("captures", old.captures, captures, key: \.id, name: \.uuidString)
         n.paperwork = take("paperwork", old.paperwork, paperwork, key: \.id, name: \.uuidString)
+        // 旧界面记的客人欠款
+        n.receivables = take("receivables", old.receivables, receivables, key: \.id, name: \.uuidString)
+        // 生意设置（开没开生意、管哪边、本钱、估的货值、休息日、收款方式、账户算哪边）：整份带上，附原值，收的那边按字段合并
+        if business != old.business {
+            n.changedBusiness = true
+            n.business = business
+            if let was = old.business { originals["meta", default: [:]]["business"] = try? FieldMerge.encode(was) }
+        }
         if profile != old.profile {
             n.profile = profile
             originals["meta", default: [:]]["profile"] = try? FieldMerge.encode(old.profile)
@@ -353,7 +361,18 @@ extension Ledger {
         merger.rows(&paperwork, note.paperwork, "paperwork", key: \.id, name: \.uuidString)
         merger.rows(&receivables, note.receivables, "receivables", key: \.id, name: \.uuidString)
         if note.changedBusiness == true && business != note.business {
-            merger.conflicts.append(.init(table: "meta", rowID: "business", fields: ["生意设置"], phoneValue: try? FieldMerge.encode(note.business)))
+            let offered = try? FieldMerge.encode(note.business)
+            if let proposed = note.business, var mine = business {
+                // 两边都有：按字段合并（手机只改了「管哪边」，电脑改了本钱，两个都留）；同一项都改了，留电脑的，记一条冲突
+                merger.setting(&mine, proposed, "business")
+                if mine != business { business = mine }
+            } else if let proposed = note.business, note.originalRows?["meta"]?["business"] == nil {
+                // 电脑上还没有生意设置，手机那边原来也没有：手机新开的，直接收下
+                business = proposed
+            } else {
+                merger.conflicts.append(.init(table: "meta", rowID: "business", fields: ["生意设置"], phoneValue: offered))
+            }
+            if business != nil || !receivables.isEmpty { minReaderVersion = max(minReaderVersion, 2) }
         }
         merger.setting(&profile, note.profile, "profile")
         merger.setting(&currency, note.currency, "currency")
@@ -632,9 +651,6 @@ public final class PhoneSyncStore: LedgerStore, @unchecked Sendable {
             let current = try readCurrent()
             try current.checkBusinessVersion()
             try ledger.revision.check(ledgerURL, current: current.contentDigest())
-            guard ledger.business == current.business, ledger.receivables == current.receivables else {
-                throw BusinessError(message: "生意设置和应收请在 Mac 上修改")
-            }
             guard let note = ledger.syncNote(since: current, device: device) else { return }
             var next = current
             next.apply(note)
