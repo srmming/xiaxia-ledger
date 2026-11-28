@@ -302,7 +302,7 @@ struct V3SettingsPage: View {
                     V3SetLink(title: "\(state.prefs.xiaName)什么时候开口", sub: "提醒、小结、到站的信", value: speakOn == V3SetSpeakPage.items.count ? "\(speakOn) 样都开着" : "开着 \(speakOn) 样") { state.openSettings(.speak) }
                 }
                 V3SetGroup(title: "这台 Mac", grow: true) {
-                    V3SetLink(title: "隐私与语言", sub: "私房钱、界面语言", value: "私房钱\(state.secretPinned ? "显示着" : "藏着") · \(V3SetPrivacyPage.languages[state.prefs.language])", line: false) { state.openSettings(.privacy) }
+                    V3SetLink(title: "隐私与语言", sub: "私房钱、上锁、界面语言", value: "\(state.lockPolicy.enabled ? "上着锁" : "没上锁") · \(V3SetPrivacyPage.languages[state.prefs.language])", line: false) { state.openSettings(.privacy) }
                     V3SetLink(title: "记账人", sub: "改动记录里用这个名字", value: state.author) { state.openSettings(.author) }
                 }
             }
@@ -603,6 +603,16 @@ private struct V3SetPrivacyPage: View {
         V3SetColumn {
             V3SetGroup(title: "隐私", note: "AI 给别人看的小结里，也不会提私房钱。", grow: true) {
                 V3SetRow(title: "一直显示私房钱", sub: "关着时家底页点一下才显示，3 秒后自己藏回去", line: false) { V3Switch(on: $s.secretPinned, label: "一直显示私房钱") }
+            }
+            V3SetGroup(title: "上锁", note: "解锁用这台 Mac 的指纹或登录密码，夏夏账本自己不存密码。") {
+                V3SetRow(title: "打开 app 时要解锁", line: false) {
+                    V3Switch(on: Binding(get: { state.lockPolicy.enabled }, set: { v in Task { await state.setLock(enabled: v) } }), label: "打开 app 时要解锁")
+                }
+                V3SetRow(title: "离开多久后再锁") {
+                    V3SetMenu(options: AppLockPolicy.graceChoices.map(\.title),
+                              pick: Binding(get: { AppLockPolicy.graceChoices.firstIndex { $0.seconds == state.lockPolicy.grace } ?? 2 },
+                                            set: { state.setLock(grace: AppLockPolicy.graceChoices[$0].seconds) }))
+                }
             }
             V3SetGroup(title: "语言", note: "试用版只有中文。英文和西班牙语还在翻译，选了以后没翻到的地方先显示中文。", grow: true) {
                 V3SetRow(title: "界面语言", line: false) {

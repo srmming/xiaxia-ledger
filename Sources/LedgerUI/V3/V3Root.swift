@@ -87,6 +87,7 @@ public struct V3RootView: View {
     public init() {
         let s = V3State()
         V3Launch.apply(to: s)
+        s.lockIfNeeded(.launch)
         _state = State(initialValue: s)
     }
 
@@ -96,20 +97,24 @@ public struct V3RootView: View {
             let s = min(g.size.width / V3.design.width, g.size.height / V3.design.height, 1)
             let canvas = CGSize(width: g.size.width / max(s, 0.01), height: g.size.height / max(s, 0.01))
             ZStack {
-                if state.onboardingStep != nil {
+                // 锁着的时候只画锁屏，后面的页面、小窗、消息卡都不画
+                if state.locked {
+                    V3LockScreen()
+                } else if state.onboardingStep != nil {
                     V3Onboarding().environment(\.v3InlineXia, true).transition(.opacity)
                 } else {
                     V3Shell().transition(.opacity)
                 }
-                V3MomentLayer().environment(\.v3InlineXia, true)
+                if !state.locked { V3MomentLayer().environment(\.v3InlineXia, true) }
             }
             .frame(width: canvas.width, height: canvas.height)
-            .overlay(alignment: .bottom) { V3ToastHost() }
+            .overlay(alignment: .bottom) { if !state.locked { V3ToastHost() } }
             .scaleEffect(s, anchor: .topLeading)
             .frame(width: g.size.width, height: g.size.height, alignment: .topLeading)
         }
         .background(V3.bg)
         .ignoresSafeArea(.container, edges: V3Launch.overTitleBar ? .all : [])
+        .modifier(V3LockWatcher())
         .environment(state)
         .preferredColorScheme(.light)
         .background(V3WindowSetup())
@@ -477,6 +482,8 @@ private struct V3TopBar: View {
                     .buttonStyle(.v3(state.side == .biz ? .teal : .primary))
                     .keyboardShortcut("n", modifiers: [.command, .shift]).help("\(main.title)（⇧⌘N）")
             }
+            // ⌘L：立即上锁
+            Button("") { state.lockNow() }.keyboardShortcut("l", modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
             // ⌘N 在哪一页都是记一笔
             Button("") { state.quickAdd() }.keyboardShortcut("n", modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
         }

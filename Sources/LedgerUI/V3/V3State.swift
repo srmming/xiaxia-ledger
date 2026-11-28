@@ -142,6 +142,12 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 上锁：规则、现在锁没锁、谁来验证。
+    var lockPolicy = V3State.savedLockPolicy()
+    var locked = false
+    var unlocking = false
+    var awaySince: Date?
+    var authenticator: V3Authenticator = V3State.defaultAuthenticator()
     /// 「存一笔」小窗先选中哪个小目标（nil = 大目标）。
     var saveTarget: UUID?
     /// 正在导入的那份流水读到第几笔了（没在导入是 nil）。

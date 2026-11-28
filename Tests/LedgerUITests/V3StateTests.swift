@@ -434,6 +434,41 @@ final class V3StateTests: XCTestCase {
         XCTAssertNotNil(s.book.account("店的第二张卡"))
     }
 
+    /// 用假的验证器，不弹系统的框。
+    func testLockTurnsOnLocksAndUnlocks() async {
+        let s = V3State()
+        XCTAssertFalse(s.lockPolicy.enabled, "默认不上锁")
+        s.lockIfNeeded(.launch)
+        XCTAssertFalse(s.locked)
+        // 验证没过：开关不变
+        s.authenticator = V3FakeAuthenticator(ok: false)
+        let refused = await s.setLock(enabled: true)
+        XCTAssertFalse(refused)
+        XCTAssertFalse(s.lockPolicy.enabled)
+        s.authenticator = V3FakeAuthenticator(ok: true)
+        let turnedOn = await s.setLock(enabled: true)
+        XCTAssertTrue(turnedOn)
+        s.setLock(grace: 60)
+        // 启动就锁；锁上时小窗、聊天都收起来
+        s.showAdd = true; s.chatOpen = true
+        s.lockIfNeeded(.launch)
+        XCTAssertTrue(s.locked)
+        XCTAssertFalse(s.showAdd)
+        XCTAssertFalse(s.chatOpen)
+        // 验证失败或取消：停在锁屏
+        s.authenticator = V3FakeAuthenticator(ok: false)
+        await s.unlock()
+        XCTAssertTrue(s.locked)
+        s.authenticator = V3FakeAuthenticator(ok: true)
+        await s.unlock()
+        XCTAssertFalse(s.locked)
+        // 离开不到 1 分钟不锁，超过才锁
+        s.awaySince = Date().addingTimeInterval(-20); s.appCameBack()
+        XCTAssertFalse(s.locked)
+        s.awaySince = Date().addingTimeInterval(-90); s.appCameBack()
+        XCTAssertTrue(s.locked)
+    }
+
     func testGoingToBizSwitchesSide() {
         let s = V3State()
         s.go(.payback)

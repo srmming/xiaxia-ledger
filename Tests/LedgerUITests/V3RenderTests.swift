@@ -76,6 +76,9 @@ final class V3RenderTests: XCTestCase {
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }
         try shell("biz-home-wealth-card") { $0.side = .biz; $0.page = .bizHome }
         try shell("sheet-shop-account") { $0.side = .biz; $0.page = .shopWealth; $0.sheet = .shopAccount }
+        let lockedState = V3State(); lockedState.onboardingStep = nil; lockedState.locked = true
+        try write(V3LockScreen().environment(lockedState), "lock-screen", to: dir)
+        try shell("set-lock") { $0.page = .settings; $0.settingsSub = .privacy }
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }
