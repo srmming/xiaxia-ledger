@@ -37,3 +37,44 @@ final class ReceivableSyncTests: XCTestCase {
         XCTAssertFalse(mac.receivables.contains { $0.id == id })
     }
 }
+
+/// 手机上的改动要真的传到 Mac（0829a78 以后）：客人欠款、管哪边。
+final class PhoneToMacSyncTests: XCTestCase {
+    private let today = LocalDate(year: 2026, month: 11, day: 28)
+
+    func testPhoneReceivableEditReachesMac() throws {
+        var b = DemoData.make(endingOn: today)
+        b.receivables.append(Receivable(name: "测试客人", amount: Money(cents: 50_00)))
+        var phone = b, mac = b
+        let i = phone.receivables.count - 1
+        phone.receivables[i].amount = Money(cents: 80_00)
+        let note = try XCTUnwrap(phone.syncNote(since: b, device: "iPhone"))
+        XCTAssertNotNil(note.receivables)
+        mac.apply(note)
+        XCTAssertEqual(mac.receivables.last?.amount, Money(cents: 80_00))
+    }
+
+    func testPhoneManagedSidesReachesMac() throws {
+        let b = DemoData.make(endingOn: today)
+        var phone = b, mac = b
+        try phone.setManagedSides(.life, author: "手机")
+        let note = try XCTUnwrap(phone.syncNote(since: b, device: "iPhone"))
+        mac.apply(note)
+        XCTAssertEqual(mac.managedSides, .life)
+    }
+
+    /// Mac 同时改了生意的别的设置：按字段合并，两边的都留下。
+    func testManagedSidesMergesWithMacBusinessEdit() throws {
+        let b = DemoData.make(endingOn: today)
+        var phone = b, mac = b
+        try phone.setManagedSides(.life, author: "手机")
+        let note = try XCTUnwrap(phone.syncNote(since: b, device: "iPhone"))
+        var s = try XCTUnwrap(mac.business)
+        let rest = LocalDate(year: 2026, month: 11, day: 29)
+        s.restDays = (s.restDays ?? []) + [rest]
+        mac.business = s
+        mac.apply(note)
+        XCTAssertEqual(mac.managedSides, .life)
+        XCTAssertTrue(mac.business?.restDays?.contains(rest) == true)
+    }
+}
