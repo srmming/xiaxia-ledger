@@ -653,6 +653,10 @@ final class V3StateTests: XCTestCase {
         let shopBook = real.businessBook!.id
         let todays = real.transactions.filter { $0.bookID == shopBook && $0.date == day && $0.amount > .zero }.map(\.id)
         if !todays.isEmpty { try real.removeTransactions(todays, author: "测试") }
+        // 10 号多一笔从银行流水导进来的收入（不是「每天记账」记的）
+        let shopAccount = real.transactions.first { $0.bookID == shopBook && $0.amount > .zero }!.accountID
+        try real.addTransaction(Transaction(date: LocalDate(year: 2026, month: 11, day: 10), amount: Money(cents: 45_00), description: "转账收款",
+                                            accountID: shopAccount, bookID: shopBook, category: "营业收入", source: "晴空银行.csv"), author: "测试")
         let s = V3State(snapshotOf: real, today: day, writable: true)
         s.author = "小满"
         XCTAssertTrue(s.book.showBiz)
@@ -668,6 +672,20 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("186"))
         XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("186"))
         XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        // 改已经记过的那天：旧的那笔删掉、照新的数再记，笔数不变；撤销一次就回到改之前
+        XCTAssertTrue(s.change("改") { try $0.recordShopDay(18, channels: [.init(acc, self.eur("200"))]) })
+        XCTAssertEqual(s.real?.transactions.count, n + 1)
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("200"))
+        XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("200"))
+        XCTAssertEqual(s.book.shopFlow.filter { $0.day == 18 && $0.amount > .zero }.map(\.amount), [eur("200")], "那天只有一行")
+        s.undo()
+        XCTAssertEqual(s.real?.transactions.count, n + 1)
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("186"))
+        XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("186"))
+        // 那天要是有别处来的收入（不是「每天记账」记的）：分不清改哪笔，拒绝，账本不动
+        let keep = s.real
+        XCTAssertFalse(s.change("改") { try $0.recordShopDay(10, channels: [.init(acc, self.eur("1"))]) })
+        XCTAssertTrue(s.real == keep)
         // 店里的开销、进货：都是生意账本里的一笔流水
         XCTAssertTrue(s.change("记") { try $0.recordShopExpense(name: "胶带", amount: self.eur("12"), category: "包装耗材", account: acc) })
         XCTAssertEqual(s.real?.transactions.last?.bookID, shopBook); XCTAssertEqual(s.real?.transactions.last?.category, "包装耗材")
@@ -681,11 +699,10 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(s.change("转") { try $0.transferBetweenSides(self.eur("100"), toHome: true, shopAccount: acc, homeAccount: home) })
         XCTAssertEqual(s.book.account(home)?.balance, homeBal + eur("100"))
         XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("54"))
-        // 还没接的：改已经记过的那天 → 拒绝，账本不动
+        // 还没接的：把一天标成休息 → 拒绝，账本不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("改") { try $0.recordShopDay(18, channels: [.init(acc, self.eur("200"))]) })
-        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
-        XCTAssertEqual(s.real, snapshot)
+        XCTAssertFalse(s.change("休息") { try $0.markShopRest(18) })
+        XCTAssertTrue(s.real == snapshot)
         // 撤销到底
         for _ in 0..<4 { s.undo() }
         XCTAssertEqual(s.real?.transactions.count, n)
