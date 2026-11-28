@@ -194,8 +194,8 @@ struct P3BizHome: View {
         VStack(alignment: .leading, spacing: 2) {
             let rows = b.shopFlow(in: state.monthKey)
             P3SectionTitle(title: now ? "最近" : "\(state.monthTitle)的流水", trail: "全部 ›")
-            if rows.isEmpty && (sm.income > .zero || sm.out > .zero) {
-                Text("那个月只有合计（收进来 \(sm.income.p3Short)，开销 \(sm.out.p3Short)），没有一笔一笔的记录").font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 12)
+            if rows.isEmpty, let line = b.shopFlowTotalsLine(in: state.monthKey) {
+                Text(line).font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 12)
             } else if rows.isEmpty { Text("那个月没有记录").font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 12) }
             ForEach(Array(rows.prefix(4).enumerated()), id: \.element.id) { i, r in
                 if i > 0 { P3Divider().padding(.leading, 48) }

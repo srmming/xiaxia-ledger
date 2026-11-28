@@ -76,7 +76,7 @@ struct P3FlowPage: View {
             if list.isEmpty {
                 VStack(spacing: 10) {
                     P3.face("think").resizable().scaledToFit().frame(width: 80).blendMode(.multiply)
-                    Text(!state.isThisMonth ? "\(state.monthTitle)还没有记录" : query.isEmpty ? "这个月还没有记录" : "没找到「\(query)」")
+                    Text(state.side == .biz ? (state.book.shopFlowTotalsLine(in: state.monthKey) ?? (!state.isThisMonth ? "\(state.monthTitle)还没有记录" : "这个月还没有记录")) : !state.isThisMonth ? "\(state.monthTitle)还没有记录" : query.isEmpty ? "这个月还没有记录" : "没找到「\(query)」")
                         .font(P3.font(15, .bold)).foregroundStyle(P3.ink2)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

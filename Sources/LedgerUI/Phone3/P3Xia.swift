@@ -8,9 +8,8 @@ import SwiftUI
 
 struct P3Chat {
     enum Action: Equatable {
-        case spend(QuickPhrase, from: String)
-        case income(QuickPhrase, to: String)
-        case repay(debt: String, amount: Money, from: String)
+        /// 听懂的一句（花了、收了、还款、转账、借出、别人还我），记的时候交给 TrialBook.record(_:account:)，和 Mac 同一处
+        case phrase(QuickPhrase, account: String)
     }
 
     struct Msg: Identifiable {
@@ -66,7 +65,7 @@ extension P3State {
         } else if let answer = localAnswer(text) {
             reply = .init(who: .xia, text: answer)
         } else if let q = QuickPhrase.parse(text) {
-            reply = understand(text, q)
+            reply = understand(q)
         } else if ai.hasKey {
             // 不是记账、不是问要不要买：问 OpenRouter（只带 app 算好的几个数）
             Task { @MainActor in
@@ -85,28 +84,37 @@ extension P3State {
         }
     }
 
-    /// 听懂一句带钱数的话：是花了、收了、还是还款。还款和收入不算花销。
-    private func understand(_ text: String, _ q: QuickPhrase) -> P3Chat.Msg {
-        let biz = side == .biz
+    /// 听懂一句带钱数的话：是哪一种由共用的 QuickPhrase 认（和 Mac 一样），这里只挑默认账户、问一句。
+    private func understand(_ said: QuickPhrase) -> P3Chat.Msg {
+        var q = said
+        if side == .biz { q.shop = true }
         let b = book
-        let repayWords = ["还信用卡", "还款", "还贷", "还分期", "还钱", "还了"]
-        if repayWords.contains(where: text.contains) || (text.hasPrefix("还") && b.accounts.contains { $0.kind == .debt && text.contains($0.name) }) {
-            let debts = b.accounts.filter { $0.kind == .debt && $0.side == (biz ? .biz : .life) }
-            let debt = debts.first { text.contains($0.name) } ?? debts.first { text.contains("信用卡") && $0.name.contains("信用卡") } ?? debts.first
-            if let debt, let from = b.transferSources(debt.side).first?.name {
-                return .init(who: .xia, text: "还款不算花销。从\(from)还\(debt.name) \(q.amount.p3)？", action: .repay(debt: debt.name, amount: q.amount, from: from))
-            }
-            return .init(who: .xia, text: "没找到要还的欠款。去「我的 › 欠款」里点那一笔还。")
+        let shop = q.shop && b.showBiz
+        let pay = shop ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .pay, side: .life).first?.name ?? "日常卡")
+        let receive = shop ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .receive, side: .life).first?.name ?? "日常卡")
+        let text: String
+        let account: String
+        switch q.kind {
+        case .spend:
+            account = pay
+            text = shop ? "记一笔店里的开销：\(q.name) \(q.amount.p3)，从\(pay)出？" : "记一笔\(q.name) \(q.amount.p3)，从\(pay)出？"
+        case .income:
+            account = receive
+            text = shop ? "记一笔店里收的 \(q.amount.p3)，进到\(receive)？" : "记一笔收入 \(q.amount.p3)（\(q.name)），进到\(receive)？"
+        case .repay(let to):
+            account = pay
+            text = "还款不算花销。从\(pay)还\(to.isEmpty ? "" : to) \(q.amount.p3)？"
+        case .transfer(let to):
+            account = pay
+            text = "自己账户之间挪，不算花销。从\(pay)转 \(q.amount.p3) 到\(to)？"
+        case .lend(let to):
+            account = pay
+            text = "借出去的不算花销。从\(pay)借给\(to) \(q.amount.p3)？"
+        case .repaidToMe(let from):
+            account = receive
+            text = "别人还你的不算收入。\(from)还的 \(q.amount.p3) 进到\(receive)？"
         }
-        let incomeWords = ["收了", "收到", "收入", "进账", "赚了", "工资", "营业额", "卖了"]
-        if incomeWords.contains(where: text.contains) {
-            let to = biz ? (b.shopHeld.first?.name ?? "") : (b.accounts(for: .receive, side: .life).first?.name ?? "")
-            let name = biz ? "营业额" : (text.contains("工资") ? "工资" : "收入")
-            let q2 = QuickPhrase(name: name, emoji: biz ? "💶" : "💼", amount: q.amount)
-            return .init(who: .xia, text: biz ? "记一笔店里今天收的 \(q.amount.p3)，进到\(to)？" : "记一笔收入\(name) \(q.amount.p3)，进到\(to)？", action: .income(q2, to: to))
-        }
-        let from = biz ? (b.accounts(for: .pay, side: .biz).first?.name ?? "") : (b.accounts(for: .pay, side: .life).first?.name ?? "日常卡")
-        return .init(who: .xia, text: biz ? "记一笔店里的开销：\(q.name) \(q.amount.p3)，从\(from)出？" : "记一笔\(q.name) \(q.amount.p3)，从\(from)出？", action: .spend(q, from: from))
+        return .init(who: .xia, text: text, action: .phrase(q, account: account))
     }
 
     /// 不用 AI 也答得上的：这个月还能花多少、花了多少、家底多少。数都是 app 自己算的。
@@ -131,25 +139,21 @@ extension P3State {
         return nil
     }
 
-    /// 点了「记下」：照听懂的那一下写进账本。
+    /// 点了「记下」：照听懂的那一下写进账本（先在一份副本上试一下，拿到要说的那句话，也先知道记不记得上）。
     func chatDo(_ a: P3Chat.Action) -> Bool {
-        switch a {
-        case .spend(let q, let from):
-            let biz = side == .biz
-            return change("记好了 · \(q.name) \(q.amount.p3) · \(from)", kind: .add) {
-                if biz { _ = try $0.recordShopExpense(name: q.name, amount: q.amount, category: "其他", account: from) }
-                else { try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: from, tag: "跟夏夏说的") }
-            }
-        case .income(let q, let to):
-            if side == .biz {
-                return change("记好了 · 收进 \(q.amount.p3) · \(to)", kind: .add) { try $0.addShopIncome(q.amount, account: to, daysAgo: 0) }
-            }
-            return change("记好了 · \(q.name) +\(q.amount.p3) · \(to)", kind: .add) {
-                try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, income: true, account: to, tag: "跟夏夏说的")
-            }
-        case .repay(let debt, let amount, let from):
-            return change("还好了：\(debt) \(amount.p3Short)，从\(from)出", kind: .repay) { try $0.repay(debt: debt, amount: amount, from: from) }
+        guard case let .phrase(q, account) = a else { return false }
+        var trial = book
+        let line: String
+        do { line = try trial.record(q, account: account) }
+        catch let e as TrialError { fail(e.message); return false }
+        catch { fail("没记上，再试一次"); return false }
+        let kind: ChangeRecord.Kind
+        switch q.kind {
+        case .spend, .income: kind = .add
+        case .repay: kind = .repay
+        default: kind = .transfer
         }
+        return change(line, kind: kind) { _ = try $0.record(q, account: account) }
     }
 
     func chatSendImage(_ image: Image) {

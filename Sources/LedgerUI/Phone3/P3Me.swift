@@ -486,7 +486,7 @@ struct P3SalesPage: View {
                 let rows = b.shopFlow(in: state.monthKey).filter { $0.amount > .zero }
                 VStack(alignment: .leading, spacing: 2) {
                     if rows.isEmpty {
-                        Text("那个月只记了合计，没有每天的数。日历只看这个月。").font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 8)
+                        Text(b.shopFlowTotalsLine(in: state.monthKey) ?? "那个月没有记店里收的钱").font(P3.font(14, .regular)).foregroundStyle(P3.ink2).padding(.vertical, 8)
                     }
                     ForEach(rows) { r in P3Row(emoji: r.emoji, name: "\(r.day) 号", meta: r.detail, amount: r.amount.p3, color: P3.teal) }
                 }
