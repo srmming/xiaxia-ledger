@@ -196,6 +196,48 @@ extension TrialBook {
         .sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
     }
 
+    // MARK: 每月小结里的那几句话（都从那个月的数现算，没有的就不写）
+
+    /// 小结里的一行：图标、一句话、下面的说明、右边的数（可以空着）。
+    public struct MonthNote: Equatable, Sendable {
+        public var emoji: String
+        public var title: String
+        public var detail: String
+        public var amount: String
+    }
+
+    /// 那个月做得好的（最多 3 件）：净剩多了、比上个月少花、存进了目标、进账够花、哪一样少花得最多。
+    public func monthGood(_ key: MonthKey) -> [MonthNote] {
+        let d = monthData(key)
+        let prev = pastMonths.first { $0.key == clampMonth(key).previous }
+        var out: [MonthNote] = []
+        let net = clampMonth(key) == thisMonth ? netMoreThanLastMonth : netChange(in: key)
+        if let net, net > .zero { out.append(.init(emoji: "⭐", title: "家底多了", detail: "月底的净剩比上个月多", amount: "+" + net.formatted)) }
+        if d.forGoals > .zero { out.append(.init(emoji: "⭐", title: "存进了目标", detail: "先存下来，再花剩下的", amount: d.forGoals.formatted)) }
+        if let prev, prev.spentTotal > d.spentTotal, d.spentTotal > .zero {
+            out.append(.init(emoji: "⭐", title: "比上个月少花了", detail: "一共花掉 \(d.spentTotal.formatted)", amount: "−" + (prev.spentTotal - d.spentTotal).formatted))
+        }
+        if let best = d.slices.filter({ $0.lastMonth > $0.amount && $0.lastMonth > .zero }).max(by: { ($0.lastMonth - $0.amount) < ($1.lastMonth - $1.amount) }) {
+            out.append(.init(emoji: "⭐", title: "\(best.name)少花了", detail: "上个月 \(best.lastMonth.formatted)", amount: "−" + (best.lastMonth - best.amount).formatted))
+        }
+        if d.income > .zero, d.left >= .zero, out.count < 3 {
+            out.append(.init(emoji: "⭐", title: "进账够花", detail: "付完固定的、存完目标、花完平时的", amount: "还剩 " + d.left.formatted))
+        }
+        return Array(out.prefix(3))
+    }
+
+    /// 那个月要留意的（最多 1 件）：比上个月多花得最多的那一样；进账不够花也算。没有就是空的。
+    public func monthWatch(_ key: MonthKey) -> [MonthNote] {
+        let d = monthData(key)
+        if d.income > .zero, d.left < .zero {
+            return [.init(emoji: "👀", title: "花的比进的多", detail: "进账 \(d.income.formatted)", amount: "多花 " + d.left.magnitude.formatted)]
+        }
+        // 多花不到 10 € 的不提，免得大惊小怪
+        guard let worst = d.slices.filter({ $0.amount > $0.lastMonth && $0.lastMonth > .zero && ($0.amount - $0.lastMonth).cents >= 10_00 })
+            .max(by: { ($0.amount - $0.lastMonth) < ($1.amount - $1.lastMonth) }) else { return [] }
+        return [.init(emoji: "👀", title: worst.name, detail: "上个月 \(worst.lastMonth.formatted)", amount: "+" + (worst.amount - worst.lastMonth).formatted)]
+    }
+
     /// 那个月的生意流水是不是只有合计、没有一笔笔的：店里有收有花，但列不出逐笔。Mac 和手机都用这一个来判断。
     public func shopFlowIsTotalsOnly(in key: MonthKey) -> Bool {
         guard key != thisMonth, let d = pastMonths.first(where: { $0.key == key }) else { return false }

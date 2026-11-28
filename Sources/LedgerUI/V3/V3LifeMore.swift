@@ -784,18 +784,22 @@ struct V3MonthlyPage: View {
             }
         } trailing: {
             VStack(spacing: 16) {
+                // 这几段都从那个月的数现算（TrialMonths.swift 的 monthGood / monthWatch），没有就直说没有
+                let good = b.monthGood(key), watch = b.monthWatch(key)
                 V3Card(spacing: 4) {
-                    V3CardTitle("做得好的 3 件")
-                    V3RowList(rows: [.init("⭐", "过了一站", "10 月 12 日存到 200 €", ""), .init("⭐", "小东西少买了 6 次", "省下 19,20 €，都进了目标", ""),
-                                     .init("⭐", "信用卡按时还清", "没有多付一分利息", "")])
+                    V3CardTitle(good.isEmpty ? "做得好的" : "做得好的 \(good.count) 件")
+                    if good.isEmpty { V3Label("这个月的数还不够，看不出来").padding(.vertical, 6) }
+                    V3RowList(rows: good.map { .init($0.emoji, $0.title, $0.detail, $0.amount) })
                 }
                 V3Card(spacing: 4) {
-                    V3CardTitle("要留意的 1 件")
-                    V3RowList(rows: [.init("👀", "外卖", "比 9 月多了 4 次", "+46,00 €")])
+                    V3CardTitle(watch.isEmpty ? "要留意的" : "要留意的 \(watch.count) 件")
+                    if watch.isEmpty { V3Label("没有哪样比上个月多花不少").padding(.vertical, 6) }
+                    V3RowList(rows: watch.map { .init($0.emoji, $0.title, $0.detail, $0.amount) })
                 }
                 V3GrowCard(spacing: 4) {
-                    V3CardTitle("11 月提前知道")
-                    V3RowList(rows: [.init("🚗", "车险", "11 月 25 日 · 一年一次", "310,00 €", tag: "大开销", tone: .gold)])
+                    V3CardTitle("接下来要付的")
+                    if b.upcoming.isEmpty { V3Label("没有已经知道要付的").padding(.vertical, 6) }
+                    V3RowList(rows: b.upcoming.sorted { $0.amount.magnitude > $1.amount.magnitude }.prefix(3).map { .init($0.emoji, $0.name, $0.meta, $0.amount.magnitude.v3) })
                 }
             }
         }

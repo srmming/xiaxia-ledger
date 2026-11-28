@@ -173,7 +173,10 @@ public enum LedgerBridge {
             let m = month(ym, upTo: nil), before = month(ym.adding(months: -1), upTo: nil)
             guard m.income > .zero || m.expense > .zero else { return nil }
             let fixed = min(fixedAll, m.expense)
-            var d = TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: .zero, spent: m.expense - fixed,
+            // 那个月存进目标的（和这个月一个算法：存钱那种流水里出去的那一头）
+            let put = ledger.transactions.filter { $0.flow == .saving && $0.date.yearMonth == ym && $0.amount < .zero && !hidden.contains($0.accountID) }
+                .map { ledger.baseAmount($0).magnitude }.reduce(.zero, +)
+            var d = TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: put, spent: m.expense - fixed,
                                         slices: m.by.map { .init(emoji: emoji($0.key), name: $0.key, amount: $0.value, lastMonth: before.by[$0.key] ?? .zero) })
             // 第 7 步：那个月底的家底（生活这边每个账户到月底的余额：正的算有，信用卡欠的算欠；借的钱和分期按现在的算，过去的没法倒推）
             var have = Money.zero, owe = Money.zero
@@ -407,7 +410,9 @@ extension LedgerBridge {
             let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
             let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
             // 借出去的同时有一个账户正好少了这么多（「借给小李 50」）：钱是从那个账户出去的，一起记上
-            let payer = lent && moved.count == 1 && (was[moved[0].id]?.balance ?? .zero) - moved[0].balance == a.balance ? real(was[moved[0].id]?.name ?? "") : nil
+            // 向别人借的同时有一个账户正好多了这么多：钱是进了那个账户
+            let change1 = moved.count == 1 ? moved[0].balance - (was[moved[0].id]?.balance ?? .zero) : .zero
+            let payer = moved.count == 1 && change1 == (lent ? .zero - a.balance : a.balance) ? real(was[moved[0].id]?.name ?? "") : nil
             if payer != nil { paidOut.insert(moved[0].id) }
             records.append(try work.addDebt(counterparty: who2, direction: lent ? .theyOweMe : .iOweThem, amount: a.balance, bookID: book,
                                             date: today, accountID: payer?.id, note: a.note.isEmpty ? nil : a.note, author: who).1)
@@ -582,6 +587,12 @@ extension LedgerBridge {
             if let d = work.debts.first(where: { $0.counterparty == name && $0.direction == .iOweThem }) {
                 return try work.repay(debtID: d.id, amount: amount, date: today, accountID: f.id, author: who)
             }
+        }
+        // 又向同一个人借了一笔：欠的变多，一个账户多了这么多
+        if let receiver, let more = moved.first(where: { $0.kind == .debt && !$0.isCreditCard && delta($0) > .zero }), let t = real(receiver) {
+            let name = was[more.id]?.name ?? more.name
+            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            return try work.addDebt(counterparty: name, direction: .iOweThem, amount: amount, bookID: book, date: today, accountID: t.id, author: who).1
         }
         // 又借给同一个人一笔：借出去的变多，一个账户少了这么多
         if let payer, let more = moved.first(where: { $0.kind == .lent && delta($0) > .zero }), let f = real(payer) {

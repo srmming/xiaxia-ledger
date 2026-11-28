@@ -81,4 +81,30 @@ final class TrialMonthsTests: XCTestCase {
         XCTAssertEqual(b.spendPace.soFar.last, p.soFar.last! + Money(cents: 3_20))
         XCTAssertEqual(b.spendPace.soFar.last, b.month.spentTotal)
     }
+
+    /// 每月小结里那几句话都是从那个月的数算出来的：数变了话跟着变，没有就不写。
+    func testMonthNotesComeFromTheNumbers() throws {
+        let b = TrialBook.demo
+        let oct = TrialBook.MonthKey(2026, 10)
+        let d = b.monthData(oct), sep = b.monthData(.init(2026, 9))
+        let good = b.monthGood(oct), watch = b.monthWatch(oct)
+        XCTAssertLessThanOrEqual(good.count, 3); XCTAssertLessThanOrEqual(watch.count, 1)
+        XCTAssertTrue(good.contains { $0.title == "存进了目标" && $0.amount == d.forGoals.formatted })
+        // 十月净剩比九月多：写出来的就是这两个月底的差
+        let more = d.net - sep.net
+        XCTAssertGreaterThan(more, .zero)
+        XCTAssertTrue(good.contains { $0.title == "家底多了" && $0.amount == "+" + more.formatted })
+        // 要留意的：就是比上个月多花得最多的那一样，数是两个月的差
+        let worst = d.slices.filter { $0.lastMonth > .zero && $0.amount > $0.lastMonth }.max { ($0.amount - $0.lastMonth) < ($1.amount - $1.lastMonth) }!
+        XCTAssertEqual(watch.first?.title, worst.name)
+        XCTAssertEqual(watch.first?.amount, "+" + (worst.amount - worst.lastMonth).formatted)
+        // 一个没数据的月份：什么都不写，不编
+        var empty = b
+        empty.pastMonths = [TrialBook.MonthData(key: oct, income: .zero, fixed: .zero, forGoals: .zero, spent: .zero)]
+        XCTAssertTrue(empty.monthGood(oct).isEmpty); XCTAssertTrue(empty.monthWatch(oct).isEmpty)
+        // 进账不够花：要留意的是这一条
+        var tight = b
+        tight.pastMonths[0].income = Money(cents: 100_00)
+        XCTAssertEqual(tight.monthWatch(oct).first?.title, "花的比进的多")
+    }
 }
