@@ -353,10 +353,8 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, before)
         // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        let two = s.book.transferSources(.life).prefix(2).map(\.name)
-        XCTAssertFalse(s.change("转") { try $0.move(self.eur("10"), from: two[0], to: two[1]) })
-        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
         s.author = "  "
@@ -595,6 +593,56 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(s.change("收") { $0.finishedGoals.append(.init(name: "x", total: .zero, date: "", small: true)) })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertEqual(s.real, snapshot)
+    }
+
+    func testRealLedgerTransfersDebtsAndSubscriptions() throws {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        let real = DemoData.make(endingOn: day)
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        let total = s.book.inHand, spent = s.book.month.spentTotal
+        // 两个自己的账户之间转：正式账本里是一笔账户间转账（两笔流水，不算收支），总数不变
+        let two = s.book.transferSources(.life).filter { $0.balance > self.eur("50") }.prefix(2).map(\.name)
+        let a0 = s.book.account(two[0])!.balance, a1 = s.book.account(two[1])!.balance
+        XCTAssertTrue(s.change("转") { try $0.move(self.eur("25"), from: two[0], to: two[1]) })
+        XCTAssertEqual(s.real?.changes.last?.kind, .transfer)
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        XCTAssertEqual(s.book.account(two[0])?.balance, a0 - eur("25")); XCTAssertEqual(s.book.account(two[1])?.balance, a1 + eur("25"))
+        XCTAssertEqual(s.book.inHand, total); XCTAssertEqual(s.book.month.spentTotal, spent, "转账不算花销")
+        s.undo()
+        XCTAssertEqual(s.book.account(two[0])?.balance, a0)
+        // 还信用卡：从自己的账户转给信用卡，欠的变少
+        if let card = s.book.accounts.first(where: { $0.isCreditCard && $0.side == .life && $0.balance > self.eur("20") }) {
+            XCTAssertTrue(s.change("还") { try $0.repay(debt: card.name, amount: self.eur("20"), from: two[0]) })
+            XCTAssertEqual(s.book.account(card.name)?.balance, card.balance - eur("20"))
+            XCTAssertEqual(s.book.month.spentTotal, spent, "还信用卡不算花销")
+            s.undo()
+        }
+        // 还借的钱：正式账本里是这笔借款的一次还款
+        if let debt = Plans.debts(real, today: day).first(where: { $0.direction == .iOweThem && $0.outstanding > self.eur("10") }) {
+            XCTAssertTrue(s.change("还") { try $0.repay(debt: debt.counterparty, amount: self.eur("10"), from: two[0]) })
+            XCTAssertEqual(Plans.debts(s.real!, today: day).first { $0.id == debt.id }?.outstanding, debt.outstanding - eur("10"))
+            XCTAssertEqual(s.real?.changes.last?.kind, .repay)
+            s.undo()
+        }
+        // 记一笔新的欠款：正式账本多一笔借款
+        let debts = s.real!.debts.count
+        XCTAssertTrue(s.change("记") { try $0.addDebt(name: "阿杰", amount: self.eur("80"), owedToMe: false, note: "12 月还") })
+        XCTAssertEqual(s.real?.debts.count, debts + 1)
+        XCTAssertEqual(s.real?.debts.last?.counterparty, "阿杰")
+        XCTAssertEqual(s.book.account("阿杰")?.balance, eur("80"))
+        s.undo()
+        XCTAssertEqual(s.real?.debts.count, debts)
+        // 订阅：加一个、标成要退、拿掉
+        let subs = s.real!.subscriptions.count
+        XCTAssertTrue(s.change("加") { try $0.addSubscription(name: "读书会员", amount: self.eur("5,99"), note: "", forWork: false) })
+        XCTAssertEqual(s.real?.subscriptions.count, subs + 1)
+        XCTAssertEqual(s.real?.subscriptions.last?.amount, eur("5,99"))
+        XCTAssertTrue(s.change("退") { try $0.setSubscription("读书会员", dropped: true) })
+        XCTAssertNotNil(s.real?.subscriptions.last?.cancelledOn)
+        s.undo(); s.undo()
+        XCTAssertEqual(s.real?.subscriptions.count, subs)
+        XCTAssertEqual(s.book.inHand, total, "一路折腾下来，手里的钱没变")
     }
 
     func testNoSecretStashAndTwoBlocks() {

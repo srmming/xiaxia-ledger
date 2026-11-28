@@ -197,7 +197,6 @@ extension LedgerBridge {
     static func shape(_ b: TrialBook) -> [String] {
         ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
             + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
-            + b.subscriptions.map { "sub|\($0.name)|\($0.amount.cents)|\($0.off)" }
             + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
             + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)"]
     }
@@ -278,7 +277,7 @@ extension LedgerBridge {
         }
         // 加
         for a in after.accounts where was[a.id] == nil {
-            guard a.kind == .own || a.kind == .shop || a.isCreditCard else { throw TrialError("借的钱、借出去的在接正式账本的这一版里还没接上，账本没动") }
+            guard a.kind == .own || a.kind == .shop || a.isCreditCard else { continue }   // 借的钱、借出去的：下面当成借款记
             guard real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
             let kind: AccountKind = a.kind == .debt ? .credit : a.name.contains("现金") ? .cash : a.block == .emergency || a.block == .goal ? .savings : .bank
             let id = work.newAccountID(for: a.name)
@@ -286,9 +285,22 @@ extension LedgerBridge {
             records.append(try work.createAccount(Account(id: id, name: a.name, kind: kind), openingBalance: opening, date: today, author: who))
             if a.side == .biz { records.append(try work.setAccountSide(id, side: .business, author: who)) }
         }
-        // 两个以上的账户余额一起变了：那是转账 / 还款，不是改余额，这一步还没接
+        // 第 5 步：两个账户的余额一起变了，一个少多少、另一个对上这么多 = 转账 / 还信用卡 / 还欠款 / 别人还钱 / 分期还一期
         let moved = after.accounts.filter { a in was[a.id].map { $0.balance != a.balance } ?? false }
-        guard moved.count <= 1 else { throw TrialError("转账、还款在接正式账本的这一版里还没接上，账本没动") }
+        if moved.count == 2 {
+            return records + [try applyMove(moved, was: was, to: &work, today: today, author: who)]
+        }
+        guard moved.count <= 1 else { throw TrialError("一次动了好几个账户的钱，这一步在接正式账本的这一版里还没接上，账本没动") }
+        // 订阅：加一个、标成要退 / 留着、拿掉
+        records += try applySubscriptions(before: before, after: after, to: &work, today: today, author: who)
+        // 新记一笔欠款（我欠别人 / 别人欠我）：不是账户，记成正式账本里的一笔借款
+        for a in after.accounts where was[a.id] == nil && (a.kind == .lent || (a.kind == .debt && !a.isCreditCard)) {
+            let lent = a.kind == .lent
+            let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
+            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            records.append(try work.addDebt(counterparty: who2, direction: lent ? .theyOweMe : .iOweThem, amount: a.balance, bookID: book,
+                                            date: today, accountID: nil, note: a.note.isEmpty ? nil : a.note, author: who).1)
+        }
         // 改名、改余额、换底色
         for a in after.accounts {
             guard let o = was[a.id], var r = real(o.name) else { continue }
@@ -407,6 +419,64 @@ extension LedgerBridge {
             }
         }
         guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+        return records
+    }
+
+    /// 两个账户之间挪了一笔钱：看两头各是什么，照正式账本里对应的写法记。
+    static func applyMove(_ moved: [TrialBook.Account], was: [UUID: TrialBook.Account], to work: inout Ledger, today: LocalDate, author who: String) throws -> ChangeRecord {
+        func delta(_ a: TrialBook.Account) -> Money { a.balance - (was[a.id]?.balance ?? .zero) }
+        func real(_ a: TrialBook.Account) -> Account? { work.accounts.first { $0.name == (was[a.id]?.name ?? a.name) } }
+        let a = moved[0], b = moved[1]
+        let amount = delta(a).magnitude
+        guard amount > .zero, delta(b).magnitude == amount else { throw TrialError("两个账户变的钱对不上，账本没动") }
+        // 放钱的账户：少了的是转出的，多了的是转入的。欠的（信用卡、欠款）变少 = 还了这么多；借出去的变少 = 别人还了这么多
+        func holds(_ x: TrialBook.Account) -> Bool { x.kind == .own || x.kind == .shop }
+        let payer = moved.first { holds($0) && delta($0) < .zero }
+        let receiver = moved.first { holds($0) && delta($0) > .zero }
+        let paidDebt = moved.first { $0.kind == .debt && delta($0) < .zero }
+        let gotBack = moved.first { $0.kind == .lent && delta($0) < .zero }
+        if let payer, let receiver, let f = real(payer), let t = real(receiver) {
+            return try work.addAccountTransfer(amount: amount, from: f.id, to: t.id, date: today, author: who)
+        }
+        if let payer, let paidDebt, let f = real(payer) {
+            if let card = real(paidDebt) { return try work.addAccountTransfer(amount: amount, from: f.id, to: card.id, date: today, note: "还\(card.name)", author: who) }
+            let name = was[paidDebt.id]?.name ?? paidDebt.name
+            if let inst = work.installments.first(where: { $0.name == name }) { return try work.payInstallment(inst.id, amount: amount, date: today, author: who) }
+            if let d = work.debts.first(where: { $0.counterparty == name && $0.direction == .iOweThem }) {
+                return try work.repay(debtID: d.id, amount: amount, date: today, accountID: f.id, author: who)
+            }
+        }
+        if let receiver, let gotBack, let t = real(receiver) {
+            let name = was[gotBack.id]?.name ?? gotBack.name
+            let person = name.hasPrefix("借给") ? String(name.dropFirst(2)) : name
+            if let d = work.debts.first(where: { $0.counterparty == person && $0.direction == .theyOweMe }) {
+                return try work.repay(debtID: d.id, amount: amount, date: today, accountID: t.id, author: who)
+            }
+        }
+        throw TrialError("这样挪钱在接正式账本的这一版里还没接上，账本没动")
+    }
+
+    /// 订阅上的改动：按名字对。
+    static func applySubscriptions(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord] {
+        var records: [ChangeRecord] = []
+        let cycles: [Subscription.Cycle] = [.weekly, .monthly, .quarterly, .yearly]
+        for n in after.subscriptions {
+            guard let o = before.subscriptions.first(where: { $0.name == n.name }) else {
+                let next = day(today, minus: -30)
+                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycles[min(max(n.cycle, 0), 3)], nextDate: next,
+                                                                      bookID: work.books.first { !$0.isBusiness }?.id, note: n.note.isEmpty ? nil : n.note), author: who))
+                continue
+            }
+            guard o.off != n.off || o.amount != n.amount, var s = work.subscriptions.first(where: { $0.name == n.name }) else { continue }
+            if o.off != n.off, n.off { records.append(try work.cancelSubscription(s.id, on: today, author: who)); continue }
+            s.amount = n.amount
+            if !n.off { s.cancelledOn = nil }
+            records.append(try work.editSubscription(s, author: who))
+        }
+        for o in before.subscriptions where !after.subscriptions.contains(where: { $0.name == o.name }) {
+            guard let s = work.subscriptions.first(where: { $0.name == o.name }) else { continue }
+            records.append(try work.removeSubscription(s.id, author: who))
+        }
         return records
     }
 }
