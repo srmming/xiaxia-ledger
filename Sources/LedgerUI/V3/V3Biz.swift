@@ -140,7 +140,7 @@ struct V3SalesPage: View {
                 } else {
                     V3Ask(face: "happy", text: "这个月每天都对上了。", tone: .good)
                 }
-                V3KeyCard(label: "11 月营业额", whole: Money(cents: Int64(total) * 100).v3Parts.whole, rest: ",00\u{00A0}€", size: 56, wave: V3.tealSoft) {
+                V3KeyCard(label: "\(state.book.thisMonth.month) 月营业额", whole: Money(cents: Int64(total) * 100).v3Parts.whole, rest: ",00\u{00A0}€", size: 56, wave: V3.tealSoft) {
                     V3Label("\(count) 个营业日 · 平均每天 \(total / max(count, 1)) €")
                 }
                 V3GrowCard {
@@ -165,7 +165,7 @@ struct V3SalesPage: View {
             }
         } trailing: {
             V3GrowCard {
-                V3CardTitle("11 月每天收了多少")
+                V3CardTitle("\(state.book.thisMonth.month) 月每天收了多少")
                 Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                     GridRow {
                         ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { d in
@@ -235,7 +235,8 @@ struct V3FixedPage: View {
 
     var body: some View {
         let b = state.book
-        let ads = b.fixedCosts.first { $0.name == "广告" }
+        // 「广告没见带来新客人」是试用里的示例，正式账本上没有依据，不说
+        let ads = state.real == nil ? b.fixedCosts.first { $0.name == "广告" } : nil
         let rises = b.fixedRises
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
@@ -464,7 +465,7 @@ struct V3CheckupPage: View {
         let b = state.book
         let m = b.shopMonth()
         let split = b.shopPer100
-        let ads = b.fixedCosts.first { $0.name == "广告" && !$0.off }
+        let ads = state.real == nil ? b.fixedCosts.first { $0.name == "广告" && !$0.off } : nil
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "\(state.monthLabel) · 真正赚了", amount: m.earned, wave: V3.tealSoft) {

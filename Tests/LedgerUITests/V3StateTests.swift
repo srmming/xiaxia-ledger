@@ -912,6 +912,23 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(V3State().fixedGuesses.isEmpty)
     }
 
+    /// 正式账本上到站的信只写账本里真有的：不出现试用里那些编的（76 天、忍住了几杯、九月定的第一步 50 块）。
+    func testRealLedgerArrivalLetterOnlyStatesFacts() throws {
+        let s = V3State(model: LedgerModel.demo())
+        let j = s.book.journey
+        let st = try XCTUnwrap(j.stations.dropFirst().first)
+        let letter = s.arrivalLetter(for: st)
+        let all = ([letter.title, letter.quote, letter.tag, letter.headline] + letter.paragraphs + letter.facts.flatMap { $0 }).joined(separator: "|")
+        for fake in ["76 天", "Café Nube", "50 块", "小满", "九月", "忍住"] { XCTAssertFalse(all.contains(fake), fake) }
+        XCTAssertTrue(all.contains(st.target.v3Short)); XCTAssertTrue(all.contains(j.name))
+        // 试用数字里那封信照旧
+        let demo = V3State(); demo.onboardingStep = nil
+        XCTAssertTrue(demo.arrivalLetter(for: demo.book.journey.stations[1]).paragraphs.joined().contains("76 天"))
+        // 没起名的店里账户：名字有人用了就往后排号
+        XCTAssertEqual(V3ShopAccountSheet.freeName("店的信用卡", taken: ["店的信用卡"]), "店的信用卡 2")
+        XCTAssertEqual(V3ShopAccountSheet.freeName("店的信用卡", taken: []), "店的信用卡")
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

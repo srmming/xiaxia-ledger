@@ -661,7 +661,7 @@ struct V3SubscriptionsPage: View {
                 }, compact: b.subscriptions.count > 5)
                 Spacer(minLength: 0)
                 HStack(spacing: 8) {
-                    Button("去流水里找找") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)).help("流水里还有 2 笔像订阅的")
+                    Button("去流水里找找") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)).help(state.real == nil ? "流水里还有 2 笔像订阅的" : "去流水里看看有没有漏掉的订阅")
                 }
             }
         }

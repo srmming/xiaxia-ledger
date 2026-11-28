@@ -467,7 +467,7 @@ struct V3GoalsPage: View {
                             }
                             Spacer(minLength: 4)
                             V3Amount(w.amount.v3Short, size: 14.5)
-                            Button("不要了，钱进目标") { state.resist(wanted: w) }.buttonStyle(.v3(.ghost, .small)).help("这笔钱从日常卡挪进大目标")
+                            Button("不要了，钱进目标") { state.resist(wanted: w) }.buttonStyle(.v3(.ghost, .small)).help("这笔钱从平时花的账户挪进大目标")
                             Button { state.change("从清单里拿掉了：\(w.name)", kind: .remove) { try $0.removeWanted(w.id) } } label: {
                                 Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 22, height: 22)
                             }

@@ -499,7 +499,7 @@ private struct V3SaveSheet: View {
                        guard let m, let from else { return }
                        if let picked {
                            let done = picked.saved + m >= picked.target
-                           let text = done ? "🎉「\(picked.name)」存够了！收进走完的路，钱放回日常卡，可以去买了" : "存好了 +\(m.v3Short) · \(picked.name)"
+                           let text = done ? "🎉「\(picked.name)」存够了！收进走完的路，可以去买了" : "存好了 +\(m.v3Short) · \(picked.name)"
                            if state.change(text, kind: .goalDeposit, { try $0.depositSmall(picked.id, amount: m, from: from.name) }) {
                                if done { state.starDrops += 1 }
                                state.closeSheet()
@@ -1279,6 +1279,13 @@ struct V3ShopAccountSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var customOwes = 0
+    /// 没起名时用的名字：这个名字有人用了就在后面加 2、3…
+    static func freeName(_ base: String, taken: [String]) -> String {
+        guard taken.contains(base) else { return base }
+        var n = 2
+        while taken.contains("\(base) \(n)") { n += 1 }
+        return "\(base) \(n)"
+    }
     static let kinds: [(emoji: String, name: String, owes: Bool)] = [
         ("💶", "店里现金", false), ("🏪", "银行卡", false), ("💳", "信用卡", true), ("🧾", "收款机待结算", false),
         ("🏦", "储蓄", false), ("🏦", "贷款", true), ("📦", "欠供应商的", true), ("🏷", "自己起名", false),
@@ -1289,7 +1296,7 @@ struct V3ShopAccountSheet: View {
         let custom = pick == Self.kinds.count - 1
         let owes = custom ? customOwes == 1 : k.owes
         let m = V3Form.amountOrZero(amount)
-        let useName = name.trimmingCharacters(in: .whitespaces).isEmpty ? (custom ? "" : (k.name == "信用卡" ? "店的信用卡 2" : "店的" + k.name)) : name
+        let useName = name.trimmingCharacters(in: .whitespaces).isEmpty ? (custom ? "" : Self.freeName("店的" + k.name, taken: state.book.accounts.map(\.name))) : name
         V3SheetBox(width: 600, title: "给店里加一个账户", primary: "加上", teal: true, canSave: m != nil && !useName.isEmpty,
                    save: {
                        guard let m else { return }
