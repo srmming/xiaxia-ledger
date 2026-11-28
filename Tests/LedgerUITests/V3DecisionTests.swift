@@ -8,10 +8,19 @@ final class V3DecisionTests: XCTestCase {
     /// 假的网络层：按顺序回准备好的东西，并把收到的请求记下来。
     final class FakeTransport: V3Transport, @unchecked Sendable {
         var replies: [Result<(String, Int), OpenRouterWire.Failure>]
+        /// 专门的决策接口怎么回。默认是「这个模型不是决策模型」（400），这样就会换去聊天接口。
+        var decisions: [Result<(String, Int), OpenRouterWire.Failure>] = []
         private(set) var sent: [(url: String, key: String?, body: [String: Any])] = []
+        private(set) var decisionsSent: [[String: Any]] = []
         init(_ replies: [Result<(String, Int), OpenRouterWire.Failure>]) { self.replies = replies }
         func send(url: String, key: String?, body: Data?) async throws -> (Data, Int) {
             let json = body.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+            if url == OpenRouterWire.decisionsEndpoint {
+                decisionsSent.append(json)
+                guard !decisions.isEmpty else { return (Data(#"{"error":{"code":400,"message":"model does not support decisions"}}"#.utf8), 400) }
+                let (text, status) = try decisions.removeFirst().get()
+                return (Data(text.utf8), status)
+            }
             sent.append((url, key, json))
             guard !replies.isEmpty else { throw OpenRouterWire.Failure.noNetwork }
             let (text, status) = try replies.removeFirst().get()
@@ -39,7 +48,8 @@ final class V3DecisionTests: XCTestCase {
         let s = V3State()
         XCTAssertTrue(s.transport is V3OfflineTransport, "跑测试时默认连不上网，绝不会真的发请求")
         XCTAssertFalse(s.hasOpenRouterKey)
-        XCTAssertEqual(s.decisionPrefs.decisionModel, "openai/gpt-4o-mini")
+        XCTAssertEqual(s.decisionPrefs.decisionModel, "microsoft/microsoft-decision-1.1")
+        XCTAssertEqual(s.decisionPrefs.chatModel, "deepseek/deepseek-v4.1-flash-1017")
         XCTAssertEqual(s.threshold("D1"), 0.70)
     }
 
@@ -71,17 +81,54 @@ final class V3DecisionTests: XCTestCase {
         XCTAssertTrue(nt.sent.isEmpty)
     }
 
+    func testDecisionModelGoesThroughTheDecisionsAPI() async {
+        // 决策模型：走专门的接口，直接回「是」的概率和花了多少额度
+        let (s, t) = state([])
+        t.decisions = [.success((#"{"model":"microsoft/microsoft-decision-1.1","answers":{"answer":{"type":"noul","noul":0.87,"confidence":0.9}},"usage":{"input_tokens":210,"output_tokens":0,"cost":0.0000088}}"#, 200))]
+        let r = await s.askDecision(Decisions.find("D1")!, card: ReminderDecision.sample(.yes).card)
+        XCTAssertEqual((try? r.get())?.probability, 0.87)
+        XCTAssertEqual((try? r.get())?.route, .decisions)
+        XCTAssertEqual((try? r.get())?.cost, 0.0000088)
+        XCTAssertTrue(t.sent.isEmpty, "决策接口答了，就不再去问聊天接口")
+        let body = t.decisionsSent[0]
+        XCTAssertEqual(body["model"] as? String, "microsoft/microsoft-decision-1.1")
+        XCTAssertEqual(body["state"] as? String, ReminderDecision.sample(.yes).card)
+        let q = ((body["questions"] as? [String: Any])?["answer"] as? [String: Any]) ?? [:]
+        XCTAssertEqual(q["type"] as? String, "noul")
+        XCTAssertEqual(q["instructions"] as? String, "现在值得主动提醒用户一句吗？")
+        XCTAssertNotNil((q["criteria"] as? [String: String])?["true"]); XCTAssertNotNil((q["criteria"] as? [String: String])?["false"])
+        // 模型不肯答：不算数，换聊天接口
+        t.decisions = [.success((#"{"model":"x","answers":{"answer":{"type":"refusal"}},"usage":{"input_tokens":1,"output_tokens":0}}"#, 200))]
+        t.replies = [.success((Self.logprobs(yes: 0.6), 200))]
+        let r2 = await s.askDecision(Decisions.find("D1")!, card: "x")
+        XCTAssertEqual((try? r2.get())?.route, .logprobs)
+        // 密钥不对：马上停，不往下试
+        t.decisions = [.success(("{}", 401))]
+        let r3 = await s.askDecision(Decisions.find("D1")!, card: "x")
+        if case .failure(let f) = r3 { XCTAssertEqual(f, .badKey) } else { XCTFail() }
+        XCTAssertEqual(t.sent.count, 1)
+        // 「三组都跑一遍」：两个模型、三组、各 2 次
+        t.decisions = Array(repeating: .success((#"{"model":"m","answers":{"answer":{"type":"noul","noul":0.9}},"usage":{"input_tokens":1,"output_tokens":0,"cost":0.00001}}"#, 200)), count: 12)
+        await s.runDecisionSamples()
+        XCTAssertEqual(s.decisionReport.count, 2 + 6 + 1)
+        XCTAssertEqual(s.decisionReport[0], "模型 deepseek/deepseek-v4.1-flash-1017")
+        XCTAssertEqual(s.decisionReport[1], "  明显该说：90%（决策接口）、90%（决策接口） · 临界点 70%")
+        XCTAssertEqual(s.decisionReport.last, "一共花了 0.000120 额度")
+        XCTAssertFalse(s.decisionReport.joined().contains("sk-"), "结果里没有密钥")
+    }
+
     func testFallsBackToJSONWhenModelHasNoLogprobs() async {
         // 第一次：模型说不支持 logprobs；第二次：换成 JSON 的问法
         let (s, t) = state([.success((#"{"error":{"message":"logprobs is not supported"}}"#, 400)), .success((Self.chat(#"{\"yes\": 0.41}"#), 200))])
         let r = await s.askDecision(Decisions.find("D1")!, card: "x")
-        XCTAssertEqual(try? r.get(), 0.41)
+        XCTAssertEqual((try? r.get())?.probability, 0.41)
+        XCTAssertEqual((try? r.get())?.route, .json)
         XCTAssertEqual(t.sent.count, 2)
         XCTAssertNil(t.sent[1].body["logprobs"]); XCTAssertNotNil(t.sent[1].body["response_format"])
         // 回来的里面没带概率：也换 JSON 再问
         let (s2, t2) = state([.success((Self.chat("是"), 200)), .success((Self.chat(#"{\"yes\": 0.9}"#), 200))])
         let r2 = await s2.askDecision(Decisions.find("D1")!, card: "x")
-        XCTAssertEqual(try? r2.get(), 0.9); XCTAssertEqual(t2.sent.count, 2)
+        XCTAssertEqual((try? r2.get())?.probability, 0.9); XCTAssertEqual(t2.sent.count, 2)
     }
 
     /// 把示例账本摆成「房租 3 天后扣、日常卡不够」的样子。
@@ -145,7 +192,7 @@ final class V3DecisionTests: XCTestCase {
     func testChatGoesToOpenRouterFirstAndSendsOnlyComputedNumbers() async {
         let (s, t) = state([.success((Self.chat("还能花 976 €，省着点够用。"), 200))])
         XCTAssertTrue(s.chatUsesOpenRouter)
-        XCTAssertEqual(s.chatRouteLine, "OpenRouter · openai/gpt-4o-mini")
+        XCTAssertEqual(s.chatRouteLine, "OpenRouter · deepseek/deepseek-v4.1-flash-1017")
         let a = await s.askChatModel("这个月还能花多少")
         XCTAssertEqual(a, "还能花 976 €，省着点够用。")
         let sys = ((t.sent[0].body["messages"] as? [[String: String]])?[0]["content"]) ?? ""
@@ -167,7 +214,7 @@ final class V3DecisionTests: XCTestCase {
         await s.loadModels()
         XCTAssertEqual(s.models, ["anthropic/claude-x", "openai/gpt-4o-mini"])
         s.setModel(decision: "bad name")
-        XCTAssertEqual(s.decisionPrefs.decisionModel, "openai/gpt-4o-mini", "写得不像模型名的不收")
+        XCTAssertEqual(s.decisionPrefs.decisionModel, "microsoft/microsoft-decision-1.1", "写得不像模型名的不收")
         s.setModel(chat: "anthropic/claude-x")
         XCTAssertEqual(s.decisionPrefs.chatModel, "anthropic/claude-x")
     }

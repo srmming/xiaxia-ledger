@@ -128,6 +128,8 @@ final class V3State {
     var decisionPrefs = V3DecisionPrefs.load()
     var decisionTry = ""
     var decisionTrying = false
+    /// 「三组都跑一遍」的结果，一行一句（不含密钥）。
+    var decisionReport: [String] = []
     var models: [String] = []
     var modelsLoading = false
     /// 夏夏主动提醒的那一句（D1 判断要说的时候才有）。
