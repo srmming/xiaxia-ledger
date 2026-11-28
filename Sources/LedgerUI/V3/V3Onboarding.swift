@@ -34,7 +34,7 @@ extension V3State {
             if let s = onboardingStep { onboardingStep = s >= 4 ? nil : s + 1 }
         }
         // 走完直接进总览（只管生意的进生意首页）。不替人定目标，想定自己去「目标」页（ming 2026-11-28）。
-        if onboardingStep == nil { settleSide() }
+        if onboardingStep == nil { finishFirstRun(); settleSide() }
     }
     func previousStep() {
         withAnimation(.snappy(duration: 0.3)) {
@@ -390,6 +390,7 @@ private struct V3AccountsStep: View {
     @Environment(V3State.self) private var state
     /// 账户单子：哪些算有的、哪些算欠的、合计怎么算，都在核心（FinanceCore/StartingAccounts.swift）里。
     @State private var list = StartingAccounts.sample
+    @State private var loaded = false
     @FocusState private var focus: UUID?
 
     static let symbols: [StartingAccounts.Kind: String] = [
@@ -408,12 +409,22 @@ private struct V3AccountsStep: View {
             .frame(width: 1040).fixedSize(horizontal: false, vertical: true).padding(.top, 22)
             V3StepButtons(skipSay: "好，先跳过。进去以后在「家底」里随时能加", next: "下一步") {
                 state.say(list.rows.isEmpty ? "好，先空着" : "好，记下了 \(list.rows.count) 个账户")
+                // 正式账本：先记着，引导走完一起写进去
+                if state.firstRun { state.startingAccounts = list }
                 state.nextStep()
             }
             .padding(.top, 22)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
+        .onAppear {
+            // 正式账本上第一次走：不放示例里的数，只放两行空的让人填
+            guard state.firstRun, !loaded else { return }
+            loaded = true
+            var fresh = state.startingAccounts ?? StartingAccounts(rows: [])
+            if state.startingAccounts == nil { _ = try? fresh.add(.daily); _ = try? fresh.add(.cash) }
+            list = fresh
+        }
     }
 
     private var left: some View {

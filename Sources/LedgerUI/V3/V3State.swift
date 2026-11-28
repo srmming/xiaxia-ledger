@@ -224,7 +224,39 @@ final class V3State {
         ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: today, showPrivate: showPrivate), changes: Array(real.changes.suffix(50).reversed()))
         readOnly = !writable
         self.real = real; realToday = today; realShowsPrivate = showPrivate
-        onboardingStep = nil
+        // 一本刚开始的空账本：先走引导，走完才把填的东西写进去
+        firstRun = writable && LedgerBridge.isBrandNew(real)
+        onboardingStep = firstRun ? 0 : nil
+    }
+
+    /// 正式账本是空的、正在走第一次的引导。
+    private(set) var firstRun = false
+    /// 引导「有多少」那一步填的账户（正式账本上走完引导才写入）。
+    var startingAccounts: StartingAccounts?
+
+    /// 引导走完：把填的账户、欠款、想要的那句话写进正式账本。什么都没填就什么都不写。
+    func finishFirstRun() {
+        guard firstRun, var l = real else { return }
+        firstRun = false
+        let list = startingAccounts ?? StartingAccounts(rows: [])
+        do {
+            var records: [ChangeRecord] = []
+            if let model {
+                if !list.rows.isEmpty || !wish.trimmingCharacters(in: .whitespaces).isEmpty {
+                    try model.edit(quiet: true) { live in
+                        records = try LedgerBridge.firstSetup(&live, accounts: list, wish: self.wish, today: self.realToday, author: self.author)
+                        guard let last = records.last else { throw TrialError("没有要写的") }
+                        return last
+                    }
+                }
+                l = model.ledger
+            } else {
+                records = try LedgerBridge.firstSetup(&l, accounts: list, wish: wish, today: realToday, author: author)
+            }
+            real = l; resnapshot()
+            if !records.isEmpty { realUndo.append(records.map(\.id)) }
+            startingAccounts = nil
+        } catch let e as TrialError { fail(e.message) } catch { fail((error as? LocalizedError)?.errorDescription ?? "引导里填的没写成，进去以后在「家底」里加") }
     }
     /// 第 9 步：接着 app 里那本正式账本（旧界面用的同一个 `LedgerModel`）。写入和撤销都交给它：它负责存盘、同步、和旧界面保持一致。
     convenience init(model: LedgerModel, today: LocalDate = .today) {

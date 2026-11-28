@@ -284,6 +284,47 @@ final class LedgerBridgeMoreTests: XCTestCase {
         }
     }
 
+    /// 新用户从零开始：引导里填的账户、欠款、想要的那句话写进空账本；每样有作者、能撤销；什么都没填就什么都不写。
+    func testFirstSetupWritesWhatTheOnboardingCollected() throws {
+        var l = Ledger.fresh
+        XCTAssertTrue(LedgerBridge.isBrandNew(l))
+        XCTAssertFalse(LedgerBridge.isBrandNew(ledger), "有数据的账本不走引导")
+        var list = StartingAccounts(rows: [])
+        func add(_ k: StartingAccounts.Kind, _ name: String? = nil, _ text: String) throws {
+            let id = try list.add(k)
+            if let name { try list.rename(id, to: name) }
+            try list.setText(id, text)
+        }
+        try add(.daily, nil, "1.500"); try add(.cash, nil, "85"); try add(.credit, nil, "640")
+        try add(.lent, "小王", "200"); try add(.borrowed, "阿青", "300"); try add(.savings, nil, "")
+        let records = try LedgerBridge.firstSetup(&l, accounts: list, wish: "三年后不用为钱发愁", today: today, author: "小晴")
+        XCTAssertFalse(LedgerBridge.isBrandNew(l))
+        XCTAssertTrue(records.allSatisfy { $0.author == "小晴" })
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b.account("日常卡")?.balance, Money(cents: 1500_00))
+        XCTAssertEqual(b.account("现金")?.balance, Money(cents: 85_00))
+        XCTAssertEqual(b.account("储蓄")?.balance, .zero, "没填多少的账户照样建，余额是 0")
+        XCTAssertEqual(l.accounts.first { $0.name == "信用卡" }?.kind, .credit)
+        XCTAssertEqual(b.account("信用卡")?.balance, Money(cents: 640_00), "信用卡填的是欠多少")
+        XCTAssertEqual(l.debts.count, 2)
+        XCTAssertEqual(b.totals.net, Money(cents: (1500 + 85 + 200 - 640 - 300) * 100), "净剩 = 有的 − 欠的")
+        XCTAssertEqual(b.month.spentTotal, .zero, "开账的钱不算花销"); XCTAssertEqual(b.month.income, .zero, "也不算收入")
+        XCTAssertEqual(b.memos.first { $0.topic == "我想要的" }?.lines, ["三年后不用为钱发愁"])
+        // 全部撤回：又是一本空账本
+        for r in records.reversed() { try l.undo(changeID: r.id, author: "小晴") }
+        XCTAssertTrue(l.accounts.isEmpty); XCTAssertTrue(l.debts.isEmpty); XCTAssertTrue(l.memories.isEmpty)
+        // 什么都没填：什么都不写
+        var empty = Ledger.fresh
+        XCTAssertTrue(try LedgerBridge.firstSetup(&empty, accounts: StartingAccounts(rows: []), wish: " ", today: today, author: "小晴").isEmpty)
+        XCTAssertEqual(empty, Ledger.fresh)
+        // 两个账户重名：拒绝，账本不动
+        var twice = StartingAccounts(rows: [.init(kind: .daily, name: "卡", text: "1", owes: false), .init(kind: .custom, name: "卡", text: "2", owes: false)])
+        _ = twice
+        XCTAssertThrowsError(try LedgerBridge.firstSetup(&empty, accounts: twice, wish: "", today: today, author: "小晴"))
+        XCTAssertEqual(empty, Ledger.fresh)
+        twice = StartingAccounts(rows: [])
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

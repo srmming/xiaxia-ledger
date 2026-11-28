@@ -831,6 +831,41 @@ final class V3StateTests: XCTestCase {
         s.openSettings(.memory); XCTAssertEqual(s.settingsSub, .memory)
     }
 
+    /// 新用户：空账本自动进引导；走完之前账本一个字不动；走完把填的写进去；有数据的账本不进引导。
+    func testEmptyRealLedgerStartsWithOnboardingAndWritesAtTheEnd() throws {
+        let model = LedgerModel.empty()
+        model.author = "小满"
+        let s = V3State(model: model)
+        XCTAssertEqual(s.onboardingStep, 0); XCTAssertTrue(s.firstRun)
+        let before = model.ledger
+        s.nextStep(); s.nextStep()
+        s.wish = "三年后不用为钱发愁"
+        s.nextStep()
+        var list = StartingAccounts(rows: [])
+        let card = try list.add(.daily); list.setText(card, "1.200")
+        let cash = try list.add(.cash); list.setText(cash, "60")
+        s.startingAccounts = list
+        s.nextStep()
+        XCTAssertEqual(model.ledger, before, "走完之前账本不动")
+        s.nextStep()
+        XCTAssertNil(s.onboardingStep); XCTAssertFalse(s.firstRun)
+        XCTAssertEqual(model.ledger.accounts.map(\.name), ["日常卡", "现金"])
+        XCTAssertEqual(s.book.inHand, eur("1260"))
+        XCTAssertEqual(s.book.memos.first?.lines, ["三年后不用为钱发愁"])
+        XCTAssertTrue(model.ledger.changes.allSatisfy { $0.author == "小满" })
+        // 一步撤回
+        s.undo()
+        XCTAssertTrue(model.ledger.accounts.isEmpty)
+        // 全都跳过：什么都不写，照样能进去
+        let m2 = LedgerModel.empty()
+        let s2 = V3State(model: m2)
+        let empty = m2.ledger
+        for _ in 0..<5 { s2.nextStep() }
+        XCTAssertNil(s2.onboardingStep); XCTAssertEqual(m2.ledger, empty)
+        // 有数据的账本不进引导
+        XCTAssertNil(V3State(model: LedgerModel.demo()).onboardingStep)
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

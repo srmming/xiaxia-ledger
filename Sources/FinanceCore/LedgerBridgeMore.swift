@@ -133,3 +133,49 @@ extension LedgerBridge {
         return records
     }
 }
+
+// MARK: - 新用户从零开始
+
+extension LedgerBridge {
+    /// 这本账是不是刚开始：一个账户都没有、一笔流水都没有。新界面看到这样的账本就先走引导。
+    public static func isBrandNew(_ ledger: Ledger) -> Bool { ledger.accounts.isEmpty && ledger.transactions.isEmpty && ledger.debts.isEmpty }
+
+    /// 引导走完，把里面填的东西写进正式账本：账户和现在有多少（开账余额）、别人欠我的 / 我欠别人的（借款）、想要的那句话（记忆）。
+    /// 每样都走正式账本自己的写法，带作者、记改动记录、能撤销。金额没填或者读不懂的那一行按 0 算；一行都没有就什么都不写。
+    @discardableResult
+    public static func firstSetup(_ ledger: inout Ledger, accounts: StartingAccounts, wish: String, today: LocalDate, author: String) throws -> [ChangeRecord] {
+        let who = author.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !who.isEmpty else { throw TrialError("先在设置里填一下记账人是谁") }
+        var work = ledger
+        var records: [ChangeRecord] = []
+        guard let book = work.books.first(where: { !$0.isBusiness })?.id ?? work.books.first?.id else { throw TrialError("账本里还没有账本，先回旧界面建一个") }
+        do {
+            for row in accounts.rows {
+                let amount = row.amount ?? .zero
+                let name = row.displayName
+                switch row.kind {
+                case .lent, .borrowed, .installment:
+                    // 不是账户：记成一笔借款。没填多少就先不记（借款不能是 0）
+                    guard amount > .zero else { continue }
+                    records.append(try work.addDebt(counterparty: name, direction: row.kind == .lent ? .theyOweMe : .iOweThem, amount: amount, bookID: book,
+                                                    date: today, accountID: nil, note: row.kind == .installment ? "分期，开始用夏夏账本时还欠这么多" : "开始用夏夏账本时就有的",
+                                                    author: who).1)
+                case .daily, .cash, .savings, .jar, .credit, .custom:
+                    guard !work.accounts.contains(where: { $0.name == name }) else { throw TrialError("有两个账户都叫「\(name)」，改一个名字") }
+                    // 信用卡、自己起名又标成「欠的」那种：填的是欠多少，开账余额是负的
+                    let owes = row.kind == .credit || (row.kind == .custom && row.owes)
+                    let kind: AccountKind = owes ? .credit : row.kind == .cash ? .cash : row.kind == .savings || row.kind == .jar ? .savings : .bank
+                    let opening = owes ? .zero - amount : amount
+                    records.append(try work.createAccount(Account(id: work.newAccountID(for: name), name: name, kind: kind),
+                                                          openingBalance: opening == .zero ? nil : opening, date: today, author: who))
+                }
+            }
+            let line = wish.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !line.isEmpty {
+                records.append(try work.remember(kind: .topic, title: "我想要的", text: line, source: .written, date: today, allowNew: true, author: who))
+            }
+        } catch let e as TrialError { throw e } catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "没写成，账本没动") }
+        ledger = work
+        return records
+    }
+}
