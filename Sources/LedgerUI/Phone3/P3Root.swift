@@ -91,6 +91,14 @@ struct P3SheetHost: ViewModifier {
                 }
             }
             .environment(state)
+            .overlay(alignment: .top) {
+                // 弹出来的单子盖住了底下的提示条：没做成的原因要在单子上就看得见
+                if let t = state.toast, t.isError {
+                    P3ToastView(text: t.text, canUndo: false, isError: true) {}
+                        .padding(.horizontal, 16).padding(.top, 28)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
             .presentationCornerRadius(26)
             .presentationDragIndicator(.visible)
             .presentationBackground(P3.bg)

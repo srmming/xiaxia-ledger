@@ -139,7 +139,8 @@ final class P3State {
     private var real: Ledger?
     private var realToday = LocalDate.today
     /// 这次打开以来在正式账本上做的改动（能撤销的就是这些）。
-    private var realUndo: [UUID] = []
+    /// 正式账本上能撤销的：每次界面上的一个动作是一组（apply 可能返回好几条改动），撤销时整组一起、后做的先撤。
+    private var realUndo: [[UUID]] = []
     var isReal: Bool { real != nil }
 
     convenience init(model: LedgerModel, today: LocalDate = .today) {
@@ -229,7 +230,7 @@ final class P3State {
                     return last
                 }
                 withAnimation(.spring(duration: 0.45)) { real = model.ledger; resnapshot() }
-                realUndo.append(contentsOf: records.map(\.id))
+                realUndo.append(records.map(\.id))
                 show(Toast(text: text, canUndo: true))
                 return true
             } catch let e as TrialError {
@@ -253,7 +254,7 @@ final class P3State {
 
     func undo() {
         if real != nil {
-            guard let id = realUndo.last else { say("没有能撤销的了"); return }
+            guard let id = realUndo.last?.last else { say("没有能撤销的了"); return }
             undo(change: id)
             return
         }
@@ -265,8 +266,14 @@ final class P3State {
         if let model, real != nil {
             // 正式账本用它自己的撤销（会再记一条「撤销」）
             do {
-                _ = try model.edit(quiet: true) { live in try live.undo(changeID: id, author: self.author) }
-                realUndo.removeAll { $0 == id }
+                let group = realUndo.first { $0.contains(id) } ?? [id]
+                _ = try model.edit(quiet: true) { live in
+                    var last: ChangeRecord?
+                    for one in group.reversed() { last = try live.undo(changeID: one, author: self.author) }
+                    guard let last else { throw TrialError("没有要撤的") }
+                    return last
+                }
+                realUndo.removeAll { $0.contains(id) }
                 withAnimation(.spring(duration: 0.45)) { real = model.ledger; resnapshot() }
                 settleSide()
                 show(Toast(text: "撤销了"))
@@ -281,7 +288,7 @@ final class P3State {
         } catch let e as TrialError { fail(e.message) } catch { fail("没撤成，再试一次") }
     }
 
-    func canUndo(_ id: UUID) -> Bool { real != nil ? realUndo.contains(id) : ledger.canUndo(id) }
+    func canUndo(_ id: UUID) -> Bool { real != nil ? realUndo.contains { $0.contains(id) } : ledger.canUndo(id) }
 
     private func show(_ t: Toast) {
         toastTask?.cancel()

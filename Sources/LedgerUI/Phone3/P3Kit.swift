@@ -253,8 +253,12 @@ struct P3Icon: View {
         "🏠": "housing", "🔁": "subscription", "🚇": "transport", "🚌": "transport", "🚕": "taxi", "🚗": "taxi", "🎁": "gift",
         "💼": "salary", "💰": "salary", "🎬": "movie", "🎵": "music", "✂️": "software", "📦": "delivery", "🥡": "delivery", "☁️": "online",
         "📰": "books", "💊": "medical", "🏋️": "gym", "🛍": "shopping", "👟": "clothing", "👕": "clothing", "⌚": "shopping", "💡": "utilities",
-        "❓": "uncategorized", "🧾": "uncategorized", "✈️": "flight", "📚": "course", "🎉": "gift", "🧧": "gift", "↩️": "transfer",
+        "❓": "uncategorized", "✈️": "flight", "📚": "course", "🎉": "gift", "🧧": "gift", "↩️": "transfer",
         "🎀": "gift", "🚚": "transport", "🎮": "shopping", "✋": "savings",
+        // 正式账本的分类图标（LedgerBridge.categoryEmoji）里有贴纸的；没有贴纸的直接显示 emoji，不再用问号
+        "🛍️": "shopping", "💅": "beauty", "💄": "beauty", "💇": "beauty", "💆": "beauty", "🐾": "pets", "💻": "software",
+        "🚆": "transport", "🚲": "transport", "📖": "books", "🎓": "course", "🩺": "medical", "🦷": "medical", "🍲": "dining",
+        "🥐": "dining", "🧋": "coffee", "🍺": "dining", "🍸": "dining", "🔀": "transfer",
     ]
     nonisolated(unsafe) private static var cache: [String: [SVGPath]] = [:]
     private static let lock = NSLock()

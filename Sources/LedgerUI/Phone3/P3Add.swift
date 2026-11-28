@@ -215,11 +215,16 @@ struct P3AddSheet: View {
 
     private func save() {
         let b = state.book
+        let real = state.isReal
         let when = daysAgo == 0 ? "" : daysAgo == 1 ? " · 昨天" : " · \(daysAgo) 天前"
         let ok: Bool
         if biz {
             if income {
-                ok = state.change("记好了 · 收进 \(amount.p3) · \(account)\(when)", kind: .add) { try $0.addShopIncome(amount, account: account, daysAgo: daysAgo) }
+                ok = state.change("记好了 · 收进 \(amount.p3) · \(account)\(when)", kind: .add) { book in
+                    // 正式账本：每次收的钱记成单独一笔「营业收入」（那天要是已有从银行导进来的收入，按天改会改不动）
+                    if real { _ = try book.record(name: "营业收入", emoji: "💶", amount: amount, income: true, account: account, tag: "自己记的", daysAgo: daysAgo, side: .biz) }
+                    else { try book.addShopIncome(amount, account: account, daysAgo: daysAgo) }
+                }
             } else {
                 let cat = category.isEmpty ? "其他" : category
                 ok = state.change("记好了 · \(cat) \(amount.p3) · \(account)\(when)", kind: .add) {
