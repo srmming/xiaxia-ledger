@@ -41,6 +41,11 @@ final class V3RenderTests: XCTestCase {
             try write(V3SettingsPage().environment(s), "real-set-\(sub.rawValue)", to: dir)
         }
         s.settingsSub = nil
+        // 生意首页和回本页：回本的日子是同一个
+        s.side = .biz
+        try write(V3BizHomePage().padding(20).environment(s), "real-biz-home", to: dir)
+        try write(V3PaybackPage().padding(20).environment(s), "real-payback", to: dir)
+        s.side = .life
         let demo = V3State(); demo.onboardingStep = nil
         try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
     }

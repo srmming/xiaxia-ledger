@@ -51,7 +51,7 @@ struct V3BizHomePage: View {
                     HStack(spacing: 10) {
                         if done, let today {
                             V3Amount(today.total.v3, color: V3.teal, size: 30, weight: .heavy)
-                            if today.total >= b.dailyBreakEven { V3Tag(text: "今天不亏了", tone: .teal) }
+                            if today.total >= b.dailyBreakEven { V3Tag(text: "今天不亏了", tone: .teal).help(b.breakEvenNote) }
                         }
                         if !done {
                             V3Field(prompt: "0,00", text: $todayText, size: 22, rounded: true) { quick() }
@@ -76,7 +76,7 @@ struct V3BizHomePage: View {
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
                 V3Card {
-                    V3CardTitle("店的这条路 · 回本", note: "照现在 2027 年 9 月")
+                    V3CardTitle("店的这条路 · 回本", note: b.paybackDateLabel().map { $0 == "已经回本" ? $0 : "照现在 \($0)" } ?? "")
                     Button { state.go(.payback) } label: {
                         HStack(spacing: 14) {
                             V3Ring(fraction: Double(back.cents) / Double(max(b.capitalTotal.cents, 1)))
@@ -236,7 +236,7 @@ struct V3FixedPage: View {
             VStack(spacing: 16) {
                 V3KeyCard(label: "每月固定要付", amount: b.fixedTotal, wave: V3.tealSoft) {
                     Text("每个开门的日子收够 \(b.dailyBreakEven.v3Short) 才不亏").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
-                        .help("这个月固定要付的 + 贷款月供 + 进的货，除以打算开门的 \(b.plannedOpenDays) 天（休息日不算）")
+                        .help(b.breakEvenNote)
                 }
                 if let ads {
                     if ads.off {
@@ -314,7 +314,7 @@ struct V3PaybackPage: View {
                         .init(points: [(290, 104), (520, 14)], color: V3.teal, width: 3, dash: [3, 7]),
                     ], dot: (290, 104))
                     .frame(maxHeight: .infinity)
-                    HStack { V3Label("开店 · 2025 年 10 月"); Spacer(); V3Label("今天"); Spacer(); V3Label(months.map { "再 \($0) 个月 · 回本" } ?? "回本") }
+                    HStack { V3Label(b.capital.first.map { $0.note.isEmpty ? "开店" : "开店 · \($0.note)" } ?? "开店"); Spacer(); V3Label("今天"); Spacer(); V3Label(b.paybackDateLabel().map { $0 == "已经回本" ? $0 : "\($0) · 回本" } ?? "回本") }
                 }
                 .accessibilityLabel("回本走了 \(Int(frac * 100))%")
                 if let months, let faster, months > faster {
@@ -648,7 +648,7 @@ struct V3ShopFlowPage: View {
                     HStack(spacing: 26) {
                         V3KV(value: sm.income.v3, label: "收了", color: V3.teal)
                         V3KV(value: sm.costs.v3, label: "开销", color: V3.red)
-                        if sm.purchases > .zero { V3KV(value: sm.purchases.v3, label: "进货（不算开销）") }
+                        if sm.purchases > .zero { V3KV(value: sm.purchases.v3, label: "进货（卖掉才算开销）") }
                     }
                 }
                 V3GrowCard {
