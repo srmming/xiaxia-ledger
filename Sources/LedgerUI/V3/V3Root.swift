@@ -469,15 +469,8 @@ private struct V3TopBar: View {
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
-            Button("问\(state.prefs.xiaName)") { state.openChat() }.buttonStyle(.v3(.ghost))
-                .overlay(alignment: .topTrailing) {
-                    // 夏夏有一句话没看：小红点
-                    if state.sayUnreadID != nil {
-                        Circle().fill(V3.red).overlay(Circle().strokeBorder(.white, lineWidth: 2)).frame(width: 13, height: 13).offset(x: 3, y: -3)
-                            .transition(.scale.combined(with: .opacity)).accessibilityLabel("夏夏有一句话")
-                    }
-                }
-                .keyboardShortcut("k", modifiers: .command).help("问夏夏（⌘K）")
+            // 「问夏夏」不再放在右上角（左下角已经有夏夏那一行了，ming 2026-11-28）；⌘K 照旧打开聊天。
+            Button("") { state.openChat() }.keyboardShortcut("k", modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
             if let main = mainAction {
                 Button("+ " + main.title, action: main.run)
                     .buttonStyle(.v3(state.side == .biz ? .teal : .primary))

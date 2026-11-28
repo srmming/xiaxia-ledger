@@ -47,7 +47,7 @@ final class StartingAccountsTests: XCTestCase {
     func testCustomCanBeEitherSideAndRenamed() throws {
         var s = StartingAccounts()
         let c = try s.add(.custom)
-        s.rename(c, to: "BBVA"); s.setText(c, "1.000")
+        s.rename(c, to: "新开的卡"); s.setText(c, "1.000")
         XCTAssertEqual(s.totals.have, eur("1000"))
         s.setOwes(c, true)
         XCTAssertEqual(s.totals.owe, eur("1000"))

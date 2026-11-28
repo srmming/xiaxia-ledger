@@ -278,9 +278,9 @@ final class V3State {
 
     /// 记一笔开销（说一句、问夏夏用）。
     @discardableResult
-    func record(_ q: QuickPhrase, account: String, place: String = "") -> Bool {
+    func record(_ q: QuickPhrase, account: String, place: String = "", daysAgo: Int = 0) -> Bool {
         change("记好了 · \(q.name) \(q.amount.v3) · \(account)", kind: .add) {
-            try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: account, place: place)
+            try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: account, place: place, daysAgo: daysAgo)
         }
     }
 
@@ -345,7 +345,7 @@ final class V3State {
         }
         var b = Book(
             accounts: [
-                Account(emoji: "💳", name: "日常卡", note: "Revolut · 今天刚导入", balance: eur("1496,61")),
+                Account(emoji: "💳", name: "日常卡", note: "晴空银行 · 今天刚导入", balance: eur("1496,61")),
                 Account(emoji: "🏦", name: "储蓄", note: "应急钱放这里 · 不动", balance: eur("2400"), block: .emergency, short: "储蓄 · 应急钱"),
                 Account(emoji: "⭐", name: "目标罐", note: goalNote(j), balance: eur("519"), block: .goal),
                 Account(emoji: "💶", name: "现金", note: "钱包里 · 上次点数 11 月 10 日", balance: eur("85")),
@@ -356,7 +356,7 @@ final class V3State {
                 Account(emoji: "🙈", name: "私房钱", note: "默认藏着，点一下才显示，不算进上面的数", balance: eur("1250"), kind: .secret, block: .none),
             ],
             entries: [
-                Entry(emoji: "🛒", name: "超市", meta: "Mercadona · 日常卡", amount: eur("-23,40"), tag: "流水导入", place: "Mercadona", account: "日常卡"),
+                Entry(emoji: "🛒", name: "超市", meta: "Super Sol · 日常卡", amount: eur("-23,40"), tag: "流水导入", place: "Super Sol", account: "日常卡"),
                 Entry(emoji: "☕", name: "咖啡", meta: "Café Nube · 现金", amount: eur("-3,20"), tag: "跟 AI 说的", place: "Café Nube", account: "现金"),
                 Entry(emoji: "🥗", name: "午饭", meta: "La Tasca · 日常卡", amount: eur("-12,50"), tag: "拍小票", place: "La Tasca", account: "日常卡"),
                 Entry(emoji: "💼", name: "私活进账", meta: "小林工作室 · 日常卡", amount: eur("420"), tag: "流水导入", daysAgo: 1, place: "小林工作室", account: "日常卡"),
@@ -384,6 +384,12 @@ final class V3State {
             splitWithEmergency: nil,
             monthlyMust: eur("860"))
         b.usualDailySpend = eur("31")
+        b.spendByCategory = [
+            .init(emoji: "🏠", name: "房租", amount: eur("650"), lastMonth: eur("650")), .init(emoji: "📱", name: "手机分期", amount: eur("200"), lastMonth: eur("200")),
+            .init(emoji: "🛒", name: "超市", amount: eur("142,19"), lastMonth: eur("162")), .init(emoji: "🥗", name: "餐饮", amount: eur("68,40"), lastMonth: eur("104")),
+            .init(emoji: "🔁", name: "订阅", amount: eur("42"), lastMonth: eur("42")), .init(emoji: "🚇", name: "交通", amount: eur("32"), lastMonth: eur("32")),
+            .init(emoji: "☕", name: "咖啡", amount: eur("28,80"), lastMonth: eur("45,50")),
+        ]
         b.subscriptions = [
             item("☁️", "云盘 Plus", "12 月 2 日扣 · 3 个月没怎么用", "4,99", tag: "可以考虑退"),
             item("🎬", "视频会员", "12 月 4 日扣 · 和另一个重了", "9,99", tag: "可以考虑退"),
@@ -403,7 +409,7 @@ final class V3State {
             item("💡", "水电", "每月 15 日", "70", tag: "必要"),
             item("🗓", "预约软件", "每月 20 日", "40", tag: "可省", flag: true),
         ]
-        b.purchases = [item("📦", "甲油胶补货", "11 月 12 日", "340"), item("📦", "工具和耗材", "10 月 28 日", "310"), item("📦", "饰品", "10 月 6 日", "240")]
+        b.purchases = [item("📦", "鲜花补货", "11 月 12 日", "340"), item("📦", "包装纸和丝带", "10 月 28 日", "310"), item("📦", "花瓶和花器", "10 月 6 日", "240")]
         b.stockEstimates = [item("📅", "9 月 30 日", "第三季度末", "2600"), item("📅", "6 月 30 日", "第二季度末", "2400"), item("📅", "开店时", "2025 年 10 月", "4200")]
         b.capital = [item("🔨", "装修", "2025 年 9 月", "14000"), item("💺", "设备和桌椅", "2025 年 9 月", "9800"),
                      item("📦", "第一批货", "2025 年 10 月", "4200"), item("🔑", "押金", "退租时能拿回", "4170")]
@@ -415,7 +421,7 @@ final class V3State {
             .init(kind: .topic, topic: "Café Nube", lines: ["付现金。一周超过 4 次时说一声"], source: "你说的"),
             .init(kind: .rule, topic: "超过 100 € 的东西", lines: ["先放进想要清单冷静 48 小时"], source: "你说的"),
             .init(kind: .rule, topic: "店里和家里", lines: ["店里的钱不拿来付家里的开销，要用就走「两边转钱」"], source: "你说的"),
-            .init(kind: .lesson, topic: "Revolut 的流水", lines: ["「To EUR」开头的是自己账户之间转，不算花"], source: "夏夏看出来的，你确认过"),
+            .init(kind: .lesson, topic: "晴空银行 的流水", lines: ["「To EUR」开头的是自己账户之间转，不算花"], source: "夏夏看出来的，你确认过"),
             .init(kind: .lesson, topic: "Super Lumi", lines: ["小票上印的是总公司的名字，认成超市"], source: "你纠正的"),
         ]
         // 11 月每天收了多少：和设计稿同一个算法。11 月 1 日是周日；周日休息；16 号没记；18 号是今天，还没记。
@@ -439,9 +445,9 @@ final class V3State {
         func at(_ h: Int, _ m: Int) -> Date { cal.date(bySettingHour: h, minute: m, second: 0, of: Date()) ?? Date() }
         return [
             ChangeRecord(kind: .capture, summary: "记一笔：午饭 12,50 € · 日常卡", transactionIDs: [], author: "拍小票", createdAt: at(13, 5)),
-            ChangeRecord(kind: .categorize, summary: "「Mercadona」归进超市，以后这家店都这样", transactionIDs: [], author: "夏夏", createdAt: at(10, 42)),
+            ChangeRecord(kind: .categorize, summary: "「Super Sol」归进超市，以后这家店都这样", transactionIDs: [], author: "夏夏", createdAt: at(10, 42)),
             ChangeRecord(kind: .subscription, summary: "把「健身房 29 €」标成像订阅，等你确认", transactionIDs: [], author: "Claude", createdAt: at(10, 41)),
-            ChangeRecord(kind: .importBatch, summary: "导入「Revolut 11 月流水」31 笔，跳过重复 6 笔", transactionIDs: [], author: "流水导入", createdAt: at(10, 40)),
+            ChangeRecord(kind: .importBatch, summary: "导入「晴空银行 11 月流水」31 笔，跳过重复 6 笔", transactionIDs: [], author: "流水导入", createdAt: at(10, 40)),
             ChangeRecord(kind: .add, summary: "记一笔：咖啡 3,20 € · 现金", transactionIDs: [], author: "Claude", createdAt: at(9, 12)),
             ChangeRecord(kind: .goalDeposit, summary: "存一笔 20 € 进「换新电脑」", transactionIDs: [], author: "你", createdAt: at(8, 30)),
         ]

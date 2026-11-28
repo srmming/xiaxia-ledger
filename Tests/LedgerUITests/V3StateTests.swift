@@ -167,7 +167,7 @@ final class V3StateTests: XCTestCase {
         s.forget(memo: cafe.id)
         s.undo()
         XCTAssertNil(s.book.memos.first { $0.id == cafe.id })
-        XCTAssertEqual(s.book.shopName, "Miora 小店")
+        XCTAssertEqual(s.book.shopName, "晴空小花店")
 
         // 分类改成已有的名字 = 并成一个，流水一起改
         XCTAssertTrue(s.change("并好了") { try $0.editCategory("咖啡", newName: "餐饮", emoji: "☕") })
@@ -301,6 +301,66 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(s.change("设好了") { try $0.setEmergency(accounts: ["目标罐"], months: 3) })
         s.undo()
         XCTAssertEqual(s.book.emergencyAccounts.map(\.name), ["储蓄"])
+    }
+
+    func testAccountListsComeFromOnePlace() {
+        let s = V3State()
+        XCTAssertEqual(s.book.accounts(for: .pay).map(\.name), ["日常卡", "现金", "信用卡"], "能付钱的：日常的账户加信用卡；储蓄、目标罐、分期不行")
+        // 新加一张卡以后，付钱、收钱、转出、转入各处都能选到
+        XCTAssertTrue(s.addAccount(emoji: "💳", name: "新开的卡", note: "", balance: eur("300"), kind: .own))
+        for use in [TrialBook.AccountUse.pay, .receive, .moveOut, .moveIn] {
+            XCTAssertTrue(s.book.accounts(for: use).contains { $0.name == "新开的卡" }, "\(use)")
+        }
+        XCTAssertEqual(s.book.accounts(for: .pay, side: .biz).map(\.name), ["小店账户"])
+        // 刷信用卡：欠的变多，删掉这笔欠的变回去
+        let owed = s.book.account("信用卡")!.balance
+        XCTAssertTrue(s.change("记好了") { try $0.record(name: "超市", emoji: "🛒", amount: self.eur("40"), account: "信用卡") })
+        XCTAssertEqual(s.book.account("信用卡")?.balance, owed + eur("40"))
+        s.undo()
+        XCTAssertEqual(s.book.account("信用卡")?.balance, owed)
+    }
+
+    func testTransferReadsAsFromTo() {
+        let s = V3State()
+        let net = s.book.totals.net
+        XCTAssertEqual(s.book.transferShortcuts.map(\.title), ["存进储蓄", "还信用卡", "取现金", "放进目标罐"])
+        XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("100"), from: "日常卡", to: "储蓄") })
+        XCTAssertEqual(s.book.account("储蓄")?.balance, eur("2500"))
+        XCTAssertEqual(s.book.totals.net, net, "自己账户之间转，净剩不变")
+        XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("640"), from: "日常卡", to: "信用卡") }, "转给信用卡就是还款")
+        XCTAssertEqual(s.book.account("信用卡")?.balance, .zero)
+        let saved = s.book.journey.saved
+        XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("20"), from: "现金", to: "目标罐") }, "转进目标罐就是存一笔")
+        XCTAssertEqual(s.book.journey.saved, saved + eur("20"))
+        XCTAssertFalse(s.change("转好了") { try $0.transfer(self.eur("20"), from: "现金", to: "现金") }, "从和到不能是同一个")
+        XCTAssertFalse(s.change("转好了") { try $0.transfer(self.eur("20"), from: "目标罐", to: "现金") }, "目标罐里的钱不能这样转出来")
+    }
+
+    func testSpendSlices() {
+        let b = V3State().book
+        XCTAssertEqual(b.spendSliceTotal, b.month.spentTotal, "圆环和大数是同一个口径")
+        XCTAssertEqual(b.spendSlices().first?.name, "房租")
+        XCTAssertEqual(b.spendSlices(limit: 3).map(\.name), ["房租", "手机分期", "其他"])
+        XCTAssertEqual(b.spendSlices(limit: 3).map(\.amount).reduce(.zero, +), b.spendSliceTotal)
+    }
+
+    /// 试用版的示例数据全是编的：不能出现真实的店名、银行、商户（和正式版示例数据同一张拦截单）。
+    func testDemoDataHasNoRealNames() {
+        let s = V3State()
+        let b = s.book
+        var words: [String] = [b.lifeName, b.shopName]
+        words += b.accounts.flatMap { [$0.name, $0.note, $0.short] }
+        words += (b.entries + b.upcoming).flatMap { [$0.name, $0.meta, $0.place, $0.account, $0.note, $0.tag] }
+        words += (b.subscriptions + b.wanted + b.fixedCosts + b.purchases + b.stockEstimates + b.capital + b.shopDebts).flatMap { [$0.name, $0.note, $0.tag] }
+        words += b.memos.flatMap { [$0.topic, $0.source] + $0.lines }
+        words += b.letters.flatMap { [$0.title, $0.quote, $0.headline] + $0.paragraphs }
+        words += b.spendByCategory.map(\.name) + b.categories.map(\.name) + [b.journey.name, b.journey.why]
+        words += s.ledger.changes.flatMap { [$0.summary, $0.author] }
+        words += s.aiLinks.map(\.note) + s.backups.map(\.title)
+        let all = words.joined(separator: "\n").lowercased()
+        for word in ["miora", "caixa", "imagin", "revolut", "mercadona", "glovo", "amazon", "netflix", "spotify", "美甲", "甲油"] {
+            XCTAssertFalse(all.contains(word), "示例数据里出现了「\(word)」")
+        }
     }
 
     func testGoingToBizSwitchesSide() {

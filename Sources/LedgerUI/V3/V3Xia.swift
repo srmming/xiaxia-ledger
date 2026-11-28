@@ -384,7 +384,7 @@ struct V3BuyCard: View {
                     }
                     .buttonStyle(.v3(check.verdict == .ok ? .ghost : .primary, .small))
                     Button("就买了") {
-                        guard let acc = state.book.payable(.life).first?.name else { state.fail("还没有能付钱的账户，先去家底加一个"); return }
+                        guard let acc = state.book.accounts(for: .pay, side: .life).first?.name else { state.fail("还没有能付钱的账户，先去家底加一个"); return }
                         if state.change("记好了 · \(check.name) \(check.price.v3) · \(acc)", kind: .add, { try $0.record(name: check.name, emoji: "🛍", amount: check.price, account: acc, tag: "跟夏夏说的") }) { mark("记了一笔，\(acc)") }
                     }
                     .buttonStyle(.v3(check.verdict == .ok ? .primary : .ghost, .small))

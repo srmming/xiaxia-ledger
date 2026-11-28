@@ -183,7 +183,8 @@ struct V3FormPick: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             if !label.isEmpty { V3Label(label, size: 12.5, weight: .bold) }
-            HStack(spacing: 6) {
+            // 放不下一行就换行，不截掉
+            FlowLayout(spacing: 6) {
                 ForEach(Array(options.enumerated()), id: \.offset) { i, o in
                     Button { withAnimation(.snappy(duration: 0.15)) { pick = i } } label: {
                         Text(o).font(V3.font(13.5, .bold)).foregroundStyle(pick == i ? .white : V3.ink).lineLimit(1)
@@ -269,89 +270,176 @@ struct V3ManualSheet: View {
     @State private var amount = ""
     @State private var place = ""
     @State private var cat = 2
+    @State private var incomeCat = 0
     @State private var account = 0
-    @State private var to = 1
-    @State private var day = 0
-    @State private var side = 0
+    @State private var from = ""
+    @State private var to = ""
+    @State private var daysAgo = 0
+    @State private var pickingDate = false
     @State private var note = ""
 
-    private var bookSide: TrialBook.Side { side == 1 ? .biz : .life }
-    private var accounts: [V3State.Account] {
-        kind == 2 ? state.book.accounts.filter { $0.kind == .own || $0.kind == .shop } : state.book.payable(bookSide)
-    }
+    /// 在哪一边打开的，就只记哪一边。
+    private var bookSide: TrialBook.Side { state.side == .biz ? .biz : .life }
+    private var accounts: [V3State.Account] { state.book.accounts(for: kind == 1 ? .receive : .pay, side: bookSide) }
 
     var body: some View {
         let m = V3Form.amount(amount)
         let names = accounts.map(\.name)
-        let left = state.book.month.left - (kind == 0 && side == 0 ? m ?? .zero : .zero) + (kind == 1 && side == 0 ? m ?? .zero : .zero)
+        let life = bookSide == .life
+        let left = state.book.month.left - (kind == 0 && life ? m ?? .zero : .zero) + (kind == 1 && life ? m ?? .zero : .zero)
+        let foot = kind == 2 ? (m.map { "从 \(from) 拿 \($0.v3) 放进 \(to)" } ?? "") : (life ? "记完这个月还能随便花 \(left.v3)" : "")
+        let ok = m != nil && (kind == 2 ? (from != to && !from.isEmpty && !to.isEmpty) : !names.isEmpty)
         Group {
             if embedded {
                 VStack(alignment: .leading, spacing: 12) {
                     fields(m, names)
                     HStack(spacing: 10) {
-                        V3Label("记完这个月还能随便花 \(left.v3)", size: 13)
+                        V3Label(foot, size: 13)
                         Spacer(minLength: 8)
-                        Button("记好 ↩") { if save(m) { done() } }.buttonStyle(.v3).disabled(m == nil || names.isEmpty).keyboardShortcut(.defaultAction)
+                        Button("记好 ↩") { if save(m) { done() } }.buttonStyle(.v3).disabled(!ok).keyboardShortcut(.defaultAction)
                         // ⌘↩：记好，清空接着记下一笔
                         Button("") { if save(m) { amount = ""; place = ""; note = "" } }.keyboardShortcut(.return, modifiers: .command).frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
                     }
                 }
             } else {
-                V3SheetBox(width: 660, title: "记一笔 · 自己填", foot: "记完还剩：这个月能随便花 \(left.v3)", canSave: m != nil && !names.isEmpty,
+                V3SheetBox(width: 660, title: "记一笔 · 自己填", foot: foot, canSave: ok,
                            save: { if save(m) { state.closeSheet() } },
-                           extra: { Button("记好，再记一笔") { if save(m) { amount = ""; place = ""; note = "" } }.buttonStyle(.v3(.ghost)).disabled(m == nil) }) {
+                           extra: { Button("记好，再记一笔") { if save(m) { amount = ""; place = ""; note = "" } }.buttonStyle(.v3(.ghost)).disabled(!ok) }) {
                     fields(m, names)
                 }
             }
         }
         .onAppear {
-            side = state.side == .biz ? 1 : 0
             if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
+            let s = state.book.transferShortcuts.first
+            from = s?.from ?? state.book.transferSources.first?.name ?? ""
+            to = s?.to ?? state.book.transferTargets.first { $0.name != from }?.name ?? ""
         }
-        .onChange(of: side) { _, _ in account = 0 }
-        .onChange(of: kind) { _, _ in account = 0; to = 1 }
+        .onChange(of: kind) { _, _ in account = 0 }
     }
 
     @ViewBuilder private func fields(_ m: Money?, _ names: [String]) -> some View {
-            V3FormPick(label: "", options: ["支出", "收入", "两个账户之间转"], pick: $kind)
+        V3FormPick(label: "", options: ["支出", "收入", "转账"], pick: $kind)
+        if kind == 2 {
+            transferFields
+        } else {
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "多少钱", prompt: "3,20", text: $amount, big: true, focus: true).frame(width: 200)
-                if kind != 2 { V3FormField(label: kind == 1 ? "谁给的" : "给谁 / 哪家店", prompt: kind == 1 ? "小林工作室" : "Café Nube", text: $place, big: true) }
+                V3FormField(label: kind == 1 ? "谁给的" : "给谁 / 哪家店", prompt: kind == 1 ? "小林工作室" : "Café Nube", text: $place, big: true)
             }
             V3AmountHint(text: amount)
-            if kind == 0 {
-                VStack(alignment: .leading, spacing: 5) {
-                    V3Label("分类", size: 12.5, weight: .bold)
-                    V3CatGrid(pick: cat) { cat = $0 }
+            VStack(alignment: .leading, spacing: 5) {
+                V3Label("分类", size: 12.5, weight: .bold)
+                if kind == 1 { V3CatGrid(pick: incomeCat, items: TrialBook.incomeCategories) { incomeCat = $0 } }
+                else { V3CatGrid(pick: cat) { cat = $0 } }
+            }
+            V3FormPick(label: kind == 1 ? "进到哪个账户" : "怎么付的", options: names, pick: $account)
+            dayPick
+            V3FormField(label: "备注", prompt: "可不填", text: $note)
+        }
+    }
+
+    /// 哪天：今天、昨天，或者点开小日历选一天（只能选今天和以前）。
+    private var dayPick: some View {
+        let today = state.book.todayDate
+        let cal = Calendar(identifier: .gregorian)
+        return VStack(alignment: .leading, spacing: 5) {
+            V3Label("哪天", size: 12.5, weight: .bold)
+            HStack(spacing: 6) {
+                dayChip("今天", daysAgo == 0) { daysAgo = 0 }
+                dayChip("昨天", daysAgo == 1) { daysAgo = 1 }
+                dayChip(daysAgo > 1 ? QuickDate.label(daysAgo: daysAgo, today: today, calendar: cal) : "选日期", daysAgo > 1) { pickingDate = true }
+                    .popover(isPresented: $pickingDate, arrowEdge: .bottom) {
+                        DatePicker("", selection: Binding(
+                            get: { cal.date(byAdding: .day, value: -daysAgo, to: today) ?? today },
+                            set: { d in daysAgo = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: d), to: cal.startOfDay(for: today)).day ?? 0) }),
+                                   in: ...today, displayedComponents: .date)
+                            .datePickerStyle(.graphical).labelsHidden().padding(12).frame(width: 300)
+                    }
+            }
+        }
+    }
+
+    private func dayChip(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.snappy(duration: 0.15)) { action() } } label: {
+            Text(title).font(V3.font(13.5, .bold)).foregroundStyle(on ? .white : V3.ink).lineLimit(1)
+                .padding(.horizontal, 13).padding(.vertical, 7)
+                .background(Capsule().fill(on ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+        }
+        .buttonStyle(V3SinkStyle(depth: 2)).accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    // MARK: 转账：从哪 → 到哪，一眼看得懂
+
+    @ViewBuilder private var transferFields: some View {
+        let b = state.book
+        let shortcuts = b.transferShortcuts
+        if !shortcuts.isEmpty {
+            FlowLayout(spacing: 6) {
+                ForEach(Array(shortcuts.enumerated()), id: \.offset) { _, sc in
+                    V3Chip(text: sc.title, size: 13) { withAnimation(.snappy(duration: 0.15)) { from = sc.from; to = sc.to } }
                 }
             }
-            if kind == 2 {
-                V3FormPick(label: "从哪个账户", options: names, pick: $account)
-                V3FormPick(label: "到哪个账户", options: names, pick: $to)
-            } else {
-                V3FormPick(label: kind == 1 ? "进到哪个账户" : "怎么付的", options: names, pick: $account)
-                HStack(alignment: .top, spacing: 12) {
-                    V3FormPick(label: "哪天", options: ["今天", "昨天"], pick: $day)
-                    if state.mode == .both { V3FormPick(label: "记在哪边", options: ["生活", "生意"], pick: $side) }
+        }
+        V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220).frame(maxWidth: .infinity)
+        V3AmountHint(text: amount)
+        HStack(spacing: 10) {
+            accountCard("从", from, b.transferSources) { from = $0; if to == $0 { to = b.transferTargets.first { $0.name != from }?.name ?? "" } }
+            VStack(spacing: 6) {
+                Image(systemName: "arrow.right").font(.system(size: 24, weight: .heavy)).foregroundStyle(V3.navy)
+                Button {
+                    // 对调：只有两边都能当「从」时才调得过来
+                    if b.transferSources.contains(where: { $0.name == to }) { withAnimation(.snappy(duration: 0.15)) { (from, to) = (to, from) } }
+                    else { state.fail("「\(to)」里的钱转不出来，调不过来") }
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 26, height: 22)
+                        .background(Capsule().fill(V3.bg))
                 }
-                V3FormField(label: "备注", prompt: "可不填", text: $note)
+                .buttonStyle(.plain).help("对调").accessibilityLabel("从和到对调")
             }
+            accountCard("到", to, b.transferTargets.filter { $0.name != from }) { to = $0 }
+        }
+    }
+
+    private func accountCard(_ label: String, _ name: String, _ choices: [V3State.Account], pick: @escaping (String) -> Void) -> some View {
+        let a = state.book.account(name)
+        return Menu {
+            ForEach(choices) { c in Button("\(c.emoji) \(c.name) · \(c.balance.v3)") { pick(c.name) } }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label).font(V3.font(12, .bold)).foregroundStyle(V3.ink2)
+                HStack(spacing: 8) {
+                    V3Ico(emoji: a?.emoji ?? "💳", size: 30)
+                    Text(a?.name ?? "选一个").font(V3.font(15, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2)
+                }
+                Text(a.map { ($0.kind == .debt ? "还欠 " : "") + $0.balance.v3 } ?? "").font(V3.num(14)).foregroundStyle(a?.kind == .debt ? V3.red : V3.navy)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 16).fill(.white).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(V3.ink, lineWidth: 2)))
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button).buttonStyle(.plain)
+        .accessibilityLabel("\(label)：\(a?.name ?? "还没选")")
     }
 
     private func save(_ m: Money?) -> Bool {
-        guard let m, accounts.indices.contains(account) else { return false }
-        let acc = accounts[account].name
+        guard let m else { return false }
         if kind == 2 {
-            guard accounts.indices.contains(to) else { return false }
-            let dest = accounts[to].name
-            return state.change("转好了 · \(acc) → \(dest) \(m.v3)", kind: .transfer) { try $0.move(m, from: acc, to: dest) }
+            var reached: [Journey.Station] = []
+            let ok = state.change("转好了 · 从 \(from) 拿 \(m.v3) 放进 \(to)", kind: .transfer) { reached = try $0.transfer(m, from: from, to: to) }
+            if ok, !reached.isEmpty { state.starDrops += 1 }
+            return ok
         }
-        let c = state.book.categories[min(cat, state.book.categories.count - 1)]
+        guard accounts.indices.contains(account) else { return false }
+        let acc = accounts[account].name
         let shop = place.trimmingCharacters(in: .whitespaces)
-        let name = kind == 1 ? (shop.isEmpty ? "进账" : shop) : c.name
-        return state.change("记好了 · \(name) \(m.v3) · \(acc)", kind: .add) {
-            try $0.record(name: name, emoji: kind == 1 ? "💼" : c.emoji, amount: m, income: kind == 1, account: acc, place: shop,
-                          tag: "自己记的", daysAgo: day, side: bookSide, note: note)
+        let c = kind == 1 ? TrialBook.incomeCategories[min(incomeCat, TrialBook.incomeCategories.count - 1)]
+                          : state.book.categories[min(cat, state.book.categories.count - 1)]
+        return state.change("记好了 · \(c.name) \(m.v3) · \(acc)", kind: .add) {
+            try $0.record(name: c.name, emoji: c.emoji, amount: m, income: kind == 1, account: acc, place: shop,
+                          tag: "自己记的", daysAgo: daysAgo, side: bookSide, note: note)
         }
     }
 }
@@ -359,11 +447,13 @@ struct V3ManualSheet: View {
 /// 12 个分类排两行，点一下就选。
 private struct V3CatGrid: View {
     let pick: Int?
+    /// 不给就是账本里支出的那些分类。
+    var items: [TrialBook.Category]? = nil
     var choose: (Int) -> Void
     @Environment(V3State.self) private var state
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
-            ForEach(Array(state.book.categories.prefix(18).enumerated()), id: \.offset) { i, c in
+            ForEach(Array((items ?? state.book.categories).prefix(18).enumerated()), id: \.offset) { i, c in
                 Button { choose(i) } label: {
                     VStack(spacing: 3) {
                         V3Ico(emoji: c.emoji, size: 30)
@@ -389,7 +479,7 @@ private struct V3SaveSheet: View {
 
     var body: some View {
         let j = state.book.journey
-        let accounts = state.book.payable(.life)
+        let accounts = state.book.accounts(for: .moveOut).filter { $0.kind == .own }
         let m = V3Form.amount(amount)
         let from = accounts.indices.contains(account) ? accounts[account] : nil
         let enough = m.map { ($0) <= (from?.balance ?? .zero) } ?? true
@@ -466,13 +556,19 @@ private struct V3SubscriptionSheet: View {
     @State private var name = ""
     @State private var amount = ""
     @State private var cycle = 1
-    @State private var next = ""
+    /// 下次哪天扣：离今天几天（nil = 还没选）。
+    @State private var nextIn: Int?
+    @State private var pickingDate = false
     @State private var account = 0
     @State private var forWork = false
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let accounts = state.book.payable(.life)
+        let accounts = state.book.accounts(for: .pay, side: .life)
+        let today = state.book.todayDate
+        let cal = Calendar(identifier: .gregorian)
+        let nextDate = nextIn.flatMap { cal.date(byAdding: .day, value: $0, to: today) }
+        let nextLabel = nextDate.map { "\(cal.component(.month, from: $0)) 月 \(cal.component(.day, from: $0)) 日" }
         let ok = m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
         let yearly = m.map { TrialBook.Item(emoji: "", name: "", note: "", amount: $0, cycle: cycle).yearly }
         V3SheetBox(width: 560, title: "加一个订阅", foot: yearly.map { "一年是 \($0.v3Short)。" } ?? "", primary: "加好",
@@ -480,7 +576,7 @@ private struct V3SubscriptionSheet: View {
                    save: {
                        guard let m else { return }
                        let cyc = TrialBook.Item.cycleNames[cycle]
-                       let day = next.trimmingCharacters(in: .whitespaces)
+                       let day = nextLabel ?? ""
                        let acc = accounts.indices.contains(account) ? accounts[account].name : ""
                        let note = [day.isEmpty ? "\(cyc)扣" : "\(day)扣", acc].filter { !$0.isEmpty }.joined(separator: " · ")
                        if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle) }) { state.closeSheet() }
@@ -491,11 +587,27 @@ private struct V3SubscriptionSheet: View {
             }
             V3AmountHint(text: amount)
             V3FormPick(label: "多久扣一次", options: TrialBook.Item.cycleNames, pick: $cycle)
-            HStack(alignment: .top, spacing: 12) {
-                V3FormField(label: "下次哪天扣", prompt: "12 月 5 日", text: $next).frame(width: 170)
-                V3FormPick(label: "从哪个账户扣", options: accounts.map(\.name), pick: $account)
+            VStack(alignment: .leading, spacing: 5) {
+                V3Label("下次哪天扣", size: 12.5, weight: .bold)
+                Button { pickingDate = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar").font(.system(size: 12, weight: .semibold))
+                        Text(nextLabel ?? "选日期").font(V3.font(13.5, .bold))
+                    }
+                    .foregroundStyle(nextIn == nil ? V3.ink : .white)
+                    .padding(.horizontal, 13).padding(.vertical, 7)
+                    .background(Capsule().fill(nextIn == nil ? .white : V3.navy).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                }
+                .buttonStyle(V3SinkStyle(depth: 2))
+                .popover(isPresented: $pickingDate, arrowEdge: .bottom) {
+                    DatePicker("", selection: Binding(get: { nextDate ?? today },
+                                                    set: { d in nextIn = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: today), to: cal.startOfDay(for: d)).day ?? 0) }),
+                               in: today..., displayedComponents: .date)
+                        .datePickerStyle(.graphical).labelsHidden().padding(12).frame(width: 300)
+                }
             }
-            V3FormSwitch(title: "赚钱要用的", sub: "打开后夏夏不会建议你退掉", on: $forWork)
+            V3FormPick(label: "从哪个账户扣", options: accounts.map(\.name), pick: $account)
+            V3FormSwitch(title: "工作要用，别劝我退", on: $forWork)
         }
     }
 }
@@ -563,7 +675,7 @@ private struct V3RepaySheet: View {
 
     var body: some View {
         let owed = state.book.account(debt)?.balance ?? .zero
-        let accounts = state.book.payable(.life)
+        let accounts = state.book.accounts(for: .moveOut).filter { $0.kind == .own }
         let from = accounts.indices.contains(account) ? accounts[account] : nil
         let m = V3Form.amount(amount)
         let tooMuch = (m ?? .zero) > owed
@@ -709,7 +821,7 @@ private struct V3SimpleSheet: View {
                        if ok { state.closeSheet() }
                    }) {
             HStack(alignment: .top, spacing: 12) {
-                if kind != .stock { V3FormField(label: kind == .purchase ? "进的什么" : "做什么用", prompt: kind == .purchase ? "甲油胶补货" : "新设备", text: $name, focus: true) }
+                if kind != .stock { V3FormField(label: kind == .purchase ? "进的什么" : "做什么用", prompt: kind == .purchase ? "鲜花补货" : "新设备", text: $name, focus: true) }
                 V3FormField(label: kind == .stock ? "现在店里的货大概值多少" : "多少钱", prompt: "0", text: $amount, big: kind == .stock, focus: kind == .stock)
                     .frame(width: kind == .stock ? nil : 170)
             }
@@ -881,7 +993,7 @@ private struct V3TransferSheet: View {
     var body: some View {
         let b = state.book
         let shop = b.accounts.first { $0.kind == .shop }
-        let home = b.payable(.life).first
+        let home = b.accounts(for: .receive, side: .life).first
         let m = V3Form.amount(amount)
         let from = toHome ? shop : home
         let short = (m ?? .zero) > (from?.balance ?? .zero)

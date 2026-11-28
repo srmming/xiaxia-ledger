@@ -94,15 +94,16 @@ struct V3RowList: View {
 
 struct V3SpendingPage: View {
     @Environment(V3State.self) private var state
-    private let weeks: [(Double, Double)] = [(58, 74), (66, 61), (49, 70), (0, 52)]
-    private let top: [(String, String, String, Double, Double, UInt32)] = [
-        ("🏠", "房租", "650,00", 100, 100, 0x7FA3F0), ("📱", "手机分期", "200,00", 31, 31, 0xC9A0DC), ("🛒", "超市", "142,19", 22, 25, 0x6CC5A8),
-        ("🥗", "餐饮", "68,40", 11, 16, 0xF2A65A), ("🔁", "订阅", "42,00", 6.5, 6.5, 0x8FB5F5), ("🚇", "交通", "32,00", 5, 5, 0x9AD0E0), ("☕", "咖啡", "28,80", 4.4, 7, 0xD9A27A),
-    ]
+    /// 鼠标正指着的那个分类：圆环上那一段和右边那一行一起亮。
+    @State private var hot: String?
+    static let colors: [UInt32] = [0x7FA3F0, 0xC9A0DC, 0x6CC5A8, 0xF2A65A, 0x8FB5F5, 0x9AD0E0, 0xD9A27A, 0xB8BEDA]
 
     var body: some View {
         let m = state.book.month
         let diff = state.lastMonthSpentSoFar - m.spentTotal
+        let slices = state.book.spendSlices()
+        let total = state.book.spendSliceTotal
+        let biggest = slices.map(\.amount.cents).max() ?? 1
         V3Cols(left: 1.1, right: 1) {
             VStack(spacing: 16) {
                 V3Ask(face: diff >= .zero ? "happy" : "calm",
@@ -114,64 +115,128 @@ struct V3SpendingPage: View {
                         V3KV(value: m.spent.v3, label: "平时花的")
                     }
                 }
+                // 按分类的圆环：颜色和右边每一行一一对上，中间是这个月花掉的总数
                 V3GrowCard {
-                    V3CardTitle(title: "平时花的 · 每周和上个月比") { EmptyView() } trail: {
-                        HStack(spacing: 10) { legend(V3.navy, "这个月"); legend(V3.dash, "上个月") }
-                    }
-                    HStack(alignment: .bottom, spacing: 26) {
-                        ForEach(Array(weeks.enumerated()), id: \.offset) { i, w in
-                            VStack(spacing: 6) {
-                                GeometryReader { g in
-                                    HStack(alignment: .bottom, spacing: 6) {
-                                        if w.0 > 0 {
-                                            UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8).fill(V3.navy).frame(width: 34, height: g.size.height * w.0 / 100)
-                                        } else {
-                                            UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8)
-                                                .strokeBorder(V3.dash, style: StrokeStyle(lineWidth: 2, dash: [5, 4])).frame(width: 34, height: g.size.height * 0.2)
-                                        }
-                                        UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8).fill(V3.dash).frame(width: 34, height: g.size.height * w.1 / 100)
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                                }
-                                V3Label("第 \(i + 1) 周\(i == 2 ? "（到今天）" : "")", size: 13)
-                            }
+                    V3Donut(slices: slices.map { (id: $0.name, value: Double($0.amount.cents)) }, colors: Self.colors, hot: $hot) { name in
+                        state.txQuery = name; state.go(.transactions)
+                    } center: {
+                        VStack(spacing: 0) {
+                            let shown = slices.first { $0.name == hot }
+                            Text((shown?.amount ?? total).v3Short).font(V3.num(30, .heavy)).foregroundStyle(V3.ink).contentTransition(.numericText())
+                            Text(shown?.name ?? "花掉").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                         }
                     }
-                    .padding(.horizontal, 16).frame(maxHeight: .infinity)
-                    .accessibilityElement().accessibilityLabel("每周平时花的和上个月比：前三周两周比上个月少")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).padding(6)
+                    .accessibilityElement().accessibilityLabel("这个月花掉 \(total.v3)，最多的是\(slices.first?.name ?? "")")
                 }
             }
         } trailing: {
             V3GrowCard(spacing: 0) {
                 V3CardTitle("花得最多的").padding(.bottom, 6)
-                ForEach(Array(top.enumerated()), id: \.offset) { _, t in
-                    Button { state.txQuery = t.1; state.go(.transactions) } label: {
+                ForEach(Array(slices.enumerated()), id: \.element.id) { i, t in
+                    Button { state.txQuery = t.name; state.go(.transactions) } label: {
                     HStack(spacing: 12) {
-                        V3Ico(emoji: t.0)
+                        V3Ico(emoji: t.emoji)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(t.1).font(V3.font(14, .bold))
+                            Text(t.name).font(V3.font(14, .bold))
                             GeometryReader { g in
                                 ZStack(alignment: .leading) {
                                     Capsule().fill(V3.bg)
-                                    Capsule().fill(V3.hex(t.5)).frame(width: max(g.size.width * t.3 / 100, 6))
-                                    Rectangle().fill(V3.ink).frame(width: 2, height: 15).offset(x: g.size.width * t.4 / 100 - 1)
+                                    Capsule().fill(V3.hex(Self.colors[i % Self.colors.count])).frame(width: max(g.size.width * Double(t.amount.cents) / Double(biggest), 6))
+                                    Rectangle().fill(V3.ink).frame(width: 2, height: 15).offset(x: min(g.size.width * Double(t.lastMonth.cents) / Double(biggest), g.size.width) - 1)
                                 }
                             }
                             .frame(height: 9)
                         }
-                        V3Amount("\(t.2)\u{00A0}€").frame(width: 96, alignment: .trailing)
+                        V3Amount(t.amount.v3).frame(width: 96, alignment: .trailing)
                     }
-                    .frame(maxHeight: .infinity).contentShape(Rectangle())
+                    .padding(.horizontal, 8)
+                    .frame(maxHeight: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(hot == t.name ? V3.bg : .clear))
+                    .contentShape(Rectangle())
                     }
-                    .buttonStyle(V3SinkStyle(depth: 1)).help("去流水里只看「\(t.1)」")
+                    .buttonStyle(V3SinkStyle(depth: 1)).help("去流水里只看「\(t.name)」")
+                    .onHover { inside in withAnimation(.snappy(duration: 0.12)) { hot = inside ? t.name : (hot == t.name ? nil : hot) } }
                     .accessibilityElement(children: .combine)
                 }
             }
         }
     }
+}
 
-    private func legend(_ c: Color, _ t: String) -> some View {
-        HStack(spacing: 4) { RoundedRectangle(cornerRadius: 2).fill(c).frame(width: 10, height: 10); Text(t).font(V3.font(13, .semibold)).foregroundStyle(V3.ink2) }
+/// 圆环图：一段一个分类。鼠标移上去那一段微微外扩，点了做 `pick`。中间放一块自己的内容。
+struct V3Donut<Center: View>: View {
+    let slices: [(id: String, value: Double)]
+    let colors: [UInt32]
+    @Binding var hot: String?
+    var pick: (String) -> Void
+    @ViewBuilder var center: Center
+
+    var body: some View {
+        GeometryReader { g in
+            let side = min(g.size.width, g.size.height)
+            let total = max(slices.map(\.value).reduce(0, +), 1)
+            let starts = slices.indices.map { i in slices[..<i].map(\.value).reduce(0, +) / total }
+            ZStack {
+                ForEach(Array(slices.enumerated()), id: \.element.id) { i, s in
+                    let on = hot == s.id
+                    V3DonutSlice(from: starts[i], to: starts[i] + s.value / total, thickness: side * 0.2)
+                        .fill(V3.hex(colors[i % colors.count]))
+                        .overlay(V3DonutSlice(from: starts[i], to: starts[i] + s.value / total, thickness: side * 0.2).stroke(V3.ink, lineWidth: 2.5))
+                        .scaleEffect(on ? 1.05 : 1)
+                        .contentShape(V3DonutSlice(from: starts[i], to: starts[i] + s.value / total, thickness: side * 0.2))
+                        .onHover { inside in withAnimation(.spring(duration: 0.2)) { hot = inside ? s.id : (hot == s.id ? nil : hot) } }
+                        .onTapGesture { pick(s.id) }
+                }
+                center
+            }
+            .frame(width: side, height: side)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// 圆环上的一段（0 在正上方，顺时针）。
+struct V3DonutSlice: Shape {
+    var from: Double
+    var to: Double
+    var thickness: CGFloat
+    func path(in rect: CGRect) -> Path {
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let outer = min(rect.width, rect.height) / 2 - 4, inner = outer - thickness
+        let a0 = Angle.degrees(from * 360 - 90), a1 = Angle.degrees(to * 360 - 90)
+        var p = Path()
+        p.addArc(center: c, radius: outer, startAngle: a0, endAngle: a1, clockwise: false)
+        p.addArc(center: c, radius: inner, startAngle: a1, endAngle: a0, clockwise: true)
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// 平时花的：每周和上个月比（原来在花销页，挪到趋势页）。
+struct V3WeeklyBars: View {
+    private let weeks: [(Double, Double)] = [(58, 74), (66, 61), (49, 70), (0, 52)]
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 18) {
+            ForEach(Array(weeks.enumerated()), id: \.offset) { i, w in
+                VStack(spacing: 4) {
+                    GeometryReader { g in
+                        HStack(alignment: .bottom, spacing: 5) {
+                            if w.0 > 0 {
+                                UnevenRoundedRectangle(topLeadingRadius: 7, topTrailingRadius: 7).fill(V3.navy).frame(width: 26, height: g.size.height * w.0 / 100)
+                            } else {
+                                UnevenRoundedRectangle(topLeadingRadius: 7, topTrailingRadius: 7)
+                                    .strokeBorder(V3.dash, style: StrokeStyle(lineWidth: 2, dash: [5, 4])).frame(width: 26, height: g.size.height * 0.2)
+                            }
+                            UnevenRoundedRectangle(topLeadingRadius: 7, topTrailingRadius: 7).fill(V3.dash).frame(width: 26, height: g.size.height * w.1 / 100)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    }
+                    V3Label("第 \(i + 1) 周", size: 12)
+                }
+            }
+        }
+        .accessibilityElement().accessibilityLabel("每周平时花的和上个月比：前三周有两周比上个月少")
     }
 }
 
@@ -233,6 +298,14 @@ struct V3TrendsPage: View {
                 V3RowList(rows: [.init("🛒", "吃饭和超市", "大概", "310,00 €"), .init("🚇", "交通和别的", "大概", "140,00 €")], compact: true)
                 V3CardTitle("提前知道的大开销").padding(.top, 6)
                 V3RowList(rows: [.init("🎁", "过年礼物", "去年 12 月花了 180 €", "大概 180 €", tag: "去年有过", tone: .gold)], compact: true)
+                V3CardTitle(title: "平时花的 · 每周和上个月比") { EmptyView() } trail: {
+                    HStack(spacing: 8) {
+                        HStack(spacing: 4) { Circle().fill(V3.navy).frame(width: 8, height: 8); V3Label("这个月", size: 12) }
+                        HStack(spacing: 4) { Circle().fill(V3.dash).frame(width: 8, height: 8); V3Label("上个月", size: 12) }
+                    }
+                }
+                .padding(.top, 6)
+                V3WeeklyBars().frame(maxHeight: .infinity).padding(.horizontal, 8)
             }
         }
     }
@@ -313,6 +386,11 @@ struct V3TransactionsPage: View {
                         V3Label("昨天 · 11 月 17 日", weight: .bold).padding(.top, 4)
                         list(yest, pick: pick)
                     }
+                    let older = state.book.entries.filter { $0.daysAgo > 1 && $0.side == .life }.filter(match)
+                    if !older.isEmpty {
+                        V3Label("更早", weight: .bold).padding(.top, 4)
+                        list(Array(older.prefix(today.count + yest.count > 4 ? 1 : 3)), pick: pick)
+                    }
                 }
             }
         } trailing: {
@@ -324,7 +402,7 @@ struct V3TransactionsPage: View {
                     }
                     V3Amount(e.amount.cents > 0 ? e.amount.v3Signed : e.amount.v3, color: e.amount.cents > 0 ? V3.green : V3.navy, size: 38, weight: .heavy)
                     VStack(spacing: 0) {
-                        detail("什么时候", e.daysAgo == 0 ? "今天" : e.daysAgo == 1 ? "昨天" : "\(e.daysAgo) 天前"); V3Divider()
+                        detail("什么时候", QuickDate.label(daysAgo: e.daysAgo, today: state.book.todayDate)); V3Divider()
                         detail("怎么付的", e.meta.components(separatedBy: " · ").last ?? ""); V3Divider()
                         detail("怎么进来的", e.tag == "跟 AI 说的" ? "你跟 Claude 说了一句" : e.tag == "刚记的" ? "你刚才自己记的" : e.tag.isEmpty ? "自己记的" : e.tag)
                         if e.name == "咖啡" { V3Divider(); detail("这周第几次", "第 2 次 · 上周同期 4 次") }

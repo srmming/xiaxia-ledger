@@ -62,7 +62,15 @@ final class V3RenderTests: XCTestCase {
             let s = V3State(); s.onboardingStep = nil; setup(s); s.toast = nil
             try write(V3Shell().environment(s), name, to: dir)
         }
-        try shell("tx-importing") { $0.page = .transactions; $0.importProgress = ("Revolut 11 月流水", 40, 52) }
+        try shell("tx-importing") { $0.page = .transactions; $0.importProgress = ("晴空银行 11 月流水", 40, 52) }
+        try shell("spending-donut") { $0.page = .spending }
+        try shell("trends-weekly") { $0.page = .trends }
+        try shell("sheet-sub-accounts") { s in
+            s.page = .subscriptions
+            _ = s.addAccount(emoji: "💳", name: "新开的卡", note: "", balance: Money(cents: 300_00), kind: .own)
+            _ = s.addAccount(emoji: "💳", name: "第二张卡", note: "", balance: Money(cents: 120_00), kind: .own)
+            s.sheet = .subscription
+        }
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }
@@ -104,6 +112,45 @@ final class V3RenderTests: XCTestCase {
         let set = V3State()
         set.onboardingStep = nil; set.page = .settings; set.settingsSub = .business
         try write(V3Shell().environment(set), "sides-settings", to: dir)
+    }
+
+    /// 规格对照的那四组图（有数据、没数据、设置、弹窗）全部离屏重画一遍。
+    func testRenderSpecSetOffscreen() throws {
+        guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_SPEC_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_SPEC_DIR") }
+        func out(_ sub: String) throws -> String {
+            let d = (dir as NSString).appendingPathComponent(sub)
+            try FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
+            return d
+        }
+        func fresh() -> V3State { let s = V3State(); s.onboardingStep = nil; return s }
+        for p in V3State.Page.life + V3State.Page.biz {
+            let s = fresh(); s.go(p); if V3State.Page.biz.contains(p) { s.side = .biz; s.page = p }
+            try write(V3Shell().environment(s), p.rawValue, to: try out("有数据"))
+            let e = fresh(); e.patch { $0.wipe() }; if V3State.Page.biz.contains(p) { e.side = .biz }; e.page = p
+            try write(V3Shell().environment(e), p.rawValue, to: try out("没数据"))
+        }
+        let log = fresh(); log.page = .settings; log.showLog = true
+        try write(V3Shell().environment(log), "log", to: try out("有数据"))
+        for f in [V3State.Forced.loading, .error] {
+            let s = fresh(); s.forced = f
+            try write(V3Shell().environment(s), f.rawValue, to: try out("没数据"))
+        }
+        let txErr = fresh(); txErr.page = .transactions; txErr.forced = .error
+        try write(V3Shell().environment(txErr), "出错-流水", to: try out("没数据"))
+        let home = fresh(); home.page = .settings
+        try write(V3Shell().environment(home), "settings", to: try out("设置"))
+        for sub in ["ai", "xia", "memory", "speak", "privacy", "author", "books", "business", "money", "sync", "data"] {
+            let s = fresh(); s.page = .settings; s.settingsSub = V3State.SettingsSub(rawValue: sub)
+            try write(V3Shell().environment(s), "set-" + sub, to: try out("设置"))
+        }
+        for name in ["sheet-save", "sheet-cat", "sheet-amount", "sheet-sub", "sheet-debt", "sheet-repay", "sheet-daily", "sheet-fixed", "sheet-purchase",
+                     "sheet-stock", "sheet-capital", "sheet-captotal", "sheet-transfer", "sheet-shopdebt", "sheet-memo", "sheet-forget", "sheet-tidy", "sheet-meet",
+                     "sheet-del1", "sheet-del2", "sheet-restore", "sheet-feedback", "sheet-books", "sheet-accounts", "sheet-cats", "sheet-base",
+                     "sheet-plan", "sheet-subinfo", "sheet-fixededit", "sheet-emergency"] {
+            let s = fresh()
+            V3Sheet.fromLaunch(name, s)
+            try write(V3Shell().environment(s), name, to: try out("弹窗"))
+        }
     }
 }
 #endif

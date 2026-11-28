@@ -727,8 +727,8 @@ private struct V3SetMoneyPage: View {
         @Bindable var s = state
         V3SetColumn {
             V3SetGroup(title: "流水导入", note: "导错了能在改动记录里整批撤销。", grow: true) {
-                V3SetRow(title: "上次导入", detail: "今天 10:40 · Revolut 11 月流水 · 新的 31 笔，跳过重复 6 笔", line: false) { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
-                V3SetRow(title: "认得哪些银行", detail: "Revolut、N26、CaixaBank、imagin") { EmptyView() }
+                V3SetRow(title: "上次导入", detail: "今天 10:40 · 晴空银行 11 月流水 · 新的 31 笔，跳过重复 6 笔", line: false) { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
+                V3SetRow(title: "认得哪些银行", detail: "常见银行导出的 CSV") { EmptyView() }
                 V3SetRow(title: "重复的流水", sub: "同一天、同一金额、同一家店的只留一笔") { V3Switch(on: $s.prefs.dedupe, label: "跳过重复的流水") }
             }
             VStack(spacing: 14) {
@@ -1036,7 +1036,7 @@ struct V3BooksSheet: View {
             if ok { state.closeSheet() }
         }) {
             V3FormField(label: "🏠 生活这本叫什么", prompt: "生活", text: $life, focus: true)
-            if state.showsBiz { V3FormField(label: "🏪 生意这本叫什么", prompt: "Miora 小店", text: $shop) }
+            if state.showsBiz { V3FormField(label: "🏪 生意这本叫什么", prompt: "晴空小花店", text: $shop) }
         }
         .onAppear { life = state.book.lifeName; shop = state.book.shopName }
     }

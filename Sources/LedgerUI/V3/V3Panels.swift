@@ -21,8 +21,10 @@ struct V3AddSheet: View {
     @FocusState private var focused: Bool
     static let ways = ["说一句", "自己填", "拖文件"]
 
-    private var parsed: QuickPhrase? { QuickPhrase.parse(text) }
-    private var accounts: [String] { state.book.payable(.life).map(\.name) }
+    /// 话里提到的哪天（「昨天」「上周五」「12 号」）；没提就是今天。日期那几个字先拿掉再认金额。
+    private var said: (daysAgo: Int, rest: String) { QuickDate.extract(text, today: state.book.todayDate) ?? (0, text) }
+    private var parsed: QuickPhrase? { QuickPhrase.parse(said.rest) }
+    private var accounts: [String] { state.book.accounts(for: .pay, side: .life).map(\.name) }
     /// 话里自己说了怎么付（「现金」「刷卡」或者账户的名字）。
     private var saidAccount: String? {
         if let hit = accounts.first(where: { text.contains($0) }) { return hit }
@@ -87,7 +89,7 @@ struct V3AddSheet: View {
                 V3Ico(emoji: q.emoji, size: 40)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(q.name).font(V3.font(16, .heavy)).lineLimit(1)
-                    Text("今天 · \(said ?? (accounts.indices.contains(pay) ? accounts[pay] : ""))").font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
+                    Text("\(QuickDate.label(daysAgo: self.said.daysAgo, today: state.book.todayDate)) · \(said ?? (accounts.indices.contains(pay) ? accounts[pay] : ""))").font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
                 }
                 Spacer(minLength: 6)
                 V3Amount((-q.amount).v3, size: 22, weight: .heavy)
@@ -171,7 +173,7 @@ struct V3AddSheet: View {
     private func save(_ q: QuickPhrase?, keepOpen: Bool = false) {
         guard let q else { return }
         let account = saidAccount ?? (accounts.indices.contains(pay) ? accounts[pay] : accounts.first ?? "")
-        guard state.record(q, account: account, place: receipt != nil ? "小票" : "") else { return }
+        guard state.record(q, account: account, place: receipt != nil ? "小票" : "", daysAgo: said.daysAgo) else { return }
         text = ""; receipt = nil
         if keepOpen { focused = true } else { close() }
     }

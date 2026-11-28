@@ -28,6 +28,8 @@ public struct TrialBook: Equatable, Sendable {
         public var short: String = ""
         public var label: String { short.isEmpty ? name : short }
         public var isDebt: Bool { kind == .debt }
+        /// 能拿来刷的信用卡（欠款里只有它能直接付钱；分期、欠别人的不行）。
+        public var isCreditCard: Bool { kind == .debt && (name.contains("信用卡") || emoji == "💳") }
         public init(id: UUID = UUID(), emoji: String, name: String, note: String, balance: Money,
                     kind: Kind = .own, block: Block = .daily, short: String = "") {
             self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.balance = balance
@@ -166,10 +168,15 @@ public struct TrialBook: Equatable, Sendable {
 
     /// 两本账的名字。
     public var lifeName = "生活"
-    public var shopName = "Miora 小店"
+    public var shopName = "晴空小花店"
     public var categories: [Category] = [
         .init("🛒", "超市"), .init("🥗", "餐饮"), .init("☕", "咖啡"), .init("🚇", "交通"), .init("🏠", "房租"), .init("🔁", "订阅"),
         .init("💊", "看病"), .init("🎬", "娱乐"), .init("👕", "衣服"), .init("📱", "话费"), .init("🎁", "送礼"), .init("❓", "还没分"),
+    ]
+    /// 收入的分类。
+    public static let incomeCategories: [Category] = [
+        .init("💰", "工资"), .init("🎉", "奖金"), .init("💼", "兼职"), .init("↩️", "退款"), .init("🤝", "别人还我"),
+        .init("🧧", "红包礼金"), .init("📦", "卖二手"), .init("🏦", "利息"), .init("❓", "其他"),
     ]
     public var memos: [Memo] = []
     // 生活
@@ -182,6 +189,27 @@ public struct TrialBook: Equatable, Sendable {
     /// 应急钱和目标对半分：nil = 还没回答。
     public var splitWithEmergency: Bool?
     public var monthlyMust: Money
+    /// 这个月到今天，一个分类花了多少（花销页的圆环和右边的列表都用它，口径只有这一份：固定要付的也算在里面）。
+    public struct SpendSlice: Identifiable, Equatable, Sendable {
+        public var id: String { name }
+        public var emoji: String
+        public var name: String
+        public var amount: Money
+        /// 上个月同期这个分类花了多少。
+        public var lastMonth: Money
+        public init(emoji: String, name: String, amount: Money, lastMonth: Money) { self.emoji = emoji; self.name = name; self.amount = amount; self.lastMonth = lastMonth }
+    }
+    public var spendByCategory: [SpendSlice] = []
+
+    /// 圆环上的几段：按花得多少排，最多 `limit` 段，多出来的合成「其他」。
+    public func spendSlices(limit: Int = 8) -> [SpendSlice] {
+        let sorted = spendByCategory.filter { $0.amount > .zero }.sorted { $0.amount > $1.amount }
+        guard sorted.count > limit, limit > 1 else { return sorted }
+        let rest = sorted[(limit - 1)...]
+        return Array(sorted[..<(limit - 1)]) + [SpendSlice(emoji: "❓", name: "其他", amount: rest.map(\.amount).reduce(.zero, +), lastMonth: rest.map(\.lastMonth).reduce(.zero, +))]
+    }
+    public var spendSliceTotal: Money { spendByCategory.map(\.amount).reduce(.zero, +) }
+
     /// 平时一天大概花多少（算「等于几天的花销」用）。
     public var usualDailySpend: Money = .zero
     /// 应急钱想存够几个月（1、3、6）。
@@ -199,6 +227,8 @@ public struct TrialBook: Equatable, Sendable {
     public var shopDebts: [Item] = []
     /// 今天是这个月几号（示例：18）。
     public var todayDay = 18
+    /// 示例账本里的「今天」：2026 年 11 月 18 日，周三。认「上周五」「12 号」这些时用它当今天。
+    public var todayDate: Date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
     /// 每天开门要先收多少才够付固定开销。
     public var dailyBreakEven: Money { Money(cents: (fixedTotal.cents + 1500) / 3000 * 100) }
     public var fixedTotal: Money { fixedCosts.filter { !$0.off }.map(\.amount).reduce(.zero, +) }
@@ -227,6 +257,25 @@ public struct TrialBook: Equatable, Sendable {
     public var shopSalesTotal: Money { shopDays.filter { $0.state == .open }.map(\.total).reduce(.zero, +) }
     public var shopOpenDays: Int { shopDays.filter { $0.state == .open }.count }
 
+    /// 选账户时的用途。各处的账户清单都从这里取，页面里不写死。
+    public enum AccountUse: Sendable { case pay, receive, moveOut, moveIn }
+
+    /// 这一边、这个用途能选的账户。
+    /// - 付钱：生活是日常的账户（卡、现金、自己加的）加信用卡；生意是店里的账户。储蓄 / 应急钱、目标罐、分期、欠别人的不能直接付钱。
+    /// - 收钱：生活是日常的账户；生意是店里的账户。
+    /// - 转出、转入：见 `transferSources` / `transferTargets`。
+    public func accounts(for use: AccountUse, side: Side = .life) -> [Account] {
+        switch use {
+        case .pay:
+            if side == .biz { return accounts.filter { $0.kind == .shop } }
+            return accounts.filter { ($0.kind == .own && $0.block == .daily) || $0.isCreditCard }
+        case .receive:
+            return accounts.filter { side == .biz ? $0.kind == .shop : ($0.kind == .own && $0.block == .daily) }
+        case .moveOut: return transferSources
+        case .moveIn: return transferTargets
+        }
+    }
+
     private func index(_ name: String) throws -> Int {
         guard let i = accounts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这个账户") }
         return i
@@ -248,7 +297,13 @@ public struct TrialBook: Equatable, Sendable {
         let i = try index(account)
         var useName = clean, useEmoji = emoji
         if let rule = placeRules[place], rule.count == 2 { useEmoji = rule[0]; useName = rule[1] }
-        accounts[i].balance = income ? accounts[i].balance + amount : accounts[i].balance - amount
+        if accounts[i].kind == .debt {
+            // 刷信用卡：欠的变多
+            guard !income else { throw TrialError("钱不能进到「\(account)」里，换一个账户") }
+            accounts[i].balance = accounts[i].balance + amount
+        } else {
+            accounts[i].balance = income ? accounts[i].balance + amount : accounts[i].balance - amount
+        }
         if side == .life {
             if income { month.income = month.income + amount } else { month.spent = month.spent + amount }
         }
@@ -263,7 +318,9 @@ public struct TrialBook: Equatable, Sendable {
     public mutating func delete(entry id: UUID) throws -> Entry {
         guard let k = entries.firstIndex(where: { $0.id == id }) else { throw TrialError("这一笔已经不在了") }
         let e = entries.remove(at: k)
-        if let i = accounts.firstIndex(where: { $0.name == e.account }) { accounts[i].balance = accounts[i].balance - e.amount }
+        if let i = accounts.firstIndex(where: { $0.name == e.account }) {
+            accounts[i].balance = accounts[i].kind == .debt ? accounts[i].balance + e.amount : accounts[i].balance - e.amount
+        }
         if e.side == .life {
             if e.amount.cents < 0 { month.spent = month.spent + e.amount } else { month.income = month.income - e.amount }
         }
@@ -292,7 +349,9 @@ public struct TrialBook: Equatable, Sendable {
         let new = old.cents < 0 ? -amount : amount
         let diff = new - old
         entries[k].amount = new
-        if let i = accounts.firstIndex(where: { $0.name == entries[k].account }) { accounts[i].balance = accounts[i].balance + diff }
+        if let i = accounts.firstIndex(where: { $0.name == entries[k].account }) {
+            accounts[i].balance = accounts[i].kind == .debt ? accounts[i].balance - diff : accounts[i].balance + diff
+        }
         if entries[k].side == .life {
             if old.cents < 0 { month.spent = month.spent - diff } else { month.income = month.income + diff }
         }
@@ -441,11 +500,41 @@ public struct TrialBook: Equatable, Sendable {
         for i in accounts.indices { accounts[i].balance = .zero; accounts[i].note = "" }
         month = FreeToSpend(income: .zero, fixed: .zero, forGoals: .zero, spent: .zero, daysLeft: month.daysLeft)
         journey = Journey(name: "", why: "", stations: [], saved: .zero, monthlyPlan: .zero)
-        monthlyMust = .zero; splitWithEmergency = nil; usualDailySpend = .zero
+        monthlyMust = .zero; splitWithEmergency = nil; usualDailySpend = .zero; spendByCategory = []
         for i in shopDays.indices where shopDays[i].state == .open || shopDays[i].state == .rest {
             shopDays[i] = ShopDay(day: shopDays[i].day, cash: .zero, card: .zero, state: shopDays[i].day <= todayDay ? .missing : .future)
         }
         fixedCosts = []; purchases = []; stockEstimates = []; capital = []; shopDebts = []; nextGoals = []
+    }
+
+    /// 能把钱转出去的账户：自己的钱（不含目标罐、私房钱），加上店里的。
+    public var transferSources: [Account] { accounts.filter { ($0.kind == .own && $0.block != .goal) || $0.kind == .shop } }
+    /// 能把钱转进去的账户：上面那些，加上目标罐和欠着的（转给欠款就是还款）。
+    public var transferTargets: [Account] { accounts.filter { $0.kind == .own || $0.kind == .shop || ($0.kind == .debt && $0.balance > .zero) } }
+
+    /// 转账：从一个账户到另一个。到目标罐算存一笔，到欠款算还款，别的就是两个账户之间挪。都不算花也不算赚。
+    /// 返回刚到的站（只有存进目标罐时才可能有）。
+    @discardableResult
+    public mutating func transfer(_ amount: Money, from: String, to: String) throws -> [Journey.Station] {
+        try Self.positive(amount)
+        guard from != to else { throw TrialError("从和到选了同一个账户") }
+        guard transferSources.contains(where: { $0.name == from }) else { throw TrialError("不能从「\(from)」转出去") }
+        guard let target = transferTargets.first(where: { $0.name == to }) else { throw TrialError("不能转进「\(to)」") }
+        if target.kind == .debt { try repay(debt: to, amount: amount, from: from); return [] }
+        if target.block == .goal { return try deposit(amount, from: from) }
+        try move(amount, from: from, to: to)
+        return []
+    }
+
+    /// 常用的几种转法：存进储蓄、还信用卡、取现金、放进目标罐。账本里有对应的账户才给。
+    public var transferShortcuts: [(title: String, from: String, to: String)] {
+        guard let main = accounts.first(where: { $0.kind == .own && $0.block == .daily && !$0.name.contains("现金") })?.name else { return [] }
+        var out: [(String, String, String)] = []
+        if let s = accounts.first(where: { $0.kind == .own && ($0.block == .emergency || $0.name.contains("储蓄")) && $0.name != main }) { out.append(("存进\(s.name)", main, s.name)) }
+        if let d = accounts.first(where: { $0.kind == .debt && $0.balance > .zero && $0.name.contains("信用卡") }) { out.append(("还\(d.name)", main, d.name)) }
+        if let c = accounts.first(where: { $0.kind == .own && $0.name.contains("现金") }) { out.append(("取现金", main, c.name)) }
+        if let g = accounts.first(where: { $0.block == .goal }), journey.total > .zero { out.append(("放进\(g.name)", main, g.name)) }
+        return out
     }
 
     // MARK: 目标
