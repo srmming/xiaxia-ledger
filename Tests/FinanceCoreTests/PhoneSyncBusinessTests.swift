@@ -196,4 +196,48 @@ final class PhoneSyncBusinessTests: XCTestCase {
         // 手机没动：电脑的原样
         XCTAssertEqual(Ledger.mergeCategories(base: [a], proposed: [a], current: [a3, b]).rows, [a3, b])
     }
+
+    // MARK: 这家店算哪一类：一家一家合并
+
+    func testPlaceAnswersMergePerShop() throws {
+        var start = base
+        try start.setPlaceCategory("Panaderia Trigo", category: "餐饮", author: "小满")
+        try start.skipPlaceQuestion("Kiosko Azul", author: "小满")
+        var phone = start, mac = start
+        try phone.setPlaceCategory("Super Lumi", category: "超市", author: "小晴")      // 手机定了一家
+        try phone.skipPlaceQuestion("Cafe Brisa", author: "小晴")                        // 手机说不再问一家
+        try mac.setPlaceCategory("Fruteria Sol", category: "超市", author: "小满")      // 电脑定了另一家
+        try mac.skipPlaceQuestion("Bar Luna", author: "小满")                            // 电脑说不再问另一家
+        try mac.setPlaceCategory("Panaderia Trigo", category: nil, author: "小满")      // 电脑忘掉一条
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        XCTAssertEqual(out.placeCategory(for: "Super Lumi"), "超市")
+        XCTAssertEqual(out.placeCategory(for: "Fruteria Sol"), "超市")
+        XCTAssertNil(out.placeCategory(for: "Panaderia Trigo"), "电脑忘掉的那条没被手机带回来")
+        XCTAssertEqual(Set(out.profile.placeSkipped ?? []), Set(["Kiosko Azul", "Cafe Brisa", "Bar Luna"].map(Ledger.placeKey)))
+        XCTAssertFalse(out.changes.contains { $0.syncConflicts?.isEmpty == false }, "各定各的店，不算冲突")
+    }
+
+    func testSameShopAnsweredDifferentlyKeepsMacAndRecordsConflict() throws {
+        let start = base
+        var phone = start, mac = start
+        try phone.setPlaceCategory("Super Lumi", category: "超市", author: "小晴")
+        try phone.setPlaceCategory("Cafe Brisa", category: "餐饮", author: "小晴")
+        try mac.setPlaceCategory("Super Lumi", category: "购物", author: "小满")
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        XCTAssertEqual(out.placeCategory(for: "Super Lumi"), "购物", "同一家店两边定得不一样：留电脑的")
+        XCTAssertEqual(out.placeCategory(for: "Cafe Brisa"), "餐饮", "手机另外定的那家照收")
+        let conflict = out.changes.compactMap(\.syncConflicts).flatMap { $0 }.first { $0.rowID == "profile" }
+        XCTAssertEqual(conflict?.fields, ["「\(Ledger.placeKey("Super Lumi"))」算哪一类"])
+    }
+
+    func testPhoneUndoOfSkipTravels() throws {
+        var start = base
+        try start.skipPlaceQuestion("Cafe Brisa", author: "小满")
+        var phone = start
+        phone.profile.placeSkipped = nil                                                 // 手机上收回「不再问」
+        var mac = start
+        try mac.skipPlaceQuestion("Bar Luna", author: "小满")
+        let (out, _) = try deliver(phone, since: start, to: mac)
+        XCTAssertEqual(out.profile.placeSkipped, [Ledger.placeKey("Bar Luna")])
+    }
 }

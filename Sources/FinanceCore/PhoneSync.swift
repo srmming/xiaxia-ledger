@@ -283,6 +283,16 @@ extension Ledger {
         return (rows, conflicts)
     }
 
+    /// 一张「名字 → 值」的表三方合并：一行一行地看。手机改过、加的、删的，电脑那一行没动过就照手机的；电脑也动过同一行而且不一样，留电脑的。
+    static func mergeMap(base: [String: String], proposed: [String: String], current: [String: String]) -> (rows: [String: String], conflicts: [String]) {
+        var rows = current
+        var conflicts: [String] = []
+        for k in Set(base.keys).union(proposed.keys) where base[k] != proposed[k] {
+            if rows[k] == base[k] || rows[k] == proposed[k] { rows[k] = proposed[k] } else { conflicts.append(k) }
+        }
+        return (rows, conflicts.sorted())
+    }
+
     /// 收一张纸条。收过的不再收。返回收了没有。
     @discardableResult
     public mutating func apply(_ note: SyncNote, receivedAt: Date? = nil) -> Bool {
@@ -406,13 +416,35 @@ extension Ledger {
         }
         // 自己加的分类按分类逐个合并：手机改了 A 的图标、电脑加了 B，两样都留；同一个分类两边都改了才算冲突，留电脑的
         var offeredProfile = note.profile
-        if let proposed = note.profile, proposed.categories != profile.categories,
+        if let proposed = note.profile, proposed != profile,
            let data = note.originalRows?["meta"]?["profile"], let base = try? decoder.decode(Profile.self, from: data) {
-            let merged = Self.mergeCategories(base: base.categories, proposed: proposed.categories, current: profile.categories)
-            if merged.rows != profile.categories { profile.categories = merged.rows }
-            offeredProfile?.categories = merged.rows
-            if !merged.conflicts.isEmpty {
-                merger.conflicts.append(.init(table: "meta", rowID: "profile", fields: merged.conflicts.map { "分类「\($0)」" }, phoneValue: try? FieldMerge.encode(proposed)))
+            var fields: [String] = []
+            if proposed.categories != profile.categories {
+                let merged = Self.mergeCategories(base: base.categories, proposed: proposed.categories, current: profile.categories)
+                if merged.rows != profile.categories { profile.categories = merged.rows }
+                offeredProfile?.categories = merged.rows
+                fields += merged.conflicts.map { "分类「\($0)」" }
+            }
+            // 「这家店算哪一类」也一家一家合并：手机定了一家、电脑定了另一家，两家都留；同一家两边定得不一样，留电脑的
+            if proposed.placeCategories != profile.placeCategories {
+                let merged = Self.mergeMap(base: base.placeCategories ?? [:], proposed: proposed.placeCategories ?? [:], current: profile.placeCategories ?? [:])
+                let rows = merged.rows.isEmpty ? nil : merged.rows
+                if rows != profile.placeCategories { profile.placeCategories = rows }
+                offeredProfile?.placeCategories = rows
+                fields += merged.conflicts.map { "「\($0)」算哪一类" }
+            }
+            // 「不再问这家店」：两边说过的合在一起；手机收回的（撤销了）也跟着收回
+            if proposed.placeSkipped != profile.placeSkipped {
+                let was = Set(base.placeSkipped ?? []), want = Set(proposed.placeSkipped ?? [])
+                var mine = profile.placeSkipped ?? []
+                for k in (proposed.placeSkipped ?? []) where !was.contains(k) && !mine.contains(k) { mine.append(k) }
+                mine.removeAll { was.contains($0) && !want.contains($0) }
+                let rows = mine.isEmpty ? nil : mine
+                if rows != profile.placeSkipped { profile.placeSkipped = rows }
+                offeredProfile?.placeSkipped = rows
+            }
+            if !fields.isEmpty {
+                merger.conflicts.append(.init(table: "meta", rowID: "profile", fields: fields, phoneValue: try? FieldMerge.encode(proposed)))
             }
         }
         merger.setting(&profile, offeredProfile, "profile")
