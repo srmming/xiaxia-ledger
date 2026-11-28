@@ -11,7 +11,7 @@ final class PhoneBridgeTests: XCTestCase {
         let acct = try XCTUnwrap(before.accounts.first { $0.side == .biz && $0.kind == .shop }?.name)
         let earnedBefore = before.shopMonth(before.thisMonth).income
         var after = before
-        _ = try after.record(name: "营业收入", emoji: "💶", amount: Money(cents: 500), income: true, account: acct, tag: "自己记的", daysAgo: 0, side: .biz)
+        try after.addShopIncome(Money(cents: 500), account: acct, daysAgo: 0)
         let records = try LedgerBridge.apply(before: before, after: after, to: &live, today: today, author: "测试")
         XCTAssertFalse(records.isEmpty)
         let again = LedgerBridge.snapshot(of: live, today: today)
