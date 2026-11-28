@@ -1341,7 +1341,7 @@ public struct TrialBook: Equatable, Sendable {
         guard !clean.isEmpty else { throw TrialError("先写一下这样开销叫什么") }
         guard !fixedCosts.contains(where: { $0.name == clean }) else { throw TrialError("已经有「\(clean)」这一样了") }
         try checkFixed(day: day, account: account)
-        fixedCosts.append(Item(emoji: "🧾", name: clean, note: fixedNote(day: day, account: account), amount: amount, tag: canSkip ? "可省" : "必要", flag: canSkip,
+        fixedCosts.append(Item(emoji: "🧾", name: clean, note: fixedNote(day: day, account: account), amount: amount, flag: canSkip,
                                account: account, day: day))
         fixedCosts.sort { $0.amount > $1.amount }
     }
