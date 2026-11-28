@@ -8,6 +8,7 @@ struct P3MePage: View {
     @Environment(P3State.self) private var state
     @AppStorage("p3.hideAmounts") private var hideAmounts = false
     @AppStorage("p3.subRemind") private var subRemind = true
+    @AppStorage("p3.voiceAutoSend") private var voiceAutoSend = true
 
     var body: some View {
         @Bindable var state = state
@@ -35,6 +36,8 @@ struct P3MePage: View {
                             toggle("eye.slash", "打开时藏起金额", $hideAmounts)
                             P3Divider().padding(.leading, 52)
                             toggle("bell", "订阅扣钱前提醒我", $subRemind)
+                            P3Divider().padding(.leading, 52)
+                            toggle("mic", "问夏夏时说完自动发", $voiceAutoSend)
                             P3Divider().padding(.leading, 52)
                             rowLabel("icloud", "和 Mac 同步", "示例账本，不同步", chevron: false)
                         }

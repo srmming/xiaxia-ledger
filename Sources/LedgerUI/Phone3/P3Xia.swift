@@ -87,6 +87,9 @@ struct P3ChatView: View {
     @State private var text = ""
     @State private var photo: PhotosPickerItem?
     @FocusState private var typing: Bool
+    @State private var voice = P3Voice()
+    @State private var camera = false
+    @AppStorage("p3.voiceAutoSend") private var autoSend = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -130,6 +133,15 @@ struct P3ChatView: View {
             inputBar
         }
         .background(P3.bg)
+        .fullScreenCover(isPresented: $camera) {
+            P3Camera { img in
+                camera = false
+                if let img { state.chatSendImage(Image(uiImage: img)) }
+            }
+            .ignoresSafeArea()
+        }
+        .onChange(of: voice.text) { _, t in if voice.listening { text = t } }
+        .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
         .onChange(of: photo) { _, item in
             guard let item else { return }
             Task {
@@ -141,18 +153,20 @@ struct P3ChatView: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
+            Button {
+                Task { _ = await P3Voice.askPermissions(); camera = true }
+            } label: {
+                Image(systemName: "camera").font(.system(size: 20)).foregroundStyle(P3.ink).frame(width: 38, height: 40)
+            }
+            .accessibilityLabel("拍一张问夏夏要不要买")
             PhotosPicker(selection: $photo, matching: .images) {
-                Image(systemName: "camera").font(.system(size: 20)).foregroundStyle(P3.ink).frame(width: 40, height: 40)
+                Image(systemName: "photo").font(.system(size: 19)).foregroundStyle(P3.ink).frame(width: 38, height: 40)
             }
-            .accessibilityLabel("拍照或选一张图问要不要买")
-            PasteButton(payloadType: Image.self) { imgs in
-                if let img = imgs.first { Task { @MainActor in state.chatSendImage(img) } }
+            .accessibilityLabel("从相册选一张")
+            P3MicButton(voice: voice) { said in
+                if autoSend { state.chatSend(said); text = "" } else { text = said }
             }
-            .labelStyle(.iconOnly)
-            .buttonBorderShape(.circle)
-            .tint(P3.navy)
-            .accessibilityLabel("贴一张图")
-            TextField("问夏夏，比如「想买跑鞋 95」", text: $text, axis: .vertical)
+            TextField(voice.listening ? "在听，说完停一下就发" : "问夏夏，比如「想买跑鞋 95」", text: $text, axis: .vertical)
                 .lineLimit(1...4)
                 .font(P3.font(15.5, .regular))
                 .focused($typing)

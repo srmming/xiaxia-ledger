@@ -17,6 +17,7 @@ struct P3AddSheet: View {
     @State private var daysAgo = 0
     @State private var pickDate = false
     @State private var date = Date()
+    @State private var voice = P3Voice()
 
     private var biz: Bool { state.side == .biz }
     private var tint: Color { biz ? P3.teal : P3.navy }
@@ -61,10 +62,16 @@ struct P3AddSheet: View {
             pills("从哪" , accounts.map(\.name), selected: $account, prefix: income ? "进到" : "从")
             dateRow
 
-            TextField(biz ? (income ? "备注（可不填）" : "买了什么（可不填），比如「鲜花补货」") : "写一句（可不填），比如「Café Nube」", text: $name)
-                .font(P3.font(15, .regular))
-                .padding(.horizontal, 12).frame(height: 40)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
+            HStack(spacing: 8) {
+                TextField(voice.listening ? "在听，比如说「咖啡三块二」" : biz ? (income ? "备注（可不填）" : "买了什么（可不填），比如「鲜花补货」") : "写一句（可不填），或点麦克风说", text: $name)
+                    .font(P3.font(15, .regular))
+                    .padding(.horizontal, 12).frame(height: 40)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
+                P3MicButton(voice: voice) { said in heard(said) }
+                    .background(Circle().fill(.white))
+            }
+            .onChange(of: voice.text) { _, t in if voice.listening { name = t } }
+            .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
 
             keypad
             Button(income ? "记下这笔收入" : "记下") { save() }
@@ -172,6 +179,15 @@ struct P3AddSheet: View {
                 .buttonStyle(P3Sink(depth: 1))
                 .accessibilityLabel(k == "⌫" ? "删一位" : k == "," ? "小数点" : k)
             }
+        }
+    }
+
+    /// 说了一句：认出金额和是什么，填进去，等你点「记下」。
+    private func heard(_ said: String) {
+        guard let q = QuickPhrase.parse(said) else { name = said; return }
+        withAnimation(.snappy(duration: 0.2)) {
+            digits = q.amount.formatted.replacingOccurrences(of: " €", with: "").replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",00", with: "")
+            if let c = categories.first(where: { $0.name == q.name || $0.emoji == q.emoji }) { category = c.name; name = "" } else { name = q.name }
         }
     }
 
