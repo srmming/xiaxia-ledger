@@ -692,6 +692,40 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, bal)
     }
 
+    func testNewLookSharesTheAppsLedgerModel() throws {
+        // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
+        let model = LedgerModel.demo()
+        model.author = "小满"
+        let s = V3State(model: model)
+        XCTAssertFalse(s.readOnly); XCTAssertEqual(s.author, "小满")
+        let n = model.ledger.transactions.count
+        let acc = s.book.accounts(for: .pay, side: .life).first { $0.kind == .own }!.name
+        let bal = s.book.account(acc)!.balance
+        // 在新界面记一笔：写进的是 app 那本账（旧界面马上也看得到），由模型负责存
+        XCTAssertTrue(s.change("记好了") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("12,50"), account: acc, place: "La Tasca") })
+        XCTAssertEqual(model.ledger.transactions.count, n + 1)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        XCTAssertEqual(s.book.account(acc)?.balance, bal - eur("12,50"))
+        // 在别处改了账本（旧界面、AI、命令行都走这个模型）：新界面跟着变
+        let id = model.ledger.accounts.first { $0.name == acc }!.id
+        try model.edit(quiet: true) { l in
+            try l.addTransaction(Transaction(date: .today, amount: Money(cents: -500), description: "别处记的", accountID: id, category: "超市"), author: "AI")
+        }
+        XCTAssertEqual(s.book.account(acc)?.balance, bal - eur("12,50"), "还没刷新")
+        s.refreshFromModel()
+        XCTAssertEqual(s.book.account(acc)?.balance, bal - eur("17,50"))
+        XCTAssertTrue(s.book.entries.contains { $0.place == "别处记的" })
+        // 撤销新界面记的那一笔：模型里也没了
+        s.undo()
+        XCTAssertFalse(model.ledger.transactions.contains { $0.description == "La Tasca" && $0.amount == Money(cents: -12_50) })
+        // 做不了的改动：模型一个字不动
+        let before = model.ledger
+        XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
+        XCTAssertEqual(model.ledger, before)
+        // 默认还是旧界面
+        XCTAssertFalse(V3Launch.newLook)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")

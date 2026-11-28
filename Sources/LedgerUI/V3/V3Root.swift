@@ -13,6 +13,14 @@ public enum V3Launch {
         guard let i = args.firstIndex(of: "-XiaxiaV3") else { return false }
         return i + 1 >= args.count || args[i + 1] != "0"
     }
+    /// 第 9 步：正式的 app（不是试用版）要不要用新界面打开正式账本。
+    /// 现在默认还是旧界面：新界面里设置、导入这几块还没接完，先不抢默认。带 `-XiaxiaNewLook 1` 启动，或者在设置里打开，才进新界面；随时能切回去。
+    public static let newLookKey = "xiaxia.ui.newLook"
+    public static var newLook: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-XiaxiaNewLook") { return i + 1 >= args.count || args[i + 1] != "0" }
+        return UserDefaults.standard.bool(forKey: newLookKey)
+    }
     /// 内容铺到标题栏下面（V3Scene 用）。这时每页顶上要多留一点地方给三个圆点。
     nonisolated(unsafe) static var overTitleBar = false
     /// 截图用：数字不做滚动，直接显示。
@@ -83,6 +91,15 @@ public struct V3Scene: Scene {
 
 public struct V3RootView: View {
     @State private var state: V3State
+    private var model: LedgerModel?
+
+    /// 用 app 里那本正式账本打开新界面（旧界面用的同一个模型：存盘、同步都是它的）。
+    public init(model: LedgerModel) {
+        let s = V3State(model: model)
+        s.lockIfNeeded(.launch)
+        _state = State(initialValue: s)
+        self.model = model
+    }
 
     public init() {
         // `-XiaxiaV3Ledger demo`：不看编的那套试用数字，改看「示例正式账本」（DemoData，内存里现造的）整理出来的数。只读，不打开任何账本文件。
@@ -123,6 +140,8 @@ public struct V3RootView: View {
         .ignoresSafeArea(.container, edges: V3Launch.overTitleBar ? .all : [])
         .modifier(V3LockWatcher())
         .task { state.startDailyReminder() }
+        // 正式账本在别处变了（AI、命令行、手机）：界面上的数跟着重新算
+        .onChange(of: model?.ledger) { _, _ in state.refreshFromModel() }
         .environment(state)
         .preferredColorScheme(.light)
         .background(V3WindowSetup())

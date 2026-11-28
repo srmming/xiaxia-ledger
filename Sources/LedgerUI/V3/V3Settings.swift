@@ -323,7 +323,15 @@ struct V3SettingsPage: View {
                     V3SetLink(title: "数据", sub: "演示数据、删除数据、从备份恢复", line: false) { state.openSettings(.data) }
                     V3SetLink(title: "反馈问题 / 提个想法", sub: "写好用邮件发给我们") { state.open(.feedback) }
                     V3SetLink(title: "更新日志", sub: "每一版改了什么（官网）") { openURL(Changelog.webURL) }
-                    V3SetLink(title: "再走一遍开头的引导", sub: "试用版里用来再看一次") { withAnimation(.snappy) { state.onboardingStep = 0 } }
+                    if state.model != nil {
+                        // 接着正式账本时：随时能回旧界面（账本是同一本，什么都不会丢）
+                        V3SetRow(title: "回旧界面", sub: "下次打开生效") {
+                            Button("下次用旧界面") { UserDefaults.standard.set(false, forKey: V3Launch.newLookKey); state.say("好，下次打开是旧界面。账本还是同一本") }
+                                .buttonStyle(.v3(.ghost, .small))
+                        }
+                    } else {
+                        V3SetLink(title: "再走一遍开头的引导", sub: "试用版里用来再看一次") { withAnimation(.snappy) { state.onboardingStep = 0 } }
+                    }
                     Spacer(minLength: 0)
                 }
             }

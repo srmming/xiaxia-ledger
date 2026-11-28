@@ -661,6 +661,9 @@ public struct XiaxiaScene: Scene {
             if V3Launch.enabled {
                 // 界面 v3 开发版（-XiaxiaV3 1）：只用编的示例数字，不打开任何账本。
                 V3RootView().frame(minWidth: 1000, minHeight: 612)
+            } else if V3Launch.newLook {
+                // 新界面接着正式账本（和旧界面是同一本、同一个模型）。默认不开，见 V3Launch.newLook。
+                V3RootView(model: model).frame(minWidth: 1000, minHeight: 612)
             } else {
                 RootView()
                     .environment(model)
