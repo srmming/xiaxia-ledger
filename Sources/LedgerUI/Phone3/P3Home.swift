@@ -62,7 +62,8 @@ struct P3LifeHome: View {
             }
             HStack(spacing: 0) {
                 kv("+" + m.income.p3Short, "进账", P3.green)
-                kv((-m.fixed).p3Short, "固定要付")
+                // 这一排加起来要等于上面的「还能随便花」：固定的算整月（已付的 + 还没到日子的）
+                kv((-(m.fixed + m.fixedLeft)).p3Short, "固定要付")
                 kv((-m.forGoals).p3Short, "留给目标")
                 kv((-m.spent).p3, "随手花的")
             }
