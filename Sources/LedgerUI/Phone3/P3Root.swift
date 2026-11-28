@@ -25,7 +25,7 @@ public struct PhoneV3Root: View {
             if let t = state.toast {
                 P3ToastView(text: t.text, canUndo: t.canUndo, isError: t.isError) { state.undo() }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 92)
+                    .padding(.bottom, state.tab == .xia ? 150 : 92)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(2)
             }

@@ -56,7 +56,8 @@ extension P3State {
         } else if chat.waitingPrice {
             reply = .init(who: .xia, text: "没看到价钱。说一下多少钱就行，比如「跑鞋 95」")
         } else if let q = QuickPhrase.parse(text) {
-            reply = .init(who: .xia, text: "记一笔\(q.name) \(q.amount.p3)，从日常卡出？", quick: q)
+            let from = side == .biz ? (book.accounts(for: .pay, side: .biz).first?.name ?? "") : "日常卡"
+            reply = .init(who: .xia, text: side == .biz ? "记一笔店里的开销：\(q.name) \(q.amount.p3)，从\(from)出？" : "记一笔\(q.name) \(q.amount.p3)，从\(from)出？", quick: q)
         } else if ai.hasKey {
             // 不是记账、不是问要不要买：问 OpenRouter（只带 app 算好的几个数）
             Task { @MainActor in
@@ -230,8 +231,11 @@ struct P3ChatView: View {
                 if let q = m.quick, m.done.isEmpty {
                     HStack(spacing: 8) {
                         Button("记下") {
-                            let ok = state.change("记好了 · \(q.name) \(q.amount.p3) · 日常卡", kind: .add) {
-                                try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: "日常卡", tag: "跟夏夏说的")
+                            let biz = state.side == .biz
+                            let from = biz ? (state.book.accounts(for: .pay, side: .biz).first?.name ?? "") : "日常卡"
+                            let ok = state.change("记好了 · \(q.name) \(q.amount.p3) · \(from)", kind: .add) {
+                                if biz { _ = try $0.recordShopExpense(name: q.name, amount: q.amount, category: "其他", account: from) }
+                                else { try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: from, tag: "跟夏夏说的") }
                             }
                             if ok { state.chatMark(m.id, "记好了") }
                         }
