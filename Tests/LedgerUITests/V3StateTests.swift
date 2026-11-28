@@ -276,6 +276,47 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.totals.have, have, "怎么折腾，总数都不变")
     }
 
+    func testSurpriseExpenses() {
+        let s = V3State()
+        let oct = TrialBook.MonthKey(2026, 10)
+        // 10 月两笔：看牙 120、手机换屏幕 89，都是之前标成意外的（按规则它们没到那个月花销的一成）
+        XCTAssertEqual(s.book.surprises(in: oct).map(\.place), ["牙科诊所 Sonrisa", "手机换屏幕"])
+        XCTAssertEqual(s.book.surprises(in: oct).map(\.amount).reduce(.zero, +), -eur("209"))
+        XCTAssertTrue(s.book.surprises(in: s.book.thisMonth).isEmpty, "11 月都是平常的花销")
+        // 「这不算意外」：拿掉，能撤销
+        let tooth = s.book.surprises(in: oct)[0]
+        XCTAssertTrue(s.change("好") { try $0.markSurprise(tooth.id, false) })
+        XCTAssertEqual(s.book.surprises(in: oct).map(\.place), ["手机换屏幕"])
+        s.undo()
+        XCTAssertEqual(s.book.surprises(in: oct).count, 2)
+        // 这个月记一笔大的：按规则算意外；流水里也能手动标、手动取消
+        XCTAssertTrue(s.change("记") { try $0.record(name: "看病", emoji: "💊", amount: self.eur("180"), account: "日常卡", place: "急诊") })
+        XCTAssertEqual(s.book.surprises(in: s.book.thisMonth).map(\.place), ["急诊"])
+        let coffee = s.book.entries.first { $0.name == "咖啡" }!
+        XCTAssertTrue(s.change("标") { try $0.markSurprise(coffee.id, true) })
+        XCTAssertEqual(s.book.surprises(in: s.book.thisMonth).count, 2)
+        XCTAssertFalse(s.change("标") { try $0.markSurprise(UUID(), true) })
+        // 用的是正式账本那条规则的同一段：同类 3 次以上看 3 倍，否则看一成
+        XCTAssertTrue(Outlook.isUnusual(amount: 100_00, sameCategory: [10_00, 12_00, 30_00], monthly: 5000_00))
+        XCTAssertFalse(Outlook.isUnusual(amount: 30_00, sameCategory: [10_00, 12_00, 30_00], monthly: 100_00))
+        XCTAssertTrue(Outlook.isUnusual(amount: 120_00, sameCategory: [], monthly: 1000_00))
+        XCTAssertFalse(Outlook.isUnusual(amount: 89_00, sameCategory: [], monthly: 1500_00))
+    }
+
+    func testRealLedgerSnapshotIsReadOnly() {
+        let real = DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 18))
+        let s = V3State(snapshotOf: real, today: LocalDate(year: 2026, month: 11, day: 18))
+        XCTAssertTrue(s.readOnly); XCTAssertNil(s.onboardingStep)
+        XCTAssertFalse(s.book.accounts.isEmpty); XCTAssertFalse(s.book.entries.isEmpty)
+        let before = s.book
+        // 只看不写：记一笔、改、删都被挡住，并且说人话
+        let acc = s.book.accounts(for: .pay, side: .life).first?.name ?? ""
+        XCTAssertFalse(s.change("记") { try $0.record(name: "午饭", emoji: "🍜", amount: self.eur("9"), account: acc) })
+        XCTAssertTrue(s.toast?.text.contains("只能看") ?? false)
+        XCTAssertTrue(s.book == before)
+        XCTAssertEqual(s.monthLabel, "11 月")
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")

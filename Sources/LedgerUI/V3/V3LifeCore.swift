@@ -46,8 +46,16 @@ struct V3OverviewPage: View {
         let j = b.journey
         return VStack(spacing: 14) {
             if now {
-                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                // 这个月出了意外开销：先说这件；没有才说平常那句
+                if let odd = b.surprises(in: b.thisMonth).first {
+                    let n = b.surprises(in: b.thisMonth).count
+                    V3Ask(face: "worried", text: n == 1 ? "这个月有一笔意外开销 \(odd.amount.magnitude.v3Short)，后面几天省着点。" : "这个月有 \(n) 笔意外开销，后面几天省着点。", tone: .warn) {
+                        Button("看看") { state.go(.monthly) }.buttonStyle(.v3(.primary, .small))
+                    }
+                } else {
+                    V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                        Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                    }
                 }
             }
             // 这一页最重要的数
@@ -75,16 +83,16 @@ struct V3OverviewPage: View {
             HStack(spacing: 14) {
                 let diff = state.lastMonthSpentSoFar - m.spentTotal
                 smallCard(now ? "这个月花掉" : "\(state.monthLabel)花掉", m.spentTotal.v3,
-                          !now ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
+                          !now || state.readOnly ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
                           diff >= .zero ? V3.green : V3.navy) { state.go(.spending) }
                 let delta = b.totals.net - state.lastMonthNet
                 smallCard(now ? "家底 · 净剩" : "\(state.monthLabel)底 · 净剩", (now ? b.totals.net : m.net).v3,
-                          !now ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
+                          !now || state.readOnly ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
                           delta >= .zero ? V3.green : V3.navy) { state.go(.wealth) }
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                V3CardTitle("\(j.name)的路", note: j.isFinished ? "走完了" : "\(state.deadline)前到 \(j.nextStation?.target.v3Short ?? "")") {
+                V3CardTitle("\(j.name)的路", note: j.isFinished ? "走完了" : state.readOnly ? "下一站 \(j.nextStation?.target.v3Short ?? "")" : "\(state.deadline)前到 \(j.nextStation?.target.v3Short ?? "")") {
                     V3Tag(text: j.isFinished ? "到终点了" : "这一站还差 \(j.remainingToNext.v3Short)", tone: .gold)
                 }
                 HStack(spacing: 16) {

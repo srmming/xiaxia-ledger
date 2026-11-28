@@ -97,4 +97,28 @@ extension TrialBook {
         }
         .sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
     }
+
+    // MARK: 意外开销（用的是正式账本那条「一次性开销」规则，见 Outlook.isUnusual）
+
+    /// 这个月的意外开销：这个月记的每一笔支出里，手动标过的按标的；没标的按规则（比同类平常贵 3 倍多，或者一笔占这个月花销一成以上）。固定要付的不算。贵的在前。
+    public func surprises(in key: MonthKey) -> [Entry] {
+        let d = monthData(key)
+        let fixedNames: Set<String> = ["房租", "手机分期", "订阅"]
+        // 同类以前记过的：账本里更早的 + 以前月份存下来的
+        let older = entries.filter { $0.side == .life } + pastMonths.filter { $0.key < d.key }.flatMap(\.entries)
+        return d.entries.filter { e in
+            guard e.side == .life, e.amount < .zero else { return false }
+            if let mark = surpriseMarks[e.id] { return mark }
+            guard !fixedNames.contains(e.name) else { return false }
+            let same = older.filter { $0.id != e.id && $0.name == e.name && $0.daysAgo > e.daysAgo }.map { $0.amount.magnitude.cents }
+            return Outlook.isUnusual(amount: e.amount.magnitude.cents, sameCategory: same, monthly: d.spentTotal.cents)
+        }
+        .sorted { $0.amount < $1.amount }
+    }
+
+    /// 手动改：这笔算 / 不算意外开销。
+    public mutating func markSurprise(_ id: UUID, _ on: Bool) throws {
+        guard entries.contains(where: { $0.id == id }) || pastMonths.contains(where: { $0.entries.contains { $0.id == id } }) else { throw TrialError("这一笔已经不在了") }
+        surpriseMarks[id] = on
+    }
 }

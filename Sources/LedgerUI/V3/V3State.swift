@@ -214,6 +214,16 @@ final class V3State {
 
     init() { ledger = TrialLedger(book: Self.demoBook, changes: Self.demoChanges) }
 
+    /// 接正式账本的第 1 步：从一本正式账本现算出界面要的数，只看不写。
+    /// 传进来的是账本的一份副本（值类型），这里不会改它，也不会往盘上写任何东西。
+    init(snapshotOf real: Ledger, today: LocalDate = .today, showPrivate: Bool = false) {
+        ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: today, showPrivate: showPrivate), changes: Array(real.changes.suffix(50).reversed()))
+        readOnly = true
+        onboardingStep = nil
+    }
+    /// 只看不写：这一版界面接的是正式账本的只读数，写入还没接。
+    var readOnly = false
+
     // MARK: 做一件事：马上有回应，能撤销
 
     func say(_ text: String) { localUndo = nil; show(Toast(text: text)) }
@@ -231,6 +241,7 @@ final class V3State {
     /// 做不成就什么都不变，底部说清为什么。返回做成了没有。
     @discardableResult
     func change(_ text: String, kind: ChangeRecord.Kind = .edit, _ body: (inout Book) throws -> Void) -> Bool {
+        guard !readOnly else { fail("这一版还只能看。要记、要改，先回旧界面"); return false }
         do {
             try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
             localUndo = nil
@@ -516,6 +527,8 @@ final class V3State {
                   entries: [past("👕", "衣服", "Tienda Azul", "170", 60), past("🛒", "超市", "Super Sol", "38,90", 55)],
                   weekly: [eur("130"), eur("162"), eur("121"), eur("158,30")], shopIn: eur("3890"), shopOut: eur("2790"), net: eur("1980,20")),
         ]
+        // 10 月的两笔意外开销（看牙、手机换屏幕）：金额都没到规则那条线（一个月花销的一成），是之前标成意外开销的
+        for e in b.pastMonths.first?.entries ?? [] where e.name == "看病" || e.place == "手机换屏幕" { b.surpriseMarks[e.id] = true }
         // 置顶成卡片的几张
         for n in ["日常卡", "换新电脑 存钱罐", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b

@@ -228,7 +228,6 @@ struct V3ChatPage: View {
                 Button { state.closeChat() } label: { Label("返回", systemImage: "chevron.left") }
                     .buttonStyle(.v3(.ghost, .small)).keyboardShortcut(.cancelAction).help("回到刚才那页（esc）")
                 Spacer()
-                Button("再说一次") { state.sayAgain() }.buttonStyle(.v3(.ghost, .small)).help("试用：让夏夏把刚才那句再说一遍")
             }
             .frame(height: 48)
             ScrollViewReader { proxy in
@@ -325,6 +324,8 @@ struct V3ChatPage: View {
                         .padding(.horizontal, 18).padding(.vertical, 11)
                         .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
                         .accessibilityLabel("对夏夏说")
+                    // 麦克风：字边说边进输入框，停顿够了自己发出去
+                    V3MicButton(live: { input = $0 }, done: { input = $0; if VoiceRules.pause(state.prefs.voicePause) != nil { send() } })
                     Button("发送") { send() }.buttonStyle(.v3).disabled((input.trimmingCharacters(in: .whitespaces).isEmpty && state.chatAttachment == nil) || thinking)
                 }
             }

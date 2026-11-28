@@ -710,6 +710,8 @@ public struct TrialBook: Equatable, Sendable {
     public var nextGoals: [Item] = []
     /// 置顶成卡片的账户，按卡片排里的先后。生活、店里各一排；空着时默认置顶第一个日常能用的。
     public var finishedGoals: [FinishedGoal] = []
+    /// 手动标过的：这笔算不算意外开销（标过的说了算，没标的按规则）。
+    public var surpriseMarks: [UUID: Bool] = [:]
     /// 大目标的钱放在哪个账户（一个目标对一个账户）。没有大目标时是 nil。
     public var bigGoalAccount: UUID?
     /// 大目标的账户是不是为它新开的存钱罐（是的话，目标没了账户跟着删；用的已有账户就留着）。

@@ -20,6 +20,8 @@ struct V3Prefs: Equatable {
     var speak: [String: Bool] = [:]
     var remindDays = 3
     var maxPerDay = 3
+    /// 语音：说完停多久自动发（`VoiceRules.pauses` 里的第几个）。
+    var voicePause = VoiceRules.defaultIndex
     var language = 0
     var dedupe = true
     var phoneReceipts = true
@@ -570,6 +572,11 @@ private struct V3SetSpeakPage: View {
                     V3SetRow(title: "页面顶上滑下来的那句话", sub: "关掉以后页面上只留数字", line: false) { V3Switch(on: $s.prefs.bubbles, label: "夏夏的消息") }
                     V3SetRow(title: "一天最多说几件事") {
                         V3SetMenu(options: ["1 件", "2 件", "3 件", "5 件"], pick: Binding(get: { [1, 2, 3, 5].firstIndex(of: state.prefs.maxPerDay) ?? 2 }, set: { state.prefs.maxPerDay = [1, 2, 3, 5][$0] }))
+                    }
+                }
+                V3SetGroup(title: "对她说话") {
+                    V3SetRow(title: "说完停多久自动发", line: false) {
+                        V3SetMenu(options: VoiceRules.pauses.indices.map(VoiceRules.title), pick: $s.prefs.voicePause)
                     }
                 }
                 V3SetGroup(title: "试用", note: "把今天说过的次数清零，回到总览再看她说一句。") {

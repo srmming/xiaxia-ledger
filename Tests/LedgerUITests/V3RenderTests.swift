@@ -129,6 +129,17 @@ final class V3RenderTests: XCTestCase {
             s.change("删") { try $0.removeSmallGoal(shoes.id, moneyTo: .account("日常卡")) }
             s.goalSheetStep = 1; s.sheet = .smallGoal(nil)
         }
+        try shell("monthly-surprises") { $0.page = .monthly }
+        try shell("overview-surprise") { s in
+            s.page = .overview
+            s.change("记") { try $0.record(name: "看病", emoji: "💊", amount: Money(cents: 120_00), account: "日常卡", place: "牙科诊所 Sonrisa") }
+        }
+        // 接正式账本第 1 步：示例正式账本（DemoData，内存里现造的）整理出来的只读数
+        for (name, page) in [("real-overview", V3State.Page.overview), ("real-transactions", .transactions), ("real-spending", .spending), ("real-wealth", .wealth)] {
+            let s = V3State(snapshotOf: DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 18)), today: LocalDate(year: 2026, month: 11, day: 18))
+            s.page = page; s.toast = nil
+            try write(V3Shell().environment(s), name, to: dir)
+        }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }
