@@ -244,6 +244,19 @@ public enum LedgerBridge {
                       tag: guessedTag, account: names[g.accountID] ?? g.accountID, day: g.day)
             }
             b.fixedCosts = (rules + guessed).sorted { $0.amount > $1.amount }
+            // 回本、体检：开店本钱、以前赚回来多少、店里每月要还的，都从正式账本来
+            if let cap = ledger.business?.capital, cap.total > .zero {
+                let when = cap.openedOn.map { "\($0.year) 年 \($0.month) 月" } ?? ""
+                var items = cap.items.map { TrialBook.Item(emoji: "🏪", name: $0.name, note: when, amount: $0.amount) }
+                let listed = cap.items.map(\.amount).reduce(.zero, +)
+                if listed < cap.total { items.append(.init(emoji: "🏪", name: items.isEmpty ? "开店本钱" : "别的本钱", note: when, amount: cap.total - listed)) }
+                b.capital = items
+                // 界面上「赚回来的」= 以前赚回来的 + 这个月真正赚的；正式账本给的是到今天一共赚回来多少，所以把这个月的那部分先减掉
+                if let p = ledger.capitalProgress(today: today) {
+                    b.shopBackBefore = max(p.recovered - max(b.shopMonth().earned, .zero), .zero)
+                }
+            }
+            b.shopLoanMonthly = shopMonthlyRepayments(ledger, today: today)
         }
         return b
     }
@@ -583,6 +596,26 @@ extension LedgerBridge {
             records.append(try work.removeSubscription(s.id, author: who))
         }
         return records
+    }
+
+    /// 店里每个月要还的：生意账本里欠别人的钱（有还款计划的按这个月那一期，没排计划但约了日子的按平摊）+ 还没还完的分期每期多少。
+    public static func shopMonthlyRepayments(_ ledger: Ledger, today: LocalDate) -> Money {
+        let biz = Set(ledger.books.filter(\.isBusiness).map(\.id))
+        guard !biz.isEmpty else { return .zero }
+        var total = Money.zero
+        let status = Dictionary(Plans.debts(ledger, today: today).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for d in ledger.debts where biz.contains(d.bookID) && d.direction == .iOweThem && !d.closed {
+            guard let st = status[d.id], st.outstanding > .zero else { continue }
+            let thisMonth = (d.plan ?? []).filter { $0.date.yearMonth == today.yearMonth }.map(\.amount.magnitude).reduce(.zero, +)
+            if thisMonth > .zero { total = total + thisMonth }
+            else if let next = (d.plan ?? []).filter({ $0.date >= today }).min(by: { $0.date < $1.date }) { total = total + next.amount.magnitude }
+            else if let even = Plans.repaymentPlan(st, today: today) { total = total + even.perMonth }
+        }
+        let inst = Dictionary(Plans.installments(ledger).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for i in ledger.installments where biz.contains(i.bookID) {
+            if let st = inst[i.id], st.remaining > .zero { total = total + min(st.perPayment, st.remaining) }
+        }
+        return total
     }
 
     /// 界面上给「从流水里认出来的固定开销」打的记号。

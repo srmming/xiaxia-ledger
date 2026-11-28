@@ -325,6 +325,47 @@ final class LedgerBridgeMoreTests: XCTestCase {
         twice = StartingAccounts(rows: [])
     }
 
+    /// 回本、体检页的数从正式账本来：本钱 = 账本里填的；赚回来的 = 正式账本自己算的那个数；店里每月要还的不是 0。
+    func testPaybackNumbersComeFromTheLedger() throws {
+        let l = ledger
+        let cap = try XCTUnwrap(l.business?.capital, "示例账本里填了开店本钱")
+        let progress = try XCTUnwrap(l.capitalProgress(today: today))
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b.capitalTotal, cap.total)
+        XCTAssertGreaterThan(progress.recovered, .zero, "示例里的店已经赚回来一些")
+        if b.shopMonth().earned <= progress.recovered { XCTAssertEqual(b.shopBack, progress.recovered, "赚回来的和正式账本算的一样") }
+        XCTAssertEqual(b.paybackLeft, max(cap.total - b.shopBack, .zero))
+        XCTAssertEqual(b.shopLoanMonthly, LedgerBridge.shopMonthlyRepayments(l, today: today))
+        // 示例账本里店有分期（咖啡机）：每月要还的不是 0，而且就是没还完的分期每期的数 + 欠款这个月该还的
+        let biz = Set(l.books.filter(\.isBusiness).map(\.id))
+        let inst = Plans.installments(l).filter { s in l.installments.contains { $0.id == s.id && biz.contains($0.bookID) } && s.remaining > .zero }
+        if !inst.isEmpty { XCTAssertGreaterThanOrEqual(b.shopLoanMonthly, inst.map { min($0.perPayment, $0.remaining) }.reduce(.zero, +)) }
+        // 没有生意的账本：都是 0，不报错
+        XCTAssertEqual(LedgerBridge.shopMonthlyRepayments(.fresh, today: today), .zero)
+    }
+
+    /// 回本的日子只有一个算法：首页和回本页用的是同一句；不亏线的说明里写的就是实际算进去的几样。
+    func testPaybackDateAndBreakEvenNoteMatchTheNumbers() throws {
+        for b in [TrialBook.demo, LedgerBridge.snapshot(of: ledger, today: today)] {
+            let months = b.paybackMonths()
+            let label = b.paybackDateLabel()
+            if b.paybackLeft == .zero { XCTAssertEqual(label, "已经回本"); continue }
+            XCTAssertEqual(label == nil, months == nil, "算得出几个月，就写得出哪个月")
+            if let months, let label {
+                let cal = Calendar(identifier: .gregorian)
+                let c = cal.dateComponents([.year, .month], from: cal.date(byAdding: .month, value: months, to: b.todayDate)!)
+                XCTAssertEqual(label, "\(c.year!) 年 \(c.month!) 月")
+            }
+            // 不亏线：说明里的几样加起来 ÷ 开门天数 = 那条线（往上取整到 1 €）
+            let need = b.fixedTotal + b.shopLoanMonthly + b.shopMonth().purchases
+            XCTAssertEqual(b.dailyBreakEven.cents, (need.cents / Int64(b.plannedOpenDays) + 99) / 100 * 100)
+            for (word, amount) in [("每月固定要付的", b.fixedTotal), ("每月要还的", b.shopLoanMonthly), ("这个月进的货", b.shopMonth().purchases)] {
+                XCTAssertEqual(b.breakEvenNote.contains("\(word) \(amount.formatted)"), amount > .zero, word)
+            }
+            XCTAssertTrue(b.breakEvenNote.contains("\(b.plannedOpenDays) 天"))
+        }
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

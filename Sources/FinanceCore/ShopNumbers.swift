@@ -65,6 +65,25 @@ extension TrialBook {
         return Int((Double(paybackLeft.cents) / Double(speed.cents)).rounded(.up))
     }
 
+    /// 照这个月赚的速度，哪个月回本（「2027 年 9 月」）。已经回本了是「已经回本」；算不出来是 nil。
+    /// 生意首页、回本页都用这一个，两处写的日子一定一样。
+    public func paybackDateLabel(extra: Money = .zero) -> String? {
+        guard capitalTotal > .zero else { return nil }
+        if paybackLeft == .zero { return "已经回本" }
+        guard let n = paybackMonths(extra: extra), n < 1200 else { return nil }
+        let cal = Calendar(identifier: .gregorian)
+        guard let d = cal.date(byAdding: .month, value: n, to: todayDate) else { return nil }
+        let c = cal.dateComponents([.year, .month], from: d)
+        return "\(c.year ?? 0) 年 \(c.month ?? 0) 月"
+    }
+
+    /// 不亏线是怎么算出来的，一句话（鼠标移上去才看）：实际算进去的几样和各是多少。
+    public var breakEvenNote: String {
+        let parts = [("每月固定要付的", fixedTotal), ("每月要还的", shopLoanMonthly), ("这个月进的货", shopMonth().purchases)].filter { $0.1 > .zero }
+        guard !parts.isEmpty, plannedOpenDays > 0 else { return "还没有要付的，所以不亏线是 0" }
+        return parts.map { "\($0.0) \($0.1.formatted)" }.joined(separator: " + ") + "，除以这个月打算开门的 \(plannedOpenDays) 天（休息的日子不算）"
+    }
+
     /// 营业额每 100 € 去哪了：房租、进货、别的开销、剩下的。四个数加起来是 100。没有营业额就是空的。
     public var shopPer100: [(name: String, euros: Int)] {
         let m = shopMonth()

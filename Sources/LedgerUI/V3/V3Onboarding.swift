@@ -568,8 +568,10 @@ private struct V3ConnectStep: View {
     @Environment(V3State.self) private var state
     @State private var checking: String?
     @State private var missing: String?
+    /// 正式账本上没连成时要说的那句（没装、或者装的是连不了的那种）。
+    @State private var missingNote: String?
     private static let options: [(name: String, symbol: String)] = [
-        ("Claude", "sparkles"), ("ChatGPT", "bubble.left.and.bubble.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"),
+        ("Claude", "sparkles"), ("Codex", "chevron.left.forwardslash.chevron.right"), ("Gemini", "diamond"), ("别的", "square.grid.2x2"),
         (V3State.aiOwnAPI, "key"), ("还没用过", "leaf"),
     ]
     /// 点了「OpenRouter」：下面那一行换成填密钥的。
@@ -599,7 +601,8 @@ private struct V3ConnectStep: View {
                     }
                 } else if let missing {
                     HStack(spacing: 12) {
-                        Text("没连上 \(missing)，可能它还没打开。").font(V3.font(15, .bold)).foregroundStyle(V3.red)
+                        Text(missingNote ?? "没连上 \(missing)，可能它还没打开。").font(V3.font(15, .bold)).foregroundStyle(V3.red)
+                            .fixedSize(horizontal: false, vertical: true)
                         Button("再试一次") { let m = missing; self.missing = nil; connect(m, retry: true) }.buttonStyle(.v3(.ghost, .small))
                     }
                 } else if ownOpen || state.ai == V3State.aiOwnAPI {
@@ -680,9 +683,16 @@ private struct V3ConnectStep: View {
         // 接着正式账本：不演。真去看这台 Mac 上有没有这个 AI，有就真的连（和设置里「连接」是同一套），没有就直说
         if let model = state.model {
             guard let app = AIApp.from(clientName: name), let connector = model.aiConnector, connector.isInstalled(app) else {
-                withAnimation(.snappy) { if state.ai == name { state.ai = nil }; missing = name }
+                // 没装 Codex 但装了 ChatGPT app：直说 ChatGPT app 连不了，换 Codex（旧界面同一句）
+                let chatGPT = name == "Codex" ? model.aiConnector?.unsupportedInstalled().first { $0 == .chatGPT } : nil
+                withAnimation(.snappy) {
+                    if state.ai == name { state.ai = nil }
+                    missingNote = chatGPT?.advice ?? "这台 Mac 上没找到 \(name)。装好以后再来点一下，或者先跳过"
+                    missing = name
+                }
                 return
             }
+            missingNote = nil
             do {
                 try AISetup(connector: connector).connect(app)
                 withAnimation(.snappy) { state.ai = name }
