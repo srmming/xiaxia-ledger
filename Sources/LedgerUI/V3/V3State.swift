@@ -223,6 +223,20 @@ final class V3State {
         self.real = real; realToday = today; realShowsPrivate = showPrivate
         onboardingStep = nil
     }
+    /// 第 9 步：接着 app 里那本正式账本（旧界面用的同一个 `LedgerModel`）。写入和撤销都交给它：它负责存盘、同步、和旧界面保持一致。
+    convenience init(model: LedgerModel, today: LocalDate = .today) {
+        self.init(snapshotOf: model.ledger, today: today, writable: true)
+        self.model = model
+        author = model.author
+    }
+    private(set) weak var model: LedgerModel?
+    /// 账本在别处变了（AI、命令行、手机、旧界面）：把界面上的数重新算一遍。
+    func refreshFromModel() {
+        guard let model, model.ledger != real else { return }
+        real = model.ledger
+        resnapshot()
+    }
+
     /// 接着的那份正式账本（内存里的副本）。nil 就是在用试用数字。
     private(set) var real: Ledger?
     private var realToday = LocalDate.today
@@ -261,7 +275,18 @@ final class V3State {
             do {
                 var next = book
                 try body(&next)
-                let records = try LedgerBridge.apply(before: book, after: next, to: &l, today: realToday, author: author)
+                var records: [ChangeRecord] = []
+                if let model {
+                    // 交给 app 的账本模型去改：它存盘成功了才算数
+                    let before = book
+                    try model.edit(quiet: true) { live in
+                        records = try LedgerBridge.apply(before: before, after: next, to: &live, today: self.realToday, author: self.author)
+                        return records[records.count - 1]
+                    }
+                    l = model.ledger
+                } else {
+                    records = try LedgerBridge.apply(before: book, after: next, to: &l, today: realToday, author: author)
+                }
                 withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
                 realUndo.append(contentsOf: records.map(\.id))
                 localUndo = nil
@@ -299,7 +324,12 @@ final class V3State {
             // 正式账本：用它自己的撤销（会再记一条「撤销」的改动）
             guard let id = realUndo.popLast() else { say("没有能撤销的了"); return }
             do {
-                try l.undo(changeID: id, author: author)
+                if let model {
+                    try model.edit(quiet: true) { live in try live.undo(changeID: id, author: self.author) }
+                    l = model.ledger
+                } else {
+                    try l.undo(changeID: id, author: author)
+                }
                 withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
                 show(Toast(text: "撤销了"))
             } catch { fail((error as? LocalizedError)?.errorDescription ?? "这一条撤不了") }

@@ -146,8 +146,29 @@ public enum LedgerBridge {
             let m = month(ym, upTo: nil), before = month(ym.adding(months: -1), upTo: nil)
             guard m.income > .zero || m.expense > .zero else { return nil }
             let fixed = min(fixedAll, m.expense)
-            return TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: .zero, spent: m.expense - fixed,
-                                       slices: m.by.map { .init(emoji: emoji($0.key), name: $0.key, amount: $0.value, lastMonth: before.by[$0.key] ?? .zero) })
+            var d = TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: .zero, spent: m.expense - fixed,
+                                        slices: m.by.map { .init(emoji: emoji($0.key), name: $0.key, amount: $0.value, lastMonth: before.by[$0.key] ?? .zero) })
+            // 第 7 步：那个月底的家底（生活这边每个账户到月底的余额：正的算有，信用卡欠的算欠；借的钱和分期按现在的算，过去的没法倒推）
+            var have = Money.zero, owe = Money.zero
+            for a in ledger.accounts where !hidden.contains(a.id) && !bizAccounts.contains(a.id) {
+                let bal = ledger.transactions.filter { $0.accountID == a.id && $0.date.yearMonth <= ym }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
+                if a.kind == .credit { owe = owe + (bal < .zero ? bal.magnitude : .zero) } else { have = have + max(bal, .zero) }
+            }
+            let realNames = Set(ledger.accounts.map(\.name))
+            owe = owe + accounts.filter { $0.side == .life && $0.kind == .debt && !realNames.contains($0.name) }.map(\.balance).reduce(.zero, +)
+            have = have + accounts.filter { $0.kind == .lent }.map(\.balance).reduce(.zero, +)
+            d.have = have; d.owe = owe; d.net = have - owe
+            // 那个月花到「和今天同一天」时花了多少（比上月同期用）
+            if k == 1 { d.sameDaySpent = month(ym, upTo: LocalDate(year: ym.year, month: ym.month, day: min(today.day, 28))).expense }
+            // 那个月记的几笔（最大的几笔），和店里收的、花的
+            d.entries = lifeTx.filter { $0.date.yearMonth == ym && $0.amount < .zero && !$0.isTransfer }.sorted { $0.amount < $1.amount }.prefix(8).map { t in
+                .init(id: t.id, emoji: emoji(t.category), name: t.category ?? "还没分", meta: "\(t.description) · \(names[t.accountID] ?? t.accountID)", amount: ledger.baseAmount(t),
+                      tag: t.source ?? "", daysAgo: days(from: t.date, to: today), place: t.description, account: names[t.accountID] ?? t.accountID)
+            }
+            let shop = plain.filter { side($0) == .biz && $0.date.yearMonth == ym && !$0.isTransfer }
+            d.shopIn = shop.filter { $0.amount > .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
+            d.shopOut = shop.filter { $0.amount < .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }.magnitude
+            return d
         }
         // 订阅，和 7 天内要扣的
         let subs = Subscriptions.status(ledger, today: today)
@@ -197,9 +218,10 @@ extension LedgerBridge {
     static func shape(_ b: TrialBook) -> [String] {
         ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
             + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
-            + b.subscriptions.map { "sub|\($0.name)|\($0.amount.cents)|\($0.off)" }
             + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
-            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)"]
+            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)",
+               "shop|\(b.purchases.count)|\(b.shopDebts.map { "\($0.name)\($0.off)" }.joined())|\(b.capital.count)|\(b.capitalTotal.cents)|\(b.stockEstimates.count)|\(b.wanted.count)"]
+            + b.shopDays.map { "day|\($0.day)|\($0.state)|\($0.total.cents)" }
     }
 
     /// 界面上做了一次改动（`before` → `after`），把它照样做到正式账本上。
@@ -209,6 +231,12 @@ extension LedgerBridge {
     public static func apply(before: TrialBook, after: TrialBook, to ledger: inout Ledger, today: LocalDate, author: String) throws -> [ChangeRecord] {
         let who = author.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !who.isEmpty else { throw TrialError("先在设置里填一下记账人是谁") }
+        // 第 6 步：店里某一天收了多少（按收款渠道）、加一样固定开销
+        var shopWork = ledger
+        if let records = try applyShop(before: before, after: after, to: &shopWork, today: today, author: who) {
+            ledger = shopWork
+            return records
+        }
         // 第 4 步：目标（存一笔、定一个新目标、改名字和金额）
         var goalWork = ledger
         if let records = try applyGoals(before: before, after: after, to: &goalWork, today: today, author: who) {
@@ -278,7 +306,7 @@ extension LedgerBridge {
         }
         // 加
         for a in after.accounts where was[a.id] == nil {
-            guard a.kind == .own || a.kind == .shop || a.isCreditCard else { throw TrialError("借的钱、借出去的在接正式账本的这一版里还没接上，账本没动") }
+            guard a.kind == .own || a.kind == .shop || a.isCreditCard else { continue }   // 借的钱、借出去的：下面当成借款记
             guard real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
             let kind: AccountKind = a.kind == .debt ? .credit : a.name.contains("现金") ? .cash : a.block == .emergency || a.block == .goal ? .savings : .bank
             let id = work.newAccountID(for: a.name)
@@ -286,9 +314,22 @@ extension LedgerBridge {
             records.append(try work.createAccount(Account(id: id, name: a.name, kind: kind), openingBalance: opening, date: today, author: who))
             if a.side == .biz { records.append(try work.setAccountSide(id, side: .business, author: who)) }
         }
-        // 两个以上的账户余额一起变了：那是转账 / 还款，不是改余额，这一步还没接
+        // 第 5 步：两个账户的余额一起变了，一个少多少、另一个对上这么多 = 转账 / 还信用卡 / 还欠款 / 别人还钱 / 分期还一期
         let moved = after.accounts.filter { a in was[a.id].map { $0.balance != a.balance } ?? false }
-        guard moved.count <= 1 else { throw TrialError("转账、还款在接正式账本的这一版里还没接上，账本没动") }
+        if moved.count == 2 {
+            return records + [try applyMove(moved, was: was, to: &work, today: today, author: who)]
+        }
+        guard moved.count <= 1 else { throw TrialError("一次动了好几个账户的钱，这一步在接正式账本的这一版里还没接上，账本没动") }
+        // 订阅：加一个、标成要退 / 留着、拿掉
+        records += try applySubscriptions(before: before, after: after, to: &work, today: today, author: who)
+        // 新记一笔欠款（我欠别人 / 别人欠我）：不是账户，记成正式账本里的一笔借款
+        for a in after.accounts where was[a.id] == nil && (a.kind == .lent || (a.kind == .debt && !a.isCreditCard)) {
+            let lent = a.kind == .lent
+            let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
+            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            records.append(try work.addDebt(counterparty: who2, direction: lent ? .theyOweMe : .iOweThem, amount: a.balance, bookID: book,
+                                            date: today, accountID: nil, note: a.note.isEmpty ? nil : a.note, author: who).1)
+        }
         // 改名、改余额、换底色
         for a in after.accounts {
             guard let o = was[a.id], var r = real(o.name) else { continue }
@@ -333,11 +374,36 @@ extension LedgerBridge {
         }
         let was = list(before), now = list(after)
         guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
-        let notYet = TrialError("删目标、换大目标、目标走完收起来，在接正式账本的这一版里还没接上，账本没动")
+        let notYet = TrialError("目标走完收起来、从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
         guard before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
-        // 大目标换了人（名字和金额都变、存的钱也变）或者少了目标：还没接
-        for o in was { guard now.contains(where: { $0.key == o.key }) else { throw notYet } }
         var records: [ChangeRecord] = []
+        // 换大目标：原来的一个小目标现在是大目标，原来的大目标变成小目标。正式账本里就是「把它设成大目标」
+        if let ob = was.first(where: \.big), let nb = now.first(where: \.big), ob.name != nb.name,
+           was.contains(where: { !$0.big && $0.name == nb.name }), now.contains(where: { !$0.big && $0.name == ob.name }), was.count == now.count {
+            guard let g = work.goals.first(where: { $0.name == nb.name }) else { throw TrialError("「\(nb.name)」在正式账本里找不到了") }
+            return [try work.setMainGoal(g.id, author: who)]
+        }
+        // 删目标：一次只删一个。里面的钱照界面上选的走（挪去的那个账户多了这么多），目标删掉；它的账户留着（只加不删），不再算这个目标的
+        let gone = was.filter { o in !now.contains { $0.key == o.key } }
+        if !gone.isEmpty {
+            guard gone.count == 1, now.count == was.count - 1, let o = gone.first else { throw notYet }
+            guard let g = (o.big ? work.goals.first { $0.name == o.name } : work.goals.first { $0.id.uuidString == o.key } ?? work.goals.first { $0.name == o.name }) else {
+                throw TrialError("「\(o.name)」在正式账本里找不到了")
+            }
+            if o.saved > .zero, let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name {
+                // 钱去了哪：删之后余额多了这么多的那个账户（不是它自己的账户）。没有就是留在原账户
+                let to = after.accounts.first { a in
+                    a.name != jarName && before.accounts.first(where: { $0.id == a.id }).map { a.balance - $0.balance == o.saved } == true
+                }
+                if let to {
+                    guard let dest = work.accounts.first(where: { $0.name == to.name }) else { throw TrialError("「\(to.name)」不是正式账本里的账户") }
+                    records.append(try work.addAccountTransfer(amount: o.saved, from: jarID, to: dest.id, date: today, bookID: g.bookID,
+                                                                note: "删掉目标「\(g.name)」，里面的钱放回\(dest.name)", author: who))
+                }
+            }
+            records.append(try work.removeGoal(g.id, author: who))
+            return records
+        }
         func realAccount(_ id: UUID?, in b: TrialBook) -> Account? { b.accounts.first { $0.id == id }.flatMap { a in work.accounts.first { $0.name == a.name } } }
         func realGoal(_ g: G) -> Goal? { g.big ? work.goals.first { $0.name == g.name } : work.goals.first { $0.id.uuidString == g.key } ?? work.goals.first { $0.name == g.name } }
         let lifeBook = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
@@ -380,6 +446,102 @@ extension LedgerBridge {
             } else if n.saved < o.saved {
                 throw TrialError("从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
             }
+        }
+        guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+        return records
+    }
+
+    /// 两个账户之间挪了一笔钱：看两头各是什么，照正式账本里对应的写法记。
+    static func applyMove(_ moved: [TrialBook.Account], was: [UUID: TrialBook.Account], to work: inout Ledger, today: LocalDate, author who: String) throws -> ChangeRecord {
+        func delta(_ a: TrialBook.Account) -> Money { a.balance - (was[a.id]?.balance ?? .zero) }
+        func real(_ a: TrialBook.Account) -> Account? { work.accounts.first { $0.name == (was[a.id]?.name ?? a.name) } }
+        let a = moved[0], b = moved[1]
+        let amount = delta(a).magnitude
+        guard amount > .zero, delta(b).magnitude == amount else { throw TrialError("两个账户变的钱对不上，账本没动") }
+        // 放钱的账户：少了的是转出的，多了的是转入的。欠的（信用卡、欠款）变少 = 还了这么多；借出去的变少 = 别人还了这么多
+        func holds(_ x: TrialBook.Account) -> Bool { x.kind == .own || x.kind == .shop }
+        let payer = moved.first { holds($0) && delta($0) < .zero }
+        let receiver = moved.first { holds($0) && delta($0) > .zero }
+        let paidDebt = moved.first { $0.kind == .debt && delta($0) < .zero }
+        let gotBack = moved.first { $0.kind == .lent && delta($0) < .zero }
+        if let payer, let receiver, let f = real(payer), let t = real(receiver) {
+            // 一头是生活、一头是店里：走正式账本的「两边转钱」（从店里拿回家会算成给自己发的）
+            if payer.side != receiver.side { return try work.transferBetweenSides(amount: amount, from: f.id, to: t.id, date: today, author: who) }
+            return try work.addAccountTransfer(amount: amount, from: f.id, to: t.id, date: today, author: who)
+        }
+        if let payer, let paidDebt, let f = real(payer) {
+            if let card = real(paidDebt) { return try work.addAccountTransfer(amount: amount, from: f.id, to: card.id, date: today, note: "还\(card.name)", author: who) }
+            let name = was[paidDebt.id]?.name ?? paidDebt.name
+            if let inst = work.installments.first(where: { $0.name == name }) { return try work.payInstallment(inst.id, amount: amount, date: today, author: who) }
+            if let d = work.debts.first(where: { $0.counterparty == name && $0.direction == .iOweThem }) {
+                return try work.repay(debtID: d.id, amount: amount, date: today, accountID: f.id, author: who)
+            }
+        }
+        if let receiver, let gotBack, let t = real(receiver) {
+            let name = was[gotBack.id]?.name ?? gotBack.name
+            let person = name.hasPrefix("借给") ? String(name.dropFirst(2)) : name
+            if let d = work.debts.first(where: { $0.counterparty == person && $0.direction == .theyOweMe }) {
+                return try work.repay(debtID: d.id, amount: amount, date: today, accountID: t.id, author: who)
+            }
+        }
+        throw TrialError("这样挪钱在接正式账本的这一版里还没接上，账本没动")
+    }
+
+    /// 订阅上的改动：按名字对。
+    static func applySubscriptions(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord] {
+        var records: [ChangeRecord] = []
+        let cycles: [Subscription.Cycle] = [.weekly, .monthly, .quarterly, .yearly]
+        for n in after.subscriptions {
+            guard let o = before.subscriptions.first(where: { $0.name == n.name }) else {
+                let next = day(today, minus: -30)
+                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycles[min(max(n.cycle, 0), 3)], nextDate: next,
+                                                                      bookID: work.books.first { !$0.isBusiness }?.id, note: n.note.isEmpty ? nil : n.note), author: who))
+                continue
+            }
+            guard o.off != n.off || o.amount != n.amount, var s = work.subscriptions.first(where: { $0.name == n.name }) else { continue }
+            if o.off != n.off, n.off { records.append(try work.cancelSubscription(s.id, on: today, author: who)); continue }
+            s.amount = n.amount
+            if !n.off { s.cancelledOn = nil }
+            records.append(try work.editSubscription(s, author: who))
+        }
+        for o in before.subscriptions where !after.subscriptions.contains(where: { $0.name == o.name }) {
+            guard let s = work.subscriptions.first(where: { $0.name == o.name }) else { continue }
+            records.append(try work.removeSubscription(s.id, author: who))
+        }
+        return records
+    }
+
+    /// 店里的改动。没有店里的改动返回 nil。
+    /// 接了的：记某一天按渠道收了多少（那天原来没记过的）、加一样固定开销。
+    /// 还没接的：改已经记过的那天、标成休息、改 / 停 / 拿掉固定开销 —— 拒绝，账本不动。
+    static func applyShop(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
+        var records: [ChangeRecord] = []
+        let changedDays = after.shopDays.filter { d in before.shopDays.first { $0.day == d.day }.map { $0 != d } ?? true }
+        let fixedBefore = before.fixedCosts.map { "\($0.name)|\($0.amount.cents)|\($0.off)|\($0.day)|\($0.account)" }
+        let fixedAfter = after.fixedCosts.map { "\($0.name)|\($0.amount.cents)|\($0.off)|\($0.day)|\($0.account)" }
+        guard !changedDays.isEmpty || Set(fixedBefore) != Set(fixedAfter) else { return nil }
+        for d in changedDays {
+            let old = before.shopDays.first { $0.day == d.day }
+            guard d.state == .open, old?.state != .open, old?.state != .rest else {
+                throw TrialError("改已经记过的那天、把一天标成休息，在接正式账本的这一版里还没接上，账本没动")
+            }
+            let date = day(today, minus: today.day - d.day)
+            let lines: [(method: PaymentMethod, amount: Money)] = try after.channels(of: d).map { c in
+                guard let acc = work.accounts.first(where: { $0.name == c.account }) else { throw TrialError("「\(c.account)」不是正式账本里的账户") }
+                // 渠道就是店里的账户：有同一个账户的收款方式就用它，没有就临时用账户名当名字
+                let method = work.paymentMethods.first { $0.accountID == acc.id } ?? PaymentMethod(name: acc.name, accountID: acc.id)
+                return (method, c.amount)
+            }
+            records.append(try work.recordDailyTakings(lines, date: date, author: who))
+        }
+        for f in after.fixedCosts where !before.fixedCosts.contains(where: { $0.name == f.name }) {
+            guard let acc = work.accounts.first(where: { $0.name == f.account }) else { throw TrialError("选一个店里能付钱的账户") }
+            records.append(try work.addFixedCost(name: f.name, amount: f.amount, day: max(f.day, 1), accountID: acc.id, category: f.name, today: today, author: who))
+        }
+        let known = Set(after.fixedCosts.map(\.name))
+        guard Set(before.fixedCosts.map(\.name)).isSubset(of: known),
+              before.fixedCosts.allSatisfy({ o in after.fixedCosts.first { $0.name == o.name }.map { $0.amount == o.amount && $0.off == o.off && $0.day == o.day && $0.account == o.account } ?? false }) else {
+            throw TrialError("改、停、拿掉固定开销，在接正式账本的这一版里还没接上，账本没动")
         }
         guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         return records
