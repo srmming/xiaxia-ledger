@@ -929,6 +929,22 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(V3ShopAccountSheet.freeName("店的信用卡", taken: []), "店的信用卡")
     }
 
+    /// 转账「到」那一行把存钱罐收起来以后，能选的账户一个没少：别的账户 + 展开后的存钱罐 = 原来那一整排。
+    func testTransferTargetsSplitIntoPlainAccountsAndGoalJars() {
+        let b = TrialBook.demo
+        let all = b.transferTargets(.life)
+        let jars = all.filter { $0.block == .goal }, plain = all.filter { $0.block != .goal }
+        XCTAssertGreaterThan(jars.count, 1, "示例里有好几个目标的存钱罐，所以会收起来")
+        XCTAssertEqual(Set(jars.map(\.name)).union(plain.map(\.name)), Set(all.map(\.name)))
+        XCTAssertEqual(V3ManualSheet.goalName("换新电脑 存钱罐"), "换新电脑")
+        XCTAssertEqual(V3ManualSheet.goalName("存钱罐"), "存钱罐")
+        // 存进收起来的那个罐子照样转得进去
+        var book = b
+        let jar = jars[1].name, from = b.transferSources(.life).first { $0.balance > Money(cents: 50_00) }!.name
+        XCTAssertNoThrow(try book.transferAny(Money(cents: 20_00), from: from, to: jar))
+        XCTAssertEqual(book.account(jar)?.balance, b.account(jar)!.balance + Money(cents: 20_00))
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

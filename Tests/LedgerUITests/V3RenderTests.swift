@@ -43,6 +43,8 @@ final class V3RenderTests: XCTestCase {
             st.manualStartKind = k
             try write(V3ManualSheet(startKind: k).environment(st), "manual-\(k)", to: dir)
         }
+        let open = V3State(); open.onboardingStep = nil; open.side = .life
+        try write(V3ManualSheet(startKind: 2, jarsOpen: true).environment(open), "manual-2-jars", to: dir)
         s.page = .settings
         try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
         XCTAssertNotNil(s.model); _ = model

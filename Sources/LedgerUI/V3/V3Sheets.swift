@@ -281,6 +281,11 @@ struct V3ManualSheet: View {
         self.embedded = embedded; self.done = done
         _kind = State(initialValue: startKind)
     }
+    /// 出图用：转账那一种，目标那一行一打开就是展开的。
+    init(startKind: Int, jarsOpen: Bool) {
+        self.init(startKind: startKind)
+        _showJars = State(initialValue: jarsOpen)
+    }
     @State private var amount = ""
     @State private var place = ""
     /// 分类一开始不选：免得什么都被记成同一类。
@@ -289,6 +294,8 @@ struct V3ManualSheet: View {
     @State private var account = 0
     @State private var from = ""
     @State private var to = ""
+    /// 转账「到」那一行：目标的存钱罐展开没有。
+    @State private var showJars = false
     @State private var daysAgo = 0
     @State private var pickingDate = false
     @State private var note = ""
@@ -365,14 +372,33 @@ struct V3ManualSheet: View {
         V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220)
         V3AmountHint(text: amount)
         pillRow("从", b.transferSources(bookSide), picked: from, other: to) { from = $0 }
-        pillRow("到", b.transferTargets(bookSide), picked: to, other: from) { to = $0 }
+        // 「到」这一行：目标的存钱罐有好几个时收成一个「存进目标 ›」，点开再挑哪个目标，免得一排排满（ming 2026-11-28）
+        let targets = b.transferTargets(bookSide)
+        let jars = targets.filter { $0.block == .goal }
+        if jars.count > 1 {
+            let inJar = jars.contains { $0.name == to }
+            pillRow("到", targets.filter { $0.block != .goal }, picked: to, other: from,
+                    extra: (title: inJar ? "⭐ 存进目标 · \(Self.goalName(to))" : "⭐ 存进目标 ›", on: inJar, action: { withAnimation(.snappy(duration: 0.15)) { showJars.toggle() } })) { to = $0; showJars = false }
+            if showJars {
+                pillRow("存进哪个目标", jars, picked: to, other: from) { to = $0; showJars = false }
+            }
+        } else {
+            pillRow("到", targets, picked: to, other: from) { to = $0 }
+        }
         if !cross.isEmpty {
             pillRow(bookSide == .life ? "到 · 店里的" : "到 · 生活的", cross, picked: to, other: from) { to = $0 }
         }
     }
 
     /// 一行账户胶囊：图标 + 名字 + 余额。选中的深色；另一行已经选了的那个变灰、点不了。
-    private func pillRow(_ label: String, _ choices: [V3State.Account], picked: String, other: String, pick: @escaping (String) -> Void) -> some View {
+    /// 存钱罐的名字去掉后面的「存钱罐」三个字，就是目标叫什么。
+    static func goalName(_ jar: String) -> String {
+        let n = jar.replacingOccurrences(of: "存钱罐", with: "").trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? jar : n
+    }
+
+    private func pillRow(_ label: String, _ choices: [V3State.Account], picked: String, other: String,
+                         extra: (title: String, on: Bool, action: () -> Void)? = nil, pick: @escaping (String) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             V3Label(label, size: 12.5, weight: .bold)
             FlowLayout(spacing: 6) {
@@ -390,6 +416,15 @@ struct V3ManualSheet: View {
                     }
                     .buttonStyle(V3SinkStyle(depth: 2)).disabled(taken).opacity(taken ? 0.35 : 1)
                     .accessibilityLabel("\(label)：\(a.name)").accessibilityAddTraits(on ? .isSelected : [])
+                }
+                if let extra {
+                    Button(action: extra.action) {
+                        Text(extra.title).font(V3.font(13.5, .bold)).lineLimit(1)
+                            .foregroundStyle(extra.on ? .white : V3.ink)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(Capsule().fill(extra.on ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 2)).accessibilityLabel("\(label)：存进目标，点开挑哪一个")
                 }
             }
         }
