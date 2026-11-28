@@ -11,7 +11,7 @@ final class V3State {
     enum Page: String, CaseIterable, Identifiable {
         case overview, goals, wealth, spending, trends, transactions, subscriptions, debts, monthly
         case settings
-        case bizHome, sales, shopWealth, fixed, payback, stock, checkup, bizDebts
+        case bizHome, sales, shopFlow, shopWealth, fixed, payback, stock, checkup, bizDebts
         var id: String { rawValue }
 
         var title: String {
@@ -28,6 +28,7 @@ final class V3State {
             case .settings: "设置"
             case .bizHome: "生意首页"
             case .sales: "营业额"
+            case .shopFlow: "流水"
             case .shopWealth: "店的家底"
             case .fixed: "固定开销"
             case .payback: "回本"
@@ -43,7 +44,7 @@ final class V3State {
             case .wealth: "wallet.bifold"
             case .spending: "chart.pie"
             case .trends: "waveform.path.ecg"
-            case .transactions: "list.bullet"
+            case .transactions, .shopFlow: "list.bullet"
             case .subscriptions: "arrow.triangle.2.circlepath"
             case .debts, .fixed, .bizDebts: "creditcard"
             case .monthly: "doc.text"
@@ -120,6 +121,8 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var showAddAccount = false
+    /// 打开「记今天的账」时直接停在「店里的开销」。
+    var shopDayExpense = false
     var showAdd = false
     /// 正开着的弹窗（自己填、存一笔、改分类……）。
     var sheet: V3Sheet?
@@ -441,6 +444,23 @@ final class V3State {
             let card = state == .open ? Money(cents: Int64(amt) * 100) - cash : .zero
             b.shopDays.append(.init(day: d, cash: cash, card: card, state: state))
         }
+        // 11 月店里的开销（全是编的）：哪天、哪一类、从哪个账户出
+        func spend(_ day: Int, _ cat: String, _ what: String, _ a: String, from: String = "小店账户") {
+            let c = TrialBook.shopCategories.first { $0.name == cat } ?? TrialBook.Category("🧾", "其他")
+            b.entries.append(.init(emoji: c.emoji, name: c.name, meta: "\(what) · \(from)", amount: -eur(a), tag: "自己记的", daysAgo: 18 - day,
+                                   side: .biz, place: what, account: from))
+        }
+        spend(17, "设备", "新花剪两把", "24,90", from: "店里现金")
+        spend(15, "水电网", "11 月水电", "70")
+        spend(14, "维修", "修冷柜", "60", from: "店里现金")
+        spend(12, "进货", "鲜花补货", "340")
+        spend(10, "广告", "街区小报广告", "80", from: "店的信用卡")
+        spend(9, "交通运输", "送花的油费", "35", from: "店里现金")
+        spend(7, "平台抽成", "外送平台 10 月抽成", "28,60")
+        spend(5, "包装耗材", "包装纸和丝带", "46")
+        spend(4, "进货", "绿植和多肉", "120")
+        spend(3, "房租", "店面房租", "600")
+        spend(2, "员工工资", "周末帮工", "180")
         // 置顶成卡片的几张
         for n in ["日常卡", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b

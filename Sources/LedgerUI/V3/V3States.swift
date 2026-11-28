@@ -62,6 +62,7 @@ extension V3State {
         case .subscriptions: return b.subscriptions.isEmpty
         case .debts: return b.debts.isEmpty && b.lent.isEmpty
         case .bizHome, .sales, .checkup: return b.shopSalesTotal == .zero
+        case .shopFlow: return b.shopFlow.isEmpty
         case .shopWealth: return false
         case .fixed: return b.fixedCosts.isEmpty
         case .payback: return b.capital.isEmpty
@@ -93,6 +94,7 @@ struct V3EmptyPage: View {
         case .debts: return ("你不欠钱", "挺好的。借给别人的、分期买的，也可以记在这里。", [Act(title: "记一笔欠款") { $0.open(.debt) }])
         case .monthly: return ("第一份小结下个月 1 日写好", "要有一整个月的账才写得出来。", [])
         case .bizHome: return ("店里还没有账", "先记今天收了多少。记满一个星期，我就能说点有用的。", [today, Act(title: "填开店本钱") { $0.open(.capital) }])
+        case .shopFlow: return ("店里还没有流水", "记今天收了多少，或者记一笔店里的开销。", [today])
         case .sales: return ("这个月还没记", "每天关门前记一个总数就行，不用记每一单。", [today])
         case .fixed: return ("还没填固定开销", "房租、给自己的工资、水电。填了才知道每天开门要先收多少。", [Act(title: "加一样") { $0.open(.fixed) }])
         case .payback: return ("还没填开店本钱", "填上，我就能算什么时候回本。记不清就填个大概。", [Act(title: "填本钱") { $0.open(.capital) }])

@@ -56,7 +56,19 @@ struct V3BizHomePage: View {
                             Button("记好") { quick() }.buttonStyle(.v3(.teal))
                         }
                         Spacer(minLength: 0)
-                        Button(done ? "改一下" : "分开填") { state.open(.shopDay(b.todayDay)) }.buttonStyle(.v3(.ghost, .small)).help("现金和刷卡分开填")
+                        Button(done ? "改一下" : "按渠道填") { state.open(.shopDay(b.todayDay)) }.buttonStyle(.v3(.ghost, .small))
+                    }
+                    // 按收款渠道：每个店账户今天收了多少
+                    if done, let today {
+                        HStack(spacing: 14) {
+                            ForEach(b.channels(of: today).prefix(4)) { c in
+                                HStack(spacing: 5) {
+                                    Text(c.account).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                                    V3Amount(c.amount.v3Short, color: V3.ink, size: 13.5)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
@@ -465,7 +477,14 @@ struct V3BizDebtsPage: View {
                 }
                 if let first {
                     V3Ask(face: "worried", text: "\(first.name)那 \(first.amount.v3Short)\(first.note.isEmpty ? "" : "，" + first.note)。拖了下次不给赊。", tone: .warn, kicker: "要留意") {
-                        Button("现在记还款") { state.change("还款记好了 · \(first.name) \(first.amount.v3)", kind: .repay) { try $0.payShopDebt(first.name) } }.buttonStyle(.v3(.teal, .small))
+                        HStack(spacing: 8) {
+                            ForEach(b.shopHeld.prefix(3)) { a in
+                                Button("从\(a.name)还") {
+                                    state.change("还款记好了 · \(first.name) \(first.amount.v3)，从\(a.name)出", kind: .repay) { try $0.payShopDebt(first.name, from: a.name) }
+                                }
+                                .buttonStyle(.v3(a.id == b.shopHeld.first?.id ? .teal : .ghost, .small))
+                            }
+                        }
                     }
                 } else {
                     V3Ask(face: "happy", text: "赊的账都清了。", tone: .good)
@@ -569,6 +588,75 @@ struct V3ShopWealthPage: View {
             V3Amount(value, color: color, size: 22, weight: .heavy)
         }
         .padding(.horizontal, 16).padding(.vertical, 12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
+    }
+}
+
+// MARK: - 生意流水
+
+/// 这个月店里的每一笔：每天按渠道收的钱 + 记的每笔开销。一屏放不下就翻页。
+struct V3ShopFlowPage: View {
+    @Environment(V3State.self) private var state
+    @State private var filter = 0
+    @State private var page = 0
+    private let perPage = 9
+
+    var body: some View {
+        let b = state.book
+        let all = b.shopFlow
+        let rows = all.filter { filter == 0 || (filter == 1 ? $0.amount > .zero : $0.amount < .zero) }
+        let pages = max((rows.count + perPage - 1) / perPage, 1)
+        let at = min(page, pages - 1)
+        let shown = Array(rows.dropFirst(at * perPage).prefix(perPage))
+        // 花在哪：按分类加起来，多的在前
+        let cats = Dictionary(grouping: all.filter { $0.amount < .zero }, by: { $0.title })
+            .map { (name: $0.key, emoji: $0.value.first?.emoji ?? "🧾", total: $0.value.map(\.amount).reduce(.zero, +).magnitude) }
+            .sorted { $0.total > $1.total }
+        V3Cols(left: 1, right: 1.5) {
+            VStack(spacing: 16) {
+                V3KeyCard(label: "11 月 · 收的减花的", amount: b.shopFlowIn - b.shopFlowOut, wave: V3.tealSoft) {
+                    HStack(spacing: 26) {
+                        V3KV(value: b.shopFlowIn.v3, label: "收了", color: V3.teal)
+                        V3KV(value: b.shopFlowOut.v3, label: "花了", color: V3.red)
+                    }
+                }
+                V3GrowCard {
+                    V3CardTitle("花在哪")
+                    V3RowList(rows: cats.prefix(5).map { c in .init(c.emoji, c.name, "", c.total.v3) }, compact: true, fill: true)
+                    Spacer(minLength: 0)
+                }
+            }
+        } trailing: {
+            V3GrowCard(spacing: 6) {
+                HStack(spacing: 8) {
+                    ForEach(Array(["全部", "收的", "花的"].enumerated()), id: \.offset) { i, t in
+                        Button { filter = i; page = 0 } label: {
+                            Text(t).font(V3.font(13.5, .bold)).foregroundStyle(filter == i ? .white : V3.ink)
+                                .padding(.horizontal, 14).padding(.vertical, 6)
+                                .background(Capsule().fill(filter == i ? V3.teal : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                    V3Label("\(rows.count) 笔", size: 12.5)
+                }
+                V3RowList(rows: shown.map { r in
+                    .init(r.emoji, r.title, "11 月 \(r.day) 日" + (r.detail.isEmpty ? "" : " · \(r.detail)"),
+                          (r.amount > .zero ? "+" : "") + r.amount.v3, r.amount > .zero ? V3.teal : V3.navy,
+                          action: { if r.amount > .zero { state.open(.shopDay(r.day)) } else if let id = r.entryID { state.open(.amount(id)) } })
+                }, compact: true, fill: true)
+                Spacer(minLength: 0)
+                if pages > 1 {
+                    HStack(spacing: 10) {
+                        Spacer()
+                        Button { page = max(at - 1, 0) } label: { Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
+                            .buttonStyle(.plain).disabled(at == 0).accessibilityLabel("上一页")
+                        Text("\(at + 1) / \(pages)").font(V3.num(13.5, .heavy)).foregroundStyle(V3.ink2)
+                        Button { page = min(at + 1, pages - 1) } label: { Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
+                            .buttonStyle(.plain).disabled(at >= pages - 1).accessibilityLabel("下一页")
+                    }
+                }
+            }
+        }
     }
 }
 #endif

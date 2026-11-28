@@ -795,30 +795,82 @@ private struct V3RepaySheet: View {
 private struct V3ShopDaySheet: View {
     let start: Int
     @Environment(V3State.self) private var state
-    @State private var cash = ""
-    @State private var card = ""
+    /// 0 收的钱，1 店里的开销
+    @State private var kind = 0
+    /// 0 按渠道填，1 只填总数
+    @State private var mode = 0
+    @State private var texts: [String: String] = [:]
+    @State private var whole = ""
     @State private var day = 18
+    // 开销
+    @State private var amount = ""
+    @State private var what = ""
+    @State private var cat = 0
+    @State private var account = 0
+    @State private var note = ""
+
+    private func text(_ name: String) -> Binding<String> {
+        Binding(get: { texts[name] ?? "" }, set: { texts[name] = $0 })
+    }
 
     var body: some View {
         let b = state.book
-        let c = V3Form.amountOrZero(cash), k = V3Form.amountOrZero(card)
-        let total = (c ?? .zero) + (k ?? .zero)
+        let held = Array(b.shopHeld.prefix(6))
+        let parsed = held.map { (name: $0.name, amount: V3Form.amountOrZero(texts[$0.name] ?? "")) }
+        let bad = mode == 0 ? parsed.contains { $0.amount == nil } : V3Form.amountOrZero(whole) == nil
+        let total = mode == 0 ? parsed.compactMap(\.amount).reduce(.zero, +) : (V3Form.amountOrZero(whole) ?? .zero)
         let known = b.shopDays.first { $0.day == day }
         let need = b.dailyBreakEven
-        let missing = b.shopDays.filter { $0.state == .missing && $0.day < b.todayDay && $0.day != day }.map(\.day)
-        V3SheetBox(width: 520, title: day == b.todayDay ? "记今天的账" : "补 \(day) 号的账", sub: "11 月 \(day) 日 · 每天只记总数",
-                   foot: known?.state == .open ? "这天记过了，再记就是改数。" : "", teal: true,
-                   canSave: c != nil && k != nil && total > .zero,
+        let m = V3Form.amount(amount)
+        let pay = b.accounts(for: .pay, side: .biz)
+        let cats = TrialBook.shopCategories
+        let okIn = !bad && total > .zero
+        let okOut = m != nil && pay.indices.contains(account)
+        V3SheetBox(width: 640, title: day == b.todayDay ? "记今天的账" : "补 \(day) 号的账",
+                   foot: kind == 0 && known?.state == .open ? "这天记过了，再记就是改数。" : "", teal: true,
+                   canSave: kind == 0 ? okIn : okOut,
                    save: {
-                       guard let c, let k else { return }
-                       if state.change("记好了 · 11 月 \(day) 日收了 \(total.v3)", kind: .add, { try $0.recordShopDay(day, cash: c, card: k) }) { state.closeSheet() }
+                       if kind == 0 {
+                           let channels: [TrialBook.ShopChannel] = mode == 0
+                               ? parsed.compactMap { p in p.amount.map { TrialBook.ShopChannel(p.name, $0) } }
+                               : [TrialBook.ShopChannel(b.usualShopChannel, total)]
+                           if state.change("记好了 · 11 月 \(day) 日收了 \(total.v3)", kind: .add, { try $0.recordShopDay(day, channels: channels) }) { state.closeSheet() }
+                       } else if let m, pay.indices.contains(account) {
+                           let c = cats[min(cat, cats.count - 1)].name
+                           let from = pay[account].name
+                           let ago = b.todayDay - day
+                           if state.change("记好了 · \(c) \(m.v3)", kind: .add, { try $0.recordShopExpense(name: what, amount: m, category: c, account: from, daysAgo: ago, note: note) }) { state.closeSheet() }
+                       }
                    }) {
-            HStack(alignment: .top, spacing: 12) {
-                V3FormField(label: "收的现金", prompt: "0", text: $cash, big: true, focus: true)
-                V3FormField(label: "刷卡收的", prompt: "0", text: $card, big: true)
+            V3FormPick(label: "", options: ["收的钱", "店里的开销"], pick: $kind, teal: true)
+            if kind == 0 {
+                if mode == 0 {
+                    // 按收款渠道填：渠道就是店里的账户
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], alignment: .leading, spacing: 10) {
+                        ForEach(Array(held.enumerated()), id: \.element.id) { i, a in
+                            V3FormField(label: "\(a.emoji) \(a.name)", prompt: "0", text: text(a.name), big: held.count <= 2, focus: i == 0)
+                        }
+                    }
+                } else {
+                    V3FormField(label: "这天一共收了", prompt: "0", text: $whole, big: true, focus: true)
+                }
+                if bad { V3Label("这个数我没看懂。写成 74 或者 74,50 这样就行。", color: V3.red, weight: .semibold) }
+                HStack(spacing: 8) {
+                    V3Chip(text: mode == 0 ? "只填总数" : "按渠道填", size: 12.5) { mode = 1 - mode }
+                    if mode == 0 { V3Chip(text: "+ 加一个渠道", size: 12.5) { state.open(.shopAccount) } }
+                    Spacer()
+                }
+                V3FormPreview(text: total >= need ? "这天一共 · 够付这天的固定开销了" : "这天一共 · 离够付固定开销还差 \((need - total).v3Short)", amount: total.v3)
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    V3FormField(label: "花了多少", prompt: "0,00", text: $amount, big: true, focus: true).frame(width: 190)
+                    V3FormField(label: "买的什么", prompt: "可不填，比如：包装纸", text: $what, big: true)
+                }
+                V3AmountHint(text: amount)
+                V3CatGrid(pick: cat, items: cats) { cat = $0 }
+                V3FormPick(label: "从店里哪个账户出", options: pay.map(\.name), pick: $account, teal: true)
+                V3FormField(label: "备注", prompt: "可不填", text: $note)
             }
-            if c == nil || k == nil { V3Label("这个数我没看懂。写成 74 或者 74,50 这样就行。", color: V3.red, weight: .semibold) }
-            V3FormPreview(text: total >= need ? "这天一共 · 够付这天的固定开销了" : "这天一共 · 离够付固定开销还差 \((need - total).v3Short)", amount: total.v3)
             HStack(spacing: 8) {
                 V3Label("哪天", size: 12.5, weight: .bold)
                 Button { if day > 1 { day -= 1 } } label: { Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
@@ -826,22 +878,35 @@ private struct V3ShopDaySheet: View {
                 Text("11 月 \(day) 日").font(V3.num(15, .heavy)).frame(width: 96).contentTransition(.numericText())
                 Button { if day < b.todayDay { day += 1 } } label: { Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28).background(Circle().fill(V3.bg)) }
                     .buttonStyle(.plain).disabled(day >= b.todayDay).accessibilityLabel("后一天")
-                ForEach(missing, id: \.self) { d in V3Chip(text: "\(d) 号还没记", size: 12.5) { day = d } }
-                Spacer()
-                Button("这天休息") {
-                    if state.change("记好了 · 11 月 \(day) 日休息", { try $0.markShopRest(day) }) { state.closeSheet() }
+                if kind == 0 {
+                    ForEach(b.shopDays.filter { $0.state == .missing && $0.day < b.todayDay && $0.day != day }.map(\.day), id: \.self) { d in
+                        V3Chip(text: "\(d) 号还没记", size: 12.5) { day = d }
+                    }
                 }
-                .buttonStyle(.v3(.ghost, .small))
+                Spacer()
+                if kind == 0 {
+                    Button("这天休息") {
+                        if state.change("记好了 · 11 月 \(day) 日休息", { try $0.markShopRest(day) }) { state.closeSheet() }
+                    }
+                    .buttonStyle(.v3(.ghost, .small))
+                }
             }
         }
-        .onAppear { day = start; fill() }
+        .onAppear {
+            day = start; fill()
+            if state.shopDayExpense { kind = 1; state.shopDayExpense = false }
+            account = pay.firstIndex { $0.name == b.usualFixedAccount } ?? 0
+        }
         .onChange(of: day) { _, _ in fill() }
     }
 
     private func fill() {
-        if let d = state.book.shopDays.first(where: { $0.day == day }), d.state == .open {
-            cash = V3Form.plain(d.cash); card = V3Form.plain(d.card)
-        } else { cash = ""; card = "" }
+        let b = state.book
+        texts = [:]; whole = ""
+        if let d = b.shopDays.first(where: { $0.day == day }), d.state == .open {
+            for c in b.channels(of: d) { texts[c.account] = V3Form.plain(c.amount) }
+            whole = V3Form.plain(d.total)
+        }
     }
 }
 
@@ -906,17 +971,19 @@ private struct V3SimpleSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
+    @State private var account = 0
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let shop = state.book.accounts.first { $0.kind == .shop }
-        let short = kind == .purchase && (m ?? .zero) > (shop?.balance ?? .zero)
+        let pay = state.book.accounts(for: .pay, side: .biz)
+        let shop = pay.indices.contains(account) ? pay[account] : nil
+        let short = kind == .purchase && shop?.kind == .shop && (m ?? .zero) > (shop?.balance ?? .zero)
         V3SheetBox(width: 520, title: title, hint: [sub, foot].filter { !$0.isEmpty }.joined(separator: "。"), primary: kind == .stock ? "记下" : "记好", teal: true, canSave: m != nil && !short,
                    save: {
                        guard let m else { return }
                        let ok: Bool
                        switch kind {
-                       case .purchase: ok = state.change("记好了 · 进货 \(m.v3)", kind: .add) { try $0.addPurchase(name: name, amount: m, note: "今天") }
+                       case .purchase: ok = state.change("记好了 · 进货 \(m.v3)", kind: .add) { try $0.addPurchase(name: name, amount: m, note: "今天", account: shop?.name) }
                        case .stock: ok = state.change("记下了 · 店里的货大概值 \(m.v3)") { try $0.estimateStock(m, note: "刚估的") }
                        case .capital: ok = state.change("记好了 · 又投了 \(m.v3)") { try $0.addCapital(name: name, amount: m, note: "今天") }
                        }
@@ -928,10 +995,11 @@ private struct V3SimpleSheet: View {
                     .frame(width: kind == .stock ? nil : 170)
             }
             V3AmountHint(text: amount)
+            if kind == .purchase { V3FormPick(label: "从店里哪个账户出", options: pay.map(\.name), pick: $account, teal: true) }
             if short, let shop {
                 V3FormPreview(text: "\(shop.name)里只有 \(shop.balance.v3)，不够付这次进货。", good: false)
             } else if kind == .purchase, let m, let shop {
-                V3FormPreview(text: "\(shop.name)付完还剩", amount: (shop.balance - m).v3)
+                V3FormPreview(text: shop.kind == .debt ? "\(shop.name)刷完一共欠" : "\(shop.name)付完还剩", amount: (shop.kind == .debt ? shop.balance + m : shop.balance - m).v3)
             } else if kind == .capital, let m {
                 V3FormPreview(text: "开店本钱，从 \(state.book.capitalTotal.v3Short) 变成", amount: (state.book.capitalTotal + m).v3Short)
             }

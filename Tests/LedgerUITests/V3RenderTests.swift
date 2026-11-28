@@ -80,6 +80,15 @@ final class V3RenderTests: XCTestCase {
         try shell("biz-fixed") { $0.side = .biz; $0.page = .fixed }
         try shell("sheet-fixed-add") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixed }
         try shell("sheet-fixed-edit") { $0.side = .biz; $0.page = .fixed; $0.sheet = .fixedEdit("水电") }
+        try shell("biz-flow") { $0.side = .biz; $0.page = .shopFlow }
+        try shell("sheet-shopday-channels") { $0.side = .biz; $0.page = .bizHome; $0.sheet = .shopDay(18) }
+        try shell("sheet-shopday-expense") { $0.side = .biz; $0.page = .shopFlow; $0.shopDayExpense = true; $0.sheet = .shopDay(18) }
+        try shell("biz-home-channels") { s in
+            s.side = .biz; s.page = .bizHome
+            s.change("记好了") { try $0.recordShopDay(18, channels: [.init("小店账户", Money(cents: 112_00)), .init("店里现金", Money(cents: 74_00))]) }
+        }
+        try shell("sheet-purchase") { $0.side = .biz; $0.page = .stock; $0.sheet = .purchase }
+        try shell("biz-debts") { $0.side = .biz; $0.page = .bizDebts }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

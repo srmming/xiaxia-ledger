@@ -47,6 +47,56 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.upcoming.last?.account, "日常卡")
     }
 
+    func testShopChannelsExpensesAndFlow() {
+        let s = V3State()
+        let bank = s.book.account("小店账户")!.balance, cash = s.book.account("店里现金")!.balance
+        // 按渠道记今天：每个渠道的钱进各自的账户
+        XCTAssertTrue(s.change("记") { try $0.recordShopDay(18, channels: [.init("小店账户", self.eur("112")), .init("店里现金", self.eur("74"))]) })
+        let day = s.book.shopDays.first { $0.day == 18 }!
+        XCTAssertEqual(day.total, eur("186"))
+        XCTAssertEqual(s.book.channels(of: day).map(\.account), ["小店账户", "店里现金"])
+        XCTAssertEqual(s.book.account("小店账户")?.balance, bank + eur("112"))
+        XCTAssertEqual(s.book.account("店里现金")?.balance, cash + eur("74"))
+        // 改同一天：只算差的；只填总数就进常用的那个渠道
+        XCTAssertTrue(s.change("改") { try $0.recordShopDay(18, channels: [.init($0.usualShopChannel, self.eur("200"))]) })
+        XCTAssertEqual(s.book.account("小店账户")?.balance, bank + eur("200"))
+        XCTAssertEqual(s.book.account("店里现金")?.balance, cash)
+        // 新加一个渠道（店账户）马上能用；生活的账户、欠款账户不能当渠道
+        XCTAssertTrue(s.change("加") { try $0.addShopAccount(emoji: "📟", name: "收款机", balance: .zero, owes: false) })
+        XCTAssertTrue(s.change("改") { try $0.recordShopDay(18, channels: [.init("收款机", self.eur("50")), .init("小店账户", self.eur("150"))]) })
+        XCTAssertEqual(s.book.account("收款机")?.balance, eur("50"))
+        XCTAssertFalse(s.change("改") { try $0.recordShopDay(18, channels: [.init("日常卡", self.eur("50"))]) })
+        XCTAssertFalse(s.change("改") { try $0.recordShopDay(18, channels: [.init("店的信用卡", self.eur("50"))]) })
+        // 老记法的那些天也能按渠道看
+        let old = s.book.shopDays.first { $0.day == 17 }!
+        XCTAssertEqual(s.book.channels(of: old).map(\.amount).reduce(.zero, +), old.total)
+        // 休息：把这天收的从各个账户里退回去
+        XCTAssertTrue(s.change("休") { try $0.markShopRest(18) })
+        XCTAssertEqual(s.book.account("收款机")?.balance, .zero)
+        XCTAssertEqual(s.book.account("小店账户")?.balance, bank)
+        // 店里的开销：分类、账户、日期
+        let out = s.book.shopFlowOut, life = s.book.month.spent
+        XCTAssertTrue(s.change("记") { try $0.recordShopExpense(name: "胶带", amount: self.eur("12"), category: "包装耗材", account: "店里现金", daysAgo: 2) })
+        XCTAssertEqual(s.book.shopFlowOut, out + eur("12"))
+        XCTAssertEqual(s.book.account("店里现金")?.balance, cash - eur("12"))
+        XCTAssertEqual(s.book.month.spent, life, "店里的开销不算进生活这个月花掉的")
+        XCTAssertEqual(s.book.shopFlow.first { $0.detail.contains("胶带") }?.day, 16)
+        XCTAssertFalse(s.change("记") { try $0.recordShopExpense(name: "x", amount: self.eur("5"), category: "餐饮", account: "店里现金") }, "只认生意的分类")
+        XCTAssertFalse(s.change("记") { try $0.recordShopExpense(name: "x", amount: self.eur("5"), category: "进货", account: "日常卡") }, "生活的账户不能付店里的开销")
+        // 刷店的信用卡：欠的变多
+        XCTAssertTrue(s.change("记") { try $0.recordShopExpense(name: "海报", amount: self.eur("30"), category: "广告", account: "店的信用卡") })
+        XCTAssertEqual(s.book.account("店的信用卡")?.balance, eur("210"))
+        // 流水：收的是正的、花的是负的，新的在前，全是店里的
+        let flow = s.book.shopFlow
+        XCTAssertEqual(flow.map(\.day), flow.map(\.day).sorted(by: >))
+        XCTAssertEqual(s.book.shopFlowIn, s.book.shopSalesTotal)
+        XCTAssertEqual(TrialBook.shopCategories.count, 11)
+        // 进货、还供货商也能选账户
+        XCTAssertTrue(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: "店里现金") })
+        XCTAssertEqual(s.book.account("店里现金")?.balance, cash - eur("32"))
+        XCTAssertFalse(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: "日常卡") })
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
@@ -315,7 +365,7 @@ final class V3StateTests: XCTestCase {
 
     func testNavOrderAndBuyFlow() {
         XCTAssertEqual(V3State.Page.life.map(\.rawValue), ["overview", "transactions", "spending", "wealth", "debts", "subscriptions", "goals", "trends", "monthly"])
-        XCTAssertEqual(V3State.Page.biz.map(\.rawValue), ["bizHome", "sales", "shopWealth", "fixed", "stock", "bizDebts", "payback", "checkup"])
+        XCTAssertEqual(V3State.Page.biz.map(\.rawValue), ["bizHome", "sales", "shopFlow", "shopWealth", "fixed", "stock", "bizDebts", "payback", "checkup"])
         XCTAssertNil(V3State.Page(rawValue: "think"), "「花钱前想想」那一页没有了")
         // 先放着想想 → 进想要清单；不要了 → 钱进目标；都能撤销
         let s = V3State()
