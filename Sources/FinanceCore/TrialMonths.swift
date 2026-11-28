@@ -37,6 +37,8 @@ extension TrialBook {
         public var owe: Money = .zero
         /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
         public var sameDaySpent: Money?
+        /// 到那个月底，开店本钱一共赚回来多少（回本页那条线用）。没存就是 nil。
+        public var shopBack: Money?
         /// 那个月每天花了多少（第 1 天…）。没存就是空的。
         public var daily: [Money] = []
 

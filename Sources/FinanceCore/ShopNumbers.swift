@@ -58,9 +58,28 @@ extension TrialBook {
     public var shopBack: Money { shopBackBefore + max(shopMonth().earned, .zero) }
     public var paybackLeft: Money { max(capitalTotal - shopBack, .zero) }
     public var paybackFraction: Double { capitalTotal > .zero ? min(Double(shopBack.cents) / Double(capitalTotal.cents), 1) : 0 }
-    /// 照这个月赚的速度，还要几个月回本。这个月没赚到钱就算不出来（nil）。`extra` 是「每月多赚这么多」时的情况。
+    /// 回本按多快算：前三个整月平均每月真正赚的（和旧界面一个口径，月初也稳）。没有满三个月的数，就用这个月到今天赚的。
+    public var paybackSpeed: (perMonth: Money, fromLastThree: Bool) {
+        let keys = [thisMonth.previous, thisMonth.previous.previous, thisMonth.previous.previous.previous]
+        // 有「每个月底一共赚回来多少」的数：三个月里多赚回来的 ÷ 3，和回本进度是同一本账
+        func back(_ k: MonthKey) -> Money? { pastMonths.first { $0.key == k }?.shopBack }
+        if let end = back(keys[0]), let start = back(keys[2].previous) { return (Money(cents: (end - start).cents / 3), true) }
+        let past = keys.compactMap { k in pastMonths.first { $0.key == k && ($0.shopIn > .zero || $0.shopOut > .zero) } }
+        guard past.count == 3 else { return (shopMonth().earned, false) }
+        let sum = past.map { $0.shopIn - $0.shopOut }.reduce(.zero, +)
+        return (Money(cents: sum.cents / 3), true)
+    }
+    /// 回本速度是怎么来的，一句话。
+    public var paybackSpeedNote: String { paybackSpeed.fromLastThree ? "照前三个月平均赚的速度" : "照这个月赚的速度" }
+
+    /// 回本那条线：过去每个月底一共赚回来多少，最后一个是今天。月份从早到晚。
+    public var paybackCurve: [(key: MonthKey, back: Money)] {
+        pastMonths.filter { $0.shopBack != nil }.sorted { $0.key < $1.key }.map { ($0.key, $0.shopBack ?? .zero) } + [(thisMonth, shopBack)]
+    }
+
+    /// 还要几个月回本（速度见 `paybackSpeed`）。没赚到钱就算不出来（nil）。`extra` 是「每月多赚这么多」时的情况。
     public func paybackMonths(extra: Money = .zero) -> Int? {
-        let speed = shopMonth().earned + extra
+        let speed = paybackSpeed.perMonth + extra
         guard speed > .zero else { return nil }
         return Int((Double(paybackLeft.cents) / Double(speed.cents)).rounded(.up))
     }

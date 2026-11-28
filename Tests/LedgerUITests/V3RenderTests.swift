@@ -46,6 +46,8 @@ final class V3RenderTests: XCTestCase {
         try write(V3BizHomePage().padding(20).environment(s), "real-biz-home", to: dir)
         try write(V3PaybackPage().padding(20).environment(s), "real-payback", to: dir)
         s.side = .life
+        let demoBiz = V3State(); demoBiz.onboardingStep = nil; demoBiz.side = .biz
+        try write(V3PaybackPage().padding(20).environment(demoBiz), "demo-payback", to: dir)
         let demo = V3State(); demo.onboardingStep = nil
         try write(V3TrendsPage().padding(20).environment(demo), "demo-trends", to: dir)
     }

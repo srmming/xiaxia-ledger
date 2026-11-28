@@ -255,6 +255,13 @@ public enum LedgerBridge {
                 if let p = ledger.capitalProgress(today: today) {
                     b.shopBackBefore = max(p.recovered - max(b.shopMonth().earned, .zero), .zero)
                 }
+                // 过去每个月底一共赚回来多少（回本页那条线）：用正式账本自己的算法，按那个月最后一天算。开店之前的月份不带
+                for i in b.pastMonths.indices {
+                    let k = b.pastMonths[i].key
+                    let end = LocalDate(year: k.year, month: k.month, day: 1).adding(months: 1).adding(days: -1)
+                    if let open = cap.openedOn, end < open { continue }
+                    b.pastMonths[i].shopBack = ledger.capitalProgress(today: end)?.recovered
+                }
             }
             b.shopLoanMonthly = shopMonthlyRepayments(ledger, today: today)
         }
@@ -580,9 +587,13 @@ extension LedgerBridge {
         let cycles: [Subscription.Cycle] = [.weekly, .monthly, .quarterly, .yearly]
         for n in after.subscriptions {
             guard let o = before.subscriptions.first(where: { $0.name == n.name }) else {
-                let next = day(today, minus: -30)
-                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycles[min(max(n.cycle, 0), 3)], nextDate: next,
-                                                                      bookID: work.books.first { !$0.isBusiness }?.id, note: n.note.isEmpty ? nil : n.note), author: who))
+                // 下次扣款：新界面加订阅时不问哪天扣，先按「从今天起过一个周期」算（每周 7 天后、每月下个月今天…），以后对上流水会自己校准
+                let cycle = cycles[min(max(n.cycle, 0), 3)]
+                let next = cycle == .weekly ? today.adding(days: 7) : today.adding(months: cycle == .monthly ? 1 : cycle == .quarterly ? 3 : 12)
+                // 标了「赚钱用的」又开着生意：记在生意账本上；别的记在生活账本上
+                let book = (n.flag ? work.books.first { $0.isBusiness } : nil) ?? work.books.first { !$0.isBusiness }
+                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycle, nextDate: next,
+                                                                      bookID: book?.id, note: n.note.isEmpty ? nil : n.note), author: who))
                 continue
             }
             guard o.off != n.off || o.amount != n.amount, var s = work.subscriptions.first(where: { $0.name == n.name }) else { continue }

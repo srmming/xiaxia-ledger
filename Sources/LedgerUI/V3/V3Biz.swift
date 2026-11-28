@@ -287,6 +287,20 @@ struct V3FixedPage: View {
 struct V3PaybackPage: View {
     @Environment(V3State.self) private var state
 
+    /// 回本那条线在图上的点（图宽 560、高 200；金线在 y=14，底在 y=196）。横轴一格是一个月：已经过去的月份 + 还要几个月回本。
+    static func curve(_ b: TrialBook) -> (done: [(Double, Double)], ahead: [(Double, Double)]) {
+        let pts = b.paybackCurve
+        let total = max(b.capitalTotal.cents, 1)
+        func y(_ m: Money) -> Double { 196 - min(max(Double(m.cents) / Double(total), 0), 1) * 182 }
+        let ahead = b.paybackLeft == .zero ? 0 : (b.paybackMonths() ?? 0)
+        // 第一个点前面留一格当「开店那天还没赚回来」；没有过去的数时，就只有开店和今天两个点
+        let steps = Double(max(pts.count + min(ahead, 120), 1))
+        var done: [(Double, Double)] = [(0, 196)]
+        for (i, p) in pts.enumerated() { done.append((Double(i + 1) / steps * 560, y(p.back))) }
+        guard ahead > 0, let last = done.last else { return (done, []) }
+        return (done, [last, (560, 14)])
+    }
+
     var body: some View {
         let b = state.book
         let back = b.shopBack
@@ -294,6 +308,7 @@ struct V3PaybackPage: View {
         let frac = b.paybackFraction
         let months = b.paybackMonths()
         let faster = b.paybackMonths(extra: Money(cents: 150_00))
+        let line = Self.curve(b)
         V3Cols(left: 1.35, right: 1) {
             VStack(spacing: 16) {
                 HStack(spacing: 22) {
@@ -301,20 +316,28 @@ struct V3PaybackPage: View {
                     VStack(alignment: .leading, spacing: 4) {
                         V3Label("开店本钱还差")
                         V3Gold(amount: left, size: 56)
-                        Text(months.map { "照这个月赚的速度，再 \($0) 个月回本" } ?? "这个月还没赚到钱，算不出什么时候回本").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
+                        Text(months.map { "\(b.paybackSpeedNote)，再 \($0) 个月回本" } ?? "最近没赚到钱，算不出什么时候回本").font(V3.font(14, .bold)).foregroundStyle(V3.teal)
                     }
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 22).padding(.vertical, 18).v3Sticker()
                 V3GrowCard {
                     V3CardTitle("一点点赚回来的")
+                    // 按账本画：过去每个月底一共赚回来多少，最后一个点是今天；虚线接到回本的那个月；顶上那条金线是开店本钱
                     V3Lines(height: 200, grid: [100, 199], lines: [
                         .init(points: [(0, 14), (560, 14)], color: V3.gold, width: 2.5, dash: [7, 6]),
-                        .init(points: [(0, 196), (50, 186), (100, 172), (150, 160), (200, 142), (250, 128), (290, 104)], color: V3.teal, fill: V3.tealSoft),
-                        .init(points: [(290, 104), (520, 14)], color: V3.teal, width: 3, dash: [3, 7]),
-                    ], dot: (290, 104))
+                        .init(points: line.done, color: V3.teal, fill: V3.tealSoft),
+                        .init(points: line.ahead, color: V3.teal, width: 3, dash: [3, 7]),
+                    ], dot: line.done.last)
                     .frame(maxHeight: .infinity)
-                    HStack { V3Label(b.capital.first.map { $0.note.isEmpty ? "开店" : "开店 · \($0.note)" } ?? "开店"); Spacer(); V3Label("今天"); Spacer(); V3Label(b.paybackDateLabel().map { $0 == "已经回本" ? $0 : "\($0) · 回本" } ?? "回本") }
+                    HStack { V3Label(b.capital.first.map { $0.note.isEmpty ? "开店" : "开店 · \($0.note)" } ?? "开店"); Spacer(); V3Label(b.paybackDateLabel().map { $0 == "已经回本" ? $0 : "\($0) · 回本" } ?? "回本") }
+                        .overlay {
+                            // 「今天」写在今天那个点的正下方；太靠两头就不写
+                            GeometryReader { g in
+                                let x = g.size.width * (line.done.last?.0 ?? 0) / 560
+                                if x > 150, x < g.size.width - 150 { V3Label("今天").fixedSize().position(x: x, y: g.size.height / 2) }
+                            }
+                        }
                 }
                 .accessibilityLabel("回本走了 \(Int(frac * 100))%")
                 if let months, let faster, months > faster {
