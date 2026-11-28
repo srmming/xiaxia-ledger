@@ -33,9 +33,9 @@ struct P3LifeHome: View {
         hero(b, m, now)
         HStack(spacing: 12) {
             // 「一共花掉」= 固定要付的 + 随手花的，和上面那行四个数分得清
-            small(now ? "这个月一共花掉" : "\(state.monthTitle)一共花掉", m.spentTotal.p3, now ? spentNote : "固定的加随手花的", now ? P3.green : P3.ink2) { state.go(.spending) }
+            small(now ? "这个月一共花掉" : "\(state.monthTitle)一共花掉", m.spentTotal.p3, now && state.canCompareSpend ? spentNote : "固定的加随手花的", now && state.canCompareSpend ? P3.green : P3.ink2) { state.go(.spending) }
             small(now ? "家底 · 净剩" : "\(state.monthTitle)底 · 净剩", (now ? b.totals.net : m.net).p3,
-                  now ? state.compare(b.totals.net, state.lastMonthNet) : "那个月最后的家底", now ? P3.green : P3.ink2) { state.go(.wealth) }
+                  now && state.canCompareNet ? state.compare(b.totals.net, state.lastMonthNet) : now ? "有的减欠的" : "那个月最后的家底", now && state.canCompareNet ? P3.green : P3.ink2) { state.go(.wealth) }
         }
         if now {
             goalCard(b.journey)
@@ -165,16 +165,20 @@ struct P3BizHome: View {
         let b = state.book
         let m = state.monthData
         let now = state.isThisMonth
-        let inn = now ? b.shopFlowIn : m.shopIn, out = now ? b.shopFlowOut : m.shopOut
+        // 「真正赚了」和 Mac 同一个口径（ShopNumbers.shopMonth）：收进来的减掉成本，进货、还贷款不算成本
+        let sm = b.shopMonth(state.monthKey)
         VStack(alignment: .leading, spacing: 6) {
-            P3Label("\(state.monthTitle) · 店里收进来")
-            if inn == .zero && out == .zero {
+            P3Label("\(state.monthTitle) · 真正赚了")
+            if sm.income == .zero && sm.out == .zero {
                 Text("那个月没有记生意的账").font(P3.font(20, .heavy)).foregroundStyle(P3.ink2).padding(.vertical, 12)
             } else {
-                P3Gold(amount: inn, size: 56)
-                Text("花出去 \(out.p3Short)，\(inn >= out ? "剩 \((inn - out).p3Short)" : "亏 \((out - inn).p3Short)")")
-                    .font(P3.font(13.5, .bold)).foregroundStyle(inn >= out ? P3.teal : P3.red)
-                if now { Text("开了 \(b.shopOpenDays) 天").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2) }
+                P3Gold(amount: sm.earned, size: 56)
+                Text("收进来 \(sm.income.p3Short)，开销 \(sm.costs.p3Short)").font(P3.font(13.5, .bold)).foregroundStyle(sm.earned >= .zero ? P3.teal : P3.red)
+                if sm.purchases > .zero || sm.loanPaid > .zero {
+                    Text("另外进货 \(sm.purchases.p3Short)、还贷款 \(sm.loanPaid.p3Short)，手里的钱实际\(sm.cashChange >= .zero ? "多了" : "少了") \(sm.cashChange.magnitude.p3Short)")
+                        .font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
+                }
+                if now { Text("开了 \(b.shopOpenDays) 天 · 每个开门的日子收够 \(b.dailyBreakEven.p3Short) 才不亏").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2) }
             }
         }
         .padding(.horizontal, 18).padding(.vertical, 16)
@@ -183,7 +187,7 @@ struct P3BizHome: View {
 
         HStack(spacing: 12) {
             let w = b.shopWorth
-            card("店里有", w.cash.p3, "欠着 \(w.owes.p3Short)") { withAnimation { state.tab = .goals } }
+            card("店里有", w.cash.p3, "一共欠 \(b.shopOwesTotal.p3Short)") { withAnimation { state.tab = .goals } }
             card("固定开销", b.fixedTotal.p3, "每月要付") { state.go(.fixed) }
         }
 

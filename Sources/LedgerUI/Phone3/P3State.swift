@@ -125,7 +125,7 @@ final class P3State {
     private var toastTask: Task<Void, Never>?
 
     init() {
-        ledger = TrialLedger(book: P3Demo.demoBook, changes: Self.demoChanges)
+        ledger = TrialLedger(book: TrialBook.demo, changes: Self.demoChanges)
         if let s = PhoneV3Launch.value("-P3Side"), s == "biz" { side = .biz }
         if let t = PhoneV3Launch.value("-P3Tab"), let tab = Tab(rawValue: t) { self.tab = tab }
         if let p = PhoneV3Launch.value("-P3Page"), let page = Page(rawValue: p) { meOpen = true; mePath = [page] }
@@ -156,16 +156,13 @@ final class P3State {
         withAnimation(.snappy(duration: 0.2)) { viewMonth = k == book.thisMonth ? nil : k }
     }
     /// 看的那个月的花销分类。这个月：分好类的那些，加上手机上刚记的（还没归类的合成「刚记的」），总数和总览对得上。
-    var shownSlices: [Book.SpendSlice] {
-        guard isThisMonth else { return monthData.topSlices(limit: 8) }
-        var s = book.spendSlices(limit: 8)
-        let extra = book.month.spentTotal - book.spendSliceTotal
-        if extra > .zero { s.append(.init(emoji: "🧾", name: "刚记的", amount: extra, lastMonth: .zero)) }
-        return s.sorted { $0.amount > $1.amount }
-    }
-    /// 示例里上个月的几个数（和 Mac 试用版同一套）：上个月同期花了多少、上个月底家底净剩多少。
-    var lastMonthSpentSoFar: Money { Money(cents: 1_249_39) }
-    var lastMonthNet: Money { Money(cents: 2_170_61) }
+    /// 看的那个月的花销分类（共用算法：大数 = 圆环 = 分类合计）。
+    var shownSlices: [Book.SpendSlice] { monthData.topSlices(limit: 8) }
+    /// 和上个月比的两个数：从账本里存的上个月的数来，不写死。上个月的数不全时不说「比上个月…」。
+    var lastMonthSpentSoFar: Money { book.previousMonthData?.sameDaySpent ?? book.month.spentTotal }
+    var lastMonthNet: Money { book.previousMonthData?.net ?? book.totals.net }
+    var canCompareSpend: Bool { book.spentLessThanLastMonthSameDay != nil }
+    var canCompareNet: Bool { book.netMoreThanLastMonth != nil }
     /// 「比上个月多 / 少 …」，跟着数变。
     func compare(_ now: Money, _ before: Money) -> String {
         let d = now - before
@@ -255,7 +252,6 @@ final class P3State {
 
     // MARK: 示例数据（和 Mac v3 试用版同一套，全是编的）
 
-    static func eur(_ s: String) -> Money { Money(parsing: s) ?? .zero }
 
     static let demoChanges: [ChangeRecord] = {
         let cal = Calendar.current

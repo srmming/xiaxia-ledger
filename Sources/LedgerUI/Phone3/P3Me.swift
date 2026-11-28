@@ -230,7 +230,7 @@ struct P3WealthPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 P3Label("净剩（有的减欠的）")
                 P3Gold(amount: b.totals.net, size: 44)
-                Text("\(state.compare(b.totals.net, state.lastMonthNet)) · 手里的钱够撑 \(b.handRunway.monthsText) 个月").font(P3.font(13, .bold)).foregroundStyle(P3.green)
+                Text((state.canCompareNet ? state.compare(b.totals.net, state.lastMonthNet) + " · " : "") + "手里的钱够撑 \(b.handRunway.monthsText) 个月").font(P3.font(13, .bold)).foregroundStyle(P3.green)
                 HStack(spacing: 20) {
                     kv("一共有", b.totals.have.p3, P3.ink)
                     kv("欠别人", b.totals.owe.p3, P3.red)
@@ -466,7 +466,7 @@ struct P3SalesPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 P3Label("11 月 · 收进来")
                 P3Gold(amount: b.shopSalesTotal, size: 44)
-                Text("开了 \(b.shopOpenDays) 天 · 一天收够 \(b.dailyBreakEven.p3Short) 就不亏").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
+                Text("开了 \(b.shopOpenDays) 天 · 每个开门的日子收够 \(b.dailyBreakEven.p3Short) 才不亏").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
@@ -542,7 +542,7 @@ struct P3FixedPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 P3Label("每月固定要付")
                 P3Gold(amount: b.fixedTotal, size: 44)
-                Text("一天收够 \(b.dailyBreakEven.p3Short) 才付得起").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
+                Text("每个开门的日子收够 \(b.dailyBreakEven.p3Short) 才不亏").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
             VStack(spacing: 0) {
