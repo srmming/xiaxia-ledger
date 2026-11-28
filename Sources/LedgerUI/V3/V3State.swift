@@ -216,10 +216,24 @@ final class V3State {
 
     /// 接正式账本的第 1 步：从一本正式账本现算出界面要的数，只看不写。
     /// 传进来的是账本的一份副本（值类型），这里不会改它，也不会往盘上写任何东西。
-    init(snapshotOf real: Ledger, today: LocalDate = .today, showPrivate: Bool = false) {
+    /// - writable: 第 2 步。记一笔、改分类、改金额、删、撤销会真的写进这份正式账本（内存里的这一份副本；这里不存盘）。
+    init(snapshotOf real: Ledger, today: LocalDate = .today, showPrivate: Bool = true, writable: Bool = false) {
         ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: today, showPrivate: showPrivate), changes: Array(real.changes.suffix(50).reversed()))
-        readOnly = true
+        readOnly = !writable
+        self.real = real; realToday = today; realShowsPrivate = showPrivate
         onboardingStep = nil
+    }
+    /// 接着的那份正式账本（内存里的副本）。nil 就是在用试用数字。
+    private(set) var real: Ledger?
+    private var realToday = LocalDate.today
+    private var realShowsPrivate = false
+    /// 正式账本上最近一次还能撤销的改动。
+    private var realUndo: [UUID] = []
+
+    /// 正式账本变了以后，界面上的数重新现算一遍。
+    private func resnapshot() {
+        guard let real else { return }
+        ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: realShowsPrivate), changes: Array(real.changes.suffix(50).reversed()))
     }
     /// 只看不写：这一版界面接的是正式账本的只读数，写入还没接。
     var readOnly = false
@@ -242,6 +256,20 @@ final class V3State {
     @discardableResult
     func change(_ text: String, kind: ChangeRecord.Kind = .edit, _ body: (inout Book) throws -> Void) -> Bool {
         guard !readOnly else { fail("这一版还只能看。要记、要改，先回旧界面"); return false }
+        if var l = real {
+            // 接着正式账本：先在界面这份数上试做一遍，看出改了什么，再照样做到正式账本上（带作者、记改动记录）
+            do {
+                var next = book
+                try body(&next)
+                let records = try LedgerBridge.apply(before: book, after: next, to: &l, today: realToday, author: author)
+                withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
+                realUndo.append(contentsOf: records.map(\.id))
+                localUndo = nil
+                show(Toast(text: text, canUndo: true))
+                return true
+            } catch let e as TrialError { fail(e.message) } catch { fail((error as? LocalizedError)?.errorDescription ?? "没做成，再试一次") }
+            return false
+        }
         do {
             try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
             localUndo = nil
@@ -265,6 +293,16 @@ final class V3State {
             localUndo = nil
             withAnimation(.spring(duration: 0.3)) { local() }
             show(Toast(text: "撤销了"))
+            return
+        }
+        if var l = real {
+            // 正式账本：用它自己的撤销（会再记一条「撤销」的改动）
+            guard let id = realUndo.popLast() else { say("没有能撤销的了"); return }
+            do {
+                try l.undo(changeID: id, author: author)
+                withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
+                show(Toast(text: "撤销了"))
+            } catch { fail((error as? LocalizedError)?.errorDescription ?? "这一条撤不了") }
             return
         }
         guard let last = ledger.lastUndoable else { say("没有能撤销的了"); return }

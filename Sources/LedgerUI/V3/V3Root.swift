@@ -88,7 +88,8 @@ public struct V3RootView: View {
         // `-XiaxiaV3Ledger demo`：不看编的那套试用数字，改看「示例正式账本」（DemoData，内存里现造的）整理出来的数。只读，不打开任何账本文件。
         let args = ProcessInfo.processInfo.arguments
         let useDemoLedger = args.firstIndex(of: "-XiaxiaV3Ledger").map { $0 + 1 < args.count && args[$0 + 1] == "demo" } ?? false
-        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make()) : V3State()
+        // 能写：记一笔、改、删、撤销写进这份内存里的示例正式账本（不存盘，关掉就没了）
+        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make(), writable: true) : V3State()
         V3Launch.apply(to: s)
         s.lockIfNeeded(.launch)
         _state = State(initialValue: s)

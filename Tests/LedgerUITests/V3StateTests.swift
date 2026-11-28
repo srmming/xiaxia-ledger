@@ -317,6 +317,50 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.monthLabel, "11 月")
     }
 
+    func testRealLedgerWritesGoThroughChangeRecords() {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        let real = DemoData.make(endingOn: day)
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        let n = real.transactions.count, changes = real.changes.count
+        let acc = s.book.accounts(for: .pay, side: .life).first { $0.kind == .own }!.name
+        let before = s.book.account(acc)!.balance
+        // 记一笔：正式账本多一笔流水 + 一条写明作者的改动记录；界面上的余额跟着变
+        XCTAssertTrue(s.change("记好了") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("12,50"), account: acc, place: "La Tasca", daysAgo: 1) })
+        XCTAssertEqual(s.real?.transactions.count, n + 1)
+        let tx = s.real!.transactions.last!
+        XCTAssertEqual(tx.amount, -eur("12,50")); XCTAssertEqual(tx.category, "餐饮"); XCTAssertEqual(tx.description, "La Tasca")
+        XCTAssertEqual(tx.date, LocalDate(year: 2026, month: 11, day: 17), "昨天记的落在昨天")
+        XCTAssertEqual(s.real?.changes.count, changes + 1)
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        XCTAssertEqual(s.book.account(acc)?.balance, before - eur("12,50"))
+        XCTAssertTrue(s.book.entries.contains { $0.id == tx.id })
+        // 改分类、改金额：都是正式账本自己的改法
+        XCTAssertTrue(s.change("归好了") { try $0.recategorize(entry: tx.id, emoji: "🛒", name: "超市", always: false) })
+        XCTAssertEqual(s.real?.transactions.first { $0.id == tx.id }?.category, "超市")
+        XCTAssertTrue(s.change("改好了") { try $0.setAmount(entry: tx.id, to: self.eur("15")) })
+        XCTAssertEqual(s.real?.transactions.first { $0.id == tx.id }?.amount, -eur("15"))
+        XCTAssertEqual(s.book.account(acc)?.balance, before - eur("15"))
+        // 撤销：一步一步退回去
+        s.undo(); XCTAssertEqual(s.real?.transactions.first { $0.id == tx.id }?.amount, -eur("12,50"))
+        s.undo(); XCTAssertEqual(s.real?.transactions.first { $0.id == tx.id }?.category, "餐饮")
+        // 删，再撤销
+        XCTAssertTrue(s.change("删掉了") { _ = try $0.delete(entry: tx.id) })
+        XCTAssertEqual(s.real?.transactions.count, n)
+        s.undo(); XCTAssertEqual(s.real?.transactions.count, n + 1)
+        s.undo(); XCTAssertEqual(s.real?.transactions.count, n, "记的那一笔也撤掉了")
+        XCTAssertEqual(s.book.account(acc)?.balance, before)
+        // 还没接的（账户、目标、转账…）：拒绝，正式账本一个字不动
+        let snapshot = s.real
+        XCTAssertFalse(s.change("加") { try $0.addAccount(emoji: "💳", name: "新卡", note: "", balance: .zero, kind: .own) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertEqual(s.real, snapshot)
+        // 没写记账人：不让写
+        s.author = "  "
+        XCTAssertFalse(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("5"), account: acc) })
+        XCTAssertEqual(s.real, snapshot)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
