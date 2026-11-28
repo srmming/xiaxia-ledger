@@ -622,7 +622,11 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(u.bought, bought); XCTAssertGreaterThan(bought, .zero)
         XCTAssertEqual(u.used, Money(cents: 2400_00) + bought - Money(cents: 2600_00))
         // 试用数字里这三样都没有（它用的是自己的示例）
-        XCTAssertNil(TrialBook.demo.stockUsage); XCTAssertNil(TrialBook.demo.debtFreeMonth); XCTAssertTrue(TrialBook.demo.stationDates.isEmpty)
+        XCTAssertNil(TrialBook.demo.stockUsage); XCTAssertNil(TrialBook.demo.debtFreeMonth)
+        // 试用数字各站的日子在示例数据里，而且只给已经到了的站
+        let demo = TrialBook.demo
+        XCTAssertEqual(demo.stationDates, [0: "9 月 3 日", 2: "10 月 12 日"])
+        for (i, _) in demo.stationDates { XCTAssertLessThanOrEqual(demo.journey.stations[i].target, demo.journey.saved) }
     }
 
     /// 加订阅时能选的账户：银行卡、储蓄、信用卡、现金都在（存钱罐不在）；选的账户和哪天扣都写进正式账本。

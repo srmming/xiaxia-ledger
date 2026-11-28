@@ -14,8 +14,8 @@ extension V3State {
         if !j.isFinished { out[j.nextIndex] = "这一站" }
         return out
     }
-    /// 哪天到的哪一站、打算哪天前到下一站：试用数字里是示例；正式账本上没有这两样的记录，不写。
-    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : book.stationDates }
+    /// 哪天到的哪一站：只读账本里的（试用数字是示例数据里带的，正式账本是从目标账户的余额历史算的），界面自己不写日子。
+    var reachedDates: [Int: String] { book.stationDates }
     /// 以前这里写死过一个「12 月 20 日前」：没有依据，不写了（ming 2026-11-28：说的话要能算出来）。
     var deadline: String { "" }
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。

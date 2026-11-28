@@ -186,6 +186,8 @@ extension TrialBook {
         b.pastMonths[0].have = eur("4525,61"); b.pastMonths[0].owe = eur("2040"); b.pastMonths[0].sameDaySpent = eur("1249,39")
         b.pastMonths[1].have = eur("4240,20"); b.pastMonths[1].owe = eur("2140")
         // 到那两个月底一共赚回来多少（回本页那条线）：10 月底就是「以前赚回来的」，9 月底再减掉 10 月赚的
+        // 大目标各站是哪天到的（示例）：9 月 3 日出发，10 月 12 日存到 200 €
+        b.stationDates = [0: "9 月 3 日", 2: "10 月 12 日"]
         b.pastMonths[0].shopBack = b.shopBackBefore
         // 到那两个月底大目标存了多少：10 月底 = 现在的减掉这个月存的，9 月底再减掉 10 月存的 200
         b.pastMonths[0].goalSavedEnd = b.journey.saved - b.journey.savedThisMonth
