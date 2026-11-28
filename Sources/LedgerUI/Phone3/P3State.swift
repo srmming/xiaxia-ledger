@@ -151,6 +151,8 @@ final class P3State {
         self.model = model
         real = model.ledger; realToday = today
         author = model.author
+        moveOldSidesSetting(model)
+        real = model.ledger
         resnapshot()
         settleSide()
         // 正式账本：开头那句按真数算（没有可说的就空着）
@@ -159,14 +161,7 @@ final class P3State {
 
     private func resnapshot() {
         guard let real else { return }
-        var b = LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true)
-        // 「管哪边」在正式账本里没有地方存：存在这台手机上，每次整理完照着关
-        if let keep = UserDefaults.standard.array(forKey: Self.sidesKey) as? [Bool], keep.count == 2, keep[0] || keep[1] {
-            b.showLife = keep[0]
-            b.showBiz = keep[1] && b.showBiz
-            if !b.showLife && !b.showBiz { b.showLife = true }
-        }
-        ledger = TrialLedger(book: b, changes: Array(real.changes.suffix(50).reversed()))
+        ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true), changes: Array(real.changes.suffix(50).reversed()))
     }
 
     /// 生活这边日常能用的第一个账户（示例里是「日常卡」，正式账本里是你自己的名字）。
@@ -336,18 +331,23 @@ final class P3State {
         if side == .life, !book.showLife { side = .biz }
     }
 
+    /// 以前「管哪边」在正式账本里存不下，暂时存在手机上的这个键；现在账本里有了（managedSides），打开时搬过去就删掉。
     static let sidesKey = "p3.sides"
+
+    private func moveOldSidesSetting(_ model: LedgerModel) {
+        let d = UserDefaults.standard
+        guard let keep = d.array(forKey: Self.sidesKey) as? [Bool] else { return }
+        if keep.count == 2, keep[0] || keep[1], model.ledger.business?.manages == nil {
+            do { _ = try model.edit(quiet: true) { try $0.setManagedSides(ManagedSides(life: keep[0], biz: keep[1]), author: author) } }
+            catch ManageError.nothingToChange {}
+            catch { return }   // 没搬成就先留着，下次再试
+        }
+        d.removeObject(forKey: Self.sidesKey)
+    }
 
     func setSides(life: Bool, biz: Bool) {
         guard life || biz else { fail("至少要管一边"); return }
         let text = life && biz ? "好，两边都管" : life ? "好，只管生活。生意的账还在" : "好，只管生意。生活的账还在"
-        if isReal {
-            UserDefaults.standard.set([life, biz], forKey: Self.sidesKey)
-            withAnimation(.snappy(duration: 0.2)) { resnapshot() }
-            settleSide()
-            say(text)
-            return
-        }
         change(text) { try $0.setSides(life: life, biz: biz) }
         settleSide()
     }
