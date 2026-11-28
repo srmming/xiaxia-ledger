@@ -97,6 +97,9 @@ final class P3State {
     var sheet: Sheet?
     /// 「我的」：从总览右上角的头像点开（底部那格让给了夏夏）。
     var meOpen = false
+    /// 长按中间的 + 选了「拍照」「说话」：打开夏夏后马上开相机 / 开始听。用一次就清掉。
+    enum ChatIntent { case camera, voice }
+    var chatIntent: ChatIntent?
     var mePath: [Page] = []
     var toast: Toast?
     var chat = P3Chat()

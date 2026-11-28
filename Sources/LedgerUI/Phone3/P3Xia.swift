@@ -140,6 +140,8 @@ struct P3ChatView: View {
             }
             .ignoresSafeArea()
         }
+        .onAppear { runIntent() }
+        .onChange(of: state.chatIntent) { _, _ in runIntent() }
         .onChange(of: voice.text) { _, t in if voice.listening { text = t } }
         .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
         .onChange(of: photo) { _, item in
@@ -182,6 +184,18 @@ struct P3ChatView: View {
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(P3.hex(0xF6F6F8))
         .overlay(alignment: .top) { P3Divider() }
+    }
+
+    private func runIntent() {
+        guard let i = state.chatIntent else { return }
+        state.chatIntent = nil
+        switch i {
+        case .camera: Task { _ = await P3Voice.askPermissions(); camera = true }
+        case .voice:
+            voice.toggle { said in
+                if autoSend { state.chatSend(said); text = "" } else { text = said }
+            }
+        }
     }
 
     private func send() {

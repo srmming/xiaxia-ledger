@@ -80,6 +80,10 @@ struct P3TabBar: View {
                     .background(Circle().fill(P3.ink).offset(y: 3))
             }
             .buttonStyle(P3Sink(depth: 3))
+            .contextMenu {
+                Button { ask(.camera) } label: { Label("拍照问夏夏", systemImage: "camera") }
+                Button { ask(.voice) } label: { Label("说话问夏夏", systemImage: "mic") }
+            }
             .frame(maxWidth: .infinity)
             .offset(y: -14)
             .accessibilityLabel(biz ? "记一笔店里的账" : "记一笔")
@@ -92,6 +96,16 @@ struct P3TabBar: View {
         .background {
             Rectangle().fill(.white).ignoresSafeArea(edges: .bottom)
                 .overlay(alignment: .top) { Rectangle().fill(P3.line).frame(height: 1) }
+        }
+    }
+
+    private func ask(_ intent: P3State.ChatIntent) {
+        // 等长按的小菜单收起来再换页（菜单还在时换，底下的页面不跟着变）
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            state.chat.unread = 0
+            state.chatIntent = intent
+            state.tab = .xia
         }
     }
 
