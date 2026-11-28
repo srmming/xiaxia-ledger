@@ -344,7 +344,7 @@ private struct V3Sidebar: View {
                 }
                 .buttonStyle(V3SinkStyle(depth: 2)).help("账本不动，只换 app 本身")
             }
-            // 卡片上面放一个像对话框的「问夏夏」（ming 2026-11-28：不要站着的人，要像一个对话框）。
+            // 卡片上面放一行「夏夏」会话，像聊天软件的列表那样（ming 2026-11-28）。
             V3SidebarXia()
             statusCard(linked: linked, ai: ai, changes: changes)
         }
@@ -381,33 +381,55 @@ private struct V3Sidebar: View {
     private func strip(_ m: Money) -> String { m.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "") }
 }
 
-/// 左边栏底部的「问夏夏」：小头像 + 一个像输入框的对话框，点了打开整页聊天。有一句话没看时，对话框里就是那句话的小红点。
+/// 左边栏底部的「夏夏」：像聊天软件里的一行会话（ming 2026-11-28）。左边头像，右边上面名字和时间，下面是她最后一句话；点了打开整页聊天。
 /// 头像只在这一处引用（`V3SidebarXia.asset`），以后角色定了新样子，换这一个名字就行。
 private struct V3SidebarXia: View {
     static let asset = "head-happy"
     @Environment(V3State.self) private var state
     @State private var hover = false
 
+    static func time(_ d: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(d) { return d.formatted(date: .omitted, time: .shortened) }
+        if cal.isDateInYesterday(d) { return "昨天" }
+        return d.formatted(.dateTime.month().day())
+    }
+
     var body: some View {
+        let unread = state.sayUnreadID != nil || state.sayCardID != nil
         Button { state.openChat() } label: {
-            HStack(spacing: 8) {
-                if state.prefs.showXia { V3.image(Self.asset).resizable().scaledToFit().frame(width: 34, height: 30) }
-                Text(state.sayUnreadID != nil ? "\(state.prefs.xiaName)有一句话" : "问\(state.prefs.xiaName)一句…")
-                    .font(V3.font(13, .semibold)).foregroundStyle(state.sayUnreadID != nil ? V3.ink : V3.ink2).lineLimit(1)
-                Spacer(minLength: 0)
-                if state.sayUnreadID != nil { Circle().fill(V3.red).frame(width: 9, height: 9) }
+            HStack(spacing: 10) {
+                if state.prefs.showXia {
+                    V3.image(Self.asset).resizable().scaledToFill().frame(width: 34, height: 30).offset(y: 2)
+                        .frame(width: 40, height: 40)
+                        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(V3.soft))
+                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(state.prefs.xiaName).font(V3.font(14, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
+                        Spacer(minLength: 2)
+                        if let said = state.lastSaid { Text(Self.time(said.at)).font(V3.font(11, .regular)).foregroundStyle(V3.ink2) }
+                    }
+                    HStack(spacing: 4) {
+                        Text(state.lastSaid?.text ?? "有事问我").font(V3.font(12, unread ? .semibold : .regular))
+                            .foregroundStyle(unread ? V3.ink : V3.ink2).lineLimit(1).truncationMode(.tail)
+                        Spacer(minLength: 2)
+                        if unread {
+                            Text("1").font(V3.font(10, .heavy)).foregroundStyle(.white).frame(width: 16, height: 16).background(Circle().fill(V3.red))
+                                .accessibilityLabel("有一句没看")
+                        }
+                    }
+                }
             }
-            .padding(.leading, 8).padding(.trailing, 12).padding(.vertical, 7)
-            .background(
-                UnevenRoundedRectangle(topLeadingRadius: 16, bottomLeadingRadius: 4, bottomTrailingRadius: 16, topTrailingRadius: 16)
-                    .fill(.white)
-                    .overlay(UnevenRoundedRectangle(topLeadingRadius: 16, bottomLeadingRadius: 4, bottomTrailingRadius: 16, topTrailingRadius: 16).strokeBorder(V3.ink, lineWidth: hover ? 2.5 : 2)))
+            .padding(.horizontal, 10).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(hover ? V3.hex(0xF7F9FF) : .white))
             .contentShape(Rectangle())
         }
         .buttonStyle(V3SinkStyle(depth: 2))
         .onHover { hover = $0 }
         .help("问\(state.prefs.xiaName)（⌘K）")
-        .accessibilityLabel("问\(state.prefs.xiaName)")
+        .accessibilityLabel("\(state.prefs.xiaName)：\(state.lastSaid?.text ?? "有事问我")。点一下和她聊")
     }
 }
 

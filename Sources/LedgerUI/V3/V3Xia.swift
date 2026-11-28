@@ -38,6 +38,7 @@ extension V3State {
     func offer(_ id: String?) {
         guard let id else { sayCardID = nil; sayUnreadID = nil; return }
         guard !sayDismissed.contains(id), id != sayCardID else { return }
+        if lastSaid?.text != id { lastSaid = (id, Date()) }
         if chatOpen || sheet != nil || showAdd { return }
         // 一页一次只滑下来一句；今天说满三句以后只亮小红点
         if !prefs.bubbles || sayPoppedThisPage || sayPopsToday >= prefs.maxPerDay {
@@ -309,6 +310,7 @@ struct V3ChatPage: View {
             let answer = buyReply(q, attachment: attachment) ?? V3State.ChatMessage(mine: false, text: reply(q))
             withAnimation(.snappy) { thinking = false }
             state.chat.append(answer)
+            state.lastSaid = (answer.text, Date())
         }
     }
 

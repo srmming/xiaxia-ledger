@@ -45,6 +45,10 @@ final class V3RenderTests: XCTestCase {
         done.nextStep(); done.toast = nil
         XCTAssertNil(done.moment)
         try write(V3Shell().environment(done), "after-onboarding", to: dir)
+        done.lastSaid = ("照这样花，这个月存钱差一点。", Date()); done.sayCardID = nil; done.sayUnreadID = "照这样花，这个月存钱差一点。"
+        try write(V3Shell().environment(done), "sidebar-chat-unread", to: dir)
+        done.sayUnreadID = nil; done.sayDismissed = ["照这样花，这个月存钱差一点。"]
+        try write(V3Shell().environment(done), "sidebar-chat-read", to: dir)
         done.side = .biz; done.page = .bizHome
         try write(V3Shell().environment(done), "sidebar-xia-biz", to: dir)
         done.side = .life; done.page = .overview
@@ -58,6 +62,7 @@ final class V3RenderTests: XCTestCase {
             let s = V3State(); s.onboardingStep = nil; setup(s); s.toast = nil
             try write(V3Shell().environment(s), name, to: dir)
         }
+        try shell("tx-importing") { $0.page = .transactions; $0.importProgress = ("Revolut 11 月流水", 40, 52) }
         try shell("nav-wealth") { $0.page = .wealth }
         try shell("nav-goals") { $0.page = .goals }
         try shell("nav-biz") { $0.side = .biz; $0.page = .fixed }

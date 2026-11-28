@@ -140,6 +140,11 @@ final class V3State {
     var showLog = false
     /// 设置里正开着的那一页（nil = 设置首页）。
     var settingsSub: SettingsSub?
+    /// 正在导入的那份流水读到第几笔了（没在导入是 nil）。
+    var importProgress: (name: String, read: Int, total: Int)?
+    var importTask: Task<Void, Never>?
+    /// 夏夏最后说的一句和时间（左下角那一行会话的预览）。
+    var lastSaid: (text: String, at: Date)?
     /// 聊天输入框上面带着的那张图或那个链接。
     var chatAttachment: V3Attachment?
     /// 夏夏刚问了「多少钱？」，在等价钱的那样东西。

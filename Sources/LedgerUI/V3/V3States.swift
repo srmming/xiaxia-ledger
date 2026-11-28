@@ -20,13 +20,33 @@ extension V3State {
     }
 
     /// 导入流水。试用版不读真文件：进来的是示例里的那几笔，重复的跳过，整批能撤销。
+    /// 先去流水页，顶上一条进度走几秒，走完才真的进账本，底下提示条说进来几笔。
     func importSample(dropped: Bool = false) {
+        guard importProgress == nil else { return }
         let rows = Self.demoBook.entries
-        var result = (added: 0, skipped: 0)
-        let ok = change("导入好了", kind: .importBatch) { result = try $0.importEntries(rows) }
-        if ok {
-            say("导入了 \(result.added) 笔\(result.skipped > 0 ? "，跳过重复 \(result.skipped) 笔" : "")（试用版用的是示例流水）") { [weak self] in self?.undo() }
+        let total = 40
+        if showsLife { go(.transactions) }
+        withAnimation(.snappy(duration: 0.2)) { importProgress = (dropped ? "放进来的文件" : "示例流水", 0, total) }
+        importTask = Task { @MainActor [weak self] in
+            for n in 1...total {
+                try? await Task.sleep(for: .milliseconds(55))
+                guard let self, !Task.isCancelled, self.importProgress != nil else { return }
+                withAnimation(.linear(duration: 0.05)) { self.importProgress?.read = n }
+            }
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(.snappy(duration: 0.2)) { self.importProgress = nil }
+            var result = (added: 0, skipped: 0)
+            if self.change("导入好了", kind: .importBatch, { result = try $0.importEntries(rows) }) {
+                self.say("进来 \(result.added) 笔\(result.skipped > 0 ? "，跳过重复 \(result.skipped) 笔" : "")（试用版用的是示例流水）") { [weak self] in self?.undo() }
+            }
         }
+    }
+
+    /// 导入到一半停下：已经读的不进账本。
+    func stopImport() {
+        importTask?.cancel(); importTask = nil
+        withAnimation(.snappy(duration: 0.2)) { importProgress = nil }
+        say("停下了，什么都没导进来")
     }
 
     /// 这一页现在是不是没东西可看。
@@ -36,6 +56,7 @@ extension V3State {
         switch p {
         case .overview, .wealth: return noMoney
         case .goals: return b.journey.total == .zero
+        case .transactions where importProgress != nil: return false
         case .spending, .trends, .transactions, .monthly: return b.entries.filter { $0.side == .life }.isEmpty && noMoney
         case .settings: return false
         case .subscriptions: return b.subscriptions.isEmpty

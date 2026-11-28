@@ -1,6 +1,7 @@
 #if os(macOS)
 import FinanceCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 // 生活这边其余的页：花销、趋势、流水、花钱前想想（含大决定）、订阅、欠款与还债、每月小结。
 // 数字是设计稿里那套编的示例；能跟着动的（还能随便花、目标、应急钱）都从同一份状态里算。
@@ -250,12 +251,9 @@ struct V3TrendsPage: View {
 
 struct V3TransactionsPage: View {
     @Environment(V3State.self) private var state
-    @State private var read = 37
-    @State private var paused = false
     @State private var search = ""
     @State private var selected: UUID?
     @State private var lumi: Bool?
-    private let total = 52
 
     private func match(_ e: V3State.Entry) -> Bool {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -269,31 +267,16 @@ struct V3TransactionsPage: View {
         let pick = all.first { $0.id == selected } ?? today.first ?? yest.first ?? all.first
         V3Cols(left: 1.5, right: 1) {
             VStack(spacing: 16) {
-                // 导入进度：一笔一笔跳
-                HStack(spacing: 16) {
-                    Text("📄").font(.system(size: 34))
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(read >= total ? "「Revolut 11 月流水」读完了 · \(total) 笔" : "\(paused ? "先停下了" : "正在读")「Revolut 11 月流水」· 已读 \(read) / \(total) 笔")
-                            .font(V3.font(14, .bold)).contentTransition(.numericText())
-                        V3Bar(fraction: Double(read) / Double(total))
-                        V3Label("新的 \(max(read - 6, 0)) 笔 · 跳过重复 6 笔", size: 13)
+                // 导入进度：只在真的正在导入时出现，读完自己消失（结果在底部提示条里说）。
+                if let p = state.importProgress {
+                    HStack(spacing: 10) {
+                        Image(systemName: "doc.text").font(.system(size: 15, weight: .semibold)).foregroundStyle(V3.navy)
+                        Text("正在读 \(p.name) \(p.read)/\(p.total)").font(V3.font(13.5, .bold)).foregroundStyle(V3.ink).contentTransition(.numericText()).fixedSize()
+                        V3Bar(fraction: Double(p.read) / Double(max(p.total, 1)), height: 8)
+                        Button("停下") { state.stopImport() }.buttonStyle(.plain).font(V3.font(13, .bold)).foregroundStyle(V3.navy)
                     }
-                    if read < total {
-                        Button(paused ? "接着读" : "先停下") {
-                            paused.toggle()
-                            state.say(paused ? "先停下了，已读的 \(read) 笔留着" : "好，接着读")
-                        }
-                        .buttonStyle(.v3(.ghost, .small))
-                    } else {
-                        Button("再读一遍") { read = 37; paused = false }.buttonStyle(.v3(.ghost, .small))
-                    }
-                }
-                .padding(.horizontal, 22).padding(.vertical, 16).v3Sticker(fill: V3.soft, dashed: true)
-                .task(id: paused) {
-                    while !paused, read < total, !Task.isCancelled {
-                        try? await Task.sleep(for: .milliseconds(650))
-                        if !paused, read < total { withAnimation(.snappy(duration: 0.2)) { read += 1 } }
-                    }
+                    .padding(.horizontal, 16).padding(.vertical, 10).v3Soft(radius: 14)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 if lumi == nil {
                     V3Ask(face: "think", text: "Super Lumi 那 18,60 €，算超市？") {
@@ -311,11 +294,14 @@ struct V3TransactionsPage: View {
                 }
                 V3GrowCard(spacing: 6) {
                     HStack(spacing: 8) {
+                    HStack(spacing: 8) {
                         Text("🔍")
                         TextField("搜店名、金额、分类", text: $search).textFieldStyle(.plain).font(V3.font(14, .semibold))
                     }
                     .padding(.horizontal, 14).padding(.vertical, 6)
                     .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                    Button("导入流水") { state.importSample() }.buttonStyle(.v3(.ghost, .small)).disabled(state.importProgress != nil).help("也可以把文件拖到这一页")
+                    }
                     if today.isEmpty && yest.isEmpty {
                         V3Label("没找到「\(search)」。换个店名或者金额试试。").padding(.top, 10)
                     }
@@ -358,6 +344,7 @@ struct V3TransactionsPage: View {
             }
         }
         .onAppear { takeFocus() }
+        .onDrop(of: [.fileURL], isTargeted: nil) { _ in state.importSample(dropped: true); return true }
     }
 
     private func takeFocus() {
