@@ -141,9 +141,12 @@ public struct FreeToSpend: Equatable, Sendable {
     public var forGoals: Money
     public var spent: Money
     public var daysLeft: Int
+    /// 固定要付的里面，这个月还没到日子、还没付的那部分。「还能随便花」照样先给它留着，但它还不算「花掉」。
+    public var fixedLeft: Money = .zero
 
-    public init(income: Money, fixed: Money, forGoals: Money, spent: Money, daysLeft: Int) {
+    public init(income: Money, fixed: Money, forGoals: Money, spent: Money, daysLeft: Int, fixedLeft: Money = .zero) {
         self.income = income; self.fixed = fixed; self.forGoals = forGoals; self.spent = spent; self.daysLeft = daysLeft
+        self.fixedLeft = fixedLeft
     }
 
     public var left: Money { income - fixed - forGoals - spent }
@@ -152,8 +155,10 @@ public struct FreeToSpend: Equatable, Sendable {
         guard daysLeft > 0, left > .zero else { return .zero }
         return Money(cents: left.cents / Int64(daysLeft))
     }
-    /// 这个月一共花掉 = 固定的 + 平时的。
-    public var spentTotal: Money { fixed + spent }
+    /// 固定要付的里已经付掉的。
+    public var fixedPaid: Money { max(fixed - fixedLeft, .zero) }
+    /// 这个月到今天一共花掉 = 固定的里已经付的 + 平时的。还没到日子的固定开销不算（它在「接下来要付的」里）。
+    public var spentTotal: Money { fixedPaid + spent }
 }
 
 /// 应急钱：万一没了收入能撑几个月。

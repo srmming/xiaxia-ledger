@@ -546,6 +546,20 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(l, keep)
     }
 
+    /// 「这个月一共花掉」= 各分类加起来（花销页圆环中间那个数），一分不差；还没到日子的固定开销不算花掉，但照样先留着。
+    func testSpentTotalEqualsTheCategorySlices() throws {
+        for day in [3, 18, 28] {
+            let t = LocalDate(year: 2026, month: 11, day: day)
+            let b = LedgerBridge.snapshot(of: DemoData.make(endingOn: t), today: t)
+            XCTAssertEqual(b.month.spentTotal, b.spendByCategory.map(\.amount).reduce(.zero, +), "\(day) 号")
+            XCTAssertEqual(b.month.fixedPaid + b.month.fixedLeft, b.month.fixed)
+            XCTAssertEqual(b.month.left, b.month.income - b.month.fixed - b.month.forGoals - b.month.spent, "还能随便花照样先留出没付的固定开销")
+            XCTAssertEqual(b.spendPace.soFar.last, b.month.spentTotal, "趋势那条线的末端也是这个数")
+        }
+        // 试用数字没有「还没付的固定开销」，数不变
+        XCTAssertEqual(TrialBook.demo.month.spentTotal, TrialBook.demo.month.fixed + TrialBook.demo.month.spent)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

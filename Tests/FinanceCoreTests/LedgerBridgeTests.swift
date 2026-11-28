@@ -65,9 +65,9 @@ final class LedgerBridgeTests: XCTestCase {
             if Summaries.countsAsIncome(t, expenseCategories: spending) { income = income + l.baseAmount(t) } else { expense = expense + l.baseAmount(t) }
         }
         XCTAssertEqual(b.month.income, income)
-        // 「这个月花掉」= 已经花的 + 还没到日子的固定开销，所以不会比已经花的少
-        XCTAssertGreaterThanOrEqual(b.month.spentTotal, expense.magnitude)
-        XCTAssertEqual(b.month.left, income - b.month.spentTotal - b.month.forGoals)
+        // 「这个月花掉」= 到今天真花掉的；还没到日子的固定开销不算花掉，但「还能随便花」照样先给它留着
+        XCTAssertEqual(b.month.spentTotal, expense.magnitude)
+        XCTAssertEqual(b.month.left, income - b.month.spentTotal - b.month.fixedLeft - b.month.forGoals)
         XCTAssertEqual(b.spendByCategory.map(\.amount).reduce(.zero, +), expense.magnitude, "圆环各段加起来 = 这个月花掉的")
         XCTAssertEqual(b.spendByCategory.map(\.amount), b.spendByCategory.map(\.amount).sorted(by: >))
         // 流水：新的在前，都是到今天为止的

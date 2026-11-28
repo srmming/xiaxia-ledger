@@ -14,8 +14,9 @@ extension V3State {
         if !j.isFinished { out[j.nextIndex] = "这一站" }
         return out
     }
-    var reachedDates: [Int: String] { [0: "9 月 3 日", 2: "10 月 12 日"] }
-    var deadline: String { "12 月 20 日" }
+    /// 哪天到的哪一站、打算哪天前到下一站：试用数字里是示例；正式账本上没有这两样的记录，不写。
+    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : [:] }
+    var deadline: String { real == nil ? "12 月 20 日" : "" }
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }
     // 和上个月比的两个数：都从账本里存的上个月的数来，不写死（核心里 TrialMonths.swift）
@@ -96,7 +97,7 @@ struct V3OverviewPage: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                V3CardTitle("\(j.name)的路", note: j.isFinished ? "走完了" : state.readOnly ? "下一站 \(j.nextStation?.target.v3Short ?? "")" : "\(state.deadline)前到 \(j.nextStation?.target.v3Short ?? "")") {
+                V3CardTitle("\(j.name)的路", note: j.isFinished ? "走完了" : state.readOnly || state.deadline.isEmpty ? "下一站 \(j.nextStation?.target.v3Short ?? "")" : "\(state.deadline)前到 \(j.nextStation?.target.v3Short ?? "")") {
                     V3Tag(text: j.isFinished ? "到终点了" : "这一站还差 \(j.remainingToNext.v3Short)", tone: .gold)
                 }
                 HStack(spacing: 16) {
@@ -404,11 +405,16 @@ struct V3GoalsPage: View {
                     V3Ask(face: "celebrate", text: "走完了！\(j.total.v3Short) 都存够了。", tone: .good)
                 } else if j.total > .zero {
                     let name = j.nextStation.flatMap { $0.title.isEmpty ? nil : "「\($0.title)」那一站" } ?? "下一站"
+                    if state.real != nil {
+                        // 正式账本：只说还差多少，不编日子
+                        V3Ask(face: "happy", text: "离\(name)还差 \(j.remainingToNext.v3Short)。")
+                    } else {
                     V3Ask(face: "happy", text: "离\(name)还差 \(j.remainingToNext.v3Short)，\(state.deadline)前有点悬。") {
                         HStack(spacing: 8) {
                             Button("看看办法") { state.openMoment(.smallerStep) }.buttonStyle(.v3(.primary, .small))
                             Button("先不用") { state.say("好，我 12 月 10 日再看一眼") }.buttonStyle(.v3(.ghost, .small))
                         }
+                    }
                     }
                 }
             }
