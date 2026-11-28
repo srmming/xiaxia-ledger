@@ -110,6 +110,9 @@ extension P3State {
         case .lend(let to):
             account = pay
             text = "借出去的不算花销。从\(pay)借给\(to) \(q.amount.p3)？"
+        case .borrow(let from):
+            account = receive
+            text = "借来的钱不算收入，要还的。从\(from)借的 \(q.amount.p3) 进到\(receive)？"
         case .repaidToMe(let from):
             account = receive
             text = "别人还你的不算收入。\(from)还的 \(q.amount.p3) 进到\(receive)？"
