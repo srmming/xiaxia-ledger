@@ -945,6 +945,20 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(book.account(jar)?.balance, b.account(jar)!.balance + Money(cents: 20_00))
     }
 
+    /// 听写的停顿和语言记到下次打开；存的数不对就回默认。用一份临时的偏好设置，不碰真的。
+    func testVoicePrefsAreReadBack() {
+        let name = "xiaxia-test-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: name)!
+        defer { d.removePersistentDomain(forName: name) }
+        XCTAssertEqual(V3State.savedPrefs(d, testing: false).voiceLanguage, VoiceRules.defaultLanguageIndex)
+        d.set(1, forKey: V3State.voiceLanguageKey); d.set(3, forKey: V3State.voicePauseKey)
+        let p = V3State.savedPrefs(d, testing: false)
+        XCTAssertEqual(VoiceRules.localeID(p.voiceLanguage), "es-ES"); XCTAssertNil(VoiceRules.pause(p.voicePause))
+        d.set(99, forKey: V3State.voiceLanguageKey)
+        XCTAssertEqual(V3State.savedPrefs(d, testing: false).voiceLanguage, VoiceRules.defaultLanguageIndex)
+        XCTAssertEqual(V3State().prefs.voiceLanguage, VoiceRules.defaultLanguageIndex, "跑测试时不读真的偏好设置")
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()

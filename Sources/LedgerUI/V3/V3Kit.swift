@@ -889,6 +889,7 @@ struct V3MicButton: View {
     var body: some View {
         let b = Button {
             voice.pause = VoiceRules.pause(state.prefs.voicePause).map { Duration.seconds($0) }
+            voice.localeID = VoiceRules.localeID(state.prefs.voiceLanguage)
             voice.toggle(live: live, done: done)
         } label: {
             Image(systemName: voice.listening ? "waveform" : voice.blocked ? "mic.slash" : "mic")
