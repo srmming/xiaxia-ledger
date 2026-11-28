@@ -121,6 +121,20 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(now.shopFlow.filter { $0.day == day.day && $0.amount > .zero }.count, 1, "那天只出一行")
     }
 
+    /// 内置分类没有一个落到问号或者「没有图标」的那张小票。
+    func testEveryBuiltInCategoryHasItsOwnIcon() {
+        let builtIn = CategoryIcons.all.map(\.label) + SideGuess.businessExpenses + SideGuess.businessIncome
+            + Set(ledger.transactions.compactMap(\.category))
+        for c in Set(builtIn) where c != "未分类" && c != "其他" && c != "报销" {
+            let e = LedgerBridge.emoji(c)
+            XCTAssertNotEqual(e, "❓", c)
+            XCTAssertNotEqual(e, LedgerBridge.fallbackEmoji, "「\(c)」还没有图标")
+        }
+        XCTAssertEqual(LedgerBridge.emoji("手续费"), "💸"); XCTAssertEqual(LedgerBridge.emoji("社保"), "🪪"); XCTAssertEqual(LedgerBridge.emoji("花材"), "💐")
+        XCTAssertEqual(LedgerBridge.emoji(nil), "❓")
+        XCTAssertEqual(LedgerBridge.emoji("我自己起的名字"), LedgerBridge.fallbackEmoji)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

@@ -5,11 +5,34 @@ import Foundation
 /// 口径尽量用正式账本已有的算法（`Summaries`、`Outlook`、`Plans`、`Subscriptions`、`WealthBreakdown`），这里只是换个摆法。
 public enum LedgerBridge {
     /// 分类的图标：按名字找，找不到给一张小票。
+    /// 内置分类各用哪个小图标。正式账本里内置的每个分类（CategoryIcons 里那一整张表、生意那几样）都要在这里有一个，测试守着。
+    static let categoryEmoji: [String: String] = [
+        "餐饮": "🥗", "超市": "🛒", "交通": "🚇", "房租": "🏠", "水电": "💡", "购物": "🛍️", "娱乐": "🎬", "医疗": "💊", "看病": "💊", "通讯": "📱", "话费": "📱",
+        "旅行": "🧳", "宝宝": "🍼", "其他": "🧾", "衣服": "👕", "礼物": "🎁", "送礼": "🎁", "咖啡": "☕", "加油": "⛽", "宠物": "🐾", "学习": "📚", "美容": "💄",
+        "美甲": "💅", "订阅": "🔁", "保险": "🛡️", "税费": "🧮", "社保": "🪪", "手续费": "💸", "退款": "↩️", "工资": "💼", "收入": "💰", "营业收入": "💶",
+        "营业额": "💶", "店租": "🏬", "耗材": "🧴", "设备": "🛠️", "员工工资": "🧑‍💼", "营销": "📣", "充值": "🔋", "转账": "🔀", "老板提款": "👛", "储蓄": "🏦",
+        "投资": "📈", "借款": "🤝", "还款": "✅", "运动": "🏃", "家居": "🛋️", "零食": "🍪", "数码": "💻", "未分类": "❓", "外卖": "🥡", "早餐": "🥐",
+        "水果": "🍎", "甜品": "🍰", "奶茶": "🧋", "喝酒": "🍺", "买菜": "🥬", "面包": "🍞", "火锅": "🍲", "打车": "🚕", "地铁": "🚇", "机票": "✈️",
+        "火车": "🚆", "停车": "🅿️", "单车": "🚲", "修车": "🔧", "过路费": "🛣️", "房贷": "🏡", "网费": "🌐", "燃气": "🔥", "水费": "🚿", "电费": "⚡",
+        "家电": "🔌", "维修": "🔧", "清洁": "🧹", "绿植": "🪴", "物业": "🏢", "化妆品": "💄", "鞋子": "👟", "包包": "👜", "首饰": "💍", "眼镜": "👓",
+        "书": "📖", "文具": "✏️", "玩具": "🧸", "网购": "📦", "看牙": "🦷", "买药": "💊", "体检": "🩺", "护肤": "🧴", "理发": "💇", "按摩": "💆",
+        "健身房": "🏋️", "电影": "🎬", "音乐": "🎵", "门票": "🎟️", "摄影": "📷", "酒吧": "🍸", "唱歌": "🎤", "爱好": "🎨", "酒店": "🏨", "证件": "🪪",
+        "红包": "🧧", "家人": "👪", "捐款": "💝", "婚礼": "💒", "父母": "👵", "学费": "🎓", "母婴": "🍼", "课程": "📝", "办公": "🗂️", "软件": "💿",
+        "网站": "🌐", "副业": "🧩", "奖金": "🏅", "报销": "🧾", "租金收入": "🏘️", "二手": "♻️", "利息": "🪙", "退税": "↩️", "还信用卡": "💳", "分期": "🗓️",
+        "换汇": "💱", "股票": "📈", "罚款": "🚫", "银行费": "🏦", "汇款": "📮", "欠款": "📒", "数字货币": "🪙", "快递": "🚚", "平台佣金": "🏷️", "刷卡费": "💳",
+        "装修": "🔨", "会计": "🧮", "工作服": "🦺", "执照": "📜", "客人": "🙋", "心愿": "⭐", "喜欢": "❤️", "应急": "🆘", "节日": "🎉",
+        "进货": "📦", "花材": "💐", "本钱": "🏦", "包装耗材": "🧴", "个人护理": "🧼", "原料": "🧺", "推广": "📣", "期初余额": "🏁", "转入": "📥", "转出": "📤",
+    ]
+
+    /// 还没有图标的分类用这个（用户自己起的分类）。
+    static let fallbackEmoji = "🧾"
+
     static func emoji(_ category: String?) -> String {
-        guard let category else { return "❓" }
-        let known: [String: String] = ["超市": "🛒", "餐饮": "🥗", "咖啡": "☕", "交通": "🚇", "房租": "🏠", "订阅": "🔁", "看病": "💊", "医疗": "💊", "娱乐": "🎬",
-                                       "衣服": "👕", "购物": "👕", "话费": "📱", "送礼": "🎁", "水电": "💡", "工资": "💼", "进货": "📦", "未分类": "❓"]
-        return known[category] ?? known.first { category.contains($0.key) }?.value ?? "🧾"
+        guard let category, !category.isEmpty else { return "❓" }
+        if let hit = categoryEmoji[category] { return hit }
+        // 用户自己起的名字里带着内置分类的词（「宠物医疗」）：用最长的那个词的图标
+        let part = categoryEmoji.keys.filter { $0 != "其他" && $0 != "书" && category.contains($0) }.max { $0.count < $1.count }
+        return part.flatMap { categoryEmoji[$0] } ?? fallbackEmoji
     }
 
     static func date(_ d: LocalDate) -> Date {
@@ -521,7 +544,7 @@ extension LedgerBridge {
 
     /// 店里的改动。没有店里的改动返回 nil。
     /// 接了的：记某一天按渠道收了多少（那天原来没记过的）、加一样固定开销。
-    /// 还没接的：改已经记过的那天、标成休息、改 / 停 / 拿掉固定开销 —— 拒绝，账本不动。
+    /// 还没接的：标成休息、改 / 停 / 拿掉固定开销 —— 拒绝，账本不动。
     static func applyShop(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
         var records: [ChangeRecord] = []
         let changedDays = after.shopDays.filter { d in before.shopDays.first { $0.day == d.day }.map { $0 != d } ?? true }
@@ -530,10 +553,24 @@ extension LedgerBridge {
         guard !changedDays.isEmpty || Set(fixedBefore) != Set(fixedAfter) else { return nil }
         for d in changedDays {
             let old = before.shopDays.first { $0.day == d.day }
-            guard d.state == .open, old?.state != .open, old?.state != .rest else {
-                throw TrialError("改已经记过的那天、把一天标成休息，在接正式账本的这一版里还没接上，账本没动")
+            guard d.state == .open, old?.state != .rest else {
+                throw TrialError("把一天标成休息，在接正式账本的这一版里还没接上，账本没动")
             }
             let date = day(today, minus: today.day - d.day)
+            if old?.state == .open {
+                // 改已经记过的那天：把那天「每天记账」记的收入删掉，再照新的数记一遍（两条改动，一起撤销）。
+                // 那天要是还有别处来的收入（比如从银行流水导进来的），这里分不清该改哪笔，就不动。
+                // 和整理数的时候（snapshot）用同一个口径：这一天、生意账本里、算收入的
+                let bizBooks = Set(work.books.filter(\.isBusiness).map(\.id))
+                let income = work.transactions.filter { t in
+                    t.date == date && t.amount > .zero && t.countsAsIncomeOrExpense && !t.isTransfer && t.bookID.map(bizBooks.contains) == true
+                }
+                let mine = income.filter { $0.source == Ledger.dailySource }
+                guard !mine.isEmpty, mine.count == income.count else {
+                    throw TrialError("\(d.day) 号的收入里有从流水导进来的，这里改不了，去流水里改那一笔。账本没动")
+                }
+                records.append(try work.removeTransactions(mine.map(\.id), author: who))
+            }
             let lines: [(method: PaymentMethod, amount: Money)] = try after.channels(of: d).map { c in
                 guard let acc = work.accounts.first(where: { $0.name == c.account }) else { throw TrialError("「\(c.account)」不是正式账本里的账户") }
                 // 渠道就是店里的账户：有同一个账户的收款方式就用它，没有就临时用账户名当名字

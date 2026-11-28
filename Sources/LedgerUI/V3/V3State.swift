@@ -245,7 +245,7 @@ final class V3State {
     private var realToday = LocalDate.today
     private var realShowsPrivate = false
     /// 正式账本上最近一次还能撤销的改动。
-    private var realUndo: [UUID] = []
+    private var realUndo: [[UUID]] = []
 
     /// 正式账本变了以后，界面上的数重新现算一遍。
     private func resnapshot() {
@@ -298,7 +298,7 @@ final class V3State {
                 done = r.check; changeID = r.change?.id
             }
             withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
-            if let changeID { realUndo.append(changeID) }
+            if let changeID { realUndo.append([changeID]) }
             localUndo = nil
             if let done { show(Toast(text: "进来 \(done.fresh) 笔\(done.duplicates > 0 ? "，跳过重复 \(done.duplicates) 笔" : "")", canUndo: true)) }
             return done
@@ -342,7 +342,7 @@ final class V3State {
                     records = try LedgerBridge.apply(before: book, after: next, to: &l, today: realToday, author: author)
                 }
                 withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
-                realUndo.append(contentsOf: records.map(\.id))
+                realUndo.append(records.map(\.id))
                 localUndo = nil
                 show(Toast(text: text, canUndo: true))
                 return true
@@ -376,13 +376,14 @@ final class V3State {
         }
         if var l = real {
             // 正式账本：用它自己的撤销（会再记一条「撤销」的改动）
-            guard let id = realUndo.popLast() else { say("没有能撤销的了"); return }
+            // 界面上的一步，在正式账本里可能是好几条改动（比如改一天的收入 = 删旧的 + 记新的）：一起撤，后做的先撤
+            guard let ids = realUndo.popLast() else { say("没有能撤销的了"); return }
             do {
                 if let model {
-                    try model.edit(quiet: true) { live in try live.undo(changeID: id, author: self.author) }
+                    for id in ids.reversed() { try model.edit(quiet: true) { live in try live.undo(changeID: id, author: self.author) } }
                     l = model.ledger
                 } else {
-                    try l.undo(changeID: id, author: author)
+                    for id in ids.reversed() { try l.undo(changeID: id, author: author) }
                 }
                 withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
                 show(Toast(text: "撤销了"))
