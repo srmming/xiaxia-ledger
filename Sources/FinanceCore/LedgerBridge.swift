@@ -55,7 +55,7 @@ public enum LedgerBridge {
         let bizBooks = Set(ledger.books.filter(\.isBusiness).map(\.id))
         let bizAccounts = WealthBreakdown.businessAccounts(ledger)
         // 目标页只管生活这边的目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标。店里账本的目标不在这一页（它的账户照常算店里的）
-        let ordered = ledger.goals.filter { !bizBooks.contains($0.bookID) }
+        let ordered = ledger.goals.filter { !bizBooks.contains($0.bookID) && !$0.isFinished }
             .sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }
         let shownGoals = Array(ordered.prefix(1 + Plans.maxSmallGoals))
         let goalAccounts = Set(shownGoals.compactMap(\.savingsAccountID)).subtracting(bizAccounts)
@@ -159,6 +159,9 @@ public enum LedgerBridge {
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
         b.memos = memos(of: ledger)
+        b.finishedGoals = ledger.finishedGoals.filter { !bizBooks.contains($0.bookID) }.map { g in
+            .init(id: g.id, name: g.name, total: g.target, date: g.finishedOn.map { "\($0.year) 年 \($0.month) 月" } ?? "", small: !g.pinned)
+        }
         b.smallGoals = small
         b.bigGoalAccount = bigAccount
         b.bigGoalOwnsAccount = false
@@ -212,7 +215,9 @@ public enum LedgerBridge {
             b.shopDays = (1...daysInMonth(today)).map { d in
                 let rows = income.filter { $0.date.day == d }
                 guard d <= today.day else { return .init(day: d, cash: .zero, card: .zero, state: .future) }
-                guard !rows.isEmpty else { return .init(day: d, cash: .zero, card: .zero, state: .missing) }
+                // 那天有收入就是开了门（哪怕标过休息）；没收入又标了休息的才算休息
+                let rest = ledger.isShopRest(LocalDate(year: today.year, month: today.month, day: d))
+                guard !rows.isEmpty else { return .init(day: d, cash: .zero, card: .zero, state: rest ? .rest : .missing) }
                 var parts: [String: Money] = [:]
                 for t in rows { parts[names[t.accountID] ?? t.accountID, default: .zero] = parts[names[t.accountID] ?? t.accountID, default: .zero] + ledger.baseAmount(t) }
                 let channels = parts.map { TrialBook.ShopChannel($0.key, $0.value) }.sorted { $0.amount > $1.amount }
@@ -220,10 +225,18 @@ public enum LedgerBridge {
                 let all = channels.map(\.amount).reduce(.zero, +)
                 return .init(day: d, cash: cash, card: all - cash, state: .open, parts: channels)
             }
-            b.fixedCosts = Outlook.fixedGuesses(ledger, side: .business, today: today, hiddenAccounts: hidden).map { g in
-                .init(emoji: emoji(g.category), name: g.name, note: "每月 \(g.day) 日 · \(names[g.accountID] ?? g.accountID)", amount: g.amount.magnitude,
-                      account: names[g.accountID] ?? g.accountID, day: g.day)
+            // 固定开销两种：自己加的（每月自动记的规则，能改能停能拿掉）、从流水里认出来的（只能「不算」）
+            let rules: [TrialBook.Item] = shopFixedRules(ledger).map { r in
+                .init(id: r.id, emoji: emoji(r.template.category), name: r.template.description,
+                      note: "每月 \(r.start.day) 日 · \(names[r.template.accountID] ?? r.template.accountID)", amount: r.template.amount.magnitude,
+                      off: r.paused, account: names[r.template.accountID] ?? r.template.accountID, day: r.start.day)
             }
+            let guessed: [TrialBook.Item] = Outlook.fixedGuesses(ledger, side: .business, today: today, hiddenAccounts: hidden)
+                .filter { g in !rules.contains { $0.name == g.name } }.map { g in
+                .init(emoji: emoji(g.category), name: g.name, note: "每月 \(g.day) 日 · \(names[g.accountID] ?? g.accountID)", amount: g.amount.magnitude,
+                      tag: guessedTag, account: names[g.accountID] ?? g.accountID, day: g.day)
+            }
+            b.fixedCosts = (rules + guessed).sorted { $0.amount > $1.amount }
         }
         return b
     }
@@ -405,8 +418,9 @@ extension LedgerBridge {
         }
         let was = list(before), now = list(after)
         guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
-        let notYet = TrialError("目标走完收起来、从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
-        guard before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
+        let notYet = TrialError("这一步在接正式账本的这一版里还没接上，账本没动")
+        let finishing = after.finishedGoals.count == before.finishedGoals.count + 1
+        guard finishing || before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
         var records: [ChangeRecord] = []
         // 换大目标：原来的一个小目标现在是大目标，原来的大目标变成小目标。正式账本里就是「把它设成大目标」
         if let ob = was.first(where: \.big), let nb = now.first(where: \.big), ob.name != nb.name,
@@ -420,6 +434,28 @@ extension LedgerBridge {
             guard gone.count == 1, now.count == was.count - 1, let o = gone.first else { throw notYet }
             guard let g = (o.big ? work.goals.first { $0.name == o.name } : work.goals.first { $0.id.uuidString == o.key } ?? work.goals.first { $0.name == o.name }) else {
                 throw TrialError("「\(o.name)」在正式账本里找不到了")
+            }
+            if finishing {
+                // 走完收起来：目标留着、标成走完；里面的钱转到界面上放回去的那个账户。
+                // 最后一笔存进去正好存够的：钱从哪个账户来的先照样存进去，再整罐转走。
+                guard let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name else {
+                    throw TrialError("「\(g.name)」还没有自己的账户，先做一次迁移")
+                }
+                func delta(_ a: TrialBook.Account) -> Money { a.balance - (before.accounts.first { $0.id == a.id }?.balance ?? .zero) }
+                let others = after.accounts.filter { $0.name != jarName && $0.kind == .own }
+                if let from = others.first(where: { delta($0) < .zero }) {
+                    guard let src = work.accounts.first(where: { $0.name == from.name }) else { throw TrialError("「\(from.name)」不是正式账本里的账户") }
+                    records.append(try work.deposit(goalID: g.id, amount: delta(from).magnitude, fromAccount: src.id, date: today, author: who))
+                }
+                let inJar = Plans.goals(work).first { $0.id == g.id }?.saved ?? .zero
+                // 界面上钱放回了别的账户才转；留在原来那个账户里的（它以后就是一个普通的账户）不用动
+                if inJar > .zero, let to = others.first(where: { delta($0) > .zero }) {
+                    guard let dest = work.accounts.first(where: { $0.name == to.name }) else { throw TrialError("「\(to.name)」不是正式账本里的账户") }
+                    records.append(try work.addAccountTransfer(amount: inJar, from: jarID, to: dest.id, date: today, bookID: g.bookID,
+                                                                note: "「\(g.name)」走完了，钱放回\(dest.name)", author: who))
+                }
+                records.append(try work.finishGoal(g.id, today: today, author: who))
+                return records
             }
             if o.saved > .zero, let jarID = g.savingsAccountID, let jarName = before.accounts.first(where: { $0.id == o.account })?.name {
                 // 钱去了哪：删之后余额多了这么多的那个账户（不是它自己的账户）。没有就是留在原账户
@@ -542,9 +578,18 @@ extension LedgerBridge {
         return records
     }
 
+    /// 界面上给「从流水里认出来的固定开销」打的记号。
+    public static let guessedTag = "认出来的"
+
+    /// 店里自己加的固定开销：生意账本里每月自动记的支出规则。
+    static func shopFixedRules(_ ledger: Ledger) -> [Recurring] {
+        guard let shop = ledger.businessBook?.id else { return [] }
+        return ledger.recurring.filter { $0.template.bookID == shop && $0.template.amount < .zero && $0.frequency == .monthly }
+    }
+
     /// 店里的改动。没有店里的改动返回 nil。
     /// 接了的：记某一天按渠道收了多少（那天原来没记过的）、加一样固定开销。
-    /// 还没接的：标成休息、改 / 停 / 拿掉固定开销 —— 拒绝，账本不动。
+    /// 固定开销：自己加的能改、能停、能拿掉；从流水里认出来的只能拿掉（记进「不算固定开销」）。
     static func applyShop(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
         var records: [ChangeRecord] = []
         let changedDays = after.shopDays.filter { d in before.shopDays.first { $0.day == d.day }.map { $0 != d } ?? true }
@@ -553,40 +598,82 @@ extension LedgerBridge {
         guard !changedDays.isEmpty || Set(fixedBefore) != Set(fixedAfter) else { return nil }
         for d in changedDays {
             let old = before.shopDays.first { $0.day == d.day }
-            guard d.state == .open, old?.state != .rest else {
-                throw TrialError("把一天标成休息，在接正式账本的这一版里还没接上，账本没动")
-            }
             let date = day(today, minus: today.day - d.day)
-            if old?.state == .open {
-                // 改已经记过的那天：把那天「每天记账」记的收入删掉，再照新的数记一遍（两条改动，一起撤销）。
-                // 那天要是还有别处来的收入（比如从银行流水导进来的），这里分不清该改哪笔，就不动。
-                // 和整理数的时候（snapshot）用同一个口径：这一天、生意账本里、算收入的
-                let bizBooks = Set(work.books.filter(\.isBusiness).map(\.id))
-                let income = work.transactions.filter { t in
-                    t.date == date && t.amount > .zero && t.countsAsIncomeOrExpense && !t.isTransfer && t.bookID.map(bizBooks.contains) == true
-                }
-                let mine = income.filter { $0.source == Ledger.dailySource }
-                guard !mine.isEmpty, mine.count == income.count else {
-                    throw TrialError("\(d.day) 号的收入里有从流水导进来的，这里改不了，去流水里改那一笔。账本没动")
-                }
-                records.append(try work.removeTransactions(mine.map(\.id), author: who))
+            guard d.state == .open || d.state == .rest || d.state == .missing else { throw TrialError("还没到的日子记不了") }
+            // 口径和整理数的时候（snapshot）一样：一天收了多少 = 这一天、生意账本里所有算收入的流水加起来，
+            // 不管是「每天记账」记的还是从银行流水导进来的，按账户（渠道）合成一个数，既不漏也不重复。
+            // 所以界面上改一天的数，就是把每个渠道「现在的数」改成「新的数」：
+            //   导进来的那几笔从来不动；「每天记账」记的那部分改成「新的数 − 导进来的」（原来记过就删掉重记）；
+            //   要是新的数比导进来的还少，得去动导进来的那笔，分不清该改哪笔，就不动并说清楚。
+            let bizBooks = Set(work.books.filter(\.isBusiness).map(\.id))
+            let income = work.transactions.filter { t in
+                t.date == date && t.amount > .zero && t.countsAsIncomeOrExpense && !t.isTransfer && t.bookID.map(bizBooks.contains) == true
             }
-            let lines: [(method: PaymentMethod, amount: Money)] = try after.channels(of: d).map { c in
-                guard let acc = work.accounts.first(where: { $0.name == c.account }) else { throw TrialError("「\(c.account)」不是正式账本里的账户") }
+            let wanted: [String: Money] = d.state == .open
+                ? Dictionary(after.channels(of: d).map { ($0.account, $0.amount) }, uniquingKeysWith: +) : [:]
+            var remove: [UUID] = []
+            var lines: [(method: PaymentMethod, amount: Money)] = []
+            let names = Set(wanted.keys).union(income.compactMap { t in work.accounts.first { $0.id == t.accountID }?.name })
+            for name in names.sorted() {
+                guard let acc = work.accounts.first(where: { $0.name == name }) else { throw TrialError("「\(name)」不是正式账本里的账户") }
+                let rows = income.filter { $0.accountID == acc.id }
+                let mine = rows.filter { $0.source == Ledger.dailySource }
+                let has = rows.reduce(Money.zero) { $0 + work.baseAmount($1) }
+                let daily = mine.reduce(Money.zero) { $0 + work.baseAmount($1) }
+                let want = wanted[name] ?? .zero
+                guard want != has else { continue }
                 // 渠道就是店里的账户：有同一个账户的收款方式就用它，没有就临时用账户名当名字
                 let method = work.paymentMethods.first { $0.accountID == acc.id } ?? PaymentMethod(name: acc.name, accountID: acc.id)
-                return (method, c.amount)
+                // 「每天记账」记的那部分 = 新的数 − 导进来的。原来记过就删掉重记成这个数（不留两笔零碎的），没记过就新记一笔
+                let imported = has - daily
+                guard want >= imported else {
+                    throw TrialError("\(d.day) 号「\(name)」里有 \(imported.formatted) 是从流水导进来的，这里改不到比它少。要改去流水里改那一笔。账本没动")
+                }
+                guard mine.allSatisfy({ work.baseAmount($0) == $0.amount }) else { throw TrialError("这一天有外币的收入，先回旧界面改") }
+                remove += mine.map(\.id)
+                if want > imported { lines.append((method, want - imported)) }
             }
-            records.append(try work.recordDailyTakings(lines, date: date, author: who))
+            if !remove.isEmpty { records.append(try work.removeTransactions(remove, author: who)) }
+            // 休息的日子：标上 / 取消（有收入的那天不算休息）
+            if work.isShopRest(date) != (d.state == .rest) {
+                records.append(try work.setShopRest(date, rest: d.state == .rest, author: who))
+            }
+            if !lines.isEmpty { records.append(try work.recordDailyTakings(lines, date: date, author: who)) }
         }
         for f in after.fixedCosts where !before.fixedCosts.contains(where: { $0.name == f.name }) {
             guard let acc = work.accounts.first(where: { $0.name == f.account }) else { throw TrialError("选一个店里能付钱的账户") }
             records.append(try work.addFixedCost(name: f.name, amount: f.amount, day: max(f.day, 1), accountID: acc.id, category: f.name, today: today, author: who))
         }
-        let known = Set(after.fixedCosts.map(\.name))
-        guard Set(before.fixedCosts.map(\.name)).isSubset(of: known),
-              before.fixedCosts.allSatisfy({ o in after.fixedCosts.first { $0.name == o.name }.map { $0.amount == o.amount && $0.off == o.off && $0.day == o.day && $0.account == o.account } ?? false }) else {
-            throw TrialError("改、停、拿掉固定开销，在接正式账本的这一版里还没接上，账本没动")
+        // 拿掉：自己加的就把那条规则停掉；认出来的记进「不算固定开销」的名单（以后不再认）。都能撤销
+        for f in before.fixedCosts where !after.fixedCosts.contains(where: { $0.name == f.name }) {
+            if let r = shopFixedRules(work).first(where: { $0.template.description == f.name }) {
+                records.append(try work.removeRecurring(r.id, author: who))
+            } else if let g = Outlook.fixedGuesses(work, side: .business, today: today).first(where: { $0.name == f.name }) {
+                records.append(work.markNotFixed(g.key, name: g.name, author: who))
+            } else { throw TrialError("「\(f.name)」在正式账本里找不到了") }
+        }
+        // 改多少、几号、从哪扣，停一停 / 接着付：只有自己加的能改
+        for f in after.fixedCosts {
+            guard let o = before.fixedCosts.first(where: { $0.name == f.name }),
+                  o.amount != f.amount || o.off != f.off || o.day != f.day || o.account != f.account else { continue }
+            guard var r = shopFixedRules(work).first(where: { $0.template.description == f.name }) else {
+                throw TrialError("「\(f.name)」是从流水里认出来的，改不了。不想算它就拿掉；想改，先拿掉再自己加一样")
+            }
+            guard let acc = work.accounts.first(where: { $0.name == f.account }) else { throw TrialError("选一个店里能付钱的账户") }
+            r.template.amount = -f.amount
+            r.template.accountID = acc.id
+            r.paused = f.off
+            if o.day != f.day, (1...31).contains(f.day) {
+                // 换了几号付：从下一个那一天起
+                func on(_ ym: YearMonth) -> LocalDate {
+                    let last = LocalDate(year: ym.year, month: ym.month, day: 1).adding(months: 1).adding(days: -1).day
+                    return LocalDate(year: ym.year, month: ym.month, day: min(f.day, last))
+                }
+                var start = on(today.yearMonth)
+                if start <= today { start = on(today.yearMonth.adding(months: 1)) }
+                r.start = start; r.nextDate = start; r.count = 0; r.template.date = start
+            }
+            records.append(try work.updateRecurring(r, author: who))
         }
         guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         return records

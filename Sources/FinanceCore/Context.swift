@@ -122,7 +122,7 @@ public struct LedgerContext: Codable, Sendable {
         iOwe = debtList.filter { $0.direction == .iOweThem }.reduce(Money.zero) { $0 + $1.outstanding }.formatted
         openDebts = debtList.count
         activeInstallments = Plans.installments(ledger).filter { $0.paidCount < $0.count }.count
-        goals = ledger.goals.count
+        goals = ledger.goals.filter { !$0.isFinished }.count
         recentChanges = ledger.changes.filter { !$0.undone }.suffix(5).reversed().map { "\($0.author)：\($0.summary)" }
         unassignedCount = ledger.transactions.filter { $0.bookID == nil }.count
         baseCurrency = ledger.baseCurrency

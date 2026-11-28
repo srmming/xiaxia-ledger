@@ -186,7 +186,7 @@ extension LedgerModel {
         }
         let saved = Dictionary(Plans.goals(ledger).map { ($0.id, $0.saved) }, uniquingKeysWith: { a, _ in a })
         return WealthBreakdown.make(accounts: accounts, balances: balances,
-                                    goals: ledger.goals.map { (goal: $0, saved: saved[$0.id] ?? .zero) },
+                                    goals: ledger.goals.filter { !$0.isFinished }.map { (goal: $0, saved: saved[$0.id] ?? .zero) },
                                     businessAccounts: WealthBreakdown.businessAccounts(ledger),
                                     obligations: Plans.obligations(ledger, asOf: min(end, LocalDate.today)),
                                     owedItems: WealthBreakdown.owedItems(ledger, asOf: min(end, LocalDate.today)))
