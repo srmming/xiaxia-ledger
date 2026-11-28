@@ -191,7 +191,7 @@ extension LedgerBridge {
     static func applyShopBooks(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
         func key(_ i: TrialBook.Item) -> String { "\(i.name)|\(i.amount.cents)|\(i.off)|\(i.flag)" }
         let capitalChanged = before.capital.map(key) != after.capital.map(key)
-        let stockChanged = before.stockEstimates.count != after.stockEstimates.count
+        let stockChanged = before.stockEstimates.map(\.id) != after.stockEstimates.map(\.id)
         let debtsChanged = before.shopDebts.map(key) != after.shopDebts.map(key)
         guard capitalChanged || stockChanged || debtsChanged else { return nil }
         guard let shop = work.businessBook?.id else { throw TrialError("先打开生意那一边") }
@@ -206,10 +206,16 @@ extension LedgerBridge {
                 records.append(try work.setCapital(Capital(total: total, openedOn: old?.openedOn, recoveredBefore: old?.recoveredBefore ?? .zero, items: items), author: who))
             }
             if stockChanged {
-                guard after.stockEstimates.count == before.stockEstimates.count + 1, let new = after.stockEstimates.first else {
-                    throw TrialError("删掉估过的货值，在接正式账本的这一版里还没接上，账本没动")
+                // 删掉的：界面上的顺序就是账本里从新到旧的顺序，按位置对上是哪一天估的
+                let dates = (work.business?.stockEstimates ?? []).sorted { $0.date > $1.date }.map(\.date)
+                for (i, old) in before.stockEstimates.enumerated() where !after.stockEstimates.contains(where: { $0.id == old.id }) {
+                    guard dates.indices.contains(i) else { throw TrialError("没对上是哪一天估的，账本没动") }
+                    records.append(try work.removeStockEstimate(on: dates[i], author: who))
                 }
-                records.append(try work.addStockEstimate(new.amount, note: new.note, date: today, author: who))
+                // 新估的
+                for new in after.stockEstimates where !before.stockEstimates.contains(where: { $0.id == new.id }) {
+                    records.append(try work.addStockEstimate(new.amount, note: new.note, date: today, author: who))
+                }
             }
             if debtsChanged {
                 // 新记的
@@ -219,15 +225,26 @@ extension LedgerBridge {
                 }
                 // 还清的：钱从余额少了这么多的那个店里账户出
                 for d in after.shopDebts {
-                    guard let o = before.shopDebts.first(where: { $0.id == d.id }), !o.off, d.off else { continue }
-                    guard o.tag != installmentTag else { throw TrialError("「\(o.name)」是分期，一期一期还，先回旧界面记这一期") }
+                    guard let o = before.shopDebts.first(where: { $0.id == d.id }), !o.off else { continue }
+                    if o.tag == installmentTag {
+                        // 分期还了一期（或最后一期）：少了多少就是这一期还了多少
+                        let paid = o.amount - d.amount
+                        guard paid > .zero else { continue }
+                        guard work.installments.contains(where: { $0.id == o.id }) else { throw TrialError("「\(o.name)」这笔分期在账本里找不到了") }
+                        records.append(try work.payInstallment(o.id, amount: paid, date: today, author: who))
+                        continue
+                    }
+                    guard d.off else { continue }
                     guard let real = work.debts.first(where: { $0.id == o.id }) else { throw TrialError("「\(o.name)」是旧界面记的客人欠款，先回旧界面改") }
                     let payer = after.accounts.first { a in before.accounts.first { $0.id == a.id }.map { $0.balance - a.balance == o.amount } == true }
                     guard let payer, let acc = work.accounts.first(where: { $0.name == payer.name }) else { throw TrialError("没看出这笔钱是从哪个账户出的，账本没动") }
                     records.append(try work.repay(debtID: real.id, amount: o.amount, date: today, accountID: acc.id, author: who))
                 }
-                guard before.shopDebts.allSatisfy({ o in after.shopDebts.contains { $0.id == o.id } }) else {
-                    throw TrialError("删掉一笔欠款，在接正式账本的这一版里还没接上，账本没动")
+                // 删掉的（记错了）：欠款连同它的借、还流水一起删；分期连同已经记的那几期一起删
+                for o in before.shopDebts where !after.shopDebts.contains(where: { $0.id == o.id }) {
+                    if work.debts.contains(where: { $0.id == o.id }) { records.append(try work.removeDebt(o.id, author: who)) }
+                    else if work.installments.contains(where: { $0.id == o.id }) { records.append(try work.removeInstallment(o.id, author: who)) }
+                    else { throw TrialError("「\(o.name)」是旧界面记的客人欠款，先回旧界面删。账本没动") }
                 }
             }
         } catch let e as TrialError { throw e } catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "没写成，账本没动") }
@@ -243,8 +260,10 @@ extension LedgerBridge {
     /// 正式账本里的支出分类，变成界面上「改分类」「自己填」里的那一排：用得多的在前，最后是「还没分」。
     static func categories(of ledger: Ledger) -> [TrialBook.Category] {
         var used: [String: Int] = [:]
-        for t in ledger.transactions where !t.amount.isIncome { if let c = t.category { used[c, default: 0] += 1 } }
-        let names = ledger.allCategoryNames(income: false).subtracting(["还没分", "未分类"])
+        // 只算真的花销：转账、还款、存钱这些往来带的分类（「账户间转账」「分期还款」…）不是给用户挑的
+        for t in ledger.transactions where !t.amount.isIncome && t.flow == nil && !t.isTransfer { if let c = t.category { used[c, default: 0] += 1 } }
+        let custom = ledger.profile.categories.filter { !$0.income }.map(\.name)
+        let names = Set(used.keys).union(custom).subtracting(["还没分", "未分类"])
         let sorted = names.sorted { (used[$0] ?? 0, $1) > (used[$1] ?? 0, $0) }
         return sorted.map { TrialBook.Category(emoji($0), $0) } + [TrialBook.Category("❓", "还没分")]
     }
@@ -252,11 +271,18 @@ extension LedgerBridge {
     /// 分类上的改动：新建一个、改名（改成已有的名字就是并进去，流水一起改）。没动分类返回 nil。只换图标的这一版不接。
     static func applyCategories(before: TrialBook, after: TrialBook, to work: inout Ledger, author who: String) throws -> [ChangeRecord]? {
         let was = before.categories.map(\.name), now = after.categories.map(\.name)
-        guard Set(was) != Set(now) else {
-            guard before.categories == after.categories else { throw TrialError("给分类换图标，在接正式账本的这一版里还没接上，先回旧界面换。账本没动") }
-            return nil
-        }
         var records: [ChangeRecord] = []
+        guard Set(was) != Set(now) else {
+            guard before.categories != after.categories else { return nil }
+            // 只换了图标
+            for c in after.categories {
+                guard let o = before.categories.first(where: { $0.name == c.name }), o.emoji != c.emoji else { continue }
+                guard c.name != "还没分" else { throw TrialError("「还没分」的图标不换") }
+                do { records.append(try work.setCategoryEmoji(c.name, emoji: c.emoji, author: who)) }
+                catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "图标没换成，账本没动") }
+            }
+            return records.isEmpty ? nil : records
+        }
         let gone = was.filter { !now.contains($0) }, new = now.filter { !was.contains($0) }
         do {
             if gone.count == 1, new.count <= 1 {
@@ -264,8 +290,12 @@ extension LedgerBridge {
                 let old = gone[0]
                 let ids = Set(before.entries.filter { $0.name == old }.map(\.id))
                 let target = new.first ?? after.entries.first { ids.contains($0.id) }?.name
-                guard let target, target != old else { throw TrialError("删掉一个分类，在接正式账本的这一版里还没接上，账本没动") }
-                records.append(try work.renameCategory(old, to: target, author: who))
+                if let target, target != old, target != "还没分" {
+                    records.append(try work.renameCategory(old, to: target, author: who))
+                } else {
+                    // 删掉：流水变回还没分（没有流水就只是把这个分类拿掉）
+                    records.append(try work.removeCategory(old, moveTo: nil, author: who))
+                }
             } else if gone.isEmpty {
                 for n in new { records.append(try work.addCategory(n, income: false, author: who)) }
             } else {

@@ -27,6 +27,9 @@ public enum LedgerBridge {
     /// 还没有图标的分类用这个（用户自己起的分类）。
     static let fallbackEmoji = "🧾"
 
+    /// 一个分类按名字配的图标（给界面用）。
+    public static func icon(for category: String) -> String { emoji(category) }
+
     static func emoji(_ category: String?) -> String {
         guard let category, !category.isEmpty else { return "❓" }
         if let hit = categoryEmoji[category] { return hit }
@@ -343,7 +346,9 @@ public enum LedgerBridge {
                                    amount: d.outstanding, tag: monthly ? "按月还" : "", flag: toShop))
             }
             for i in Plans.installments(ledger) where i.remaining > .zero && bizInstallmentIDs.contains(i.id) {
-                owing.append(.init(id: i.id, emoji: "🧾", name: i.name, note: "分期 · 还剩 \(i.count - i.paidCount) 期，每期 \(i.perPayment.formatted)", amount: i.remaining, tag: installmentTag))
+                var row = TrialBook.Item(id: i.id, emoji: "🧾", name: i.name, note: "分期 · 还剩 \(i.count - i.paidCount) 期，每期 \(i.perPayment.formatted)", amount: i.remaining, tag: installmentTag)
+                row.perPayment = i.perPayment
+                owing.append(row)
             }
             for r in ledger.receivables where r.amount > .zero {
                 owing.append(.init(id: r.id, emoji: "🧑", name: r.name, note: "", amount: r.amount, flag: true))
@@ -363,6 +368,18 @@ public enum LedgerBridge {
             }
             b.stockEstimates = (ledger.business?.stockEstimates ?? []).sorted { $0.date > $1.date }.map {
                 .init(emoji: "📅", name: $0.date == today ? "今天" : "\($0.date.month) 月 \($0.date.day) 日", note: $0.note ?? "", amount: $0.value)
+            }
+        }
+        // 用户给分类挑过的图标：流水和分类那一排都用它
+        let custom = ledger.categoryEmojis
+        if !custom.isEmpty {
+            for i in b.entries.indices { if let e = custom[b.entries[i].name] { b.entries[i].emoji = e } }
+            for i in b.categories.indices { if let e = custom[b.categories[i].name] { b.categories[i].emoji = e } }
+        }
+        // 「这家店以后都算这一类」：账本里记过的，放回界面这份账里（按流水里出现过的店名）
+        if let rules = ledger.profile.placeCategories, !rules.isEmpty {
+            for place in Set(b.entries.map(\.place)) where !place.isEmpty {
+                if let c = rules[Ledger.placeKey(place)] { b.placeRules[place] = [custom[c] ?? emoji(c), c] }
             }
         }
         return b
@@ -475,6 +492,15 @@ extension LedgerBridge {
                 records.append(try work.editTransaction(tx, author: who))
             } else {
                 records.append(work.categorize([e.id], category: e.name, author: who))
+            }
+        }
+        // 「以后这家店都按这一类」：记进账本，下次导入、记一笔时照着来
+        if before.placeRules != after.placeRules {
+            for (place, rule) in after.placeRules where before.placeRules[place] != rule && rule.count == 2 {
+                if let r = try? work.setPlaceCategory(place, category: rule[1] == "还没分" ? nil : rule[1], author: who) { records.append(r) }
+            }
+            for place in before.placeRules.keys where after.placeRules[place] == nil {
+                if let r = try? work.setPlaceCategory(place, category: nil, author: who) { records.append(r) }
             }
         }
         ledger = work

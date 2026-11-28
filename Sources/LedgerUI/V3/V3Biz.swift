@@ -414,7 +414,7 @@ struct V3StockPage: View {
                     }
                     V3CardTitle("每次估的").padding(.top, state.real == nil ? 8 : 0)
                     if b.stockEstimates.isEmpty { V3Label("还没估过").padding(.vertical, 6) }
-                    V3RowList(rows: b.stockEstimates.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, fill: true)
+                    V3RowList(rows: b.stockEstimates.prefix(4).map { e in .init(e.emoji, e.name, e.note, e.amount.v3, action: { state.open(.shopItem(e.id)) }) }, fill: true)
                     Spacer(minLength: 0)
                 }
             }
@@ -550,7 +550,7 @@ struct V3BizDebtsPage: View {
                     V3GrowCard {
                         V3CardTitle("每月要还的", note: b.shopLoanMonthly > .zero ? "每月 \(b.shopLoanMonthly.v3Short)" : "")
                         if monthly.isEmpty { V3Label("没有一期一期还的").padding(.vertical, 6) }
-                        V3RowList(rows: monthly.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3, V3.red) }, fill: true)
+                        V3RowList(rows: monthly.prefix(4).map { d in .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, action: { state.open(.shopItem(d.id)) }) }, fill: true)
                         Spacer(minLength: 0)
                     }
                 } else {
@@ -575,7 +575,7 @@ struct V3BizDebtsPage: View {
                 if !demo, first == nil, b.shopOwedAccounts.filter(\.isCreditCard).isEmpty { V3Label("没有要一次还清的").padding(.vertical, 6) }
                 V3RowList(rows: owe.filter { demo || !TrialBook.paidMonthlyTags.contains($0.tag) }.prefix(3).map { d in
                     d.off ? .init(d.emoji, d.name, d.note, "0,00 €", V3.green, tag: "还清了", tone: .green)
-                          : .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, tag: d.id == first?.id ? "先还这个" : "", tone: .red)
+                          : .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, tag: d.id == first?.id ? "先还这个" : "", tone: .red, action: { state.open(.shopItem(d.id)) })
                 } + b.shopOwedAccounts.filter(\.isCreditCard).map { c in
                     .init(c.emoji, c.name, c.note, c.balance.v3, V3.red, action: { state.accountFocus = c.name; state.open(.accounts) })
                 } + (demo ? [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "\(b.shopLoanMonthly.v3) / 月", V3.red, tag: "按月还就行")] : []),
@@ -586,7 +586,7 @@ struct V3BizDebtsPage: View {
                 }
                 V3CardTitle("别人欠店里的").padding(.top, 6)
                 if owed.isEmpty { V3Label("没有").padding(.vertical, 6) }
-                V3RowList(rows: owed.prefix(3).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: owed.count > 1, fill: true)
+                V3RowList(rows: owed.prefix(3).map { d in .init(d.emoji, d.name, d.note, d.amount.v3, action: { state.open(.shopItem(d.id)) }) }, compact: owed.count > 1, fill: true)
                 Spacer(minLength: 0)
                 if demo {
                 HStack(spacing: 8) {

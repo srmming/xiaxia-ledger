@@ -1299,6 +1299,27 @@ struct V3CategoriesSheet: View {
                                 .buttonStyle(V3SinkStyle(depth: 2)).accessibilityLabel("换成 \(e)")
                             }
                         }
+                        if c.name != "还没分" {
+                            let n = state.book.entryCount(category: c.name)
+                            HStack(spacing: 8) {
+                                Spacer()
+                                if n == 0 {
+                                    Button("删掉这个分类") { remove(c.name, to: "还没分") }.buttonStyle(.v3(.danger, .small))
+                                } else {
+                                    // 删之前先问：它下面的流水挪到哪
+                                    Menu {
+                                        ForEach(cats.filter { $0.name != c.name }.reversed(), id: \.name) { o in
+                                            Button(o.name == "还没分" ? "变回「还没分」" : "挪到「\(o.name)」") { remove(c.name, to: o.name) }
+                                        }
+                                    } label: {
+                                        Text("删掉，\(n) 笔流水挪到…").font(V3.font(13, .bold)).foregroundStyle(V3.red).padding(.horizontal, 12).padding(.vertical, 6)
+                                            .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                                    }
+                                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
                     } else {
                         V3Label("点左边一个分类。")
                     }
@@ -1307,6 +1328,14 @@ struct V3CategoriesSheet: View {
             }
         }
         .onAppear { if let first = state.book.categories.first { pick = first.name; name = first.name } }
+    }
+
+    private func remove(_ old: String, to: String) {
+        let n = state.book.entryCount(category: old)
+        let text = n == 0 ? "已删掉分类：\(old)" : "已删掉分类：\(old)，\(n) 笔\(to == "还没分" ? "变回还没分" : "挪到\(to)")"
+        if state.change(text, kind: .categorize, { try $0.removeCategory(old, moveTo: to) }) {
+            pick = state.book.categories.first?.name ?? ""; name = pick
+        }
     }
 
     private func add() {

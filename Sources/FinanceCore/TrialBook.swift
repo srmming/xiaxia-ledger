@@ -105,6 +105,8 @@ public struct TrialBook: Equatable, Sendable {
         public var lastMonth: Money?
         /// 订阅：下次扣款离今天还有几天（nil = 没选日子）。
         public var dueIn: Int?
+        /// 店里一期一期还的欠款：每期多少（nil = 不是分期）。
+        public var perPayment: Money?
         public init(id: UUID = UUID(), emoji: String, name: String, note: String, amount: Money, tag: String = "", off: Bool = false, flag: Bool = false, cycle: Int = 1,
                     account: String = "", day: Int = 0, lastMonth: Money? = nil) {
             self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.amount = amount; self.tag = tag; self.off = off; self.flag = flag; self.cycle = cycle
@@ -1416,6 +1418,9 @@ public struct TrialBook: Equatable, Sendable {
         guard let a = accounts.firstIndex(where: { $0.kind == .shop && !$0.name.contains("现金") }) ?? accounts.firstIndex(where: { $0.kind == .shop }) else { throw TrialError("还没有店里的账户") }
         return a
     }
+
+    /// 给同一个模块里别的文件用：店里付钱用哪个账户。
+    func shopPayAccountIndex(_ account: String?) throws -> Int { try shopPayIndex(account) }
 
     public mutating func payShopDebt(_ name: String, from account: String? = nil) throws {
         guard let i = shopDebts.firstIndex(where: { $0.name == name }) else { throw TrialError("没找到「\(name)」这笔欠款") }

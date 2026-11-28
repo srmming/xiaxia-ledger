@@ -497,6 +497,15 @@ struct V3TransactionsPage: View {
                         }
                     }
                 }
+                if let q = state.placeQuestion {
+                    // 正式账本：一笔还没分类的，同一家店以前分过类，问一句。答案记进账本，以后不再问
+                    V3Ask(face: "think", text: "\(q.place) 那 \(q.amount.v3Short)，算\(q.category)？") {
+                        HStack(spacing: 8) {
+                            Button("好") { state.answerPlaceQuestion(q, yes: true) }.buttonStyle(.v3(.primary, .small))
+                            Button("不是") { state.answerPlaceQuestion(q, yes: false) }.buttonStyle(.v3(.ghost, .small))
+                        }
+                    }
+                }
                 V3GrowCard(spacing: 6) {
                     HStack(spacing: 8) {
                     HStack(spacing: 8) {

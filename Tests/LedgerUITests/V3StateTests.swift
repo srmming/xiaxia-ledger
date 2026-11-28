@@ -353,7 +353,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.account(acc)?.balance, before)
         // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("改") { $0.categories[0].emoji = "🧪" })
+        XCTAssertFalse(s.change("改") { $0.todayDay += 1 })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
@@ -1021,6 +1021,52 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(s.setSides(life: false, biz: false))
     }
 
+    /// 正式账本上补接的那几样，从界面这一层走一遍：问「这家店算哪一类」、删分类、店里分期还一期、删估的货值。
+    func testRealLedgerExtrasFromTheUI() throws {
+        let model = LedgerModel.demo(); model.author = "小满"
+        let s = V3State(model: model)
+        // 这家店算哪一类：好 → 归进去并记进账本
+        let q = try XCTUnwrap(s.placeQuestion)
+        XCTAssertTrue(s.answerPlaceQuestion(q, yes: true))
+        XCTAssertEqual(model.ledger.transactions.first { $0.id == q.transactionID }?.category, q.category)
+        XCTAssertEqual(model.ledger.placeCategory(for: q.place), q.category)
+        XCTAssertNotEqual(s.placeQuestion?.place, q.place)
+        XCTAssertEqual(model.ledger.changes.last?.author, "小满")
+        s.undo()
+        XCTAssertNil(model.ledger.placeCategory(for: q.place), "撤销：归类和记下的那条一起退回去")
+        XCTAssertEqual(s.placeQuestion?.place, q.place)
+        // 不是 → 记进账本，不再问这家
+        XCTAssertTrue(s.answerPlaceQuestion(q, yes: false))
+        XCTAssertNotEqual(s.placeQuestion?.place, q.place)
+        XCTAssertNil(model.ledger.transactions.first { $0.id == q.transactionID }?.category)
+        // 关掉「拿不准的流水」就不问
+        s.prefs.speak["拿不准的流水"] = false
+        XCTAssertNil(s.placeQuestion)
+
+        // 删分类：流水变回还没分
+        let n = model.ledger.transactions.filter { $0.category == "宠物" }.count
+        XCTAssertGreaterThan(n, 0)
+        XCTAssertTrue(s.change("删", kind: .categorize) { try $0.removeCategory("宠物") })
+        XCTAssertFalse(model.ledger.transactions.contains { $0.category == "宠物" })
+        XCTAssertFalse(s.book.categories.contains { $0.name == "宠物" })
+        s.undo()
+        XCTAssertEqual(model.ledger.transactions.filter { $0.category == "宠物" }.count, n)
+
+        // 店里的分期还一期
+        let row = try XCTUnwrap(s.book.shopDebts.first { $0.perPayment != nil })
+        let per = row.perPayment!
+        XCTAssertTrue(s.change("还", kind: .repay) { try $0.payShopInstallment(row.id, from: s.book.shopHeld.first?.name) })
+        XCTAssertEqual(s.book.shopDebts.first { $0.id == row.id }?.amount, row.amount - per)
+        XCTAssertEqual(model.ledger.changes.last?.kind, .installmentPayment)
+
+        // 估一次货值再删掉
+        XCTAssertTrue(s.change("估") { try $0.estimateStock(self.eur("700,00"), note: "") })
+        let est = try XCTUnwrap(s.book.stockEstimates.first)
+        XCTAssertTrue(s.change("删", kind: .remove) { try $0.removeStockEstimate(est.id) })
+        XCTAssertTrue(s.book.stockEstimates.isEmpty)
+        XCTAssertTrue((model.ledger.business?.stockEstimates ?? []).isEmpty)
+    }
+
     func testNewLookSharesTheAppsLedgerModel() throws {
         // app 的账本模型（内存里的示例账本，不碰任何文件）；新界面接在它上面
         let model = LedgerModel.demo()
@@ -1049,7 +1095,7 @@ final class V3StateTests: XCTestCase {
         XCTAssertFalse(model.ledger.transactions.contains { $0.description == "La Tasca" && $0.amount == Money(cents: -12_50) })
         // 做不了的改动：模型一个字不动
         let before = model.ledger
-        XCTAssertFalse(s.change("改") { $0.categories[0].emoji = "🧪" })
+        XCTAssertFalse(s.change("改") { $0.todayDay += 1 })
         XCTAssertEqual(model.ledger, before)
         // 默认还是旧界面
         XCTAssertFalse(V3Launch.newLook)

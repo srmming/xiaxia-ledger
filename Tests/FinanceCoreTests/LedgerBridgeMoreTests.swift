@@ -757,7 +757,8 @@ final class LedgerBridgeMoreTests: XCTestCase {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)
         XCTAssertEqual(before.categories.last?.name, "还没分")
-        XCTAssertTrue(Set(before.categories.map(\.name)).isSuperset(of: l.allCategoryNames(income: false).subtracting(["还没分", "未分类"])))
+        let spent = Set(l.transactions.filter { !$0.amount.isIncome && $0.flow == nil && !$0.isTransfer }.compactMap(\.category))
+        XCTAssertTrue(Set(before.categories.map(\.name)).isSuperset(of: spent.subtracting(["还没分", "未分类"])), "真花销用过的分类都在")
         // 新建
         var after = before
         try after.addCategory(emoji: "🪴", name: "养花")
@@ -765,11 +766,128 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(r.first?.author, "小晴")
         XCTAssertTrue(l.allCategoryNames(income: false).contains("养花"))
         XCTAssertTrue(LedgerBridge.snapshot(of: l, today: today).categories.contains { $0.name == "养花" })
-        // 只换图标：这一版不接，账本不动
-        let now = LedgerBridge.snapshot(of: l, today: today)
-        var icon = now; icon.categories[0].emoji = "🧪"
-        let keep = l
-        XCTAssertThrowsError(try LedgerBridge.apply(before: now, after: icon, to: &l, today: today, author: "小晴"))
-        XCTAssertEqual(l, keep)
+    }
+}
+
+/// 正式账本上补接的五样：分类换图标 / 删分类、删欠款、删估的货值、店里分期还一期、「这家店算哪一类」。只用示例账本。
+final class LedgerExtrasTests: XCTestCase {
+    private let today = LocalDate(year: 2026, month: 11, day: 18)
+    private var ledger: Ledger { DemoData.make(endingOn: today) }
+    private func snap(_ l: Ledger) -> TrialBook { LedgerBridge.snapshot(of: l, today: today) }
+    private func roundTrip(_ l: Ledger) throws -> Ledger { try JSONDecoder().decode(Ledger.self, from: JSONEncoder().encode(l)) }
+
+    func testCategoryIconIsSavedAndUndone() throws {
+        var l = ledger
+        let before = snap(l)
+        XCTAssertFalse(before.categories.contains { ["账户间转账", "分期还款", "借款往来"].contains($0.name) }, "往来带的分类不给用户挑")
+        var after = before
+        try after.editCategory("超市", newName: "超市", emoji: "🧺")
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1); XCTAssertEqual(r[0].author, "小晴")
+        let again = snap(try roundTrip(l))
+        XCTAssertEqual(again.categories.first { $0.name == "超市" }?.emoji, "🧺")
+        XCTAssertTrue(again.entries.filter { $0.name == "超市" }.allSatisfy { $0.emoji == "🧺" }, "流水上的图标一起换")
+        _ = try l.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertNil(l.categoryEmojis["超市"])
+    }
+
+    func testRemoveCategoryMovesItsEntriesAndUndoes() throws {
+        var l = ledger
+        let before = snap(l)
+        let n = l.transactions.filter { $0.category == "宠物" }.count
+        XCTAssertGreaterThan(n, 0)
+        let had = l.transactions.filter { $0.category == "购物" }.count
+        // 挪到别的分类
+        var after = before
+        try after.removeCategory("宠物", moveTo: "购物")
+        var a = l
+        let r = try LedgerBridge.apply(before: before, after: after, to: &a, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1)
+        XCTAssertEqual(a.transactions.filter { $0.category == "宠物" }.count, 0)
+        XCTAssertEqual(a.transactions.filter { $0.category == "购物" }.count, had + n)
+        XCTAssertFalse(snap(a).categories.contains { $0.name == "宠物" })
+        _ = try a.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertEqual(a.transactions.filter { $0.category == "宠物" }.count, n, "撤销：流水回到原来的分类")
+        // 变回还没分
+        var after2 = before
+        try after2.removeCategory("宠物")
+        let r2 = try LedgerBridge.apply(before: before, after: after2, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r2.count, 1)
+        XCTAssertEqual(l.transactions.filter { $0.category == "宠物" }.count, 0)
+        XCTAssertFalse(l.transactions.contains { $0.category == "还没分" }, "账本里没分类就是空着，不写成一个叫「还没分」的分类")
+        XCTAssertThrowsError(try { var b = before; try b.removeCategory("还没分") }())
+    }
+
+    func testShopDebtCanBeRemoved() throws {
+        var l = ledger
+        let shop = l.businessBook!.id
+        let (debt, _) = try l.addDebt(counterparty: "花材批发商", direction: .iOweThem, amount: Money(cents: 300_00), bookID: shop, date: today, accountID: nil, author: "小晴")
+        let before = snap(l)
+        let row = try XCTUnwrap(before.shopDebts.first { $0.id == debt.id })
+        var after = before
+        try after.removeShopDebt(row.id)
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1); XCTAssertEqual(r[0].author, "小晴")
+        XCTAssertFalse(l.debts.contains { $0.id == debt.id })
+        _ = try l.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertTrue(l.debts.contains { $0.id == debt.id })
+    }
+
+    func testStockEstimateCanBeRemoved() throws {
+        var l = ledger
+        try l.addStockEstimate(Money(cents: 800_00), date: LocalDate(year: 2026, month: 11, day: 1), author: "小晴")
+        try l.addStockEstimate(Money(cents: 650_00), date: today, author: "小晴")
+        let before = snap(l)
+        XCTAssertEqual(before.stockEstimates.map(\.amount.cents), [650_00, 800_00])
+        var after = before
+        try after.removeStockEstimate(before.stockEstimates[1].id)
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1)
+        XCTAssertEqual(l.business?.stockEstimates?.map(\.value.cents), [650_00], "删的是 11 月 1 日那次，今天那次还在")
+        _ = try l.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertEqual(l.business?.stockEstimates?.count, 2)
+    }
+
+    func testShopInstallmentPaysOnePeriod() throws {
+        var l = ledger
+        let before = snap(l)
+        let row = try XCTUnwrap(before.shopDebts.first { $0.tag == LedgerBridge.installmentTag })
+        let per = try XCTUnwrap(row.perPayment)
+        let inst = try XCTUnwrap(l.installments.first { $0.id == row.id })
+        let paid = inst.paidIDs.count
+        var after = before
+        try after.payShopInstallment(row.id, from: before.shopHeld.first?.name)
+        XCTAssertEqual(after.shopDebts.first { $0.id == row.id }?.amount, row.amount - per)
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1); XCTAssertEqual(r[0].kind, .installmentPayment); XCTAssertEqual(r[0].author, "小晴")
+        XCTAssertEqual(l.installments.first { $0.id == row.id }?.paidIDs.count, paid + 1)
+        XCTAssertEqual(snap(l).shopDebts.first { $0.id == row.id }?.amount, row.amount - per)
+        _ = try l.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertEqual(l.installments.first { $0.id == row.id }?.paidIDs.count, paid)
+    }
+
+    func testPlaceAnswerIsSavedInTheLedger() throws {
+        var l = ledger
+        let q = try XCTUnwrap(l.placeQuestion(today: today))
+        XCTAssertEqual(q.category, "超市")
+        let before = snap(l)
+        var after = before
+        try after.recategorize(entry: q.transactionID, emoji: "🛒", name: q.category, always: true)
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertTrue(r.allSatisfy { $0.author == "小晴" })
+        XCTAssertEqual(l.transactions.first { $0.id == q.transactionID }?.category, "超市")
+        let saved = try roundTrip(l)
+        XCTAssertEqual(saved.placeCategory(for: "SUPER LUMI 0042"), "超市", "记在账本里，门店号不一样也认")
+        XCTAssertNotEqual(saved.placeQuestion(today: today)?.place, q.place, "这家店不再问")
+        // 以后导入同一家店的，照定的分类
+        let incoming = Transaction(date: today, amount: Money(cents: -9_90), description: "Super Lumi", accountID: l.accounts[0].id, bookID: nil, category: nil, source: "导入")
+        XCTAssertEqual(saved.applyingGuesses(to: [incoming]).transactions[0].category, "超市")
+        // 说「不是」：记进账本，以后不问这家
+        var no = ledger
+        let c = try no.skipPlaceQuestion("Super Lumi", author: "小晴")
+        XCTAssertEqual(c.author, "小晴")
+        XCTAssertNotEqual(try roundTrip(no).placeQuestion(today: today)?.place, "Super Lumi")
+        _ = try no.undo(changeID: c.id, author: "小晴")
+        XCTAssertEqual(no.placeQuestion(today: today)?.place, "Super Lumi")
     }
 }
