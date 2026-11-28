@@ -83,3 +83,88 @@ final class AccountSidesTests: XCTestCase {
         XCTAssertThrowsError(try b.transferBetweenSides(eur("10"), toHome: false, shopAccount: "装修贷款", homeAccount: "日常卡"))
     }
 }
+
+/// 家底页：置顶的卡片（最多 4 张）和其余账户的分组列表。
+final class AccountCardsTests: XCTestCase {
+    private func eur(_ s: String) -> Money { Money(parsing: s)! }
+
+    private func book() -> TrialBook {
+        TrialBook(
+            accounts: [.init(emoji: "💳", name: "日常卡", note: "", balance: eur("1500")),
+                       .init(emoji: "💶", name: "现金", note: "", balance: eur("85")),
+                       .init(emoji: "🏦", name: "储蓄", note: "", balance: eur("2400"), block: .emergency),
+                       .init(emoji: "⭐", name: "目标罐", note: "", balance: eur("500"), block: .goal),
+                       .init(emoji: "💳", name: "信用卡", note: "", balance: eur("640"), kind: .debt, block: .none),
+                       .init(emoji: "🧑", name: "借给小李", note: "", balance: eur("120"), kind: .lent, block: .none),
+                       .init(emoji: "🙈", name: "私房钱", note: "", balance: eur("1250"), kind: .secret, block: .none),
+                       .init(emoji: "🏪", name: "小店账户", note: "", balance: eur("3000"), kind: .shop, block: .shop),
+                       .init(emoji: "💶", name: "店里现金", note: "", balance: eur("200"), kind: .shop, block: .shop),
+                       .init(emoji: "🏦", name: "装修贷款", note: "", balance: eur("8400"), kind: .debt, block: .none, side: .biz)],
+            entries: [], upcoming: [],
+            month: FreeToSpend(income: eur("2340"), fixed: eur("892"), forGoals: eur("200"), spent: eur("271,39"), daysLeft: 12),
+            journey: Journey(name: "换新电脑", stops: [eur("700"), eur("1400")], saved: eur("500"), monthlyPlan: eur("200")),
+            monthlyMust: eur("860"))
+    }
+
+    func testDefaultPinIsTheDailyCard() {
+        let b = book()
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡"])
+        XCTAssertEqual(b.pinned(on: .biz).map(\.name), ["小店账户"])
+        XCTAssertEqual(b.listed(on: .life).map(\.title), ["日常能用", "存起来的", "欠的和借出去的"])
+        XCTAssertEqual(b.listed(on: .life).map { $0.accounts.map(\.name) }, [["现金"], ["储蓄", "目标罐"], ["信用卡", "借给小李"]])
+        XCTAssertEqual(b.listed(on: .biz).map(\.title), ["能用的", "欠着的"])
+        XCTAssertEqual(b.listed(on: .biz).map { $0.accounts.map(\.name) }, [["店里现金"], ["装修贷款"]])
+    }
+
+    func testEveryAccountShowsExactlyOnce() throws {
+        var b = book()
+        try b.setPinned("储蓄", true)
+        try b.setPinned("信用卡", true)
+        for side in [TrialBook.Side.life, .biz] {
+            let shown = b.pinned(on: side).map(\.name) + b.listed(on: side).flatMap(\.accounts).map(\.name)
+            XCTAssertEqual(shown.sorted(), b.pinnable(on: side).map(\.name).sorted(), "置顶的 + 列表里的 = 这一边全部账户，不多不少")
+            XCTAssertFalse(shown.contains("私房钱"))
+        }
+        XCTAssertFalse(b.pinned(on: .life).contains { $0.side == .biz })
+        XCTAssertFalse(b.listed(on: .life).flatMap(\.accounts).contains { $0.side == .biz })
+    }
+
+    func testPinUnpinAndLimit() throws {
+        var b = book()
+        try b.setPinned("储蓄", true)
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡", "储蓄"], "默认置顶的那张留着，新的排在后面")
+        try b.setPinned("信用卡", true)
+        try b.setPinned("现金", true)
+        XCTAssertThrowsError(try b.setPinned("目标罐", true), "最多 4 张")
+        XCTAssertThrowsError(try b.setPinned("私房钱", true))
+        try b.setPinned("日常卡", false)
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["储蓄", "信用卡", "现金"])
+        XCTAssertTrue(b.listed(on: .life).first { $0.title == "日常能用" }?.accounts.contains { $0.name == "日常卡" } ?? false)
+        for n in ["储蓄", "信用卡", "现金"] { try b.setPinned(n, false) }
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡"], "一张都不置顶时，回到默认的日常卡")
+        XCTAssertEqual(b.pinned(on: .biz).map(\.name), ["小店账户"], "生活这边怎么改，店里那排不受影响")
+    }
+
+    func testDragToReorderAndRemovedAccounts() throws {
+        var b = book()
+        for n in ["储蓄", "信用卡"] { try b.setPinned(n, true) }
+        try b.movePin("信用卡", to: 0)
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["信用卡", "日常卡", "储蓄"])
+        try b.movePin("信用卡", to: 9)
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡", "储蓄", "信用卡"], "拖过头就放到最后")
+        XCTAssertThrowsError(try b.movePin("现金", to: 0), "没置顶的拖不了")
+        try b.removeAccount("信用卡")
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡", "储蓄"], "账户删了，卡片跟着没")
+        try b.editAccount("储蓄", newName: "存起来的钱", balance: eur("2400"), secret: false)
+        XCTAssertEqual(b.pinned(on: .life).map(\.name), ["日常卡", "存起来的钱"], "改名不影响置顶")
+    }
+
+    func testCardLook() throws {
+        var b = book()
+        XCTAssertEqual(b.account("信用卡")?.cardLook, 4, "欠的默认浅粉，红字看得清")
+        XCTAssertEqual(b.account("小店账户")?.cardLook, 2)
+        try b.setCardStyle("日常卡", 3)
+        XCTAssertEqual(b.account("日常卡")?.cardLook, 3)
+        XCTAssertThrowsError(try b.setCardStyle("日常卡", AccountCards.styleCount))
+    }
+}

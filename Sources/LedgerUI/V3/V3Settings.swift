@@ -1107,6 +1107,30 @@ struct V3AccountsSheet: View {
                     V3FormField(label: "叫什么", text: $name)
                     V3FormField(label: a?.kind == .debt ? "现在欠多少" : "现在里面有多少", prompt: "0", text: $amount)
                     if m == nil { V3Label("这个数我没看懂。写成 1500 或者 1.500,00 这样就行。", color: V3.red, weight: .semibold) }
+                    if let a, a.kind != .secret {
+                        let pinned = state.book.isPinned(a.name)
+                        VStack(alignment: .leading, spacing: 10) {
+                            V3FormSwitch(title: "置顶成卡片", on: Binding(get: { pinned }, set: { v in
+                                state.change(v ? "置顶了：\(a.name)" : "取消置顶了：\(a.name)", kind: .account) { try $0.setPinned(a.name, v) }
+                            }))
+                            if pinned {
+                                HStack(spacing: 6) {
+                                    Text("卡片底色").font(V3.font(14.5, .bold))
+                                    Spacer()
+                                    ForEach(Array(V3CardLook.all.enumerated()), id: \.offset) { k, look in
+                                        Button {
+                                            state.change("换好了：\(a.name)的卡片改成\(look.name)", kind: .account) { try $0.setCardStyle(a.name, k) }
+                                        } label: {
+                                            Circle().fill(LinearGradient(colors: [look.a, look.b], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                .frame(width: 24, height: 24)
+                                                .overlay(Circle().strokeBorder(V3.ink, lineWidth: a.cardLook == k ? 2.5 : 1))
+                                        }
+                                        .buttonStyle(.plain).help("卡片底色：\(look.name)").accessibilityLabel("卡片底色：\(look.name)")
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if canSecret { V3FormSwitch(title: "这是私房钱", sub: "默认藏着，不算进家底的三个数", on: $secret) }
                     if let a, a.kind == .own, a.block != .goal {
                         V3FormSwitch(title: "算应急钱", on: Binding(get: { a.block == .emergency }, set: { v in

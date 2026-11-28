@@ -454,6 +454,8 @@ final class V3State {
             let card = state == .open ? Money(cents: Int64(amt) * 100) - cash : .zero
             b.shopDays.append(.init(day: d, cash: cash, card: card, state: state))
         }
+        // 置顶成卡片的几张
+        for n in ["日常卡", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b
     }
 

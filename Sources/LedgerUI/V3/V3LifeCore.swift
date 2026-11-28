@@ -187,100 +187,55 @@ struct V3OverviewPage: View {
 
 struct V3WealthPage: View {
     @Environment(V3State.self) private var state
-    private let cols3 = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
+    // 三层：上面三个数 + 三块钱；中间一排置顶的卡片；下面其余账户的列表 + 应急钱。
     var body: some View {
         GeometryReader { g in
             let leftW = (g.size.width - 18) * 1.5 / 2.5
-            HStack(alignment: .top, spacing: 18) {
-                left.frame(width: leftW)
-                right
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 18) {
+                    numbers.frame(width: leftW)
+                    blocks
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                V3PinnedCards(side: .life)
+                HStack(alignment: .top, spacing: 18) {
+                    V3AccountList(side: .life, secret: state.book.accounts.first { $0.kind == .secret })
+                        .frame(width: leftW, alignment: .topLeading)
+                    emergency
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
         }
     }
 
-    private var left: some View {
+    private var numbers: some View {
         let b = state.book
         let delta = b.totals.net - state.lastMonthNet
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) { V3Label("一共有"); V3Amount(b.totals.have.v3, size: 25, weight: .heavy) }.v3Card(h: 18, v: 14)
-                VStack(alignment: .leading, spacing: 4) { V3Label("欠别人"); V3Amount(b.totals.owe.v3, color: V3.red, size: 25, weight: .heavy) }.v3Card(h: 18, v: 14)
-                VStack(alignment: .leading, spacing: 2) {
-                    V3Label("净剩")
-                    V3Gold(amount: b.totals.net, size: 36)
-                    Text(delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)")
-                        .font(V3.font(13.5, .bold)).foregroundStyle(delta >= .zero ? V3.green : V3.navy).contentTransition(.numericText())
-                }
-                .padding(.horizontal, 18).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
-                .frame(width: nil).layoutPriority(1)
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) { V3Label("一共有"); V3Amount(b.totals.have.v3, size: 25, weight: .heavy) }
+                .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
+            VStack(alignment: .leading, spacing: 4) { V3Label("欠别人"); V3Amount(b.totals.owe.v3, color: V3.red, size: 25, weight: .heavy) }
+                .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).v3Soft()
+            VStack(alignment: .leading, spacing: 2) {
+                V3Label("净剩")
+                V3Gold(amount: b.totals.net, size: 36)
+                Text(delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)")
+                    .font(V3.font(13.5, .bold)).foregroundStyle(delta >= .zero ? V3.green : V3.navy).contentTransition(.numericText())
             }
-            V3CardTitle(title: "我的账户") { V3Tag(text: "\(b.owned.count) 个") } trail: {
-                EmptyView()
-            }
-            LazyVGrid(columns: cols3, spacing: 12) {
-                ForEach(b.owned) { a in card(a) }
-                if let s = b.accounts.first(where: { $0.kind == .secret }) { secret(s) }
-            }
-            V3CardTitle("欠的和借出去的")
-            LazyVGrid(columns: cols3, spacing: 12) {
-                ForEach(b.debts + b.lent) { a in card(a) }
-            }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 18).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
+            .layoutPriority(1)
         }
     }
 
-    private func card(_ a: V3State.Account) -> some View {
-        Button {
-            if a.kind == .debt || a.kind == .lent { state.go(.debts) } else { state.accountFocus = a.name; state.open(.accounts) }
-        } label: { cardBody(a) }
-        .buttonStyle(V3SinkStyle(depth: 2))
-        .help(a.kind == .debt || a.kind == .lent ? "去欠款与还债" : "改这个账户")
-    }
-
-    private func cardBody(_ a: V3State.Account) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                V3Ico(emoji: a.emoji, size: 32)
-                Text(a.name).font(V3.font(14, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
-            }
-            V3Amount(a.balance.v3, color: a.isDebt ? V3.red : a.kind == .shop ? V3.teal : V3.navy, size: 21, weight: .heavy)
-            Text(a.note).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 13).frame(maxWidth: .infinity, alignment: .leading)
-        .v3Soft(radius: 18, fill: a.isDebt ? V3.hex(0xFFF6F5) : .white)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// 私房钱：默认藏着，点一下显示 3 秒，不算进上面的数。
-    private func secret(_ a: V3State.Account) -> some View {
-        Button { state.revealSecret() } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    V3Ico(emoji: state.secretShown ? "👀" : "🙈", size: 32)
-                    Text(a.name).font(V3.font(14, .heavy)).foregroundStyle(V3.ink)
-                }
-                V3Amount(state.secretShown ? a.balance.v3 : "•••••\u{00A0}€", size: 21, weight: .heavy)
-                Text(a.note).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 13).frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(V3.dash, style: StrokeStyle(lineWidth: 2, dash: [6, 5])))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(V3SinkStyle(depth: 2))
-        .accessibilityLabel(state.secretShown ? "私房钱 \(a.balance.v3)" : "私房钱，藏着，点一下显示")
-    }
-
-    private var right: some View {
+    private var blocks: some View {
         let b = state.book
         let parts: [(String, Money, Color)] = [
-            ("应急钱，不动", b.sum(.emergency), V3.navy), ("存在目标里", b.sum(.goal), V3.star),
+            ("应急钱", b.sum(.emergency), V3.navy), ("存在目标里", b.sum(.goal), V3.star),
             ("日常能用", b.sum(.daily), V3.sky),
         ]
         let total = max(b.totals.have.cents, 1)
-        let run = b.runway
-        return VStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 10) {
                 V3CardTitle("这些钱分成三块")
                 GeometryReader { g in
                     HStack(spacing: 0) {
@@ -291,19 +246,26 @@ struct V3WealthPage: View {
                 }
                 .frame(height: 26).clipShape(Capsule()).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2.5))
                 .animation(.spring(duration: 0.5), value: b.totals)
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 6) {
+                HStack(alignment: .top, spacing: 8) {
                     ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
-                        HStack(spacing: 5) {
-                            V3Amount(p.1.v3Short, color: V3.ink, size: 14.5)
-                            Circle().fill(p.2).frame(width: 9, height: 9)
-                            Text(p.0).font(V3.font(13, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(spacing: 4) {
+                                Circle().fill(p.2).frame(width: 9, height: 9)
+                                Text(p.0).font(V3.font(12.5, .regular)).foregroundStyle(V3.ink2)
+                            }
+                            V3Amount(p.1.v3Short, color: V3.ink, size: 14)
                         }
+                        .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-            }
-            .v3Card()
+        }
+        .padding(.horizontal, 20).padding(.vertical, 14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).v3Soft()
+    }
 
-            VStack(alignment: .leading, spacing: 10) {
+    private var emergency: some View {
+        let b = state.book
+        let run = b.runway
+        return VStack(alignment: .leading, spacing: 10) {
                 if b.emergencyAccounts.isEmpty {
                     V3CardTitle("应急钱")
                     Text("还没设应急钱").font(V3.font(20, .heavy)).foregroundStyle(V3.ink)
@@ -348,7 +310,6 @@ struct V3WealthPage: View {
             .padding(.horizontal, 20).padding(.vertical, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .v3Soft()
-        }
     }
 }
 

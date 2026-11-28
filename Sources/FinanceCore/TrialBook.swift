@@ -32,6 +32,10 @@ public struct TrialBook: Equatable, Sendable {
         public var isCreditCard: Bool { kind == .debt && (name.contains("信用卡") || emoji == "💳") }
         /// 属于哪一边：生活，还是店里。店里的账户也分「有的」（kind 是 shop）和「欠的」（kind 是 debt）。
         public var side: Side = .life
+        /// 置顶成银行卡样子时用哪一种底色（`AccountCards.styleCount` 种里的第几种）。
+        public var cardStyle: Int?
+        /// 实际用的底色：自己挑过就用挑的，没挑过按种类给一个（欠的浅粉、店里的青、应急钱天蓝、目标金、其余深蓝）。
+        public var cardLook: Int { cardStyle ?? (kind == .debt ? 4 : side == .biz ? 2 : block == .emergency ? 1 : block == .goal ? 3 : 0) }
         public init(id: UUID = UUID(), emoji: String, name: String, note: String, balance: Money,
                     kind: Kind = .own, block: Block = .daily, short: String = "", side: Side? = nil) {
             self.id = id; self.emoji = emoji; self.name = name; self.note = note; self.balance = balance
@@ -644,6 +648,9 @@ public struct TrialBook: Equatable, Sendable {
 
     /// 排在现在这个目标后面的下一个目标（大决定页「存成一个目标」）。
     public var nextGoals: [Item] = []
+    /// 置顶成卡片的账户，按卡片排里的先后。生活、店里各一排；空着时默认置顶第一个日常能用的。
+    public var lifePins: [UUID] = []
+    public var shopPins: [UUID] = []
 
     public mutating func queueGoal(name: String, total: Money) throws {
         try Self.positive(total, "目标的钱")
