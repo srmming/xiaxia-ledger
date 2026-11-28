@@ -91,9 +91,18 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(flow.map(\.day), flow.map(\.day).sorted(by: >))
         XCTAssertEqual(s.book.shopFlowIn, s.book.shopSalesTotal)
         XCTAssertEqual(TrialBook.shopCategories.count, 11)
+        // 按日子记：这个月里的进那一天；上个月的按渠道各记一笔店里的收入；还没到的不行
+        let b2 = s.book.account("小店账户")!.balance
+        XCTAssertTrue(s.change("记") { try $0.recordShopIncome(daysAgo: 2, channels: [.init("小店账户", self.eur("90"))]) })
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 16 }?.total, eur("90"), "16 号原来没记")
+        XCTAssertTrue(s.change("记") { try $0.recordShopIncome(daysAgo: 30, channels: [.init("小店账户", self.eur("70")), .init("店里现金", self.eur("10"))]) })
+        XCTAssertEqual(s.book.account("小店账户")?.balance, b2 + eur("160"))
+        XCTAssertEqual(s.book.entries.filter { $0.side == .biz && $0.daysAgo == 30 }.count, 2)
+        XCTAssertFalse(s.change("记") { try $0.recordShopIncome(daysAgo: -1, channels: [.init("小店账户", self.eur("70"))]) })
+        XCTAssertFalse(s.change("记") { try $0.recordShopIncome(daysAgo: 30, channels: [.init("日常卡", self.eur("70"))]) })
         // 进货、还供货商也能选账户
         XCTAssertTrue(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: "店里现金") })
-        XCTAssertEqual(s.book.account("店里现金")?.balance, cash - eur("32"))
+        XCTAssertEqual(s.book.account("店里现金")?.balance, cash - eur("32") + eur("10"))
         XCTAssertFalse(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: "日常卡") })
     }
 

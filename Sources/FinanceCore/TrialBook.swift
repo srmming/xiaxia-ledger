@@ -1091,6 +1091,22 @@ public struct TrialBook: Equatable, Sendable {
         shopDays[i] = ShopDay(day: day, cash: .zero, card: .zero, state: .rest)
     }
 
+    /// 按日子记店里收的钱：`daysAgo` 是几天前（0 是今天）。落在这个月里就记到那一天；更早的月份，按渠道各记一笔店里的收入。
+    public mutating func recordShopIncome(daysAgo: Int, channels: [ShopChannel]) throws {
+        guard daysAgo >= 0 else { throw TrialError("还没到的日子记不了") }
+        let day = todayDay - daysAgo
+        if day >= 1 { try recordShopDay(day, channels: channels); return }
+        let filled = channels.filter { $0.amount > .zero }
+        guard !filled.isEmpty, channels.allSatisfy({ $0.amount >= .zero }) else { throw TrialError("至少填一个渠道收了多少") }
+        for c in filled {
+            guard shopHeld.contains(where: { $0.name == c.account }) else { throw TrialError("「\(c.account)」不是店里收钱的账户") }
+        }
+        for c in filled {
+            try record(name: "营业额", emoji: c.account.contains("现金") ? "💶" : "💳", amount: c.amount, income: true, account: c.account,
+                       tag: "补记的", daysAgo: daysAgo, side: .biz)
+        }
+    }
+
     // MARK: 生意的开销和流水
 
     /// 生意开销的分类（图标 + 名字）。
