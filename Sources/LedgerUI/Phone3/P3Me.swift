@@ -23,6 +23,8 @@ struct P3MePage: View {
                             group("看钱", [.spending, .wealth, .debts, .subscriptions])
                         }
                         VStack(spacing: 0) {
+                            NavigationLink(value: P3State.Page.ai) { rowLabel("sparkles", "夏夏的 AI", state.ai.hasKey ? "OpenRouter" : "没填密钥") }
+                            P3Divider().padding(.leading, 52)
                             NavigationLink(value: P3State.Page.memory) { rowLabel(P3State.Page.memory.symbol, "夏夏记住的事", "\(state.book.memos.count) 件") }
                         }
                         .p3Group()
@@ -126,6 +128,7 @@ struct P3PageView: View {
         case .memory: P3MemoryPage()
         case .changes: P3ChangesPage()
         case .sides: P3SidesPage()
+        case .ai: P3AIPage()
         case .sales: P3SalesPage()
         case .shopWealth: P3ShopWealthPage(isTab: false)
         case .fixed: P3FixedPage()

@@ -57,6 +57,15 @@ extension P3State {
             reply = .init(who: .xia, text: "没看到价钱。说一下多少钱就行，比如「跑鞋 95」")
         } else if let q = QuickPhrase.parse(text) {
             reply = .init(who: .xia, text: "记一笔\(q.name) \(q.amount.p3)，从日常卡出？", quick: q)
+        } else if ai.hasKey {
+            // 不是记账、不是问要不要买：问 OpenRouter（只带 app 算好的几个数）
+            Task { @MainActor in
+                let answer = await self.ai.chat(text, numbers: self.book.numbersCard)
+                withAnimation(.snappy(duration: 0.25)) {
+                    self.chat.messages.append(.init(who: .xia, text: answer ?? "这会儿没连上 OpenRouter，等一下再问我。"))
+                }
+            }
+            return
         } else {
             reply = .init(who: .xia, text: "这个我先记着。想问要不要买，发张图或者说「想买 xx 多少钱」。")
         }
@@ -115,7 +124,7 @@ struct P3ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 14) {
-                        Text("示例账本 · 夏夏的回话按固定规则算，不连 AI").font(P3.font(11.5, .regular)).foregroundStyle(P3.ink2).padding(.top, 8)
+                        Text("示例账本 · " + (state.ai.hasKey ? "夏夏用 OpenRouter 回话，只带算好的几个数" : "没填密钥，夏夏按固定规则回话")).font(P3.font(11.5, .regular)).foregroundStyle(P3.ink2).padding(.top, 8)
                         ForEach(state.chat.messages) { m in
                             bubble(m).id(m.id)
                         }

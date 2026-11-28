@@ -26,7 +26,7 @@ final class P3State {
     enum Tab: String { case home, flow, goals, xia }
 
     enum Page: String, Hashable, Identifiable {
-        case spending, wealth, debts, subscriptions, memory, changes, sides
+        case spending, wealth, debts, subscriptions, memory, changes, sides, ai
         case sales, shopWealth, fixed, shopDebts
         var id: String { rawValue }
         var title: String {
@@ -38,6 +38,7 @@ final class P3State {
             case .memory: "夏夏记住的事"
             case .changes: "改动记录"
             case .sides: "管哪边"
+            case .ai: "夏夏的 AI"
             case .sales: "营业额"
             case .shopWealth: "店的家底"
             case .fixed: "固定开销"
@@ -53,6 +54,7 @@ final class P3State {
             case .memory: "brain"
             case .changes: "clock.arrow.circlepath"
             case .sides: "square.split.2x1"
+            case .ai: "sparkles"
             case .sales: "calendar"
             case .fixed: "calendar.badge.clock"
             }
@@ -103,6 +105,7 @@ final class P3State {
     var mePath: [Page] = []
     var toast: Toast?
     var chat = P3Chat()
+    let ai = P3AI()
     /// 每存一笔加 1（星星掉进瓶子用）。
     var starDrops = 0
 

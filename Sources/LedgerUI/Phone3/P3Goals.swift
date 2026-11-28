@@ -394,9 +394,9 @@ struct P3GoalEditor: View {
 }
 
 extension View {
-    func p3Field() -> some View {
+    func p3Field(fill: Color = .white) -> some View {
         font(P3.font(16, .regular)).padding(.horizontal, 14).frame(height: 48)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white))
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(fill))
     }
 }
 #endif
