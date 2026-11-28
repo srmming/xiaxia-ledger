@@ -10,16 +10,14 @@ import UniformTypeIdentifiers
 
 struct V3AddSheet: View {
     @Environment(V3State.self) private var state
-    /// 用哪种方式记：0 说一句、1 自己填、2 拖文件。记住上次用的。
+    /// 用哪种方式记：0 说一句、1 自己填。记住上次用的。小票、流水文件不在这里，交给夏夏。
     @AppStorage("xiaxia.v3.addWay") private var way = 0
     @State private var text = ""
     /// 这句话没说怎么付时，问一次；默认先指着第一个。
     @State private var pay = 0
     @State private var receipt: NSImage?
-    @State private var picking = false
-    @State private var dropping = false
     @FocusState private var focused: Bool
-    static let ways = ["说一句", "自己填", "拖文件"]
+    static let ways = ["说一句", "自己填"]
 
     /// 话里提到的哪天（「昨天」「上周五」「12 号」）；没提就是今天。日期那几个字先拿掉再认金额。
     private var said: (daysAgo: Int, rest: String) { QuickDate.extract(text, today: state.book.todayDate) ?? (0, text) }
@@ -58,7 +56,6 @@ struct V3AddSheet: View {
                 }
                 switch way {
                 case 1: V3ManualSheet(embedded: true) { close() }
-                case 2: fileWay
                 default: sayWay
                 }
             }
@@ -67,10 +64,7 @@ struct V3AddSheet: View {
             .v3Sticker(radius: 26, depth: 6)
             .accessibilityAddTraits(.isModal)
         }
-        .onAppear { focused = true }
-        .fileImporter(isPresented: $picking, allowedContentTypes: [.image, .commaSeparatedText, .pdf, .plainText]) { result in
-            if case .success(let url) = result { take(file: url) }
-        }
+        .onAppear { if way > 1 { way = 0 }; focused = true }
     }
 
     // MARK: 说一句
@@ -121,29 +115,6 @@ struct V3AddSheet: View {
         }
     }
 
-    // MARK: 拖文件
-
-    @ViewBuilder private var fileWay: some View {
-        Button { picking = true } label: {
-            VStack(spacing: 8) {
-                Image(systemName: "tray.and.arrow.down").font(.system(size: 30, weight: .semibold)).foregroundStyle(V3.navy)
-                Text("把小票照片或银行流水拖到这里").font(V3.font(16, .heavy)).foregroundStyle(V3.ink)
-            }
-            .frame(maxWidth: .infinity).frame(height: 150)
-            .background(RoundedRectangle(cornerRadius: 20).fill(dropping ? V3.goodBG : V3.soft)
-                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(V3.ink, style: StrokeStyle(lineWidth: 2.5, dash: [8, 6]))))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(V3SinkStyle(depth: 2)).help("也可以点开选一个文件")
-        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
-            _ = providers.first?.loadObject(ofClass: URL.self) { url, _ in
-                guard let url else { return }
-                Task { @MainActor in take(file: url) }
-            }
-            return true
-        }
-    }
-
     private func receiptChip(_ img: NSImage) -> some View {
         HStack(spacing: 8) {
             Image(nsImage: img).resizable().scaledToFill().frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -154,20 +125,6 @@ struct V3AddSheet: View {
             .buttonStyle(.plain).accessibilityLabel("去掉这张小票")
         }
         .padding(6).background(RoundedRectangle(cornerRadius: 12).fill(V3.bg))
-    }
-
-    /// 放进来的文件：图片当小票（试用版不识别，补一句金额）；别的当银行流水导入（试用版用示例那几笔）。
-    private func take(file url: URL) {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        if let img = NSImage(contentsOf: url) {
-            receipt = img
-            withAnimation(.snappy(duration: 0.2)) { way = 0 }
-            focused = true
-        } else {
-            close()
-            state.importSample(dropped: true)
-        }
     }
 
     private func save(_ q: QuickPhrase?, keepOpen: Bool = false) {

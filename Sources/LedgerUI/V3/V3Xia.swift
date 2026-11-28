@@ -8,8 +8,11 @@ import UniformTypeIdentifiers
 enum V3Attachment: Equatable {
     case image(NSImage, String)
     case link(String)
+    /// 银行流水这类文件（只带着名字）。
+    case file(String)
     var label: String {
         switch self {
+        case .file(let name): "📄 " + name
         case .image(_, let name): "🖼 " + name
         case .link(let url): "🔗 " + (URL(string: url)?.host ?? url)
         }
@@ -32,6 +35,68 @@ extension V3State {
         var check: PurchaseCheck?
         /// 这张卡已经点过哪个按钮了。
         var done = ""
+        /// 夏夏回的确认卡：小票要不要记、流水要不要导进来。点了才写入。
+        var confirm: Confirm?
+        /// 我带的那张图的小缩略图。
+        var thumb: NSImage?
+
+        static func == (a: ChatMessage, b: ChatMessage) -> Bool { a.id == b.id && a.done == b.done && a.text == b.text }
+    }
+
+    /// 确认卡上的内容。试用版不真识别：小票是示例里那一笔，流水是示例那一份。
+    enum Confirm: Equatable {
+        case receipt(place: String, amount: Money, account: String)
+        case statement(name: String, total: Int, added: Int, skipped: Int)
+    }
+
+    /// 把一个文件交给夏夏：打开聊天，带上文件，她回一张确认卡。哪儿拖进来的、哪儿点的「导入流水」，都走这里。
+    /// `url` 是 nil 时用示例的流水文件名（试用版）。
+    func handToXia(file url: URL? = nil) {
+        var image: NSImage?
+        if let url {
+            let scoped = url.startAccessingSecurityScopedResource()
+            image = NSImage(contentsOf: url)
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+        let name = url?.lastPathComponent ?? "晴空银行 11 月流水.csv"
+        if showAdd { showAdd = false }
+        if sheet != nil { closeSheet() }
+        openChat()
+        hand(image.map { .image($0, name) } ?? .file(name), text: "")
+    }
+
+    /// 聊天里带着附件发出去的那一下：小票 / 流水回确认卡。返回 false 说明这个附件不是来记账的（是在问要不要买）。
+    @discardableResult
+    func hand(_ a: V3Attachment, text: String) -> Bool {
+        let buying = ["想买", "值得买", "要不要买", "能不能买", "买得起", "该不该买"].contains { text.contains($0) }
+        if case .link = a { return false }
+        if case .image = a, buying { return false }
+        var thumb: NSImage?
+        if case .image(let img, _) = a { thumb = img }
+        chat.append(.init(mine: true, text: text, attachment: a.label, thumb: thumb))
+        let reply: ChatMessage
+        switch a {
+        case .image:
+            let account = book.accounts(for: .pay, side: .life).first?.name ?? ""
+            reply = .init(mine: false, text: "Super Sol 23,40 €，\(account)，今天？", confirm: .receipt(place: "Super Sol", amount: Money(cents: 23_40), account: account))
+        case .file(let name):
+            // 先在一份副本上试一遍：这份里有几笔新的、几笔重复
+            var trial = book
+            let rows = Self.demoBook.entries.filter { $0.side == .life }
+            let r = (try? trial.importEntries(rows)) ?? (added: 0, skipped: 0)
+            // 试用版的示例流水说成一整份 52 笔的样子：新的是真的会进来的那几笔
+            let total = max(52, r.added + r.skipped)
+            reply = .init(mine: false, text: "\(total) 笔，新的 \(r.added)、重复 \(total - r.added)，导进来？",
+                          confirm: .statement(name: name, total: total, added: r.added, skipped: total - r.added))
+        case .link:
+            return false
+        }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.7))
+            self?.chat.append(reply)
+            self?.lastSaid = (reply.text, Date())
+        }
+        return true
     }
 
     /// 页面有话要说（或者没话了）。
@@ -176,9 +241,17 @@ struct V3ChatPage: View {
                         ForEach(state.chat) { m in
                             if m.mine {
                                 VStack(alignment: .trailing, spacing: 4) {
-                                    if !m.attachment.isEmpty {
-                                        Text(m.attachment).font(V3.font(12.5, .bold)).foregroundStyle(V3.ink2).lineLimit(1)
-                                            .padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(V3.soft))
+                                    if let img = m.thumb {
+                                        // 带的图显示成小缩略图
+                                        Image(nsImage: img).resizable().scaledToFill().frame(width: 96, height: 72)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(V3.ink, lineWidth: 1.5))
+                                            .accessibilityLabel(m.attachment)
+                                    } else if !m.attachment.isEmpty {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: m.attachment.hasPrefix("🔗") ? "link" : "doc.text").font(.system(size: 12, weight: .bold))
+                                            Text(m.attachment.dropFirst(2)).font(V3.font(12.5, .bold)).lineLimit(1)
+                                        }
+                                        .foregroundStyle(V3.ink2).padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(V3.soft))
                                     }
                                     if !m.text.isEmpty { bubble(m.text, mine: true) }
                                 }
@@ -186,7 +259,9 @@ struct V3ChatPage: View {
                             } else {
                                 HStack(alignment: .top, spacing: 10) {
                                     V3Face(face: "talk", width: 44)
-                                    if let c = m.check { V3BuyCard(message: m, check: c) } else { bubble(m.text, mine: false, lead: true) }
+                                    if let c = m.check { V3BuyCard(message: m, check: c) }
+                                    else if let c = m.confirm { V3ConfirmCard(message: m, confirm: c) }
+                                    else { bubble(m.text, mine: false, lead: true) }
                                 }
                             }
                         }
@@ -247,7 +322,7 @@ struct V3ChatPage: View {
         .background(V3.bg)
         .overlay { if dropping { RoundedRectangle(cornerRadius: 22).strokeBorder(V3.navy, style: StrokeStyle(lineWidth: 3, dash: [9, 7])).padding(12).allowsHitTesting(false) } }
         .onDrop(of: [.image, .fileURL, .url], isTargeted: $dropping) { providers in take(providers); return true }
-        .fileImporter(isPresented: $picking, allowedContentTypes: [.image]) { result in
+        .fileImporter(isPresented: $picking, allowedContentTypes: [.image, .commaSeparatedText, .pdf, .plainText, .spreadsheet]) { result in
             if case .success(let url) = result { attach(file: url) }
         }
         .onAppear { focused = true }
@@ -277,8 +352,9 @@ struct V3ChatPage: View {
     private func attach(file url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        // 图片当小票或者想买的东西；别的文件当银行流水
         if let img = NSImage(contentsOf: url) { state.chatAttachment = .image(img, url.lastPathComponent) }
-        else { state.fail("这个文件不是图片，换一张图试试") }
+        else { state.chatAttachment = .file(url.lastPathComponent) }
     }
 
     private func bubble(_ text: String, mine: Bool, lead: Bool = false) -> some View {
@@ -303,6 +379,8 @@ struct V3ChatPage: View {
         let attachment = state.chatAttachment
         guard !q.isEmpty || attachment != nil, !thinking else { return }
         state.chatAttachment = nil
+        // 小票、流水：夏夏回一张确认卡，点了才写入
+        if let attachment, state.hand(attachment, text: q) { return }
         state.chat.append(.init(mine: true, text: q, attachment: attachment?.label ?? ""))
         withAnimation(.snappy) { thinking = true }
         Task { @MainActor in
@@ -359,6 +437,62 @@ struct V3ChatPage: View {
 }
 
 /// 夏夏回的那张小卡：东西和价钱，三个数，一句意见，两个按钮。
+/// 小票 / 流水的确认卡：点了才写入，写入以后能撤销。
+struct V3ConfirmCard: View {
+    let message: V3State.ChatMessage
+    let confirm: V3State.Confirm
+    @Environment(V3State.self) private var state
+
+    private func mark(_ done: String) {
+        if let i = state.chat.firstIndex(where: { $0.id == message.id }) { state.chat[i].done = done }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(message.text).font(V3.font(15, .heavy)).foregroundStyle(V3.ink).fixedSize(horizontal: false, vertical: true)
+            if !message.done.isEmpty {
+                Text(message.done).font(V3.font(13, .bold)).foregroundStyle(V3.green)
+            } else {
+                switch confirm {
+                case .receipt(let place, let amount, let account):
+                    HStack(spacing: 8) {
+                        Button("记好") {
+                            let ok = state.change("记好了 · 超市 \(amount.v3) · \(account)", kind: .add) {
+                                try $0.record(name: "超市", emoji: "🛒", amount: amount, account: account, place: place, tag: "拍小票")
+                            }
+                            if ok { mark("记好了，记错了点底下的「撤销」") }
+                        }
+                        .buttonStyle(.v3(.primary, .small))
+                        Button("改一下") {
+                            mark("去改了")
+                            state.manualPrefill = (place, amount)
+                            state.closeChat(); state.open(.manual)
+                        }
+                        .buttonStyle(.v3(.ghost, .small))
+                    }
+                case .statement(_, _, let added, _):
+                    HStack(spacing: 8) {
+                        Button("导进来") {
+                            mark("在导了，进度在流水页顶上")
+                            state.closeChat(); state.importSample(dropped: true)
+                        }
+                        .buttonStyle(.v3(.primary, .small)).disabled(added == 0)
+                        Button("先看看") {
+                            let rows = V3State.demoBook.entries.filter { $0.side == .life }.prefix(3)
+                            let lines = rows.map { "\($0.name) \($0.amount.v3)" }.joined(separator: "、")
+                            state.chat.append(.init(mine: false, text: "前几笔是：\(lines)。看着对就点上面的「导进来」。"))
+                        }
+                        .buttonStyle(.v3(.ghost, .small))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .frame(maxWidth: 440, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16).fill(.white).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(V3.ink, lineWidth: 2)))
+    }
+}
+
 struct V3BuyCard: View {
     let message: V3State.ChatMessage
     let check: PurchaseCheck

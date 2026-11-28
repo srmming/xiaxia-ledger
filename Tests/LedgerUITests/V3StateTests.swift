@@ -1,5 +1,6 @@
 #if os(macOS)
 import FinanceCore
+import AppKit
 import XCTest
 @testable import LedgerUI
 
@@ -163,6 +164,32 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(s.change("定") { try $0.startGoal(name: "去海边住一周", total: self.eur("800")) })
         XCTAssertEqual(s.book.journey.saved, .zero)
         XCTAssertEqual(s.book.sum(.goal), s.book.goalMoney)
+    }
+
+    func testFilesGoThroughXia() async throws {
+        let s = V3State()
+        s.onboardingStep = nil
+        XCTAssertEqual(V3AddSheet.ways, ["说一句", "自己填"], "记一笔里没有「拖文件」了")
+        let before = s.book.entries.count
+        // 交一份流水：打开聊天，带着文件，什么都还没写入
+        s.handToXia()
+        XCTAssertTrue(s.chatOpen)
+        XCTAssertEqual(s.chat.last?.attachment, "📄 晴空银行 11 月流水.csv")
+        XCTAssertEqual(s.book.entries.count, before, "确认之前不写入")
+        try await Task.sleep(for: .seconds(1))
+        guard case .statement(_, let total, let added, let skipped)? = s.chat.last?.confirm else { return XCTFail("夏夏应该回一张流水确认卡") }
+        XCTAssertEqual(total, added + skipped)
+        XCTAssertEqual(s.book.entries.count, before, "卡出来了也还没写入")
+        // 链接、带着「要不要买」的图：不是来记账的
+        XCTAssertFalse(s.hand(.link("https://example.com/x"), text: ""))
+        XCTAssertFalse(s.hand(.image(NSImage(size: .init(width: 4, height: 4)), "耳机.jpg"), text: "这个要不要买"))
+        // 一张图：当小票，回小票确认卡
+        XCTAssertTrue(s.hand(.image(NSImage(size: .init(width: 4, height: 4)), "小票.jpg"), text: ""))
+        XCTAssertNotNil(s.chat.last?.thumb)
+        try await Task.sleep(for: .seconds(1))
+        guard case .receipt(let place, let amount, let account)? = s.chat.last?.confirm else { return XCTFail("夏夏应该回一张小票确认卡") }
+        XCTAssertEqual(place, "Super Sol"); XCTAssertEqual(amount, eur("23,40")); XCTAssertEqual(account, "日常卡")
+        XCTAssertEqual(s.book.entries.count, before)
     }
 
     func testNoSecretStashAndTwoBlocks() {

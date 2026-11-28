@@ -373,7 +373,7 @@ struct V3TransactionsPage: View {
                     }
                     .padding(.horizontal, 14).padding(.vertical, 6)
                     .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
-                    Button("导入流水") { state.importSample() }.buttonStyle(.v3(.ghost, .small)).disabled(state.importProgress != nil).help("也可以把文件拖到这一页")
+                    Button("导入流水") { state.handToXia() }.buttonStyle(.v3(.ghost, .small)).disabled(state.importProgress != nil)
                     }
                     if today.isEmpty && yest.isEmpty {
                         V3Label("没找到「\(search)」。换个店名或者金额试试。").padding(.top, 10)
@@ -422,7 +422,6 @@ struct V3TransactionsPage: View {
             }
         }
         .onAppear { takeFocus() }
-        .onDrop(of: [.fileURL], isTargeted: nil) { _ in state.importSample(dropped: true); return true }
     }
 
     private func takeFocus() {

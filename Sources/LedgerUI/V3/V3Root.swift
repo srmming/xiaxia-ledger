@@ -228,6 +228,8 @@ struct V3Shell: View {
         }
         .overlay { if state.showAdd { V3AddSheet().environment(\.v3InlineXia, true).transition(.opacity) } }
         .overlay { if let sheet = state.sheet { V3SheetHost(sheet: sheet).environment(\.v3InlineXia, true).transition(.opacity) } }
+        // 把文件拖到任何一页：都是交给夏夏（出图、跑测试时不挂这个，离屏画不出来）
+        .modifier(V3FileDrop())
         .sheet(isPresented: Bindable(state).showAddAccount) { V3AddAccountSheet().environment(state).environment(\.v3InlineXia, true) }
     }
 
@@ -596,6 +598,24 @@ struct V3AddAccountSheet: View {
         TextField(prompt, text: text).textFieldStyle(.plain).font(V3.font(15, .semibold))
             .padding(.horizontal, 16).padding(.vertical, 10)
             .background(Capsule().fill(.white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 2)))
+    }
+}
+
+/// 整个窗口都能接文件：小票、流水一律交给夏夏，她回确认卡以后才写入。
+struct V3FileDrop: ViewModifier {
+    @Environment(V3State.self) private var state
+    func body(content: Content) -> some View {
+        if NSClassFromString("XCTestCase") != nil || state.chatOpen {
+            content
+        } else {
+            content.onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                _ = providers.first?.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    Task { @MainActor in state.handToXia(file: url) }
+                }
+                return true
+            }
+        }
     }
 }
 #endif
