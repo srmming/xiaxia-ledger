@@ -11,6 +11,8 @@ enum V3Sheet: Equatable {
     case shopDay(Int), fixed, purchase, stock, capital, transfer, shopDebt
     /// 删目标（nil 是大目标）、改大目标
     case goalDelete(UUID?), goalEdit, finishedGoal(UUID)
+    /// 店里的一笔欠款 / 一次估的货值：还一期、删掉
+    case shopItem(UUID)
     // 设置里的
     case memoAdd, memoForget(UUID), deleteAsk, deleteConfirm, restore(UUID), feedback, books, accounts, categories, baseCurrency, goalNew, capitalTotal, memoTidy, memoMeet, monthlyPlan, subscriptionInfo(String), fixedEdit(String), apiKey, smallGoal(UUID?), holdBack, shopAccount
 
@@ -95,6 +97,7 @@ struct V3SheetHost: View {
                 case .finishedGoal(let id): V3FinishedGoalSheet(id: id)
                 case .holdBack: V3HoldBackSheet()
                 case .shopAccount: V3ShopAccountSheet()
+                case .shopItem(let id): V3ShopItemSheet(id: id)
                 }
             }
             .accessibilityAddTraits(.isModal)
@@ -673,6 +676,44 @@ struct V3GoalDeleteSheet: View {
                 V3FormPick(label: "里面存的 \(saved.v3) 放到哪", options: places.map(\.title), pick: $pick)
             } else {
                 V3Label("里面还没存钱，删掉不动别的。", size: 14)
+            }
+        }
+    }
+}
+
+/// 店里的一笔欠款或一次估的货值：分期的能还一期；记错了的能删掉。
+struct V3ShopItemSheet: View {
+    let id: UUID
+    @Environment(V3State.self) private var state
+    @State private var account = 0
+
+    var body: some View {
+        let b = state.book
+        let debt = b.shopDebts.first { $0.id == id }
+        let stock = b.stockEstimates.first { $0.id == id }
+        let item = debt ?? stock
+        let per = debt.flatMap { $0.off ? nil : $0.perPayment }.map { min($0, debt?.amount ?? $0) }
+        let held = b.shopHeld
+        V3SheetBox(width: 520, title: item?.name ?? "已经不在了", sub: item.map { stock != nil ? "估的货值 \($0.amount.v3)" : ($0.flag ? "欠店里 " : "店欠 ") + $0.amount.v3 } ?? "",
+                   primary: per.map { "还这一期 \($0.v3)" } ?? "好", teal: true, canSave: per == nil || !held.isEmpty, single: per == nil,
+                   save: {
+                       guard let per, let debt else { state.closeSheet(); return }
+                       let from = held.indices.contains(account) ? held[account].name : nil
+                       if state.change("还款记好了 · \(debt.name) \(per.v3)\(from.map { "，从\($0)出" } ?? "")", kind: .repay, { try $0.payShopInstallment(id, from: from) }) { state.closeSheet() }
+                   }) {
+            if let item {
+                if !item.note.isEmpty { V3Label(item.note, size: 14) }
+                if per != nil, !held.isEmpty { V3FormPick(label: "从哪个账户出", options: held.map(\.name), pick: $account, teal: true) }
+                HStack {
+                    Spacer()
+                    Button(stock != nil ? "删掉这次估的" : "记错了，删掉这笔") {
+                        let ok = state.change("已删掉：\(item.name) \(item.amount.v3)", kind: .remove) {
+                            if stock != nil { try $0.removeStockEstimate(id) } else { try $0.removeShopDebt(id) }
+                        }
+                        if ok { state.closeSheet() }
+                    }
+                    .buttonStyle(.v3(.danger, .small))
+                }
             }
         }
     }

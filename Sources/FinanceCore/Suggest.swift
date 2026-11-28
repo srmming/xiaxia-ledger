@@ -56,7 +56,9 @@ extension Ledger {
         var n = 0
         let out = incoming.map { t -> Transaction in
             guard t.flow == nil, t.category == nil || t.bookID == nil else { return t }
-            let g = s.guess(t.description)
+            var g = s.guess(t.description)
+            // 用户定过「这家店都算这一类」的，照他定的
+            if let fixed = placeCategory(for: t.description) { g.category = fixed }
             guard !g.isEmpty else { return t }
             var c = t
             if c.category == nil { c.category = g.category }

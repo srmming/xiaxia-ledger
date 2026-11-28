@@ -87,6 +87,10 @@ final class V3RenderTests: XCTestCase {
         try write(V3GoalsPage().padding(20).environment(s), "real-goals", to: dir)
         try write(V3WealthPage().padding(20).environment(s), "real-wealth", to: dir)
         try write(V3TransactionsPage().padding(20).environment(s), "real-transactions", to: dir)
+        // 整个窗口：夏夏在上面问「这家店那一笔，算不算某一类」
+        s.onboardingStep = nil; s.page = .transactions
+        try write(V3Shell().environment(s), "real-place-question", to: dir)
+        s.page = .overview
         try write(V3DebtsPage().padding(20).environment(s), "real-debts", to: dir)
         s.side = .biz
         try write(V3SalesPage().padding(20).environment(s), "real-sales", to: dir)
@@ -95,7 +99,12 @@ final class V3RenderTests: XCTestCase {
         try write(V3ShopWealthPage().padding(20).environment(s), "real-shop-wealth", to: dir)
         try write(V3BizDebtsPage().padding(20).environment(s), "real-biz-debts", to: dir)
         try write(V3CheckupPage().padding(20).environment(s), "real-checkup", to: dir)
+        // 补接的那几样：店里的分期点开（还这一期 / 删掉）、管理分类（换图标、删掉）
+        if let inst = s.book.shopDebts.first(where: { $0.perPayment != nil }) {
+            try write(V3ShopItemSheet(id: inst.id).padding(30).environment(s), "real-shop-item-sheet", to: dir)
+        }
         s.side = .life
+        try write(V3CategoriesSheet().padding(30).environment(s), "real-categories-sheet", to: dir)
         let demoLife = V3State(); demoLife.onboardingStep = nil
         try write(V3MonthlyPage().padding(20).environment(demoLife), "demo-monthly", to: dir)
         demoBiz.setMonth(.init(2026, 10))

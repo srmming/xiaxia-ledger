@@ -28,6 +28,33 @@ extension V3State {
         return false
     }
 
+    /// 正式账本上要问的那一句「这家店那一笔，算不算某一类」。试用数字、没有可问的都是 nil。
+    var placeQuestion: Ledger.PlaceQuestion? {
+        guard let real, prefs.speak["拿不准的流水"] != false else { return nil }
+        guard let q = real.placeQuestion(today: bookToday), book.entries.contains(where: { $0.id == q.transactionID }) else { return nil }
+        return q
+    }
+
+    /// 回答那一句。好：这一笔和同一家店的都归进去，并记进账本「以后这家店都算这一类」。不是：记进账本，以后不再问这家店。
+    @discardableResult
+    func answerPlaceQuestion(_ q: Ledger.PlaceQuestion, yes: Bool) -> Bool {
+        if yes {
+            let emoji = book.categories.first { $0.name == q.category }?.emoji ?? LedgerBridge.icon(for: q.category)
+            return change("归好了，以后「\(q.place)」都按\(q.category)", kind: .categorize) { try $0.recategorize(entry: q.transactionID, emoji: emoji, name: q.category, always: true) }
+        }
+        guard let model else { fail("这是试用数字"); return false }
+        do {
+            let who = author
+            let place = model.ledger.transactions.first { $0.id == q.transactionID }?.description ?? q.place
+            let change = try model.edit(quiet: true) { l in try l.skipPlaceQuestion(place, author: who) }
+            refreshFromModel()
+            noteRealUndo([change.id])
+            sayDone("好，「\(q.place)」先留着，以后不问这家了")
+            return true
+        } catch { fail((error as? LocalizedError)?.errorDescription ?? "没记上，账本没动") }
+        return false
+    }
+
     /// 生活这边从流水里认出来、还没问过的固定开销（正式账本自己的认法，和旧界面趋势页是同一份）。
     var fixedGuesses: [Outlook.FixedGuess] {
         guard let real else { return [] }

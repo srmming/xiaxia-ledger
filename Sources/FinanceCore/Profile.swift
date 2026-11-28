@@ -54,6 +54,8 @@ public struct CustomCategory: Codable, Hashable, Sendable {
     public var income: Bool
     /// 用户挑的图标（CategoryIcons 里的名字，如 "coffee"）；nil = 按名字自动配。
     public var icon: String?
+    /// 新界面里用户挑的图标（一个 emoji）；nil = 按名字自动配。老账本没有这个字段。
+    public var emoji: String?
     public init(name: String, income: Bool, icon: String? = nil) { self.name = name; self.income = income; self.icon = icon }
 }
 
@@ -73,6 +75,10 @@ public struct Profile: Codable, Hashable, Sendable {
     public var oneOff: [String: Bool]?
     /// 认出来、用户说「不算固定开销」的「账户|分类」，以后不再问。
     public var notFixed: [String]?
+    /// 「这家店以后都算这一类」：店名的钥匙（见 Ledger.placeKey）→ 分类名。老账本没有这个字段。
+    public var placeCategories: [String: String]?
+    /// 问过「这家店算不算某一类」、用户说不是的店，以后不再问。
+    public var placeSkipped: [String]?
 
     public init(persona: Persona = .gentle, aim: String? = nil, categories: [CustomCategory] = [],
                 assistantName: String? = nil, userCallName: String? = nil) {
@@ -93,7 +99,7 @@ public struct Profile: Codable, Hashable, Sendable {
             .replacingOccurrences(of: app, with: "夏夏账本")
     }
 
-    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName, memoryTidiedAt, oneOff, notFixed }
+    enum CodingKeys: String, CodingKey { case persona, aim, categories, assistantName, userCallName, memoryTidiedAt, oneOff, notFixed, placeCategories, placeSkipped }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -105,6 +111,8 @@ public struct Profile: Codable, Hashable, Sendable {
         memoryTidiedAt = try c.decodeIfPresent(Date.self, forKey: .memoryTidiedAt)
         oneOff = try c.decodeIfPresent([String: Bool].self, forKey: .oneOff)
         notFixed = try c.decodeIfPresent([String].self, forKey: .notFixed)
+        placeCategories = try c.decodeIfPresent([String: String].self, forKey: .placeCategories)
+        placeSkipped = try c.decodeIfPresent([String].self, forKey: .placeSkipped)
     }
 
     /// 「你的目标」示例，点一下就填。说法通用。
