@@ -1125,7 +1125,7 @@ struct V3DayPick: View {
     }
 }
 
-private struct V3FixedSheet: View {
+struct V3FixedSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""

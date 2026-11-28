@@ -49,6 +49,8 @@ final class V3RenderTests: XCTestCase {
             let day = V3State(); day.onboardingStep = nil; day.side = .biz
             try write(V3ShopDaySheet(start: day.book.todayDay, startKind: k).environment(day), "shop-day-\(k)", to: dir)
         }
+        let fixedState = V3State(); fixedState.onboardingStep = nil; fixedState.side = .biz
+        try write(V3FixedSheet().environment(fixedState), "fixed-sheet", to: dir)
         let goalsDemo = V3State(); goalsDemo.onboardingStep = nil
         try write(V3GoalsPage().padding(20).environment(goalsDemo), "demo-goals", to: dir)
         let subs = V3State(); subs.onboardingStep = nil
