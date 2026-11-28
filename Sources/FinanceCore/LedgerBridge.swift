@@ -146,8 +146,29 @@ public enum LedgerBridge {
             let m = month(ym, upTo: nil), before = month(ym.adding(months: -1), upTo: nil)
             guard m.income > .zero || m.expense > .zero else { return nil }
             let fixed = min(fixedAll, m.expense)
-            return TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: .zero, spent: m.expense - fixed,
-                                       slices: m.by.map { .init(emoji: emoji($0.key), name: $0.key, amount: $0.value, lastMonth: before.by[$0.key] ?? .zero) })
+            var d = TrialBook.MonthData(key: .init(ym.year, ym.month), income: m.income, fixed: fixed, forGoals: .zero, spent: m.expense - fixed,
+                                        slices: m.by.map { .init(emoji: emoji($0.key), name: $0.key, amount: $0.value, lastMonth: before.by[$0.key] ?? .zero) })
+            // 第 7 步：那个月底的家底（生活这边每个账户到月底的余额：正的算有，信用卡欠的算欠；借的钱和分期按现在的算，过去的没法倒推）
+            var have = Money.zero, owe = Money.zero
+            for a in ledger.accounts where !hidden.contains(a.id) && !bizAccounts.contains(a.id) {
+                let bal = ledger.transactions.filter { $0.accountID == a.id && $0.date.yearMonth <= ym }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
+                if a.kind == .credit { owe = owe + (bal < .zero ? bal.magnitude : .zero) } else { have = have + max(bal, .zero) }
+            }
+            let realNames = Set(ledger.accounts.map(\.name))
+            owe = owe + accounts.filter { $0.side == .life && $0.kind == .debt && !realNames.contains($0.name) }.map(\.balance).reduce(.zero, +)
+            have = have + accounts.filter { $0.kind == .lent }.map(\.balance).reduce(.zero, +)
+            d.have = have; d.owe = owe; d.net = have - owe
+            // 那个月花到「和今天同一天」时花了多少（比上月同期用）
+            if k == 1 { d.sameDaySpent = month(ym, upTo: LocalDate(year: ym.year, month: ym.month, day: min(today.day, 28))).expense }
+            // 那个月记的几笔（最大的几笔），和店里收的、花的
+            d.entries = lifeTx.filter { $0.date.yearMonth == ym && $0.amount < .zero && !$0.isTransfer }.sorted { $0.amount < $1.amount }.prefix(8).map { t in
+                .init(id: t.id, emoji: emoji(t.category), name: t.category ?? "还没分", meta: "\(t.description) · \(names[t.accountID] ?? t.accountID)", amount: ledger.baseAmount(t),
+                      tag: t.source ?? "", daysAgo: days(from: t.date, to: today), place: t.description, account: names[t.accountID] ?? t.accountID)
+            }
+            let shop = plain.filter { side($0) == .biz && $0.date.yearMonth == ym && !$0.isTransfer }
+            d.shopIn = shop.filter { $0.amount > .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
+            d.shopOut = shop.filter { $0.amount < .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }.magnitude
+            return d
         }
         // 订阅，和 7 天内要扣的
         let subs = Subscriptions.status(ledger, today: today)

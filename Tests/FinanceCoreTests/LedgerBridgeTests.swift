@@ -74,8 +74,13 @@ final class LedgerBridgeTests: XCTestCase {
         XCTAssertEqual(b.entries.map(\.daysAgo), b.entries.map(\.daysAgo).sorted())
         XCTAssertTrue(b.entries.allSatisfy { $0.daysAgo >= 0 && $0.daysAgo <= 90 })
         XCTAssertFalse(b.entries.isEmpty)
-        // 过去的月份能切
+        // 过去的月份能切，每个月都有自己的家底；「比上个月」两句有数可比
         XCTAssertGreaterThan(b.months.count, 1)
+        for m in b.pastMonths {
+            XCTAssertEqual(m.have - m.owe, m.net, "\(m.key.month) 月底：净剩 = 有 − 欠")
+            XCTAssertEqual(m.sliceTotal, m.spentTotal, "\(m.key.month) 月：分类加起来 = 一共花掉")
+        }
+        XCTAssertNotNil(b.netMoreThanLastMonth); XCTAssertNotNil(b.spentLessThanLastMonthSameDay)
         XCTAssertFalse(b.pastMonths.contains { $0.key == b.thisMonth })
     }
 
