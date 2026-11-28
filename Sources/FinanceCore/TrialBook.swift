@@ -1241,6 +1241,10 @@ public struct TrialBook: Equatable, Sendable {
         public var entryID: UUID?
     }
 
+    /// 这个月店里收的钱是不是已经全在「每天收了多少」（shopDays）里了。
+    /// 从正式账本整理过来时是：同一笔收入既在 shopDays 里、也在流水（entries）里，生意流水只按 shopDays 算一次。
+    public var shopDaysHoldIncome = false
+
     /// 这个月的生意流水：每天按渠道收的钱 + 记的每笔开销，新的在前。
     public var shopFlow: [ShopFlowRow] {
         var rows: [ShopFlowRow] = []
@@ -1252,6 +1256,8 @@ public struct TrialBook: Equatable, Sendable {
         for e in entries where e.side == .biz {
             let day = todayDay - e.daysAgo
             guard day >= 1 else { continue }
+            // 这笔收入已经按「那天收了多少」算过了，不再算第二次
+            if shopDaysHoldIncome, e.amount > .zero { continue }
             rows.append(ShopFlowRow(id: e.id.uuidString, emoji: e.emoji, title: e.name, detail: [e.place, e.account].filter { !$0.isEmpty }.joined(separator: " · "),
                                     amount: e.amount, day: day, entryID: e.id))
         }

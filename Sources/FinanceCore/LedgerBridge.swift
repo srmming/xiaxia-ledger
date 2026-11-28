@@ -135,6 +135,7 @@ public enum LedgerBridge {
         b.showBiz = !bizBooks.isEmpty
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
+        b.memos = memos(of: ledger)
         b.smallGoals = small
         b.bigGoalAccount = bigAccount
         b.bigGoalOwnsAccount = false
@@ -184,6 +185,7 @@ public enum LedgerBridge {
         // 店：这个月每天收了多少（按账户分渠道）
         if !bizBooks.isEmpty {
             let income = plain.filter { side($0) == .biz && $0.date.yearMonth == today.yearMonth && $0.amount > .zero && !$0.isTransfer }
+            b.shopDaysHoldIncome = true
             b.shopDays = (1...daysInMonth(today)).map { d in
                 let rows = income.filter { $0.date.day == d }
                 guard d <= today.day else { return .init(day: d, cash: .zero, card: .zero, state: .future) }
@@ -219,7 +221,7 @@ extension LedgerBridge {
         ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
             + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
             + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
-            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)",
+            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", 
                "shop|\(b.purchases.count)|\(b.shopDebts.map { "\($0.name)\($0.off)" }.joined())|\(b.capital.count)|\(b.capitalTotal.cents)|\(b.stockEstimates.count)|\(b.wanted.count)"]
             + b.shopDays.map { "day|\($0.day)|\($0.state)|\($0.total.cents)" }
     }
@@ -241,6 +243,12 @@ extension LedgerBridge {
         var goalWork = ledger
         if let records = try applyGoals(before: before, after: after, to: &goalWork, today: today, author: who) {
             ledger = goalWork
+            return records
+        }
+        // 第 8 步：夏夏的记忆、账本改名
+        var moreWork = ledger
+        if let records = try applyMemos(before: before, after: after, to: &moreWork, today: today, author: who) ?? applyNames(before: before, after: after, to: &moreWork, author: who) {
+            ledger = moreWork
             return records
         }
         guard shape(before) == shape(after) else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }

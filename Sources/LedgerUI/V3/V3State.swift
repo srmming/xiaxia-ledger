@@ -84,7 +84,10 @@ final class V3State {
     private(set) var ledger: TrialLedger
     var book: Book { ledger.book }
     /// 记账人：写进每条改动记录。
-    var author = "你"
+    var author = "你" {
+        // 接着 app 的账本：记账人是同一个，改了一起改
+        didSet { if let model, model.author != author { model.author = author } }
+    }
     var page: Page = .overview
     var side: Side = .life
     /// 管哪边（存在账本里：showLife / showBiz）。引导里选的就是给这两个开关设初值，不留改动记录。
@@ -252,6 +255,57 @@ final class V3State {
     /// 只看不写：这一版界面接的是正式账本的只读数，写入还没接。
     var readOnly = false
 
+    /// 交给夏夏的流水文件里的字（文件名 → 内容）。只留在内存里，确认以后才导。
+    var statementFiles: [String: String] = [:]
+
+    /// 记住一份流水文件的内容。读不成字的（PDF、Excel、图片）不记。
+    func keepStatement(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url), data.count < 5_000_000 else { return }
+        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1), !text.contains("\u{0}") else { return }
+        statementFiles[url.lastPathComponent] = text
+    }
+
+    /// 正式账本里能收流水的账户（银行卡、现金、储蓄、信用卡）。
+    var statementAccounts: [String] { real?.accounts.map(\.name) ?? [] }
+
+    /// 一份流水放进某个账户会怎么样：只数，不写。
+    func checkStatement(_ name: String, account: String) throws -> LedgerBridge.StatementCheck {
+        guard var l = real else { throw TrialError("这是试用数字") }
+        guard let text = statementFiles[name] else { throw TrialError("这份文件我在这里读不了") }
+        return try LedgerBridge.importStatement(text: text, fileName: name, accountName: account, to: &l, author: author, dryRun: true).check
+    }
+
+    /// 把一份流水真的导进正式账本：重复的跳过，整批能撤销。返回进来几笔。
+    @discardableResult
+    func importStatement(_ name: String, account: String) -> LedgerBridge.StatementCheck? {
+        guard !readOnly, var l = real else { fail("这一版还只能看。要导入，先回旧界面"); return nil }
+        guard let text = statementFiles[name] else { fail("这份文件我在这里读不了"); return nil }
+        do {
+            var done: LedgerBridge.StatementCheck?
+            var changeID: UUID?
+            if let model {
+                try model.edit(quiet: true) { live in
+                    let r = try LedgerBridge.importStatement(text: text, fileName: name, accountName: account, to: &live, author: self.author)
+                    guard let c = r.change else { throw TrialError("没有新的") }
+                    done = r.check; changeID = c.id
+                    return c
+                }
+                l = model.ledger
+            } else {
+                let r = try LedgerBridge.importStatement(text: text, fileName: name, accountName: account, to: &l, author: author)
+                done = r.check; changeID = r.change?.id
+            }
+            withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
+            if let changeID { realUndo.append(changeID) }
+            localUndo = nil
+            if let done { show(Toast(text: "进来 \(done.fresh) 笔\(done.duplicates > 0 ? "，跳过重复 \(done.duplicates) 笔" : "")", canUndo: true)) }
+            return done
+        } catch let e as TrialError { fail(e.message) } catch { fail((error as? LocalizedError)?.errorDescription ?? "没导成，账本没动") }
+        return nil
+    }
+
     // MARK: 做一件事：马上有回应，能撤销
 
     func say(_ text: String) { localUndo = nil; show(Toast(text: text)) }
@@ -350,10 +404,23 @@ final class V3State {
     }
 
     /// 整本换掉（从备份恢复、换回示例）。
-    func replaceLedger(_ l: TrialLedger) { ledger = l }
+    func replaceLedger(_ l: TrialLedger) { guard real == nil else { return }; ledger = l }
 
     /// 彻底忘掉一条记忆：不留记录，也撤不回来。
     func forget(memo id: UUID) {
+        if var l = real {
+            // 正式账本：用它自己的「彻底忘掉」（连改动记录里的旧样子一起抹掉，撤不回来）
+            guard !readOnly else { fail("这一版还只能看"); return }
+            do {
+                if let model {
+                    try model.edit(quiet: true) { live in try live.forgetMemory(id, author: self.author) }
+                    l = model.ledger
+                } else { try l.forgetMemory(id, author: author) }
+                withAnimation(.spring(duration: 0.45)) { real = l; resnapshot() }
+                say("忘掉了")
+            } catch { fail((error as? LocalizedError)?.errorDescription ?? "没忘成，再试一次") }
+            return
+        }
         do { try ledger.forget(memo: id); say("忘掉了") } catch let e as TrialError { fail(e.message) } catch { fail("没忘成，再试一次") }
     }
 

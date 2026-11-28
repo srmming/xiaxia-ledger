@@ -18,6 +18,24 @@ final class V3RenderTests: XCTestCase {
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
     }
 
+    /// 正式账本上那张流水确认卡、设置首页（数据是内存里的示例账本和一份编出来的流水）。
+    func testRenderRealLedgerCardsOffscreen() throws {
+        guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_REAL_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_REAL_DIR") }
+        let model = LedgerModel.demo()
+        let s = V3State(model: model)
+        s.statementFiles["晴空银行 流水.csv"] = "Fecha;Concepto;Importe\n03/11/2026;Papeleria Nube;-7,35\n04/11/2026;Cafe Brisa;-3,10\nTOTAL;;-10,45\n"
+        let m = s.statementReply("晴空银行 流水.csv", account: s.statementAccounts.first ?? "")
+        var done = m; done.done = "进来 2 笔，放在「\(s.statementAccounts.first ?? "")」。不对就点底下的「撤销」"
+        let cards = VStack(alignment: .leading, spacing: 24) {
+            if let c = m.confirm { V3ConfirmCard(message: m, confirm: c).frame(width: 460) }
+            if let c = done.confirm { V3ConfirmCard(message: done, confirm: c).frame(width: 460) }
+        }
+        try write(cards.environment(s), "real-statement-card", to: dir)
+        s.page = .settings
+        try write(V3SettingsPage().environment(s), "real-settings-home", to: dir)
+        XCTAssertNotNil(s.model); _ = model
+    }
+
     func testRenderOnboardingOffscreen() throws {
         guard let dir = ProcessInfo.processInfo.environment["XIAXIA_RENDER_DIR"] else { throw XCTSkip("没设 XIAXIA_RENDER_DIR") }
         for step in 0..<5 {

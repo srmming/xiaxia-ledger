@@ -47,6 +47,8 @@ extension V3State {
     enum Confirm: Equatable {
         case receipt(place: String, amount: Money, account: String)
         case statement(name: String, total: Int, added: Int, skipped: Int)
+        /// 正式账本上的流水：真读了文件，放进哪个账户能换。
+        case realStatement(name: String, account: String, added: Int)
     }
 
     /// 把一个文件交给夏夏：打开聊天，带上文件，她回一张确认卡。哪儿拖进来的、哪儿点的「导入流水」，都走这里。
@@ -57,6 +59,15 @@ extension V3State {
             let scoped = url.startAccessingSecurityScopedResource()
             image = NSImage(contentsOf: url)
             if scoped { url.stopAccessingSecurityScopedResource() }
+            if image == nil { keepStatement(url) }
+        }
+        // 正式账本上没有「示例流水」：没给文件就让人挑一个
+        if real != nil, url == nil {
+            if showAdd { showAdd = false }
+            if sheet != nil { closeSheet() }
+            openChat()
+            chat.append(.init(mine: false, text: "把银行导出的 CSV 流水拖到这里，或者点输入框旁边的回形针选文件。我先数给你看，你点了才导。"))
+            return
         }
         let name = url?.lastPathComponent ?? "晴空银行 11 月流水.csv"
         if showAdd { showAdd = false }
@@ -74,7 +85,24 @@ extension V3State {
         var thumb: NSImage?
         if case .image(let img, _) = a { thumb = img }
         chat.append(.init(mine: true, text: text, attachment: a.label, thumb: thumb))
-        let reply: ChatMessage
+        var reply: ChatMessage
+        if real != nil {
+            // 正式账本：不演。读得了的真读，读不了的直说，绝不记示例里的数
+            switch a {
+            case .image:
+                reply = .init(mine: false, text: "照片上的字我在这里还读不了。小票可以点「记一笔」说一句；或者在 Claude 里把照片发给它，说「记进夏夏账本」。")
+            case .file(let name):
+                reply = statementReply(name, account: statementAccounts.first ?? "")
+            case .link:
+                return false
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(0.3))
+                self?.chat.append(reply)
+                self?.lastSaid = (reply.text, Date())
+            }
+            return true
+        }
         switch a {
         case .image:
             let account = book.accounts(for: .pay, side: .life).first?.name ?? ""
@@ -97,6 +125,19 @@ extension V3State {
             self?.lastSaid = (reply.text, Date())
         }
         return true
+    }
+
+    /// 正式账本上，一份流水放进某个账户的那张确认卡（只数，不写）。
+    func statementReply(_ name: String, account: String) -> ChatMessage {
+        guard statementFiles[name] != nil else {
+            return .init(mine: false, text: "这种文件我在这里还读不了，现在只读得了 CSV。PDF、Excel 可以在 Claude 里发给它，说「导进夏夏账本」，它读完会先问你。")
+        }
+        do {
+            let c = try checkStatement(name, account: account)
+            let unread = c.unread > 0 ? "，有 \(c.unread) 行没读懂（多半是合计行）" : ""
+            return .init(mine: false, text: "读到 \(c.total) 笔，新的 \(c.fresh)、账本里已经有的 \(c.duplicates)\(unread)。放进「\(account)」？",
+                         confirm: .realStatement(name: name, account: account, added: c.fresh))
+        } catch let e as TrialError { return .init(mine: false, text: e.message) } catch { return .init(mine: false, text: "这份文件没读成，账本没动") }
     }
 
     /// 页面有话要说（或者没话了）。
@@ -368,7 +409,7 @@ struct V3ChatPage: View {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         // 图片当小票或者想买的东西；别的文件当银行流水
         if let img = NSImage(contentsOf: url) { state.chatAttachment = .image(img, url.lastPathComponent) }
-        else { state.chatAttachment = .file(url.lastPathComponent) }
+        else { state.keepStatement(url); state.chatAttachment = .file(url.lastPathComponent) }
     }
 
     private func bubble(_ text: String, mine: Bool, lead: Bool = false) -> some View {
@@ -436,12 +477,19 @@ struct V3ChatPage: View {
         let m = b.month
         let j = b.journey
         if let p = QuickPhrase.parse(q), q.contains("记") || q.contains("花了") || q.contains("买了") || q.contains("块") {
-            state.record(p, account: "现金")
-            return "记好了：\(p.name) \(p.amount.v3)，现金。记错了点底下的「撤销」。"
+            let pay = b.accounts(for: .pay, side: .life).map(\.name)
+            guard let account = pay.first(where: { $0 == "现金" }) ?? pay.first else { return "还没有能付钱的账户，先去加一个。" }
+            let before = b.entries.count
+            state.record(p, account: account)
+            guard state.book.entries.count > before else { return "这笔没记上，看一下底下的提示。" }
+            return "记好了：\(p.name) \(p.amount.v3)，\(account)。记错了点底下的「撤销」。"
         }
         if q.contains("记一笔") || q.contains("帮我记") { return "说一句就行，比如「午饭 12,5」。我听出金额就直接记。" }
         if q.contains("还能花") || q.contains("随便花") {
             return "还能随便花 \(m.left.v3)。到月底还有 \(m.daysLeft) 天，平均每天 \(Money(cents: m.perDay.cents / 100 * 100).v3Short)。"
+        }
+        if state.real != nil, q.contains("信用卡") || q.contains("下个月") {
+            return "这句我现在答不准。在设置的「决策模型」里填上 OpenRouter 密钥，我就带着账本里的数来答；或者直接问你连着的 AI。"
         }
         if q.contains("信用卡") {
             let card = b.debts.first { $0.name == "信用卡" }?.balance ?? .zero
@@ -453,7 +501,11 @@ struct V3ChatPage: View {
             if j.isFinished { return "已经存够了，\(j.total.v3Short)。去把它带回家吧。" }
             return "还差 \(j.remainingToEnd.v3Short)。照每月存 \(j.monthlyPlan.v3Short)，大概\(V3State.monthName(after: j.monthsToFinish() ?? 0))到手。"
         }
-        if q.contains("花多") { return "这个月没有哪样花多了：一共 \(m.spentTotal.v3)，比上月同期少。" }
+        if q.contains("花多") {
+            guard let less = b.spentLessThanLastMonthSameDay else { return "这个月一共花掉 \(m.spentTotal.v3)。上个月的数还不够，比不了。" }
+            return less >= .zero ? "这个月一共花掉 \(m.spentTotal.v3)，比上月同期少 \(less.v3)。" : "这个月一共花掉 \(m.spentTotal.v3)，比上月同期多 \(less.magnitude.v3)。"
+        }
+        if state.real != nil { return "这句我答不了。在设置的「决策模型」里填上 OpenRouter 密钥，我就带着账本里的数来答；或者直接问你连着的 AI。" }
         return "这是试用版，我还没接上 AI，只会答下面那几句。正式版里这句话会交给你连着的 AI 来答。"
     }
 }
@@ -464,6 +516,7 @@ struct V3ConfirmCard: View {
     let message: V3State.ChatMessage
     let confirm: V3State.Confirm
     @Environment(V3State.self) private var state
+    @State private var picking = false
 
     private func mark(_ done: String) {
         if let i = state.chat.firstIndex(where: { $0.id == message.id }) { state.chat[i].done = done }
@@ -491,6 +544,30 @@ struct V3ConfirmCard: View {
                             state.closeChat(); state.open(.manual)
                         }
                         .buttonStyle(.v3(.ghost, .small))
+                    }
+                case .realStatement(let name, let account, let added):
+                    HStack(spacing: 8) {
+                        Button("导进来") {
+                            if let done = state.importStatement(name, account: account) { mark("进来 \(done.fresh) 笔，放在「\(account)」。不对就点底下的「撤销」") }
+                        }
+                        .buttonStyle(.v3(.primary, .small)).disabled(added == 0)
+                        Button(picking ? "收起" : "换个账户") { withAnimation(.snappy(duration: 0.15)) { picking.toggle() } }
+                            .buttonStyle(.v3(.ghost, .small))
+                    }
+                    if picking {
+                        // 换一个账户：重新数一遍（还是只数不写）
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(state.statementAccounts.filter { $0 != account }, id: \.self) { other in
+                                Button(other) {
+                                    let next = state.statementReply(name, account: other)
+                                    if let i = state.chat.firstIndex(where: { $0.id == message.id }) {
+                                        state.chat[i].text = next.text; state.chat[i].confirm = next.confirm
+                                    }
+                                    picking = false
+                                }
+                                .buttonStyle(.v3(.ghost, .small))
+                            }
+                        }
                     }
                 case .statement(_, _, let added, _):
                     HStack(spacing: 8) {

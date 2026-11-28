@@ -77,7 +77,15 @@ extension V3State {
         }
     }
 
-    func openSettings(_ sub: SettingsSub) { withAnimation(.snappy(duration: 0.2)) { settingsSub = sub } }
+    /// 接着正式账本时还没接上的几页：点了直说，不开那页演示的样子。
+    static let notWiredSettings: Set<SettingsSub> = [.ai, .sync, .data, .money, .business]
+
+    func openSettings(_ sub: SettingsSub) {
+        if real != nil, Self.notWiredSettings.contains(sub) { fail("「\(sub.title)」在新界面里还没接上，先回旧界面的设置里改"); return }
+        openSettingsPage(sub)
+    }
+
+    private func openSettingsPage(_ sub: SettingsSub) { withAnimation(.snappy(duration: 0.2)) { settingsSub = sub } }
 
     func copy(_ text: String, say message: String = "复制好了") {
         NSPasteboard.general.clearContents()
@@ -87,6 +95,7 @@ extension V3State {
 
     /// 试用版里连 AI 是演出来的：不碰这台 Mac 上任何 AI 的设置。
     func connect(_ id: String) {
+        guard real == nil else { fail("连 AI 这一页在新界面里还没接上，先回旧界面的设置里连"); return }
         guard let i = aiLinks.firstIndex(where: { $0.id == id }) else { return }
         withAnimation(.snappy) { aiLinks[i].state = .testing; aiLinks[i].note = "正在测能不能读到账本…" }
         Task { @MainActor [weak self] in
@@ -99,6 +108,7 @@ extension V3State {
 
     /// 删掉全部数据：先留一份备份，再删。
     func deleteEverything() {
+        guard real == nil else { fail("删全部数据在新界面里还没接上，账本没动。先回旧界面"); return }
         let stamp = Date().formatted(date: .omitted, time: .shortened)
         backups.insert(V3Backup(title: "删除前 · 今天 \(stamp)", ledger: ledger), at: 0)
         if backups.count > 10 { backups.removeLast() }
@@ -106,6 +116,7 @@ extension V3State {
     }
 
     func restore(_ id: UUID) {
+        guard real == nil else { fail("恢复备份在新界面里还没接上，账本没动。先回旧界面"); return }
         guard let b = backups.first(where: { $0.id == id }) else { fail("这份备份已经不在了"); return }
         let stamp = Date().formatted(date: .omitted, time: .shortened)
         let now = V3Backup(title: "恢复前 · 今天 \(stamp)", ledger: ledger)
@@ -280,7 +291,8 @@ struct V3SettingsPage: View {
         let b = state.book
         let linked = state.aiLinks.filter { $0.state == .using || $0.state == .linked }
         let speakOn = V3SetSpeakPage.items.filter { state.prefs.speak[$0.0] ?? true }.count
-        let today = state.ledger.changes.filter { !$0.undone }.count
+        // 正式账本上按真的日期数；试用数字里的改动都算今天的
+        let today = state.ledger.changes.filter { !$0.undone && (state.real == nil || Calendar.current.isDateInToday($0.createdAt)) }.count
         return V3Cols {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -292,8 +304,8 @@ struct V3SettingsPage: View {
                         Button("连接你的 AI") { state.openSettings(.ai) }.buttonStyle(.v3)
                     }
                     .padding(.bottom, 8)
-                    V3SetLink(title: (state.ai == nil && !state.hasOpenRouterKey) || linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: "管理连接",
-                              value: linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、")) { state.openSettings(.ai) }
+                    V3SetLink(title: state.real != nil ? "管理连接" : (state.ai == nil && !state.hasOpenRouterKey) || linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: state.real != nil ? "先在旧界面的设置里管" : "管理连接",
+                              value: state.real != nil ? "" : linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、")) { state.openSettings(.ai) }
                     V3SetRow(title: "🔗 复制配置指令", sub: "复制一段话，粘给任何 AI，它会自己把夏夏账本配好") {
                         Button("复制") { state.copy(V3State.configPrompt, say: "已复制，粘贴给你的 AI 就行") }.buttonStyle(.v3(.ghost, .small))
                     }
@@ -315,8 +327,8 @@ struct V3SettingsPage: View {
                 V3SetGroup(title: "账本") {
                     V3SetLink(title: "账本与账户", sub: "账本、账户、分类", value: "\(state.mode == .both ? 2 : 1) 个账本 · \(b.accounts.count) 个账户", line: false) { state.openSettings(.books) }
                     V3SetLink(title: "管哪边", sub: "生活、生意各一个开关", value: state.mode == .both ? "生活 + 生意" : state.showsBiz ? "只管生意" : "只管生活") { state.openSettings(.business) }
-                    V3SetLink(title: "钱怎么进来", sub: "流水、小票、跟 AI 说一句", value: "上次：今天") { state.openSettings(.money) }
-                    V3SetLink(title: "同步与币种", sub: "账本放在哪、更新、汇率", value: "● 试用账本 · 欧元 €") { state.openSettings(.sync) }
+                    V3SetLink(title: "钱怎么进来", sub: "流水、小票、跟 AI 说一句", value: state.real != nil ? "" : "上次：今天") { state.openSettings(.money) }
+                    V3SetLink(title: "同步与币种", sub: "账本放在哪、更新、汇率", value: state.real != nil ? "正式账本" : "● 试用账本 · 欧元 €") { state.openSettings(.sync) }
                     V3SetLink(title: "改动记录", sub: "每一次改动都能撤销", value: "今天 \(today) 次") { withAnimation(.snappy(duration: 0.2)) { state.showLog = true } }
                 }
                 V3SetGroup(title: "数据和帮助", grow: true) {
