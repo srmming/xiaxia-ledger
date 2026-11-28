@@ -535,6 +535,8 @@ struct P3ShopWealthPage: View {
                 P3Label("店里能用的钱")
                 P3Gold(amount: have, size: 44)
                 Text("欠着 \(owe.p3Short) · 和生活的钱完全分开").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
+                // 店的净值是负数时说一句（和 Mac 同一句话）
+                if let note = b.shopWorthNote { Text(note).font(P3.font(13, .bold)).foregroundStyle(P3.red) }
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
             P3AccountActions()
