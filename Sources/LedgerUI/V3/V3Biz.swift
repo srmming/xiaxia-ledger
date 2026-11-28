@@ -534,7 +534,9 @@ struct V3BizDebtsPage: View {
                 V3RowList(rows: owe.prefix(3).map { d in
                     d.off ? .init(d.emoji, d.name, d.note, "0,00 €", V3.green, tag: "还清了", tone: .green)
                           : .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, tag: d.id == first?.id ? "先还这个" : "", tone: .red)
-                } + [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "350,00 € / 月", V3.red, tag: "按月还就行")],
+                } + b.shopOwedAccounts.filter(\.isCreditCard).map { c in
+                    .init(c.emoji, c.name, c.note, c.balance.v3, V3.red, action: { state.accountFocus = c.name; state.open(.accounts) })
+                } + [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "\(b.shopLoanMonthly.v3) / 月", V3.red, tag: "按月还就行")],
                           compact: owe.count > 2, fill: true)
                 V3Periods(total: 36, done: 12, color: V3.teal, height: 14)
                 V3Label("装修贷款 · 36 期还了 12 期")

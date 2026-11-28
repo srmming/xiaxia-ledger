@@ -35,6 +35,10 @@ public struct Account: Identifiable, Hashable, Codable, Sendable {
     public var isPrivate: Bool
     /// 账户的币种（三个字母，如 USD）。nil = 账本的主币种。流水金额就是这个币种的。
     public var currency: String?
+    /// 新界面（v3）的家底页：置顶成卡片时排第几张（0 起）。nil = 没置顶。只加不改：老账本没有这个字段，老版本读到也不会出错。
+    public var cardPin: Int?
+    /// 卡片底色是第几种。nil = 按种类自动给。
+    public var cardStyle: Int?
 
     public init(id: String, name: String, kind: AccountKind, institution: String? = nil, isPrivate: Bool = false,
                 currency: String? = nil) {
@@ -42,7 +46,7 @@ public struct Account: Identifiable, Hashable, Codable, Sendable {
         self.currency = currency?.uppercased()
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, kind, institution, isPrivate, currency }
+    enum CodingKeys: String, CodingKey { case id, name, kind, institution, isPrivate, currency, cardPin, cardStyle }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -52,6 +56,8 @@ public struct Account: Identifiable, Hashable, Codable, Sendable {
         institution = try c.decodeIfPresent(String.self, forKey: .institution)
         isPrivate = try c.decodeIfPresent(Bool.self, forKey: .isPrivate) ?? false
         currency = try c.decodeIfPresent(String.self, forKey: .currency)
+        cardPin = try c.decodeIfPresent(Int.self, forKey: .cardPin)
+        cardStyle = try c.decodeIfPresent(Int.self, forKey: .cardStyle)
     }
 }
 

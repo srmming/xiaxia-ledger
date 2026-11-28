@@ -315,17 +315,23 @@ struct V3TrendsPage: View {
 
     var body: some View {
         let run = state.book.handRunway
-        let due = Money(cents: gym == true ? 1_561_00 : 1_532_00)
+        // 都从账本现算（TrialMonths.swift）：月底大概花、接下来要付的
+        let b = state.book
+        let due = b.upcomingTotal + (gym == true ? Money(cents: 29_00) : .zero)
+        let end = b.projectedMonthSpend
+        let last = b.previousMonthData?.spentTotal
         V3Cols(left: 1.3, right: 1) {
             VStack(spacing: 14) {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 2) {
                         V3Label("照这样花，月底大概花")
-                        V3Gold(amount: Money(cents: 1_344_00), size: 44, whole: true)
-                        V3Label("比上个月少 96 €", color: V3.green, weight: .bold)
+                        V3Gold(amount: end, size: 44)
+                        if let last {
+                            V3Label(end <= last ? "比上个月少 \((last - end).v3Short)" : "比上个月多 \((end - last).v3Short)", color: end <= last ? V3.green : V3.navy, weight: .bold)
+                        }
                     }
                     .padding(.horizontal, 18).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading).v3Sticker()
-                    stat("12 月要付", due.v3, "钱够，还多 \((Money(cents: 2_340_00) - due).v3Short)", V3.green)
+                    stat("接下来要付", due.v3, b.month.income >= due ? "进账够付，还多 \((b.month.income - due).v3Short)" : "比进账多 \((due - b.month.income).v3Short)", b.month.income >= due ? V3.green : V3.red)
                     stat("没了收入，钱还能撑", "\(run.monthsText) 个月", "按平时每月花算", V3.ink2)
                 }
                 .fixedSize(horizontal: false, vertical: true)

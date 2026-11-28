@@ -351,10 +351,12 @@ final class V3StateTests: XCTestCase {
         s.undo(); XCTAssertEqual(s.real?.transactions.count, n + 1)
         s.undo(); XCTAssertEqual(s.real?.transactions.count, n, "记的那一笔也撤掉了")
         XCTAssertEqual(s.book.account(acc)?.balance, before)
-        // 还没接的（账户、目标、转账…）：拒绝，正式账本一个字不动
+        // 还没接的（目标、订阅、转账…）：拒绝，正式账本一个字不动
         let snapshot = s.real
-        XCTAssertFalse(s.change("加") { try $0.addAccount(emoji: "💳", name: "新卡", note: "", balance: .zero, kind: .own) })
+        let two = s.book.transferSources(.life).prefix(2).map(\.name)
+        XCTAssertFalse(s.change("转") { try $0.move(self.eur("10"), from: two[0], to: two[1]) })
         XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertFalse(s.change("改") { try $0.setMonthlyPlan(self.eur("123")) })
         XCTAssertEqual(s.real, snapshot)
         // 没写记账人：不让写
         s.author = "  "
@@ -474,10 +476,104 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(oct.have - oct.owe, oct.net, "月底净剩 = 有 − 欠")
         XCTAssertEqual(s.book.netChange(in: .init(2026, 10)), eur("385,41"))
         XCTAssertEqual(oct.left, eur("635,60"), "总览切到 10 月和小结用的是同一份")
+        // 趋势页的两个数也是现算的
+        XCTAssertEqual(s.book.projectedMonthSpend, eur("1535,39"), "已经花掉 1.163,39 + 一天 31 × 还有 12 天")
+        XCTAssertEqual(s.book.upcomingTotal, eur("1490"), "房租 650 + 信用卡 640 + 手机分期 200")
         // 记一笔以后，「比上月同期」跟着变
         XCTAssertTrue(s.change("记") { try $0.record(name: "餐饮", emoji: "🥗", amount: self.eur("86"), account: "日常卡") })
         XCTAssertEqual(s.book.spentLessThanLastMonthSameDay, .zero)
         XCTAssertEqual(s.book.netMoreThanLastMonth, eur("404"))
+    }
+
+    func testRealLedgerAccountChanges() {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        let real = DemoData.make(endingOn: day)
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        let have = s.book.inHand, n = real.accounts.count
+        // 加一个账户（带现有的钱）：正式账本多一个账户 + 一笔期初余额；合计多这么多
+        XCTAssertTrue(s.change("加") { try $0.addAccount(emoji: "💳", name: "新开的卡", note: "", balance: self.eur("300"), kind: .own) })
+        XCTAssertEqual(s.real?.accounts.count, n + 1)
+        let id = s.real!.accounts.last!.id
+        XCTAssertEqual(s.real?.transactions.last?.flow, .opening)
+        XCTAssertEqual(s.book.account("新开的卡")?.balance, eur("300"))
+        XCTAssertEqual(s.book.inHand, have + eur("300"))
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        // 改名 + 改余额：账户改名，期初余额挪了差的那么多，流水一笔没多
+        let txs = s.real!.transactions.count
+        XCTAssertTrue(s.change("改") { try $0.editAccount("新开的卡", newName: "旅行卡", balance: self.eur("450"), secret: false) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.name, "旅行卡")
+        XCTAssertEqual(s.book.account("旅行卡")?.balance, eur("450"))
+        XCTAssertEqual(s.real?.transactions.count, txs)
+        // 置顶、换底色、换先后：记在正式账本的账户上（只加了两个字段）
+        XCTAssertTrue(s.change("置顶") { try $0.setPinned("旅行卡", true) })
+        XCTAssertNotNil(s.real?.accounts.first { $0.id == id }?.cardPin)
+        XCTAssertTrue(s.book.pinned(on: .life).contains { $0.name == "旅行卡" })
+        XCTAssertTrue(s.change("换") { try $0.setCardStyle("旅行卡", 3) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.cardStyle, 3)
+        XCTAssertEqual(s.book.account("旅行卡")?.cardLook, 3)
+        XCTAssertTrue(s.change("排") { try $0.movePin("旅行卡", to: 0) })
+        XCTAssertEqual(s.real?.accounts.first { $0.id == id }?.cardPin, 0)
+        XCTAssertEqual(s.book.pinned(on: .life).first?.name, "旅行卡")
+        // 存下来再读回来：字段还在；没有这两个字段的老数据照样读得出来
+        let data = try! JSONEncoder().encode(s.real!.accounts.first { $0.id == id }!)
+        XCTAssertEqual(try! JSONDecoder().decode(FinanceCore.Account.self, from: data).cardStyle, 3)
+        let oldJSON = Data(#"{"id":"x","name":"老账户","kind":"bank"}"#.utf8)
+        XCTAssertNil(try! JSONDecoder().decode(FinanceCore.Account.self, from: oldJSON).cardPin)
+        // 撤销到底：账户没了，合计回到原来
+        for _ in 0..<12 { s.undo() }
+        XCTAssertEqual(s.real?.accounts.count, n)
+        XCTAssertEqual(s.book.inHand, have)
+        // 删一个还有流水的账户：正式账本自己的规矩，不让删
+        let busy = s.book.accounts(for: .pay, side: .life).first { $0.kind == .own }!.name
+        let before = s.real
+        XCTAssertFalse(s.change("删") { $0.accounts.removeAll { $0.name == busy } })
+        XCTAssertEqual(s.real, before)
+    }
+
+    func testRealLedgerGoals() throws {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        var real = DemoData.make(endingOn: day)
+        // 示例里目标满了：先腾一个位置，再做迁移（每个目标各一个账户）
+        try real.removeGoal(real.goals.last!.id, author: "测试")
+        try real.giveEveryGoalItsOwnAccount(today: day, author: "迁移")
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        XCTAssertTrue(s.book.goalAccountsAreConsistent, "迁移以后：每个目标已存 = 它那个账户的余额")
+        let total = s.book.inHand
+        let big = s.book.journey
+        let realBig = real.goals.first { $0.name == big.name }!
+        let from = s.book.accounts(for: .moveOut, side: .life).first { $0.kind == .own && $0.block == .daily && $0.balance > self.eur("100") }!.name
+        // 存一笔：正式账本里是一次存钱（两笔，转进目标的账户），不算花销；总数不变
+        let month = s.book.month.spentTotal
+        XCTAssertTrue(s.change("存") { _ = try $0.deposit(self.eur("40"), from: from) })
+        XCTAssertEqual(Plans.goals(s.real!).first { $0.id == realBig.id }?.saved, big.saved + eur("40"))
+        XCTAssertEqual(s.book.journey.saved, big.saved + eur("40"))
+        XCTAssertEqual(s.real?.changes.last?.kind, .goalDeposit)
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        XCTAssertEqual(s.book.inHand, total, "存一笔前后总数不变")
+        XCTAssertEqual(s.book.month.spentTotal, month, "不算花销")
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        // 改名字和金额
+        XCTAssertTrue(s.change("改") { try $0.editBigGoal(name: big.name + "（新）", total: big.total + self.eur("100")) })
+        XCTAssertEqual(s.real?.goals.first { $0.id == realBig.id }?.target, big.total + eur("100"))
+        XCTAssertEqual(s.real?.goals.first { $0.id == realBig.id }?.name, big.name + "（新）")
+        // 定一个新的小目标，新开存钱罐：正式账本多一个账户、多一个带账户的目标
+        let goals = s.real!.goals.count, accounts = s.real!.accounts.count
+        XCTAssertTrue(s.change("加") { try $0.addSmallGoal(name: "周末看海", target: self.eur("240")) })
+        XCTAssertEqual(s.real?.goals.count, goals + 1); XCTAssertEqual(s.real?.accounts.count, accounts + 1)
+        XCTAssertEqual(s.real?.accounts.last?.name, "周末看海 存钱罐")
+        XCTAssertEqual(s.real?.goals.last?.savingsAccountID, s.real?.accounts.last?.id)
+        XCTAssertTrue(s.real!.goalsWithoutOwnAccount.isEmpty); XCTAssertTrue(s.real!.goalsSharingAnAccount.isEmpty)
+        XCTAssertEqual(s.book.inHand, total)
+        // 还没接的：删目标 → 拒绝，账本不动
+        let snapshot = s.real
+        XCTAssertFalse(s.change("删") { try $0.removeBigGoal(moneyTo: .account(from)) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertEqual(s.real, snapshot)
+        // 撤销：新目标和它的存钱罐一起退回去
+        s.undo(); s.undo()
+        XCTAssertEqual(s.real?.goals.count, goals); XCTAssertEqual(s.real?.accounts.count, accounts)
     }
 
     func testNoSecretStashAndTwoBlocks() {
