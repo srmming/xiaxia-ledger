@@ -548,14 +548,25 @@ final class LedgerBridgeMoreTests: XCTestCase {
 
     /// 「这个月一共花掉」= 各分类加起来（花销页圆环中间那个数），一分不差；还没到日子的固定开销不算花掉，但照样先留着。
     func testSpentTotalEqualsTheCategorySlices() throws {
-        for day in [3, 18, 28] {
+        for day in [1, 3, 15, 18, 28, 30] {
             let t = LocalDate(year: 2026, month: 11, day: day)
             let b = LedgerBridge.snapshot(of: DemoData.make(endingOn: t), today: t)
+            // 按月取数那一份（手机、总览切月份用的）也一样：一共花掉 = 固定 + 随手花的 = 圆环各段之和
+            let d = b.monthData(b.thisMonth)
+            XCTAssertEqual(d.spentTotal, d.fixed + d.spent, "\(day) 号")
+            XCTAssertEqual(d.spentTotal, d.sliceTotal, "\(day) 号")
+            XCTAssertEqual(d.spentTotal, b.month.spentTotal, "\(day) 号")
+            XCTAssertEqual(d.left, b.month.left, "\(day) 号：最后剩下和「还能随便花」是同一个数")
+            // 过去的月份也是
+            for p in b.pastMonths { XCTAssertEqual(p.spentTotal, p.sliceTotal, "\(p.key.month) 月") }
             XCTAssertEqual(b.month.spentTotal, b.spendByCategory.map(\.amount).reduce(.zero, +), "\(day) 号")
             XCTAssertEqual(b.month.fixedPaid + b.month.fixedLeft, b.month.fixed)
             XCTAssertEqual(b.month.left, b.month.income - b.month.fixed - b.month.forGoals - b.month.spent, "还能随便花照样先留出没付的固定开销")
             XCTAssertEqual(b.spendPace.soFar.last, b.month.spentTotal, "趋势那条线的末端也是这个数")
         }
+        // 报上来的那个情况：同一本账，把日子定在 28 号看
+        let l28 = LedgerBridge.snapshot(of: ledger, today: LocalDate(year: 2026, month: 11, day: 28))
+        XCTAssertEqual(l28.monthData(l28.thisMonth).spentTotal, l28.monthData(l28.thisMonth).sliceTotal)
         // 试用数字没有「还没付的固定开销」，数不变
         XCTAssertEqual(TrialBook.demo.month.spentTotal, TrialBook.demo.month.fixed + TrialBook.demo.month.spent)
     }
