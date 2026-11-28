@@ -798,7 +798,7 @@ private struct V3AmountSheet: View {
 
 // MARK: - 加一个订阅
 
-private struct V3SubscriptionSheet: View {
+struct V3SubscriptionSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
@@ -811,7 +811,8 @@ private struct V3SubscriptionSheet: View {
 
     var body: some View {
         let m = V3Form.amount(amount)
-        let accounts = state.book.accounts(for: .pay, side: .life)
+        // 能扣订阅的账户都列出来：银行卡、储蓄、信用卡、现金（ming 2026-11-28：有那么多付款的，不能只给两个）
+        let accounts = state.book.subscriptionAccounts(.life)
         let today = state.book.todayDate
         let cal = Calendar(identifier: .gregorian)
         let nextDate = nextIn.flatMap { cal.date(byAdding: .day, value: $0, to: today) }
@@ -826,7 +827,7 @@ private struct V3SubscriptionSheet: View {
                        let day = nextLabel ?? ""
                        let acc = accounts.indices.contains(account) ? accounts[account].name : ""
                        let note = [day.isEmpty ? "\(cyc)扣" : "\(day)扣", acc].filter { !$0.isEmpty }.joined(separator: " · ")
-                       if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle) }) { state.closeSheet() }
+                       if state.change("加好了：\(name) \(cyc) \(m.v3)", kind: .subscription, { try $0.addSubscription(name: name, amount: m, note: note, forWork: forWork, cycle: cycle, account: acc, dueIn: nextIn) }) { state.closeSheet() }
                    }) {
             HStack(alignment: .top, spacing: 12) {
                 V3FormField(label: "叫什么", prompt: "健身房", text: $name, focus: true)

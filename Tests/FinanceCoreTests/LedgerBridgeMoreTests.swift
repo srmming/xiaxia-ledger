@@ -625,6 +625,28 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertNil(TrialBook.demo.stockUsage); XCTAssertNil(TrialBook.demo.debtFreeMonth); XCTAssertTrue(TrialBook.demo.stationDates.isEmpty)
     }
 
+    /// 加订阅时能选的账户：银行卡、储蓄、信用卡、现金都在（存钱罐不在）；选的账户和哪天扣都写进正式账本。
+    func testSubscriptionChargeAccountAndDateAreKept() throws {
+        let demo = TrialBook.demo
+        XCTAssertEqual(demo.subscriptionAccounts(.life).map(\.name), ["日常卡", "储蓄", "信用卡", "现金"])
+        var d = demo
+        XCTAssertThrowsError(try d.addSubscription(name: "杂志", amount: Money(cents: 5_00), note: "", forWork: false, account: "换新电脑 存钱罐"), "存钱罐扣不了订阅")
+        try d.addSubscription(name: "杂志", amount: Money(cents: 5_00), note: "", forWork: false, cycle: 1, account: "信用卡", dueIn: 9)
+        XCTAssertEqual(d.subscriptions.last?.account, "信用卡"); XCTAssertEqual(d.subscriptions.last?.dueIn, 9)
+        // 正式账本：记在选的那张卡上，下次扣款就是选的那天
+        var l = ledger
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        let card = try XCTUnwrap(before.subscriptionAccounts(.life).first { $0.isCreditCard })
+        XCTAssertGreaterThanOrEqual(before.subscriptionAccounts(.life).count, 3)
+        var after = before
+        try after.addSubscription(name: "杂志", amount: Money(cents: 5_00), note: "", forWork: false, cycle: 1, account: card.name, dueIn: 9)
+        try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        let s = try XCTUnwrap(l.subscriptions.first { $0.name == "杂志" })
+        XCTAssertEqual(s.accountID, l.accounts.first { $0.name == card.name }?.id)
+        XCTAssertEqual(s.nextDate, today.adding(days: 9))
+        XCTAssertEqual(LedgerBridge.snapshot(of: l, today: today).subscriptions.first { $0.name == "杂志" }?.account, card.name)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)
