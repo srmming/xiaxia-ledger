@@ -9,51 +9,15 @@ struct P3HomePage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            P3Header(title: state.side == .biz ? "店里" : "总览", months: true, sideSwitch: true)
+            P3Header(title: state.side == .biz ? "店里" : "总览", months: true, sideSwitch: true, meButton: true)
             ScrollView {
                 VStack(spacing: 12) {
-                    P3XiaRow()
                     if state.side == .biz { P3BizHome() } else { P3LifeHome() }
                 }
                 .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 16)
             }
             .scrollIndicators(.hidden)
         }
-    }
-}
-
-/// 夏夏的入口：像微信会话列表里的一行（头像、名字、时间、最后一句、小红点）。
-struct P3XiaRow: View {
-    @Environment(P3State.self) private var state
-    var body: some View {
-        let c = state.chat
-        Button { state.chatOpen = true; state.chat.unread = 0 } label: {
-            HStack(spacing: 12) {
-                P3.face(c.unread > 0 ? "talk" : "calm").resizable().scaledToFill()
-                    .frame(width: 46, height: 46)
-                    .background(P3.soft)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(alignment: .topTrailing) {
-                        if c.unread > 0 {
-                            Text("\(c.unread)").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
-                                .frame(minWidth: 18, minHeight: 18).background(Circle().fill(P3.red)).offset(x: 6, y: -6)
-                        }
-                    }
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text("夏夏").font(P3.font(16, .bold)).foregroundStyle(P3.ink)
-                        Spacer()
-                        Text(c.lastTime).font(P3.font(12, .regular)).foregroundStyle(P3.ink2)
-                    }
-                    Text(c.lastLine).font(P3.font(13.5, .regular)).foregroundStyle(P3.ink2).lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .p3Soft(radius: 18)
-        }
-        .buttonStyle(P3Sink(depth: 1))
-        .accessibilityLabel(c.unread > 0 ? "夏夏，\(c.unread) 条新消息：\(c.lastLine)" : "夏夏：\(c.lastLine)")
-        .accessibilityHint("打开和夏夏的对话")
     }
 }
 
@@ -203,12 +167,6 @@ struct P3BizHome: View {
         .padding(.horizontal, 18).padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .p3Sticker()
-
-        if let d = b.shopDays.first(where: { $0.day == b.todayDay }), d.state == .missing, state.isThisMonth {
-            P3Bubble(face: "talk", text: "今天（\(b.todayDay) 号）收了多少还没记。") {
-                Button("记今天的账") { state.sheet = .add }.buttonStyle(.p3(.teal, .small))
-            }
-        }
 
         HStack(spacing: 12) {
             let w = b.shopAccounts

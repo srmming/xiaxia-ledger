@@ -81,6 +81,7 @@ extension P3State {
 }
 
 struct P3ChatView: View {
+    var inTab = false
     @Environment(P3State.self) private var state
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
@@ -90,11 +91,15 @@ struct P3ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .semibold)).foregroundStyle(P3.ink)
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                if inTab {
+                    Color.clear.frame(width: 44, height: 44)
+                } else {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left").font(.system(size: 18, weight: .semibold)).foregroundStyle(P3.ink)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("返回")
                 }
-                .accessibilityLabel("返回")
                 Spacer()
                 Text("夏夏").font(P3.font(17, .bold)).foregroundStyle(P3.ink)
                 Spacer()

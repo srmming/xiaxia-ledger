@@ -23,7 +23,7 @@ final class P3State {
     typealias Book = TrialBook
     typealias Side = TrialBook.Side
 
-    enum Tab: String { case home, flow, goals, me }
+    enum Tab: String { case home, flow, goals, xia }
 
     enum Page: String, Hashable, Identifiable {
         case spending, wealth, debts, subscriptions, memory, changes, sides
@@ -95,7 +95,8 @@ final class P3State {
     /// 0 = 这个月（示例里是 11 月），-1 = 上个月…
     var monthOffset = 0
     var sheet: Sheet?
-    var chatOpen = false
+    /// 「我的」：从总览右上角的头像点开（底部那格让给了夏夏）。
+    var meOpen = false
     var mePath: [Page] = []
     var toast: Toast?
     var chat = P3Chat()
@@ -108,7 +109,8 @@ final class P3State {
         ledger = TrialLedger(book: Self.demoBook, changes: Self.demoChanges)
         if let s = PhoneV3Launch.value("-P3Side"), s == "biz" { side = .biz }
         if let t = PhoneV3Launch.value("-P3Tab"), let tab = Tab(rawValue: t) { self.tab = tab }
-        if let p = PhoneV3Launch.value("-P3Page"), let page = Page(rawValue: p) { tab = .me; mePath = [page] }
+        if let p = PhoneV3Launch.value("-P3Page"), let page = Page(rawValue: p) { meOpen = true; mePath = [page] }
+        if PhoneV3Launch.value("-P3Me") != nil { meOpen = true }
         if let m = PhoneV3Launch.value("-P3Month"), let n = Int(m) { monthOffset = n }
         switch PhoneV3Launch.value("-P3Sheet") {
         case "add": sheet = .add
@@ -116,7 +118,7 @@ final class P3State {
         case "save": sheet = .save(nil)
         default: break
         }
-        if PhoneV3Launch.value("-P3Chat") != nil { chatOpen = true }
+        if PhoneV3Launch.value("-P3Chat") != nil { tab = .xia; chat.unread = 0 }
         if PhoneV3Launch.value("-P3NoGoal") != nil { ledger.patch { try? $0.dropMainGoal() } }
         if PhoneV3Launch.value("-P3Chat") == "want" { chat.demoWant(book: book) }
     }
@@ -193,7 +195,6 @@ final class P3State {
         guard s != side, s == .biz ? book.showBiz : book.showLife else { return }
         withAnimation(.snappy(duration: 0.2)) {
             side = s
-            mePath = []
             if tab == .goals && s == .biz { tab = .home }
         }
     }
@@ -211,8 +212,8 @@ final class P3State {
     }
 
     func go(_ page: Page) {
-        withAnimation(.snappy(duration: 0.18)) { tab = .me }
         mePath = [page]
+        meOpen = true
     }
 
     // MARK: 目标

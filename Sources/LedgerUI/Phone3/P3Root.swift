@@ -16,7 +16,7 @@ public struct PhoneV3Root: View {
                 case .home: P3HomePage()
                 case .flow: P3FlowPage()
                 case .goals: if state.side == .biz { NavigationStack { P3ShopWealthPage(isTab: true) } } else { P3GoalsPage() }
-                case .me: P3MePage()
+                case .xia: P3ChatView(inTab: true)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,8 +55,10 @@ public struct PhoneV3Root: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(P3.bg)
         }
-        .fullScreenCover(isPresented: $state.chatOpen) {
-            P3ChatView().environment(state)
+        .sheet(isPresented: $state.meOpen) {
+            P3MePage().environment(state)
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(26)
         }
     }
 }
@@ -82,7 +84,7 @@ struct P3TabBar: View {
             .offset(y: -14)
             .accessibilityLabel(biz ? "记一笔店里的账" : "记一笔")
             item(.goals, biz ? "店的家底" : "目标", biz ? "building.columns" : "flag")
-            item(.me, "我的", "person")
+            item(.xia, "夏夏", "bubble.left.and.bubble.right", badge: state.chat.unread)
         }
         .padding(.horizontal, 8)
         .padding(.top, 6)
@@ -93,17 +95,23 @@ struct P3TabBar: View {
         }
     }
 
-    private func item(_ tab: P3State.Tab, _ title: String, _ symbol: String) -> some View {
+    private func item(_ tab: P3State.Tab, _ title: String, _ symbol: String, badge: Int = 0) -> some View {
         let on = state.tab == tab
         return Button {
             withAnimation(.snappy(duration: 0.18)) {
-                if state.tab == tab, tab == .me { state.mePath = [] }
+                if tab == .xia { state.chat.unread = 0 }
                 state.tab = tab
             }
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: symbol).font(.system(size: 20, weight: on ? .bold : .regular))
                     .symbolEffect(.bounce, value: on)
+                    .overlay(alignment: .topTrailing) {
+                        if badge > 0 {
+                            Text("\(badge)").font(.system(size: 10.5, weight: .bold)).foregroundStyle(.white)
+                                .frame(minWidth: 17, minHeight: 17).background(Circle().fill(P3.red)).offset(x: 9, y: -6)
+                        }
+                    }
                 Text(title).font(P3.font(10.5, on ? .bold : .medium))
             }
             .foregroundStyle(on ? (state.side == .biz ? P3.teal : P3.navy) : P3.ink2)
@@ -112,6 +120,19 @@ struct P3TabBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
+        .accessibilityLabel(badge > 0 ? "\(title)，\(badge) 条新消息" : title)
+    }
+}
+
+/// 右上角的「我的」：花销、家底、订阅、设置都在里面。
+struct P3MeButton: View {
+    @Environment(P3State.self) private var state
+    var body: some View {
+        Button { state.mePath = []; state.meOpen = true } label: {
+            Image(systemName: "person.crop.circle").font(.system(size: 26, weight: .regular)).foregroundStyle(P3.navy)
+                .frame(width: 40, height: 40).contentShape(Rectangle())
+        }
+        .accessibilityLabel("我的：花销、家底、设置")
     }
 }
 
@@ -122,6 +143,7 @@ struct P3Header<Trail: View>: View {
     let title: String
     var months = false
     var sideSwitch = false
+    var meButton = false
     @ViewBuilder var trail: Trail
 
     var body: some View {
@@ -131,14 +153,15 @@ struct P3Header<Trail: View>: View {
             Spacer(minLength: 4)
             trail
             if sideSwitch, state.book.showLife, state.book.showBiz { P3SideSwitch() }
+            if meButton { P3MeButton() }
         }
         .padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 4)
     }
 }
 
 extension P3Header where Trail == EmptyView {
-    init(title: String, months: Bool = false, sideSwitch: Bool = false) {
-        self.title = title; self.months = months; self.sideSwitch = sideSwitch; self.trail = EmptyView()
+    init(title: String, months: Bool = false, sideSwitch: Bool = false, meButton: Bool = false) {
+        self.title = title; self.months = months; self.sideSwitch = sideSwitch; self.meButton = meButton; self.trail = EmptyView()
     }
 }
 

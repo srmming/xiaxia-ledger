@@ -22,11 +22,6 @@ struct P3MePage: View {
                             group("看钱", [.spending, .wealth, .debts, .subscriptions])
                         }
                         VStack(spacing: 0) {
-                            Button { state.chatOpen = true; state.chat.unread = 0 } label: {
-                                rowLabel("bubble.left.and.bubble.right", "问夏夏", "拍照或贴图问要不要买")
-                            }
-                            .buttonStyle(.plain)
-                            P3Divider().padding(.leading, 52)
                             NavigationLink(value: P3State.Page.memory) { rowLabel(P3State.Page.memory.symbol, "夏夏记住的事", "\(state.book.memos.count) 件") }
                         }
                         .p3Group()
