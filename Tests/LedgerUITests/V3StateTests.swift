@@ -531,6 +531,51 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.real, before)
     }
 
+    func testRealLedgerGoals() throws {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        var real = DemoData.make(endingOn: day)
+        // 示例里目标满了：先腾一个位置，再做迁移（每个目标各一个账户）
+        try real.removeGoal(real.goals.last!.id, author: "测试")
+        try real.giveEveryGoalItsOwnAccount(today: day, author: "迁移")
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        XCTAssertTrue(s.book.goalAccountsAreConsistent, "迁移以后：每个目标已存 = 它那个账户的余额")
+        let total = s.book.inHand
+        let big = s.book.journey
+        let realBig = real.goals.first { $0.name == big.name }!
+        let from = s.book.accounts(for: .moveOut, side: .life).first { $0.kind == .own && $0.block == .daily && $0.balance > self.eur("100") }!.name
+        // 存一笔：正式账本里是一次存钱（两笔，转进目标的账户），不算花销；总数不变
+        let month = s.book.month.spentTotal
+        XCTAssertTrue(s.change("存") { _ = try $0.deposit(self.eur("40"), from: from) })
+        XCTAssertEqual(Plans.goals(s.real!).first { $0.id == realBig.id }?.saved, big.saved + eur("40"))
+        XCTAssertEqual(s.book.journey.saved, big.saved + eur("40"))
+        XCTAssertEqual(s.real?.changes.last?.kind, .goalDeposit)
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        XCTAssertEqual(s.book.inHand, total, "存一笔前后总数不变")
+        XCTAssertEqual(s.book.month.spentTotal, month, "不算花销")
+        XCTAssertTrue(s.book.goalAccountsAreConsistent)
+        // 改名字和金额
+        XCTAssertTrue(s.change("改") { try $0.editBigGoal(name: big.name + "（新）", total: big.total + self.eur("100")) })
+        XCTAssertEqual(s.real?.goals.first { $0.id == realBig.id }?.target, big.total + eur("100"))
+        XCTAssertEqual(s.real?.goals.first { $0.id == realBig.id }?.name, big.name + "（新）")
+        // 定一个新的小目标，新开存钱罐：正式账本多一个账户、多一个带账户的目标
+        let goals = s.real!.goals.count, accounts = s.real!.accounts.count
+        XCTAssertTrue(s.change("加") { try $0.addSmallGoal(name: "周末看海", target: self.eur("240")) })
+        XCTAssertEqual(s.real?.goals.count, goals + 1); XCTAssertEqual(s.real?.accounts.count, accounts + 1)
+        XCTAssertEqual(s.real?.accounts.last?.name, "周末看海 存钱罐")
+        XCTAssertEqual(s.real?.goals.last?.savingsAccountID, s.real?.accounts.last?.id)
+        XCTAssertTrue(s.real!.goalsWithoutOwnAccount.isEmpty); XCTAssertTrue(s.real!.goalsSharingAnAccount.isEmpty)
+        XCTAssertEqual(s.book.inHand, total)
+        // 还没接的：删目标 → 拒绝，账本不动
+        let snapshot = s.real
+        XCTAssertFalse(s.change("删") { try $0.removeBigGoal(moneyTo: .account(from)) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertEqual(s.real, snapshot)
+        // 撤销：新目标和它的存钱罐一起退回去
+        s.undo(); s.undo()
+        XCTAssertEqual(s.real?.goals.count, goals); XCTAssertEqual(s.real?.accounts.count, accounts)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")

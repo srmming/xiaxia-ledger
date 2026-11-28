@@ -31,7 +31,11 @@ public enum LedgerBridge {
         let hidden = showPrivate ? Set<String>() : Set(ledger.accounts.filter(\.isPrivate).map(\.id))
         let bizBooks = Set(ledger.books.filter(\.isBusiness).map(\.id))
         let bizAccounts = WealthBreakdown.businessAccounts(ledger)
-        let goalAccounts = Set(ledger.goals.compactMap(\.savingsAccountID))
+        // 目标页只管生活这边的目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标。店里账本的目标不在这一页（它的账户照常算店里的）
+        let ordered = ledger.goals.filter { !bizBooks.contains($0.bookID) }
+            .sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }
+        let shownGoals = Array(ordered.prefix(1 + Plans.maxSmallGoals))
+        let goalAccounts = Set(shownGoals.compactMap(\.savingsAccountID)).subtracting(bizAccounts)
         // 每个账户的余额：每笔先换成主币种再加（外币账户也对）
         let balances: [String: Money] = ledger.transactions.reduce(into: [:]) { acc, t in acc[t.accountID, default: .zero] = acc[t.accountID, default: .zero] + ledger.baseAmount(t) }
         let names = Dictionary(ledger.accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
@@ -106,7 +110,6 @@ public enum LedgerBridge {
 
         // 目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标
         let statuses = Plans.goals(ledger)
-        let ordered = ledger.goals.sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }
         func status(_ g: Goal) -> GoalStatus? { statuses.first { $0.id == g.id } }
         var journey = Journey(name: "", stops: [])
         var bigAccount: UUID?
@@ -206,6 +209,12 @@ extension LedgerBridge {
     public static func apply(before: TrialBook, after: TrialBook, to ledger: inout Ledger, today: LocalDate, author: String) throws -> [ChangeRecord] {
         let who = author.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !who.isEmpty else { throw TrialError("先在设置里填一下记账人是谁") }
+        // 第 4 步：目标（存一笔、定一个新目标、改名字和金额）
+        var goalWork = ledger
+        if let records = try applyGoals(before: before, after: after, to: &goalWork, today: today, author: who) {
+            ledger = goalWork
+            return records
+        }
         guard shape(before) == shape(after) else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         let old = Dictionary(before.entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let new = Dictionary(after.entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -310,6 +319,69 @@ extension LedgerBridge {
                 if r.cardPin != pin { r.cardPin = pin; records.append(try work.updateAccount(r, author: who)) }
             }
         }
+        return records
+    }
+
+    /// 目标上的改动照样做到正式账本上。没有目标上的改动返回 nil（让别的步骤去看）。
+    /// 接了的：存一笔（从一个账户转进这个目标自己的账户）、定一个新目标（新开存钱罐或用已有的存起来的账户）、改名字和金额。
+    /// 还没接的：删目标、换大目标、走完收起来 —— 直接拒绝，账本不动。
+    static func applyGoals(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
+        struct G: Equatable { var key: String; var name: String; var target: Money; var saved: Money; var account: UUID?; var big: Bool }
+        func list(_ b: TrialBook) -> [G] {
+            (b.journey.total > .zero ? [G(key: "big", name: b.journey.name, target: b.journey.total, saved: b.journey.saved, account: b.bigGoalAccount, big: true)] : [])
+                + b.smallGoals.map { G(key: $0.id.uuidString, name: $0.name, target: $0.target, saved: $0.saved, account: $0.account, big: false) }
+        }
+        let was = list(before), now = list(after)
+        guard was != now || before.finishedGoals.count != after.finishedGoals.count else { return nil }
+        let notYet = TrialError("删目标、换大目标、目标走完收起来，在接正式账本的这一版里还没接上，账本没动")
+        guard before.finishedGoals.count == after.finishedGoals.count else { throw notYet }
+        // 大目标换了人（名字和金额都变、存的钱也变）或者少了目标：还没接
+        for o in was { guard now.contains(where: { $0.key == o.key }) else { throw notYet } }
+        var records: [ChangeRecord] = []
+        func realAccount(_ id: UUID?, in b: TrialBook) -> Account? { b.accounts.first { $0.id == id }.flatMap { a in work.accounts.first { $0.name == a.name } } }
+        func realGoal(_ g: G) -> Goal? { g.big ? work.goals.first { $0.name == g.name } : work.goals.first { $0.id.uuidString == g.key } ?? work.goals.first { $0.name == g.name } }
+        let lifeBook = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+
+        for n in now {
+            guard let o = was.first(where: { $0.key == n.key }) else {
+                // 新目标：钱单独放在哪
+                guard let home = after.accounts.first(where: { $0.id == n.account }) else { throw TrialError("新目标要先选好钱放在哪个账户") }
+                var accountID = work.accounts.first { $0.name == home.name }?.id
+                if accountID == nil {
+                    let jar = Account(id: work.newAccountID(for: home.name), name: home.name, kind: .savings)
+                    records.append(try work.createAccount(jar, date: today, author: who))
+                    accountID = jar.id
+                }
+                guard !work.goals.contains(where: { $0.savingsAccountID == accountID }) else { throw TrialError("「\(home.name)」已经是另一个目标的账户了") }
+                records.append(try work.addGoal(name: n.name, bookID: lifeBook, target: n.target, savingsAccountID: accountID, main: n.big, today: today, author: who).1)
+                continue
+            }
+            if o.big, o.name != n.name, o.saved != n.saved { throw notYet }   // 大目标换成了另一个
+            guard let g = realGoal(o) else { throw TrialError("「\(o.name)」在正式账本里找不到了") }
+            if o.name != n.name || o.target != n.target {
+                var edited = g
+                edited.name = n.name; edited.target = n.target
+                records.append(try work.updateGoal(edited, author: who))
+                // 为它开的存钱罐跟着改名
+                if let old = realAccount(o.account, in: before), let newName = after.accounts.first(where: { $0.id == n.account })?.name, old.name != newName {
+                    var acc = old; acc.name = newName
+                    records.append(try work.updateAccount(acc, author: who))
+                }
+            }
+            if n.saved > o.saved {
+                // 存一笔：从余额少了这么多的那个账户，转进这个目标的账户
+                let amount = n.saved - o.saved
+                let fromName = after.accounts.first { a in
+                    a.id != n.account && before.accounts.first(where: { $0.id == a.id }).map { $0.balance - a.balance == amount } == true
+                }?.name
+                guard let fromName, let from = work.accounts.first(where: { $0.name == fromName }) else { throw TrialError("没看出这笔钱是从哪个账户来的，账本没动") }
+                guard g.savingsAccountID != nil else { throw TrialError("「\(g.name)」还没有自己的账户，先做一次迁移") }
+                records.append(try work.deposit(goalID: g.id, amount: amount, fromAccount: from.id, date: today, author: who))
+            } else if n.saved < o.saved {
+                throw TrialError("从目标里拿钱出来，在接正式账本的这一版里还没接上，账本没动")
+            }
+        }
+        guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         return records
     }
 }

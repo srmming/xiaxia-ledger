@@ -89,7 +89,10 @@ public struct V3RootView: View {
         let args = ProcessInfo.processInfo.arguments
         let useDemoLedger = args.firstIndex(of: "-XiaxiaV3Ledger").map { $0 + 1 < args.count && args[$0 + 1] == "demo" } ?? false
         // 能写：记一笔、改、删、撤销写进这份内存里的示例正式账本（不存盘，关掉就没了）
-        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make(), writable: true) : V3State()
+        // 示例正式账本先做一次「每个目标各开一个存钱罐」的迁移（内存里的这一份，不存盘）
+        var demoLedger = DemoData.make()
+        if useDemoLedger { _ = try? demoLedger.giveEveryGoalItsOwnAccount(author: "迁移") }
+        let s = useDemoLedger ? V3State(snapshotOf: demoLedger, writable: true) : V3State()
         V3Launch.apply(to: s)
         s.lockIfNeeded(.launch)
         _state = State(initialValue: s)
