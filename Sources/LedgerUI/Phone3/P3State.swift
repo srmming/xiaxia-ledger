@@ -153,11 +153,8 @@ final class P3State {
         author = model.author
         resnapshot()
         settleSide()
-        // 正式账本：开头那句不用示例里的话，换成按真数算的一句
-        let m = book.month
-        chat.messages = [.init(who: .xia, text: m.left > .zero
-            ? "这个月现在还能随便花 \(m.left.p3)，到月底还有 \(m.daysLeft) 天。想买什么先问我。"
-            : "这个月能随便花的已经用完了，到月底还有 \(m.daysLeft) 天。花钱前先问我一句。")]
+        // 正式账本：开头那句按真数算（没有可说的就空着）
+        chat = P3Chat(book: book)
     }
 
     private func resnapshot() {
@@ -181,6 +178,7 @@ final class P3State {
 
     init() {
         ledger = TrialLedger(book: TrialBook.demo, changes: Self.demoChanges)
+        chat = P3Chat(book: book)
         if let s = PhoneV3Launch.value("-P3Side"), s == "biz" { side = .biz }
         if let t = PhoneV3Launch.value("-P3Tab"), let tab = Tab(rawValue: t) { self.tab = tab }
         if let p = PhoneV3Launch.value("-P3Page"), let page = Page(rawValue: p) { meOpen = true; mePath = [page] }

@@ -26,10 +26,15 @@ struct P3Chat {
         var time = Date()
     }
 
-    var messages: [Msg] = [
-        Msg(who: .xia, text: "照这样花，这个月存钱差一点。周末少点一次外卖就够了。", time: Calendar.current.date(bySettingHour: 2, minute: 17, second: 0, of: Date()) ?? Date()),
-    ]
-    var unread = 1
+    var messages: [Msg] = []
+    var unread = 0
+
+    /// 开头那句：夏夏说的每句话都要能从账本算出来（和 Mac 一样用 savingRemark），没什么可说就不说。
+    init(book: TrialBook? = nil) {
+        guard let book, let line = book.savingRemark else { return }
+        messages = [Msg(who: .xia, text: line)]
+        unread = 1
+    }
     /// 刚发了一张图，等用户说是什么、多少钱。
     var waitingPrice = false
 
@@ -208,11 +213,16 @@ struct P3ChatView: View {
                 ScrollView {
                     VStack(spacing: 14) {
                         Text((state.isReal ? "" : "示例账本 · ") + (state.ai.hasKey ? "夏夏用 OpenRouter 回话，只带算好的几个数" : "没填密钥，夏夏按固定规则回话")).font(P3.font(11.5, .regular)).foregroundStyle(P3.ink2).padding(.top, 8)
+                        if state.chat.messages.isEmpty {
+                            Text("问我还能花多少、这个要不要买，或者直接说一句「咖啡 3,5」我帮你记。").font(P3.font(14, .regular)).foregroundStyle(P3.ink2)
+                                .multilineTextAlignment(.center).padding(.top, 40).padding(.horizontal, 24)
+                        }
                         ForEach(state.chat.messages) { m in
                             bubble(m).id(m.id)
                         }
                     }
                     .padding(.horizontal, 12).padding(.bottom, 12)
+                    .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: state.chat.messages.count) { _, _ in
