@@ -4,11 +4,18 @@ import SwiftUI
 
 /// iPhone 界面 v3 的开关：包里写了 XiaxiaV3，或启动参数带 `-XiaxiaV3`（`-XiaxiaV3 0` 关）。
 public enum PhoneV3Launch {
+    /// 试用版（只用编的示例数）：启动参数优先，其次包里写的 XiaxiaV3。
     public static var enabled: Bool {
-        if Bundle.main.object(forInfoDictionaryKey: "XiaxiaV3") as? Bool == true { return true }
         let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-XiaxiaV3") else { return false }
-        return i + 1 >= args.count || args[i + 1] != "0"
+        if let i = args.firstIndex(of: "-XiaxiaV3") { return i + 1 >= args.count || args[i + 1] != "0" }
+        return Bundle.main.object(forInfoDictionaryKey: "XiaxiaV3") as? Bool == true
+    }
+    /// 正式的 app 要不要用新界面打开正式账本（和 Mac 同一个开关、同一个偏好名）。默认还是旧界面。
+    public static let newLookKey = "xiaxia.ui.newLook"
+    public static var newLook: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-XiaxiaNewLook") { return i + 1 >= args.count || args[i + 1] != "0" }
+        return UserDefaults.standard.bool(forKey: newLookKey)
     }
     static func value(_ key: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
@@ -124,6 +131,39 @@ final class P3State {
 
     private var toastTask: Task<Void, Never>?
 
+    // MARK: 接着正式账本（和 Mac 的 V3State(model:) 同一个做法）
+
+    /// 接着 app 里那本正式账本（旧界面用的同一个 LedgerModel）。写入、存盘、撤销都交给它。
+    private(set) weak var model: LedgerModel?
+    /// 正式账本的内存副本；nil 是在用试用的示例数。
+    private var real: Ledger?
+    private var realToday = LocalDate.today
+    /// 这次打开以来在正式账本上做的改动（能撤销的就是这些）。
+    private var realUndo: [UUID] = []
+    var isReal: Bool { real != nil }
+
+    convenience init(model: LedgerModel, today: LocalDate = .today) {
+        self.init()
+        self.model = model
+        real = model.ledger; realToday = today
+        author = model.author
+        resnapshot()
+        settleSide()
+    }
+
+    private func resnapshot() {
+        guard let real else { return }
+        ledger = TrialLedger(book: LedgerBridge.snapshot(of: real, today: realToday, showPrivate: true), changes: Array(real.changes.suffix(50).reversed()))
+    }
+
+    /// 账本在别处变了（AI、命令行、Mac、旧界面）：界面上的数重新算一遍。
+    func refreshFromModel() {
+        guard let model, model.ledger != real else { return }
+        real = model.ledger
+        resnapshot()
+        settleSide()
+    }
+
     init() {
         ledger = TrialLedger(book: TrialBook.demo, changes: Self.demoChanges)
         if let s = PhoneV3Launch.value("-P3Side"), s == "biz" { side = .biz }
@@ -176,6 +216,29 @@ final class P3State {
 
     @discardableResult
     func change(_ text: String, kind: ChangeRecord.Kind = .edit, _ body: (inout Book) throws -> Void) -> Bool {
+        if let model, real != nil {
+            // 正式账本：界面上先改一份快照，再把前后两份交给 LedgerBridge 照样做到账本上，由 app 的模型存盘
+            do {
+                var next = book
+                try body(&next)
+                let before = book
+                var records: [ChangeRecord] = []
+                _ = try model.edit(quiet: true) { live in
+                    records = try LedgerBridge.apply(before: before, after: next, to: &live, today: self.realToday, author: self.author)
+                    guard let last = records.last else { throw TrialError("没有要改的") }
+                    return last
+                }
+                withAnimation(.spring(duration: 0.45)) { real = model.ledger; resnapshot() }
+                realUndo.append(contentsOf: records.map(\.id))
+                show(Toast(text: text, canUndo: true))
+                return true
+            } catch let e as TrialError {
+                fail(e.message)
+            } catch {
+                fail((error as? LocalizedError)?.errorDescription ?? "没做成，再试一次")
+            }
+            return false
+        }
         do {
             try withAnimation(.spring(duration: 0.45)) { _ = try ledger.apply(kind, text, author: author, body) }
             show(Toast(text: text, canUndo: true))
@@ -189,11 +252,27 @@ final class P3State {
     }
 
     func undo() {
+        if real != nil {
+            guard let id = realUndo.last else { say("没有能撤销的了"); return }
+            undo(change: id)
+            return
+        }
         guard let last = ledger.lastUndoable else { say("没有能撤销的了"); return }
         undo(change: last.id)
     }
 
     func undo(change id: UUID) {
+        if let model, real != nil {
+            // 正式账本用它自己的撤销（会再记一条「撤销」）
+            do {
+                _ = try model.edit(quiet: true) { live in try live.undo(changeID: id, author: self.author) }
+                realUndo.removeAll { $0 == id }
+                withAnimation(.spring(duration: 0.45)) { real = model.ledger; resnapshot() }
+                settleSide()
+                show(Toast(text: "撤销了"))
+            } catch { fail((error as? LocalizedError)?.errorDescription ?? "这一条撤不了") }
+            return
+        }
         do {
             var n = 0
             try withAnimation(.spring(duration: 0.45)) { n = try ledger.undo(id) }
@@ -202,7 +281,7 @@ final class P3State {
         } catch let e as TrialError { fail(e.message) } catch { fail("没撤成，再试一次") }
     }
 
-    func canUndo(_ id: UUID) -> Bool { ledger.canUndo(id) }
+    func canUndo(_ id: UUID) -> Bool { real != nil ? realUndo.contains(id) : ledger.canUndo(id) }
 
     private func show(_ t: Toast) {
         toastTask?.cancel()

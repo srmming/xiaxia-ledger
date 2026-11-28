@@ -4,8 +4,15 @@ import SwiftUI
 
 /// iPhone 界面 v3 的根：底部五格（总览、流水、记一笔、目标 / 店的家底、我的），不做引导，打开直接到总览。
 public struct PhoneV3Root: View {
-    @State private var state = P3State()
-    public init() {}
+    @State private var state: P3State
+    private var model: LedgerModel?
+    /// 试用版：只用编的示例数。
+    public init() { _state = State(initialValue: P3State()) }
+    /// 正式的 app：接着 app 里那本正式账本（和旧界面同一个模型：存盘、同步都是它的）。
+    public init(model: LedgerModel) {
+        _state = State(initialValue: P3State(model: model))
+        self.model = model
+    }
 
     public var body: some View {
         @Bindable var state = state
@@ -32,6 +39,8 @@ public struct PhoneV3Root: View {
             P3TabBar().zIndex(1)
         }
         .environment(state)
+        // 正式账本在别处变了（AI、命令行、Mac）：界面上的数跟着重新算
+        .onChange(of: model?.ledger) { _, _ in state.refreshFromModel() }
         .tint(state.side == .biz ? P3.teal : P3.navy)
         .preferredColorScheme(.light)
         .sensoryFeedback(trigger: state.toast) { _, new in

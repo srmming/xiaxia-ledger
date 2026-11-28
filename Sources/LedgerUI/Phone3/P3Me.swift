@@ -46,11 +46,13 @@ struct P3MePage: View {
                             }
                             .padding(.horizontal, 14).frame(minHeight: 50)
                             P3Divider().padding(.leading, 52)
-                            rowLabel("icloud", "和 Mac 同步", "示例账本，不同步", chevron: false)
+                            rowLabel("icloud", "和 Mac 同步", state.isReal ? "用 iCloud 里同一本账" : "示例账本，不同步", chevron: false)
                         }
                         .p3Group()
-                        Text("这是示例账本：数字都是编的，只在手机内存里，关掉 app 就没了。")
-                            .font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2).padding(.horizontal, 4)
+                        if !state.isReal {
+                            Text("这是示例账本：数字都是编的，只在手机内存里，关掉 app 就没了。")
+                                .font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2).padding(.horizontal, 4)
+                        }
                     }
                     .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 16)
                 }

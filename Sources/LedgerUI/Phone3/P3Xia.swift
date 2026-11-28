@@ -124,7 +124,7 @@ struct P3ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 14) {
-                        Text("示例账本 · " + (state.ai.hasKey ? "夏夏用 OpenRouter 回话，只带算好的几个数" : "没填密钥，夏夏按固定规则回话")).font(P3.font(11.5, .regular)).foregroundStyle(P3.ink2).padding(.top, 8)
+                        Text((state.isReal ? "" : "示例账本 · ") + (state.ai.hasKey ? "夏夏用 OpenRouter 回话，只带算好的几个数" : "没填密钥，夏夏按固定规则回话")).font(P3.font(11.5, .regular)).foregroundStyle(P3.ink2).padding(.top, 8)
                         ForEach(state.chat.messages) { m in
                             bubble(m).id(m.id)
                         }

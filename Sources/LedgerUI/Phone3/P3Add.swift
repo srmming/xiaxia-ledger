@@ -80,6 +80,7 @@ struct P3AddSheet: View {
         .padding(.horizontal, 16).padding(.top, 22).padding(.bottom, 8)
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
+            date = state.book.todayDate
             if let p = state.addPreset {
                 state.addPreset = nil
                 income = p.income; daysAgo = p.daysAgo
