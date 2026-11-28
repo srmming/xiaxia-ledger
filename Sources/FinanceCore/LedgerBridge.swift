@@ -198,7 +198,9 @@ extension LedgerBridge {
         ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
             + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
             + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
-            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)"]
+            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "memos|\(b.memos.count)",
+               "shop|\(b.purchases.count)|\(b.shopDebts.map { "\($0.name)\($0.off)" }.joined())|\(b.capital.count)|\(b.capitalTotal.cents)|\(b.stockEstimates.count)|\(b.wanted.count)"]
+            + b.shopDays.map { "day|\($0.day)|\($0.state)|\($0.total.cents)" }
     }
 
     /// 界面上做了一次改动（`before` → `after`），把它照样做到正式账本上。
@@ -208,6 +210,12 @@ extension LedgerBridge {
     public static func apply(before: TrialBook, after: TrialBook, to ledger: inout Ledger, today: LocalDate, author: String) throws -> [ChangeRecord] {
         let who = author.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !who.isEmpty else { throw TrialError("先在设置里填一下记账人是谁") }
+        // 第 6 步：店里某一天收了多少（按收款渠道）、加一样固定开销
+        var shopWork = ledger
+        if let records = try applyShop(before: before, after: after, to: &shopWork, today: today, author: who) {
+            ledger = shopWork
+            return records
+        }
         // 第 4 步：目标（存一笔、定一个新目标、改名字和金额）
         var goalWork = ledger
         if let records = try applyGoals(before: before, after: after, to: &goalWork, today: today, author: who) {
@@ -436,6 +444,8 @@ extension LedgerBridge {
         let paidDebt = moved.first { $0.kind == .debt && delta($0) < .zero }
         let gotBack = moved.first { $0.kind == .lent && delta($0) < .zero }
         if let payer, let receiver, let f = real(payer), let t = real(receiver) {
+            // 一头是生活、一头是店里：走正式账本的「两边转钱」（从店里拿回家会算成给自己发的）
+            if payer.side != receiver.side { return try work.transferBetweenSides(amount: amount, from: f.id, to: t.id, date: today, author: who) }
             return try work.addAccountTransfer(amount: amount, from: f.id, to: t.id, date: today, author: who)
         }
         if let payer, let paidDebt, let f = real(payer) {
@@ -477,6 +487,42 @@ extension LedgerBridge {
             guard let s = work.subscriptions.first(where: { $0.name == o.name }) else { continue }
             records.append(try work.removeSubscription(s.id, author: who))
         }
+        return records
+    }
+
+    /// 店里的改动。没有店里的改动返回 nil。
+    /// 接了的：记某一天按渠道收了多少（那天原来没记过的）、加一样固定开销。
+    /// 还没接的：改已经记过的那天、标成休息、改 / 停 / 拿掉固定开销 —— 拒绝，账本不动。
+    static func applyShop(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
+        var records: [ChangeRecord] = []
+        let changedDays = after.shopDays.filter { d in before.shopDays.first { $0.day == d.day }.map { $0 != d } ?? true }
+        let fixedBefore = before.fixedCosts.map { "\($0.name)|\($0.amount.cents)|\($0.off)|\($0.day)|\($0.account)" }
+        let fixedAfter = after.fixedCosts.map { "\($0.name)|\($0.amount.cents)|\($0.off)|\($0.day)|\($0.account)" }
+        guard !changedDays.isEmpty || Set(fixedBefore) != Set(fixedAfter) else { return nil }
+        for d in changedDays {
+            let old = before.shopDays.first { $0.day == d.day }
+            guard d.state == .open, old?.state != .open, old?.state != .rest else {
+                throw TrialError("改已经记过的那天、把一天标成休息，在接正式账本的这一版里还没接上，账本没动")
+            }
+            let date = day(today, minus: today.day - d.day)
+            let lines: [(method: PaymentMethod, amount: Money)] = try after.channels(of: d).map { c in
+                guard let acc = work.accounts.first(where: { $0.name == c.account }) else { throw TrialError("「\(c.account)」不是正式账本里的账户") }
+                // 渠道就是店里的账户：有同一个账户的收款方式就用它，没有就临时用账户名当名字
+                let method = work.paymentMethods.first { $0.accountID == acc.id } ?? PaymentMethod(name: acc.name, accountID: acc.id)
+                return (method, c.amount)
+            }
+            records.append(try work.recordDailyTakings(lines, date: date, author: who))
+        }
+        for f in after.fixedCosts where !before.fixedCosts.contains(where: { $0.name == f.name }) {
+            guard let acc = work.accounts.first(where: { $0.name == f.account }) else { throw TrialError("选一个店里能付钱的账户") }
+            records.append(try work.addFixedCost(name: f.name, amount: f.amount, day: max(f.day, 1), accountID: acc.id, category: f.name, today: today, author: who))
+        }
+        let known = Set(after.fixedCosts.map(\.name))
+        guard Set(before.fixedCosts.map(\.name)).isSubset(of: known),
+              before.fixedCosts.allSatisfy({ o in after.fixedCosts.first { $0.name == o.name }.map { $0.amount == o.amount && $0.off == o.off && $0.day == o.day && $0.account == o.account } ?? false }) else {
+            throw TrialError("改、停、拿掉固定开销，在接正式账本的这一版里还没接上，账本没动")
+        }
+        guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
         return records
     }
 }

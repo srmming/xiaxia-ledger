@@ -1325,14 +1325,14 @@ public struct TrialBook: Equatable, Sendable {
     }
 
     /// 记一次进货：钱从店里账户出去。
+    /// 记一次进货：就是一笔分类是「进货」的店里开销（和流水页、货值页是同一份，不另记一本）。
     public mutating func addPurchase(name: String, amount: Money, note: String, account: String? = nil) throws {
         try Self.positive(amount)
         let a = try shopPayIndex(account)
-        if accounts[a].kind == .debt { accounts[a].balance = accounts[a].balance + amount } else {
+        if accounts[a].kind != .debt {
             guard accounts[a].balance >= amount else { throw TrialError("\(accounts[a].name)里只有 \(accounts[a].balance.formatted)") }
-            accounts[a].balance = accounts[a].balance - amount
         }
-        purchases.insert(Item(emoji: "📦", name: name.trimmingCharacters(in: .whitespaces).isEmpty ? "进货" : name, note: note, amount: amount), at: 0)
+        try recordShopExpense(name: name, amount: amount, category: Self.purchaseCategory, account: accounts[a].name, note: note == "今天" ? "" : note)
     }
 
     public mutating func estimateStock(_ value: Money, note: String) throws {

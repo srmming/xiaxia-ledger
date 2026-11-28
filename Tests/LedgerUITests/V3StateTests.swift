@@ -645,6 +645,53 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.inHand, total, "一路折腾下来，手里的钱没变")
     }
 
+    func testRealLedgerShopSide() throws {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        var real = DemoData.make(endingOn: day)
+        guard real.businessBook != nil else { throw XCTSkip("示例正式账本没开生意模式") }
+        // 把今天店里已经记的收入拿掉，好试「今天还没记」的情况
+        let shopBook = real.businessBook!.id
+        let todays = real.transactions.filter { $0.bookID == shopBook && $0.date == day && $0.amount > .zero }.map(\.id)
+        if !todays.isEmpty { try real.removeTransactions(todays, author: "测试") }
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        XCTAssertTrue(s.book.showBiz)
+        let held = s.book.shopHeld
+        XCTAssertFalse(held.isEmpty)
+        let acc = held[0].name, bal = held[0].balance, n = s.real!.transactions.count
+        // 记今天按渠道收了多少：正式账本里是这天的营业收入（记在生意账本、那个账户上）
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.state, .missing)
+        XCTAssertTrue(s.change("记") { try $0.recordShopDay(18, channels: [.init(acc, self.eur("186"))]) })
+        XCTAssertEqual(s.real?.transactions.count, n + 1)
+        let tx = s.real!.transactions.last!
+        XCTAssertEqual(tx.amount, eur("186")); XCTAssertEqual(tx.bookID, shopBook); XCTAssertEqual(tx.date, day); XCTAssertEqual(tx.category, "营业收入")
+        XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("186"))
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("186"))
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        // 店里的开销、进货：都是生意账本里的一笔流水
+        XCTAssertTrue(s.change("记") { try $0.recordShopExpense(name: "胶带", amount: self.eur("12"), category: "包装耗材", account: acc) })
+        XCTAssertEqual(s.real?.transactions.last?.bookID, shopBook); XCTAssertEqual(s.real?.transactions.last?.category, "包装耗材")
+        XCTAssertTrue(s.change("进") { try $0.addPurchase(name: "花泥", amount: self.eur("20"), note: "今天", account: acc) })
+        XCTAssertEqual(s.real?.transactions.last?.category, "进货")
+        XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("154"))
+        XCTAssertEqual(s.book.month.spentTotal, LedgerBridge.snapshot(of: real, today: day).month.spentTotal, "店里的开销不算进生活的花销")
+        // 从店里拿回家：正式账本的「两边转钱」
+        let home = s.book.accounts(for: .receive, side: .life).first!.name
+        let homeBal = s.book.account(home)!.balance
+        XCTAssertTrue(s.change("转") { try $0.transferBetweenSides(self.eur("100"), toHome: true, shopAccount: acc, homeAccount: home) })
+        XCTAssertEqual(s.book.account(home)?.balance, homeBal + eur("100"))
+        XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("54"))
+        // 还没接的：改已经记过的那天 → 拒绝，账本不动
+        let snapshot = s.real
+        XCTAssertFalse(s.change("改") { try $0.recordShopDay(18, channels: [.init(acc, self.eur("200"))]) })
+        XCTAssertTrue(s.toast?.text.contains("还没接上") ?? false)
+        XCTAssertEqual(s.real, snapshot)
+        // 撤销到底
+        for _ in 0..<4 { s.undo() }
+        XCTAssertEqual(s.real?.transactions.count, n)
+        XCTAssertEqual(s.book.account(acc)?.balance, bal)
+    }
+
     func testNoSecretStashAndTwoBlocks() {
         let s = V3State()
         XCTAssertFalse(s.book.accounts.contains { $0.kind == .secret }, "示例里没有私房钱了")
