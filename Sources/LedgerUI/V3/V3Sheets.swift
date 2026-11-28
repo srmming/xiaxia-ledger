@@ -315,15 +315,16 @@ struct V3ManualSheet: View {
         }
         .onAppear {
             if let pre = state.manualPrefill { place = pre.name; amount = V3Form.plain(pre.amount); cat = max(state.book.categories.count - 1, 0); state.manualPrefill = nil }
-            let s = bookSide == .life ? state.book.transferShortcuts.first : nil
-            from = s?.from ?? state.book.transferSources(bookSide).first?.name ?? ""
-            to = s?.to ?? state.book.transferTargets(bookSide).first { $0.name != from }?.name ?? ""
+            if let k = state.manualStartKind { kind = k; state.manualStartKind = nil }
+            from = state.book.transferSources(bookSide).first?.name ?? ""
+            to = state.book.transferTargets(bookSide).first { $0.name != from }?.name ?? ""
         }
         .onChange(of: kind) { _, _ in account = 0 }
     }
 
     @ViewBuilder private func fields(_ m: Money?, _ names: [String]) -> some View {
-        V3FormPick(label: "", options: ["支出", "收入", "转账"], pick: $kind)
+        // 这一边只有一个账户时没得转，不出现「转账」
+        V3FormPick(label: "", options: state.book.canTransfer(on: bookSide) ? ["支出", "收入", "转账"] : ["支出", "收入"], pick: $kind)
         if kind == 2 {
             transferFields
         } else {
@@ -373,66 +374,49 @@ struct V3ManualSheet: View {
         .buttonStyle(V3SinkStyle(depth: 2)).accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    // MARK: 转账：从哪 → 到哪，一眼看得懂
+    // MARK: 转账：「从」「到」各一行账户胶囊，直接点
 
     @ViewBuilder private var transferFields: some View {
         let b = state.book
-        let shortcuts = bookSide == .life ? b.transferShortcuts : []
-        if !shortcuts.isEmpty {
-            FlowLayout(spacing: 6) {
-                ForEach(Array(shortcuts.enumerated()), id: \.offset) { _, sc in
-                    V3Chip(text: sc.title, size: 13) { withAnimation(.snappy(duration: 0.15)) { from = sc.from; to = sc.to } }
-                }
-            }
-        }
-        V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220).frame(maxWidth: .infinity)
+        let cross = b.crossTargets(from: bookSide)
+        V3FormField(label: "多少钱", prompt: "200", text: $amount, big: true, focus: true).frame(width: 220)
         V3AmountHint(text: amount)
-        HStack(spacing: 10) {
-            accountCard("从", from, b.transferSources(bookSide)) { from = $0; if to == $0 { to = b.transferTargets(bookSide).first { $0.name != from }?.name ?? "" } }
-            VStack(spacing: 6) {
-                Image(systemName: "arrow.right").font(.system(size: 24, weight: .heavy)).foregroundStyle(V3.navy)
-                Button {
-                    // 对调：只有两边都能当「从」时才调得过来
-                    if b.transferSources(bookSide).contains(where: { $0.name == to }) { withAnimation(.snappy(duration: 0.15)) { (from, to) = (to, from) } }
-                    else { state.fail("「\(to)」里的钱转不出来，调不过来") }
-                } label: {
-                    Image(systemName: "arrow.left.arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(V3.ink2).frame(width: 26, height: 22)
-                        .background(Capsule().fill(V3.bg))
-                }
-                .buttonStyle(.plain).help("对调").accessibilityLabel("从和到对调")
-            }
-            accountCard("到", to, b.transferTargets(bookSide).filter { $0.name != from }) { to = $0 }
+        pillRow("从", b.transferSources(bookSide), picked: from, other: to) { from = $0 }
+        pillRow("到", b.transferTargets(bookSide), picked: to, other: from) { to = $0 }
+        if !cross.isEmpty {
+            pillRow(bookSide == .life ? "到 · 店里的" : "到 · 生活的", cross, picked: to, other: from) { to = $0 }
         }
     }
 
-    private func accountCard(_ label: String, _ name: String, _ choices: [V3State.Account], pick: @escaping (String) -> Void) -> some View {
-        let a = state.book.account(name)
-        return Menu {
-            ForEach(choices) { c in Button("\(c.emoji) \(c.name) · \(c.balance.v3)") { pick(c.name) } }
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label).font(V3.font(12, .bold)).foregroundStyle(V3.ink2)
-                HStack(spacing: 8) {
-                    V3Ico(emoji: a?.emoji ?? "💳", size: 30)
-                    Text(a?.name ?? "选一个").font(V3.font(15, .heavy)).foregroundStyle(V3.ink).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .bold)).foregroundStyle(V3.ink2)
+    /// 一行账户胶囊：图标 + 名字 + 余额。选中的深色；另一行已经选了的那个变灰、点不了。
+    private func pillRow(_ label: String, _ choices: [V3State.Account], picked: String, other: String, pick: @escaping (String) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            V3Label(label, size: 12.5, weight: .bold)
+            FlowLayout(spacing: 6) {
+                ForEach(choices) { a in
+                    let on = a.name == picked, taken = a.name == other
+                    Button { withAnimation(.snappy(duration: 0.15)) { pick(a.name) } } label: {
+                        HStack(spacing: 6) {
+                            Text(a.emoji).font(.system(size: 13))
+                            Text(a.name).font(V3.font(13.5, .bold)).lineLimit(1)
+                            Text((a.kind == .debt ? "欠 " : "") + a.balance.v3Short).font(V3.num(12.5)).opacity(0.75).lineLimit(1)
+                        }
+                        .foregroundStyle(on ? .white : a.kind == .debt ? V3.red : V3.ink)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(Capsule().fill(on ? V3.navy : .white).overlay(Capsule().strokeBorder(V3.ink, lineWidth: 1.5)))
+                    }
+                    .buttonStyle(V3SinkStyle(depth: 2)).disabled(taken).opacity(taken ? 0.35 : 1)
+                    .accessibilityLabel("\(label)：\(a.name)").accessibilityAddTraits(on ? .isSelected : [])
                 }
-                Text(a.map { ($0.kind == .debt ? "还欠 " : "") + $0.balance.v3 } ?? "").font(V3.num(14)).foregroundStyle(a?.kind == .debt ? V3.red : V3.navy)
             }
-            .padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16).fill(.white).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(V3.ink, lineWidth: 2)))
-            .contentShape(Rectangle())
         }
-        .menuStyle(.button).buttonStyle(.plain)
-        .accessibilityLabel("\(label)：\(a?.name ?? "还没选")")
     }
 
     private func save(_ m: Money?) -> Bool {
         guard let m else { return false }
         if kind == 2 {
             var reached: [Journey.Station] = []
-            let ok = state.change("转好了 · 从 \(from) 拿 \(m.v3) 放进 \(to)", kind: .transfer) { reached = try $0.transfer(m, from: from, to: to) }
+            let ok = state.change("转好了 · 从 \(from) 拿 \(m.v3) 放进 \(to)", kind: .transfer) { reached = try $0.transferAny(m, from: from, to: to) }
             if ok, !reached.isEmpty { state.starDrops += 1 }
             return ok
         }

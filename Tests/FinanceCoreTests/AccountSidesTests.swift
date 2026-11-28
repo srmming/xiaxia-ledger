@@ -84,6 +84,49 @@ final class AccountSidesTests: XCTestCase {
     }
 }
 
+/// 转账弹窗的规则：少于 2 个账户不出现；两边都开时「到」多一组对面的账户。
+final class TransferRulesTests: XCTestCase {
+    private func eur(_ s: String) -> Money { Money(parsing: s)! }
+    private func book(_ accounts: [TrialBook.Account]) -> TrialBook {
+        TrialBook(accounts: accounts, entries: [], upcoming: [],
+                  month: FreeToSpend(income: eur("2340"), fixed: eur("892"), forGoals: eur("200"), spent: eur("271,39"), daysLeft: 12),
+                  journey: Journey(name: "换新电脑", stops: [eur("700"), eur("1400")], saved: eur("500"), monthlyPlan: eur("200")), monthlyMust: eur("860"))
+    }
+
+    func testNeedsTwoAccountsOnThisSide() {
+        var b = book([.init(emoji: "💳", name: "日常卡", note: "", balance: eur("1500")),
+                      .init(emoji: "🏪", name: "小店账户", note: "", balance: eur("3000"), kind: .shop, block: .shop)])
+        XCTAssertFalse(b.canTransfer(on: .life), "生活只有一个账户：没得转（店里的不算）")
+        XCTAssertFalse(b.canTransfer(on: .biz))
+        b.accounts.append(.init(emoji: "💳", name: "信用卡", note: "", balance: eur("640"), kind: .debt, block: .none))
+        XCTAssertTrue(b.canTransfer(on: .life), "一个放钱的 + 一个欠的：能转（就是还款）")
+        b.accounts.append(.init(emoji: "💶", name: "店里现金", note: "", balance: eur("200"), kind: .shop, block: .shop))
+        XCTAssertTrue(b.canTransfer(on: .biz))
+        XCTAssertFalse(book([.init(emoji: "💳", name: "信用卡", note: "", balance: eur("640"), kind: .debt, block: .none)]).canTransfer(on: .life), "只有欠的，没有能转出的")
+    }
+
+    func testCrossGroupAndTheOneWayAcross() throws {
+        var b = book([.init(emoji: "💳", name: "日常卡", note: "", balance: eur("1500")),
+                      .init(emoji: "🏦", name: "储蓄", note: "", balance: eur("2400"), block: .emergency),
+                      .init(emoji: "🏪", name: "小店账户", note: "", balance: eur("3000"), kind: .shop, block: .shop),
+                      .init(emoji: "🏦", name: "装修贷款", note: "", balance: eur("8400"), kind: .debt, block: .none, side: .biz)])
+        XCTAssertEqual(b.crossTargets(from: .life).map(\.name), ["小店账户"], "店里欠的不在里面")
+        XCTAssertEqual(b.crossTargets(from: .biz).map(\.name), ["日常卡"])
+        try b.transferAny(eur("100"), from: "日常卡", to: "小店账户")
+        XCTAssertEqual(b.account("小店账户")?.balance, eur("3100"))
+        XCTAssertEqual(b.capital.last?.name, "自己垫给店里", "走的是「两边转钱」那条路")
+        try b.transferAny(eur("50"), from: "小店账户", to: "日常卡")
+        XCTAssertEqual(b.account("日常卡")?.balance, eur("1450"))
+        try b.transferAny(eur("50"), from: "日常卡", to: "储蓄")
+        XCTAssertEqual(b.account("储蓄")?.balance, eur("2450"), "同一边照常转")
+        XCTAssertThrowsError(try b.transferAny(eur("50"), from: "日常卡", to: "装修贷款"), "不能直接还店里的贷款")
+        XCTAssertThrowsError(try b.transferAny(eur("50"), from: "小店账户", to: "储蓄"))
+        b.showBiz = false
+        XCTAssertTrue(b.crossTargets(from: .life).isEmpty, "只管生活时没有「店里的」这一组")
+        XCTAssertThrowsError(try b.transferAny(eur("50"), from: "日常卡", to: "小店账户"))
+    }
+}
+
 /// 家底页：置顶的卡片（最多 4 张）和其余账户的分组列表。
 final class AccountCardsTests: XCTestCase {
     private func eur(_ s: String) -> Money { Money(parsing: s)! }

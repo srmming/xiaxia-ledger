@@ -556,6 +556,31 @@ public struct TrialBook: Equatable, Sendable {
         accounts.filter { $0.side == side && ((side == .biz ? $0.kind == .shop : $0.kind == .own) || ($0.kind == .debt && $0.balance > .zero)) }
     }
 
+    /// 这一边能不能转账：能转出、能转进的账户合起来至少要有 2 个。只有一个账户时界面上不出现「转账」。
+    public func canTransfer(on side: Side) -> Bool {
+        let outs = transferSources(side)
+        return !outs.isEmpty && Set((outs + transferTargets(side)).map(\.name)).count >= 2
+    }
+
+    /// 两边都开着时，转账的「到」末尾多出来的那一组：对面那一边放钱的账户（生活看到「店里的」，店里看到「生活的」）。
+    public func crossTargets(from side: Side) -> [Account] {
+        guard showLife, showBiz else { return [] }
+        return side == .life ? shopHeld : accounts.filter { $0.side == .life && $0.kind == .own && $0.block == .daily }
+    }
+
+    /// 转账弹窗用的一个入口：同一边就是普通转账；跨到对面那一边的，走「两边转钱」那条唯一的路。
+    @discardableResult
+    public mutating func transferAny(_ amount: Money, from: String, to: String) throws -> [Journey.Station] {
+        guard let f = account(from), let t = account(to) else { throw TrialError("没找到要转的账户") }
+        if f.side == t.side { return try transfer(amount, from: from, to: to) }
+        guard crossTargets(from: f.side).contains(where: { $0.name == to }), transferSources(f.side).contains(where: { $0.name == from }) else {
+            throw TrialError("生活和店里之间，只能在两边放钱的账户之间转")
+        }
+        let toHome = f.side == .biz
+        try transferBetweenSides(amount, toHome: toHome, shopAccount: toHome ? from : to, homeAccount: toHome ? to : from)
+        return []
+    }
+
     /// 转账：从一个账户到另一个。到目标罐算存一笔，到欠款算还款，别的就是两个账户之间挪。都不算花也不算赚。
     /// 返回刚到的站（只有存进目标罐时才可能有）。
     @discardableResult

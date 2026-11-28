@@ -121,6 +121,8 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var showAddAccount = false
+    /// 打开「自己填」时直接停在哪一种（0 支出、1 收入、2 转账）。用一次就清掉。
+    var manualStartKind: Int?
     /// 打开「记今天的账」时直接停在「店里的开销」。
     var shopDayExpense = false
     var showAdd = false
