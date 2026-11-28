@@ -620,7 +620,8 @@ struct V3SubscriptionsPage: View {
     var body: some View {
         let b = state.book
         let monthly = b.subscriptionsMonthly
-        let doubt = b.subscriptions.filter { $0.tag == "可以考虑退" && !$0.off }
+        // 问谁、问什么都在核心里：一年下来花得最多的两个，依据就是一年多少钱（TrialMonths.swift）
+        let doubt = b.subscriptionsToAsk
         let dropped = b.subscriptions.filter(\.off)
         let saved = dropped.map(\.monthly).reduce(.zero, +)
         V3Cols(left: 1, right: 1.3) {
@@ -631,7 +632,7 @@ struct V3SubscriptionsPage: View {
                 if keepAll || doubt.isEmpty {
                     V3Ask(face: "happy", text: keepAll ? "好，都留着。" : dropped.isEmpty ? "订阅都看过了，没有该退的。" : "记下了：\(dropped.map(\.name).joined(separator: "、"))要退，到日子叫你。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: "\(doubt.map { "「\($0.name)」" }.joined(separator: "、"))好像用得不多，还要吗？") {
+                    V3Ask(face: "think", text: b.subscriptionsQuestion ?? "") {
                         HStack(spacing: 8) {
                             ForEach(doubt.prefix(2)) { d in
                                 Button("退\(d.name)") { state.change("记下了：\(d.name)要退", kind: .subscription) { try $0.setSubscription(d.name, dropped: true) } }.buttonStyle(.v3(.primary, .small))

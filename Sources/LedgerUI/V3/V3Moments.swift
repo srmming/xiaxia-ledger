@@ -129,7 +129,8 @@ private struct V3SmallerStepSheet: View {
                     V3Tile(label: "现在已经存了", value: j.savedThisMonth.v3Short, color: V3.navy)
                     V3Tile(label: "照现在，月底大概", value: state.projectedThisMonth.v3Short, color: V3.red)
                 }
-                V3Bubble("这个月进账少了 260 €，不是你乱花。", flat: true)
+                // 原因那句是算出来的：这个月进账比上个月少了多少。没少、算不出来就不出现
+                if let why = state.book.incomeDropNote { V3Bubble(why, flat: true) }
                 Text("要不要把步子改小一点？").font(V3.font(16, .heavy)).foregroundStyle(V3.ink)
                 HStack(spacing: 14) {
                     ForEach(Array(smaller.enumerated()), id: \.offset) { i, m in
