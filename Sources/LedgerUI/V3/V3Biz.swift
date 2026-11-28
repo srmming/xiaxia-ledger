@@ -105,7 +105,12 @@ struct V3BizHomePage: View {
                 .buttonStyle(V3SinkStyle(depth: 2)).help("店里一共值多少")
                 V3GrowCard {
                     V3CardTitle("给自己发工资")
-                    V3RowList(rows: [.init("🏠", "11 月已经发了", "拿回家算「给自己发了」", "1.000,00 €", V3.teal)])
+                    if let paid = b.ownerPaidThisMonth {
+                        // 正式账本：这个月从店里拿回家的，从两边转钱的流水算
+                        V3RowList(rows: [.init("🏠", paid > .zero ? "\(b.thisMonth.month) 月拿回家了" : "\(b.thisMonth.month) 月还没拿过", "拿回家算「给自己发了」", paid.v3, V3.teal)])
+                    } else {
+                        V3RowList(rows: [.init("🏠", "11 月已经发了", "拿回家算「给自己发了」", "1.000,00 €", V3.teal)])
+                    }
                     Button("两边转钱") { state.open(.transfer) }.buttonStyle(.v3(.ghost, .small)).help("从店里拿回家，或者自己垫钱给店里")
                 }
             }
@@ -379,9 +384,9 @@ struct V3StockPage: View {
         V3Cols(left: 1.2, right: 1) {
             VStack(spacing: 16) {
                 if later || fresh {
-                    V3Ask(face: "happy", text: fresh ? "记好了，季度末再估一次。" : "好，12 月 28 日再叫你。", tone: .good)
+                    V3Ask(face: "happy", text: fresh ? "记好了，季度末再估一次。" : state.real != nil ? "好，想估的时候再来。" : "好，12 月 28 日再叫你。", tone: .good)
                 } else {
-                    V3Ask(face: "think", text: estimating ? "货架上的货大约值多少？" : "12 月底该估货了，现在先估也行。") {
+                    V3Ask(face: "think", text: estimating ? "货架上的货大约值多少？" : state.real != nil ? (latest == nil ? "还没估过货，现在估一次？" : "隔一阵估一次货，心里有数。") : "12 月底该估货了，现在先估也行。") {
                         if estimating {
                             HStack(spacing: 8) {
                                 V3Field(prompt: "大约值多少", text: $text, rounded: true) { save() }.frame(width: 150)
@@ -390,7 +395,7 @@ struct V3StockPage: View {
                         } else {
                             HStack(spacing: 8) {
                                 Button("现在估") { withAnimation(.snappy) { estimating = true } }.buttonStyle(.v3(.teal, .small))
-                                Button("到时候再说") { withAnimation(.snappy) { later = true }; state.say("好，12 月 28 日提醒你") }.buttonStyle(.v3(.ghost, .small))
+                                Button("到时候再说") { withAnimation(.snappy) { later = true }; state.say(state.real != nil ? "好，想估的时候再来" : "好，12 月 28 日提醒你") }.buttonStyle(.v3(.ghost, .small))
                             }
                         }
                     }
@@ -399,6 +404,8 @@ struct V3StockPage: View {
                     V3Label(when)
                 }
                 V3GrowCard {
+                    // 这一块的算式是试用里的示例；正式账本上估过两次以上才算得出来，这一版先不写
+                    if state.real == nil {
                     V3CardTitle("上个季度用掉和损耗了多少")
                     HStack(spacing: 8) {
                         V3Tile(label: "6 月底估的", value: "2.400 €"); Text("+").font(V3.font(16, .heavy))
@@ -411,7 +418,9 @@ struct V3StockPage: View {
                         .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 14).fill(V3.goodBG))
                     }
-                    V3CardTitle("每次估的").padding(.top, 8)
+                    }
+                    V3CardTitle("每次估的").padding(.top, state.real == nil ? 8 : 0)
+                    if b.stockEstimates.isEmpty { V3Label("还没估过").padding(.vertical, 6) }
                     V3RowList(rows: b.stockEstimates.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, fill: true)
                     Spacer(minLength: 0)
                 }

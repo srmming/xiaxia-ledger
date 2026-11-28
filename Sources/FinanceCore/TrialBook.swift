@@ -259,6 +259,10 @@ public struct TrialBook: Equatable, Sendable {
     public var todayDate: Date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
     /// 店的贷款每月还多少（「一天收多少不亏」「手里实际多了」都要算它）。
     public var shopLoanMonthly: Money = .zero
+    /// 生活这边每个月要还的（欠款这个月那一期 + 分期每期）。试用数字里不用它。
+    public var lifeLoanMonthly: Money = .zero
+    /// 这个月从店里拿回家多少（给自己发的）。nil = 没有这个数（试用数字）。
+    public var ownerPaidThisMonth: Money?
     /// 这个月以前，开店本钱已经赚回来多少。
     public var shopBackBefore: Money = .zero
     public var fixedTotal: Money { fixedCosts.filter { !$0.off }.map(\.amount).reduce(.zero, +) }

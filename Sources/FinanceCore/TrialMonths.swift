@@ -37,6 +37,8 @@ extension TrialBook {
         public var owe: Money = .zero
         /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
         public var sameDaySpent: Money?
+        /// 固定要付的里还没到日子、还没付的（只有这个月会有）。它不算花掉，但「最后剩下」照样先给它留着。
+        public var fixedLeft: Money = .zero
         /// 到那个月底，大目标一共存了多少（小结里「过了哪一站」用）。没存就是 nil。
         public var goalSavedEnd: Money?
         /// 那个月店里一笔笔的流水（从正式账本整理过来时带上）。只有合计、没有逐笔的月份是空的。
@@ -55,7 +57,7 @@ extension TrialBook {
         /// 这个月一共花掉 = 固定的 + 平时的。
         public var spentTotal: Money { fixed + spent }
         /// 最后剩下（这个月还没过完时，就是现在还能随便花的）。
-        public var left: Money { income - fixed - forGoals - spent }
+        public var left: Money { income - fixed - fixedLeft - forGoals - spent }
         public var sliceTotal: Money { slices.map(\.amount).reduce(.zero, +) }
         /// 圆环上的几段：按花得多少排，最多 `limit` 段，多出来的合成「其他」。
         public func topSlices(limit: Int = 8) -> [SpendSlice] {
@@ -174,9 +176,12 @@ extension TrialBook {
     public func monthData(_ key: MonthKey) -> MonthData {
         let k = clampMonth(key)
         if k == thisMonth {
-            return MonthData(key: k, income: month.income, fixed: month.fixed, forGoals: month.forGoals, spent: month.spent,
-                             slices: spendByCategory, entries: entries.filter { $0.side == .life && $0.daysAgo < todayDay },
-                             weekly: [], shopIn: shopFlowIn, shopOut: shopFlowOut, net: totals.net)
+            // 「固定」只算已经付掉的，这样三个数恒等：一共花掉 = 固定 + 随手花的 = 圆环各段加起来。还没付的那部分单独放在 fixedLeft
+            var d = MonthData(key: k, income: month.income, fixed: month.fixedPaid, forGoals: month.forGoals, spent: month.spent,
+                              slices: spendByCategory, entries: entries.filter { $0.side == .life && $0.daysAgo < todayDay },
+                              weekly: [], shopIn: shopFlowIn, shopOut: shopFlowOut, net: totals.net)
+            d.fixedLeft = month.fixedLeft
+            return d
         }
         return pastMonths.first { $0.key == k } ?? MonthData(key: k, income: .zero, fixed: .zero, forGoals: .zero, spent: .zero)
     }

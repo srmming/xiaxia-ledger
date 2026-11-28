@@ -134,8 +134,10 @@ public enum LedgerBridge {
         // 这个月留给目标的：定了每月存多少、还没存够的，按定的留；已经存得比定的多，按真存的
         let bigPlan = ledger.goals.filter { !bizBooks.contains($0.bookID) && !$0.isFinished }
             .sorted { ($0.pinned ? 0 : 1, $0.rank ?? Int.max) < ($1.pinned ? 0 : 1, $1.rank ?? Int.max) }.first?.monthlyPlan ?? .zero
-        let free = FreeToSpend(income: now.income, fixed: fixedPaid + fixedLeft, forGoals: max(saved, bigPlan),
-                               spent: now.expense > fixedPaid ? now.expense - fixedPaid : .zero, daysLeft: daysLeft)
+// 固定的里已经付的不会比这个月真花掉的还多；这样「一共花掉」正好等于各分类加起来
+        let paidFixed = min(fixedPaid, now.expense)
+        let free = FreeToSpend(income: now.income, fixed: paidFixed + fixedLeft, forGoals: max(saved, bigPlan),
+                               spent: now.expense - paidFixed, daysLeft: daysLeft, fixedLeft: fixedLeft)
 
         // 目标：钉住的（没有就第一个）当大目标，后面最多 3 个当小目标
         let statuses = Plans.goals(ledger)
@@ -146,6 +148,11 @@ public enum LedgerBridge {
             let stops = [10, 25, 50, 75, 100].map { Money(cents: max(g.target.cents * Int64($0) / 100 / 100 * 100, 100)) }
             journey = Journey(name: g.name, stops: Array(Set(stops)).sorted(), saved: s.saved, monthlyPlan: g.monthlyPlan ?? .zero)
             bigAccount = accounts.first { a in g.savingsAccountID.flatMap { names[$0] } == a.name }?.id
+            // 这个月往大目标里存了多少：它那个账户这个月进的减出的（没有自己账户的按挂在它名下的存钱流水）
+            let mine: [Transaction]
+            if let jar = g.savingsAccountID { mine = ledger.transactions.filter { $0.accountID == jar && $0.date.yearMonth == today.yearMonth && $0.date <= today && $0.flow != .opening } }
+            else { let ids = ledger.goalContributionIDs(g); mine = ledger.transactions.filter { ids.contains($0.id) && $0.date.yearMonth == today.yearMonth } }
+            journey.savedThisMonth = max(mine.reduce(Money.zero) { $0 + ledger.baseAmount($1) }, .zero)
         }
         let small: [TrialBook.SmallGoal] = ordered.dropFirst().prefix(Plans.maxSmallGoals).compactMap { g in
             guard let s = status(g) else { return nil }
@@ -165,6 +172,12 @@ public enum LedgerBridge {
         b.lifeName = ledger.books.first { !$0.isBusiness }?.name ?? "生活"
         b.shopName = ledger.books.first { $0.isBusiness }?.name ?? "店"
         b.memos = memos(of: ledger)
+        b.lifeLoanMonthly = lifeMonthlyRepayments(ledger, today: today)
+        // 这个月从店里拿回家的（给自己发的）：两边转钱里从生意那边出去的那些
+        if !bizBooks.isEmpty {
+            b.ownerPaidThisMonth = ledger.sideTransfers(month: today.yearMonth).filter { $0.amount < .zero }
+                .reduce(Money.zero) { $0 + ledger.baseAmount($1).magnitude }
+        }
         b.finishedGoals = ledger.finishedGoals.filter { !bizBooks.contains($0.bookID) }.map { g in
             .init(id: g.id, name: g.name, total: g.target, date: g.finishedOn.map { "\($0.year) 年 \($0.month) 月" } ?? "", small: !g.pinned)
         }
@@ -687,6 +700,15 @@ extension LedgerBridge {
     public static func shopMonthlyRepayments(_ ledger: Ledger, today: LocalDate) -> Money {
         let biz = Set(ledger.books.filter(\.isBusiness).map(\.id))
         guard !biz.isEmpty else { return .zero }
+        return monthlyRepayments(ledger, today: today, books: biz)
+    }
+
+    /// 生活这边每个月要还的：欠别人的钱这个月该还的那一期 + 没还完的分期每期多少。信用卡不在这里（它按账单还）。
+    public static func lifeMonthlyRepayments(_ ledger: Ledger, today: LocalDate) -> Money {
+        monthlyRepayments(ledger, today: today, books: Set(ledger.books.filter { !$0.isBusiness }.map(\.id)))
+    }
+
+    static func monthlyRepayments(_ ledger: Ledger, today: LocalDate, books biz: Set<String>) -> Money {
         var total = Money.zero
         let status = Dictionary(Plans.debts(ledger, today: today).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for d in ledger.debts where biz.contains(d.bookID) && d.direction == .iOweThem && !d.closed {

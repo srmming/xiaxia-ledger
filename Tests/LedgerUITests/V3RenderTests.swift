@@ -53,7 +53,18 @@ final class V3RenderTests: XCTestCase {
         try write(V3ShopFlowPage().padding(20).environment(s), "real-shopflow-oct", to: dir)
         s.setMonth(s.book.thisMonth); s.side = .life
         try write(V3MonthlyPage().padding(20).environment(s), "real-monthly", to: dir)
+        // 生活这边每一页在正式账本上的样子（专门用来找写死的示例）
+        try write(V3OverviewPage().padding(20).environment(s), "real-overview", to: dir)
+        try write(V3SpendingPage().padding(20).environment(s), "real-spending", to: dir)
+        try write(V3GoalsPage().padding(20).environment(s), "real-goals", to: dir)
+        try write(V3WealthPage().padding(20).environment(s), "real-wealth", to: dir)
+        try write(V3TransactionsPage().padding(20).environment(s), "real-transactions", to: dir)
+        try write(V3DebtsPage().padding(20).environment(s), "real-debts", to: dir)
         s.side = .biz
+        try write(V3SalesPage().padding(20).environment(s), "real-sales", to: dir)
+        try write(V3FixedPage().padding(20).environment(s), "real-fixed", to: dir)
+        try write(V3StockPage().padding(20).environment(s), "real-stock", to: dir)
+        try write(V3ShopWealthPage().padding(20).environment(s), "real-shop-wealth", to: dir)
         try write(V3BizDebtsPage().padding(20).environment(s), "real-biz-debts", to: dir)
         try write(V3CheckupPage().padding(20).environment(s), "real-checkup", to: dir)
         s.side = .life

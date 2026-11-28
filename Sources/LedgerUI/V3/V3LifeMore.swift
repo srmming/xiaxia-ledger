@@ -113,7 +113,8 @@ struct V3SpendingPage: View {
                       tone: diff >= .zero ? .good : .plain) }
                 V3KeyCard(label: now ? "\(state.monthLabel)到今天花掉" : "\(state.monthLabel)花掉", amount: m.spentTotal, size: 56) {
                     HStack(spacing: 26) {
-                        V3KV(value: m.fixed.v3, label: "固定要付的")
+                        // 这里说的是「花掉」的，所以固定的只算已经付掉的那部分（还没到日子的在「接下来要付的」里）
+                        V3KV(value: (now ? state.book.month.fixedPaid : m.fixed).v3, label: now && state.book.month.fixedLeft > .zero ? "固定的已经付了" : "固定要付的")
                         V3KV(value: m.spent.v3, label: "随手花的")
                     }
                 }
@@ -445,6 +446,12 @@ struct V3TrendsPage: View {
 
 struct V3TransactionsPage: View {
     @Environment(V3State.self) private var state
+    /// 「11 月 18 日」：今天往前数几天的那一天。
+    static func dayLabel(_ today: Date, back: Int) -> String {
+        let cal = Calendar(identifier: .gregorian)
+        let c = cal.dateComponents([.month, .day], from: cal.date(byAdding: .day, value: -back, to: today) ?? today)
+        return "\(c.month ?? 0) 月 \(c.day ?? 0) 日"
+    }
     @State private var search = ""
     @State private var selected: UUID?
     @State private var lumi: Bool?
@@ -475,7 +482,7 @@ struct V3TransactionsPage: View {
                     .padding(.horizontal, 16).padding(.vertical, 10).v3Soft(radius: 14)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                if lumi == nil {
+                if lumi == nil, state.real == nil {
                     V3Ask(face: "think", text: "Super Lumi 那 18,60 €，算超市？") {
                         HStack(spacing: 8) {
                             Button("好") {
@@ -524,11 +531,11 @@ struct V3TransactionsPage: View {
                         V3Label("没找到「\(search)」。换个店名或者金额试试。").padding(.top, 10)
                     }
                     if !today.isEmpty {
-                        V3Label("今天 · 11 月 18 日", weight: .bold).padding(.top, 4)
+                        V3Label("今天 · \(Self.dayLabel(state.book.todayDate, back: 0))", weight: .bold).padding(.top, 4)
                         list(Array(today.prefix(lumi == nil ? 3 : 4)), pick: pick)
                     }
                     if !yest.isEmpty {
-                        V3Label("昨天 · 11 月 17 日", weight: .bold).padding(.top, 4)
+                        V3Label("昨天 · \(Self.dayLabel(state.book.todayDate, back: 1))", weight: .bold).padding(.top, 4)
                         list(yest, pick: pick)
                     }
                     let older = state.book.entries.filter { $0.daysAgo > 1 && $0.side == .life }.filter(match)
@@ -551,7 +558,7 @@ struct V3TransactionsPage: View {
                         detail("什么时候", QuickDate.label(daysAgo: e.daysAgo, today: state.book.todayDate)); V3Divider()
                         detail("怎么付的", e.meta.components(separatedBy: " · ").last ?? ""); V3Divider()
                         detail("怎么进来的", e.tag == "跟 AI 说的" ? "你跟 Claude 说了一句" : e.tag == "刚记的" ? "你刚才自己记的" : e.tag.isEmpty ? "自己记的" : e.tag)
-                        if e.name == "咖啡" { V3Divider(); detail("这周第几次", "第 2 次 · 上周同期 4 次") }
+                        if e.name == "咖啡", state.real == nil { V3Divider(); detail("这周第几次", "第 2 次 · 上周同期 4 次") }
                     }
                     Spacer(minLength: 0)
                     HStack(spacing: 8) {
@@ -660,6 +667,45 @@ struct V3DebtsPage: View {
     @State private var moved = false
 
     var body: some View {
+        // 接着正式账本：只摆账本里真有的。试用数字里那套示例（信用卡 12 月 5 日、手机分期 12 期、哪天还完）不出现
+        if state.real != nil { realBody } else { demoBody }
+    }
+
+    private var realBody: some View {
+        let b = state.book
+        let owed = b.debts.filter { $0.balance > .zero }
+        let cards = owed.filter(\.isCreditCard).map(\.balance).reduce(.zero, +)
+        let due = cards + b.lifeLoanMonthly
+        return V3Cols(left: 1, right: 1.3) {
+            VStack(spacing: 16) {
+                V3KeyCard(label: "\(b.thisMonth.next.month) 月要还", amount: due) {
+                    HStack(spacing: 26) {
+                        V3KV(value: b.totals.owe.v3, label: "我一共欠", color: V3.red)
+                        V3KV(value: b.lent.map(\.balance).reduce(.zero, +).v3, label: "别人欠我")
+                    }
+                }
+                .help("信用卡现在欠的 \(cards.formatted) + 别的欠款和分期这个月该还的 \(b.lifeLoanMonthly.formatted)")
+                V3GrowCard(spacing: 8) {
+                    V3CardTitle("别人欠我的")
+                    if b.lent.isEmpty { V3Label("没有").padding(.vertical, 6) }
+                    V3RowList(rows: b.lent.prefix(6).map { .init($0.emoji, $0.name.replacingOccurrences(of: "借给", with: ""), $0.note, $0.balance.v3) }, compact: b.lent.count > 2, fill: true)
+                    Spacer(minLength: 0)
+                }
+            }
+        } trailing: {
+            V3GrowCard(spacing: 8) {
+                V3CardTitle("欠着的")
+                if owed.isEmpty { V3Label("一笔都不欠").padding(.vertical, 6) }
+                V3RowList(rows: owed.prefix(8).map { d in
+                    .init(d.emoji, d.name, d.note, d.balance.v3, V3.red, action: { state.open(.repay(d.name)) })
+                }, compact: owed.count > 3, fill: true)
+                Spacer(minLength: 0)
+                Button("记一笔欠款") { state.open(.debt) }.buttonStyle(.v3(.ghost, .small))
+            }
+        }
+    }
+
+    private var demoBody: some View {
         let b = state.book
         let card = b.debts.first { $0.name == "信用卡" }?.balance ?? .zero
         let phone = b.debts.first { $0.name == "手机分期" }?.balance ?? .zero
@@ -667,7 +713,7 @@ struct V3DebtsPage: View {
         let others = b.debts.filter { $0.name != "信用卡" && $0.name != "手机分期" }
         let dueNow = (card > .zero ? card : .zero) + (phone > .zero && !moved ? Money(cents: 200_00) : .zero)
         let paidFraction = 1 - Double(b.totals.owe.cents) / 3_286_00
-        V3Cols(left: 1, right: 1.3) {
+        return V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
                 V3KeyCard(label: "12 月要还", amount: dueNow) {
                     HStack(spacing: 26) {
