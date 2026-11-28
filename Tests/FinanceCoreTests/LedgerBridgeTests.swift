@@ -28,20 +28,21 @@ final class LedgerBridgeTests: XCTestCase {
         }
         // 界面上生活 + 店里手里的钱，合起来 = 正式账本里不是信用卡的账户余额之和
         let held = l.accounts.filter { $0.kind != .credit }.map { sums[$0.id] ?? .zero }.reduce(.zero, +)
-        XCTAssertEqual(b.totals.have + b.shopHeld.map(\.balance).reduce(.zero, +), held, "前后合计一致")
+        XCTAssertEqual(b.inHand + b.shopHeld.map(\.balance).reduce(.zero, +), held, "前后合计一致")
     }
 
-    func testPrivateAccountsStayHiddenByDefault() {
+    func testOldPrivateAccountsShowByDefaultAndCanBeHidden() {
         var l = ledger
         guard let first = l.accounts.firstIndex(where: { $0.kind != .credit }) else { return XCTFail() }
         l.accounts[first].isPrivate = true
         let hiddenName = l.accounts[first].name
-        let off = LedgerBridge.snapshot(of: l, today: today)
-        let on = LedgerBridge.snapshot(of: l, today: today, showPrivate: true)
-        XCTAssertNil(off.account(hiddenName), "默认和旧界面一样：私房钱不显示、不算进合计")
+        let off = LedgerBridge.snapshot(of: l, today: today, showPrivate: false)
+        let on = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertTrue(l.accounts[first].isPrivate, "旧数据里的标记不删不改")
+        XCTAssertNil(off.account(hiddenName), "开关关掉：和旧界面一样不显示、不算进合计")
         XCTAssertNotNil(on.account(hiddenName))
         XCTAssertFalse(off.entries.contains { $0.account == hiddenName })
-        XCTAssertNotEqual(off.totals.have + off.shopHeld.map(\.balance).reduce(.zero, +), on.totals.have + on.shopHeld.map(\.balance).reduce(.zero, +))
+        XCTAssertNotEqual(off.inHand + off.shopHeld.map(\.balance).reduce(.zero, +), on.inHand + on.shopHeld.map(\.balance).reduce(.zero, +))
     }
 
     func testSidesMonthAndSlices() {
@@ -49,7 +50,7 @@ final class LedgerBridgeTests: XCTestCase {
         let b = LedgerBridge.snapshot(of: l, today: today)
         // 生活和生意分开：用的是正式账本自己的判断
         let biz = WealthBreakdown.businessAccounts(l)
-        for a in l.accounts where !a.isPrivate {
+        for a in l.accounts {
             XCTAssertEqual(b.account(a.name)?.side, biz.contains(a.id) ? .biz : .life, a.name)
         }
         XCTAssertEqual(b.showBiz, l.books.contains { $0.isBusiness })

@@ -31,11 +31,11 @@ final class AccountSidesTests: XCTestCase {
 
     func testLifeTotalsLeaveShopMoneyOut() {
         let b = book
-        XCTAssertEqual(b.totals.have, eur("4400"), "日常卡 + 储蓄 + 目标罐，不含店里的 3.200")
+        XCTAssertEqual(b.totals.have, eur("4520"), "日常卡 + 储蓄 + 目标罐 + 借出去的 120，不含店里的 3.200")
         XCTAssertEqual(b.totals.owe, eur("640"), "店的信用卡、装修贷款不算")
-        XCTAssertEqual(b.totals.net, eur("3760"))
+        XCTAssertEqual(b.totals.net, eur("3880"))
         XCTAssertEqual(b.sum(.shop), .zero)
-        XCTAssertEqual(b.sum(.daily) + b.sum(.emergency) + b.sum(.goal), b.totals.have)
+        XCTAssertEqual(b.wealthBlocks.map(\.amount).reduce(.zero, +), b.totals.have)
         XCTAssertFalse(b.owned.contains { $0.side == .biz })
         XCTAssertFalse(b.debts.contains { $0.side == .biz })
         XCTAssertFalse(b.emergencyCandidates.contains { $0.side == .biz })
@@ -77,7 +77,7 @@ final class AccountSidesTests: XCTestCase {
     func testOnlyTheSideTransferCrosses() throws {
         var b = book
         try b.transferBetweenSides(eur("300"), toHome: true, shopAccount: "小店账户", homeAccount: "日常卡")
-        XCTAssertEqual(b.totals.have, eur("4700"))
+        XCTAssertEqual(b.totals.have, eur("4820"))
         XCTAssertEqual(b.account("小店账户")?.balance, eur("2700"))
         XCTAssertThrowsError(try b.transferBetweenSides(eur("10"), toHome: true, shopAccount: "日常卡", homeAccount: "储蓄"), "两头必须一边一个")
         XCTAssertThrowsError(try b.transferBetweenSides(eur("10"), toHome: false, shopAccount: "装修贷款", homeAccount: "日常卡"))

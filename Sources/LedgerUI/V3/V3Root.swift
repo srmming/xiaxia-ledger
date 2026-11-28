@@ -88,7 +88,8 @@ public struct V3RootView: View {
         // `-XiaxiaV3Ledger demo`：不看编的那套试用数字，改看「示例正式账本」（DemoData，内存里现造的）整理出来的数。只读，不打开任何账本文件。
         let args = ProcessInfo.processInfo.arguments
         let useDemoLedger = args.firstIndex(of: "-XiaxiaV3Ledger").map { $0 + 1 < args.count && args[$0 + 1] == "demo" } ?? false
-        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make()) : V3State()
+        // 能写：记一笔、改、删、撤销写进这份内存里的示例正式账本（不存盘，关掉就没了）
+        let s = useDemoLedger ? V3State(snapshotOf: DemoData.make(), writable: true) : V3State()
         V3Launch.apply(to: s)
         s.lockIfNeeded(.launch)
         _state = State(initialValue: s)
@@ -493,7 +494,8 @@ private struct V3TopBar: View {
                     .buttonStyle(.v3(.ghost, .small)).help("回到设置")
             }
             Text(title).font(V3.font(26, .heavy)).foregroundStyle(V3.ink).lineLimit(1).fixedSize()
-            if V3MonthSwitch.pages.contains(state.page), !(state.page == .settings) { V3MonthSwitch() }
+            // 每月小结不放月份切换（标题已经写了是哪个月；要看别的月从总览切过去再回来）
+            if V3MonthSwitch.pages.contains(state.page), state.page != .monthly { V3MonthSwitch() }
             Text(subtitle).font(V3.font(14, .regular)).foregroundStyle(V3.ink2).lineLimit(1)
             Spacer(minLength: 8)
             // 「问夏夏」不再放在右上角（左下角已经有夏夏那一行了，ming 2026-11-28）；⌘K 照旧打开聊天。
@@ -538,7 +540,12 @@ private struct V3TopBar: View {
     private var title: String {
         if state.page == .settings, state.showLog { return "改动记录" }
         if state.page == .settings, let sub = state.settingsSub { return sub.title }
-        if state.page == .monthly { return "每月小结" }
+        // 小结写的是哪个月，标题里直接说（停在这个月时写的是上个月：这个月还没过完）
+        if state.page == .monthly {
+            let b = state.book
+            let key = state.isThisMonth ? b.thisMonth.previous : state.monthKey
+            return "\(key.label(thisYear: b.thisMonth.year))小结"
+        }
         return state.page.title
     }
 

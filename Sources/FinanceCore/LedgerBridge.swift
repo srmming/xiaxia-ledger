@@ -25,8 +25,9 @@ public enum LedgerBridge {
     }
 
     /// 从正式账本现算一份界面用的账本。
-    /// - showPrivate: 私房钱账户（isPrivate）要不要显示、算进合计。默认不显示、不算，和旧界面一样。
-    public static func snapshot(of ledger: Ledger, today: LocalDate = .today, showPrivate: Bool = false) -> TrialBook {
+    /// - showPrivate: 旧版标成私房钱的账户（isPrivate）要不要显示、算进合计。v3 去掉了私房钱，默认当普通账户显示、算进去（ming 2026-11-28 定）；
+    ///   开关留着，传 false 就和旧界面一样藏起来。旧数据里的这个标记不删不改。
+    public static func snapshot(of ledger: Ledger, today: LocalDate = .today, showPrivate: Bool = true) -> TrialBook {
         let hidden = showPrivate ? Set<String>() : Set(ledger.accounts.filter(\.isPrivate).map(\.id))
         let bizBooks = Set(ledger.books.filter(\.isBusiness).map(\.id))
         let bizAccounts = WealthBreakdown.businessAccounts(ledger)
@@ -166,5 +167,75 @@ public enum LedgerBridge {
             }
         }
         return b
+    }
+}
+
+// MARK: - 写（第 2 步：记一笔、改分类、改金额、删）
+
+extension LedgerBridge {
+    /// 日子往前数几天。
+    static func day(_ today: LocalDate, minus n: Int) -> LocalDate {
+        let d = Calendar(identifier: .gregorian).date(byAdding: .day, value: -n, to: date(today)) ?? date(today)
+        let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: d)
+        return LocalDate(year: c.year ?? today.year, month: c.month ?? today.month, day: c.day ?? today.day)
+    }
+
+    /// 界面上不属于流水的那些东西的样子（账户有哪些、目标、订阅、店的每天…）。写入前后拿它比：变了，说明这次改动不只是流水，这一步还没接。
+    static func shape(_ b: TrialBook) -> [String] {
+        b.accounts.map { "\($0.name)|\($0.kind)|\($0.block)|\($0.side)" }
+            + ["goal|\(b.journey.name)|\(b.journey.total.cents)"]
+            + b.smallGoals.map { "small|\($0.name)|\($0.target.cents)" }
+            + b.subscriptions.map { "sub|\($0.name)|\($0.amount.cents)|\($0.off)" }
+            + b.fixedCosts.map { "fixed|\($0.name)|\($0.amount.cents)|\($0.off)" }
+            + ["names|\(b.lifeName)|\(b.shopName)|\(b.showLife)|\(b.showBiz)", "pins|\(b.lifePins.count)|\(b.shopPins.count)", "memos|\(b.memos.count)"]
+    }
+
+    /// 界面上做了一次改动（`before` → `after`），把它照样做到正式账本上。
+    /// 这一步只接流水：多了一笔 = 记一笔；少了一笔 = 删；分类变了 = 改分类；金额变了 = 改金额。
+    /// 每样都走正式账本自己的写法：带作者、记进改动记录、能撤销。别的改动（账户、目标、订阅、店的账…）还没接，直接拒绝，账本不动。
+    @discardableResult
+    public static func apply(before: TrialBook, after: TrialBook, to ledger: inout Ledger, today: LocalDate, author: String) throws -> [ChangeRecord] {
+        let who = author.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !who.isEmpty else { throw TrialError("先在设置里填一下记账人是谁") }
+        guard shape(before) == shape(after) else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+        let old = Dictionary(before.entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let new = Dictionary(after.entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let added = after.entries.filter { old[$0.id] == nil }
+        let removed = before.entries.filter { new[$0.id] == nil }
+        let changed = after.entries.filter { e in old[e.id].map { $0.name != e.name || $0.amount != e.amount } ?? false }
+        guard !added.isEmpty || !removed.isEmpty || !changed.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+        guard added.count <= 1 else { throw TrialError("一次进来好几笔（导入）在这一版里还没接上，账本没动") }
+
+        var work = ledger
+        var records: [ChangeRecord] = []
+        let lifeBook = work.books.first { !$0.isBusiness }?.id
+        let shopBook = work.books.first { $0.isBusiness }?.id
+        func accountID(_ name: String) throws -> String {
+            guard let a = work.accounts.first(where: { $0.name == name }) else { throw TrialError("「\(name)」不是正式账本里的账户，这笔记不上") }
+            return a.id
+        }
+        for e in added {
+            guard e.amount != .zero else { throw TrialError("金额要比 0 大") }
+            let book = e.side == .biz ? shopBook : lifeBook
+            let tx = Transaction(id: e.id, date: day(today, minus: e.daysAgo), amount: e.amount, description: e.place.isEmpty ? e.name : e.place,
+                                 accountID: try accountID(e.account), bookID: book, category: e.name == "还没分" ? nil : e.name,
+                                 source: "手记", note: e.note.isEmpty ? nil : e.note)
+            records.append(try work.addTransaction(tx, author: who))
+        }
+        if !removed.isEmpty { records.append(try work.removeTransactions(removed.map(\.id), author: who)) }
+        for e in changed {
+            guard let was = old[e.id], var tx = work.transactions.first(where: { $0.id == e.id }) else { throw TrialError("这一笔在正式账本里找不到了") }
+            if was.amount != e.amount {
+                // 界面上的金额是换成主币种的；外币账户的那一笔先不让在这里改，免得改错
+                guard work.baseAmount(tx) == tx.amount else { throw TrialError("这一笔是外币账户的，金额先回旧界面改") }
+                tx.amount = e.amount
+                if was.name != e.name { tx.category = e.name == "还没分" ? nil : e.name }
+                records.append(try work.editTransaction(tx, author: who))
+            } else {
+                records.append(work.categorize([e.id], category: e.name, author: who))
+            }
+        }
+        ledger = work
+        return records
     }
 }

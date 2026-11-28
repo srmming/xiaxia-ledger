@@ -32,6 +32,11 @@ extension TrialBook {
         public var shopOut: Money
         /// 月底的家底净剩。
         public var net: Money
+        /// 月底一共有多少、欠多少（净剩 = 有 − 欠）。
+        public var have: Money = .zero
+        public var owe: Money = .zero
+        /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
+        public var sameDaySpent: Money?
 
         public init(key: MonthKey, income: Money, fixed: Money, forGoals: Money, spent: Money, slices: [SpendSlice] = [], entries: [Entry] = [],
                     weekly: [Money] = [], shopIn: Money = .zero, shopOut: Money = .zero, net: Money = .zero) {
@@ -51,6 +56,19 @@ extension TrialBook {
             let rest = sorted[(limit - 1)...]
             return Array(sorted[..<(limit - 1)]) + [SpendSlice(emoji: "❓", name: "其他", amount: rest.map(\.amount).reduce(.zero, +), lastMonth: rest.map(\.lastMonth).reduce(.zero, +))]
         }
+    }
+
+    /// 上个月的数（没有就是 nil）。
+    public var previousMonthData: MonthData? { pastMonths.first { $0.key == thisMonth.previous } }
+    /// 比上个月同一天少花了多少（负数是多花了）。上个月没存同期的数就是 nil，界面上就不写这一句。
+    public var spentLessThanLastMonthSameDay: Money? { previousMonthData?.sameDaySpent.map { $0 - month.spentTotal } }
+    /// 家底净剩比上个月底多了多少（负数是少了）。
+    public var netMoreThanLastMonth: Money? { previousMonthData.flatMap { $0.have > .zero || $0.owe > .zero ? totals.net - $0.net : nil } }
+    /// 某个月底的净剩比再前一个月底多了多少。
+    public func netChange(in key: MonthKey) -> Money? {
+        guard let a = pastMonths.first(where: { $0.key == key }), let b = pastMonths.first(where: { $0.key == key.previous }),
+              a.have > .zero || a.owe > .zero, b.have > .zero || b.owe > .zero else { return nil }
+        return a.net - b.net
     }
 
     /// 今天在哪个月。

@@ -292,7 +292,7 @@ struct V3SettingsPage: View {
                         Button("连接你的 AI") { state.openSettings(.ai) }.buttonStyle(.v3)
                     }
                     .padding(.bottom, 8)
-                    V3SetLink(title: linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: "管理连接",
+                    V3SetLink(title: (state.ai == nil && !state.hasOpenRouterKey) || linked.isEmpty ? "还没连 AI" : "✨ \(linked.count) 个 AI 已连接", sub: "管理连接",
                               value: linked.map { $0.id.replacingOccurrences(of: " 桌面版", with: "") }.joined(separator: "、")) { state.openSettings(.ai) }
                     V3SetRow(title: "🔗 复制配置指令", sub: "复制一段话，粘给任何 AI，它会自己把夏夏账本配好") {
                         Button("复制") { state.copy(V3State.configPrompt, say: "已复制，粘贴给你的 AI 就行") }.buttonStyle(.v3(.ghost, .small))
@@ -699,7 +699,7 @@ private struct V3SetBusinessPage: View {
                 if on {
                     V3SetGroup(title: "开店本钱", grow: true) {
                         if b.capitalTotal > .zero {
-                            V3SetRow(title: b.capitalTotal.v3, detail: "\(b.capital.count) 样 · 已经赚回 \(Int((Double(16_728_00) / Double(max(b.capitalTotal.cents, 1)) * 100).rounded()))%", line: false) {
+                            V3SetRow(title: b.capitalTotal.v3, detail: "\(b.capital.count) 样 · 已经赚回 \(Int((b.paybackFraction * 100).rounded()))%", line: false) {
                                 Button("改本钱…") { state.open(.capitalTotal) }.buttonStyle(.v3(.ghost, .small))
                             }
                         } else {
@@ -731,7 +731,7 @@ private struct V3SetMoneyPage: View {
             V3SetGroup(title: "流水导入", note: "导错了能在改动记录里整批撤销。", grow: true) {
                 V3SetRow(title: "上次导入", detail: "今天 10:40 · 晴空银行 11 月流水 · 新的 31 笔，跳过重复 6 笔", line: false) { Button("再导一份") { state.go(.transactions) }.buttonStyle(.v3(.ghost, .small)) }
                 V3SetRow(title: "认得哪些银行", detail: "常见银行导出的 CSV") { EmptyView() }
-                V3SetRow(title: "重复的流水", sub: "同一天、同一金额、同一家店的只留一笔") { V3Switch(on: $s.prefs.dedupe, label: "跳过重复的流水") }
+                V3SetRow(title: "跳过重复的流水", sub: "同一天、同一金额、同一家店的只留一笔") { V3Switch(on: $s.prefs.dedupe, label: "跳过重复的流水") }
             }
             VStack(spacing: 14) {
                 V3SetGroup(title: "手机拍的小票") {
@@ -742,7 +742,7 @@ private struct V3SetMoneyPage: View {
                 }
                 V3SetGroup(title: "跟 AI 说一句", note: "AI 记的每一笔都在改动记录里，写着是哪个 AI 记的。", grow: true) {
                     V3SetRow(title: "让连着的 AI 直接记", sub: "「刚才咖啡 3 块 2」", line: false) { V3Switch(on: $s.prefs.aiRecords, label: "让 AI 直接记") }
-                    V3SetRow(title: "同一家店的付款方式", sub: "只问第一次，以后按你的习惯") { V3Switch(on: $s.prefs.samePlace, label: "记住付款方式") }
+                    V3SetRow(title: "记住每家店怎么付的", sub: "只问第一次，以后按你的习惯") { V3Switch(on: $s.prefs.samePlace, label: "记住付款方式") }
                 }
             }
         }
