@@ -104,6 +104,8 @@ final class P3State {
     /// 长按中间的 + 选了「拍照」「说话」：打开夏夏后马上开相机 / 开始听。用一次就清掉。
     enum ChatIntent { case camera, voice }
     var chatIntent: ChatIntent?
+    /// 打开记一笔时先摆好的：收入还是花的、哪天（营业额日历点某一天用）。用一次就清掉。
+    var addPreset: (income: Bool, daysAgo: Int)?
     var mePath: [Page] = []
     var toast: Toast?
     var chat = P3Chat()

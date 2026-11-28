@@ -459,6 +459,12 @@ struct P3SalesPage: View {
                 ForEach(["a", "b", "c", "d", "e", "f"], id: \.self) { _ in Color.clear.frame(height: 50) }
                 ForEach(b.shopDays, id: \.day) { d in
                     let low = d.state == .open && d.total < b.dailyBreakEven
+                    Button {
+                        guard d.state != .future else { return }
+                        state.addPreset = (true, b.todayDay - d.day)
+                        state.meOpen = false
+                        Task { @MainActor in try? await Task.sleep(for: .milliseconds(450)); state.sheet = .add }
+                    } label: {
                     VStack(spacing: 1) {
                         Text("\(d.day)").font(P3.font(11, .bold)).foregroundStyle(d.day == b.todayDay ? P3.teal : P3.ink2)
                         Text(d.state == .open ? "\(d.total.cents / 100)" : d.state == .rest ? "休" : d.state == .missing ? "没记" : "")
@@ -467,9 +473,13 @@ struct P3SalesPage: View {
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(d.state == .missing ? P3.warnBG : d.state == .future ? .clear : .white))
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(d.day == b.todayDay ? P3.teal : .clear, lineWidth: 2))
+                    }
+                    .buttonStyle(P3Sink(depth: 1))
+                    .disabled(d.state == .future)
+                    .accessibilityLabel("\(d.day) 号，\(d.state == .open ? "收了 \(d.total.p3Short)" : d.state == .rest ? "休息" : d.state == .missing ? "没记" : "还没到")")
                 }
             }
-            Text("红字是没收够「不亏线」的那天。点下面的 + 记今天收了多少。").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
+            Text("红字是没收够「不亏线」的那天。点哪天就记哪天收了多少。").font(P3.font(12.5, .regular)).foregroundStyle(P3.ink2)
         }
     }
 }

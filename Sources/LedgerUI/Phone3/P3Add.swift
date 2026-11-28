@@ -16,7 +16,7 @@ struct P3AddSheet: View {
     @State private var name = ""
     @State private var daysAgo = 0
     @State private var pickDate = false
-    @State private var date = Date()
+    @State private var date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
     @State private var voice = P3Voice()
 
     private var biz: Bool { state.side == .biz }
@@ -80,7 +80,15 @@ struct P3AddSheet: View {
         }
         .padding(.horizontal, 16).padding(.top, 22).padding(.bottom, 8)
         .frame(maxHeight: .infinity, alignment: .top)
-        .onAppear { if account.isEmpty { account = accounts.first?.name ?? "" } }
+        .onAppear {
+            if let p = state.addPreset {
+                state.addPreset = nil
+                income = p.income; daysAgo = p.daysAgo
+                date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -p.daysAgo, to: state.book.todayDate) ?? state.book.todayDate
+                pickDate = p.daysAgo > 2
+            }
+            if account.isEmpty { account = accounts.first?.name ?? "" }
+        }
         .onChange(of: income) { _, _ in account = accounts.first?.name ?? "" }
         .presentationDetents([.large])
     }
@@ -156,7 +164,7 @@ struct P3AddSheet: View {
                 }
                 .opacity(pickDate ? 1 : 0.55)
         }
-        .onAppear { date = state.book.todayDate }
+
     }
 
     /// 生意那边的营业额只到这个月 1 号；生活往前一年。
