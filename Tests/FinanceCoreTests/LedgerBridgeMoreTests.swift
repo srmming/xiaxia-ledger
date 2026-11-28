@@ -890,4 +890,32 @@ final class LedgerExtrasTests: XCTestCase {
         _ = try no.undo(changeID: c.id, author: "小晴")
         XCTAssertEqual(no.placeQuestion(today: today)?.place, "Super Lumi")
     }
+
+    func testChosenIconShowsEverywhereIncludingPastMonths() throws {
+        var l = ledger
+        try l.setCategoryEmoji("超市", emoji: "🧺", author: "小晴")
+        let b = snap(l)
+        XCTAssertEqual(b.spendByCategory.first { $0.name == "超市" }?.emoji, "🧺", "这个月的花销图")
+        let past = b.pastMonths.flatMap(\.slices).filter { $0.name == "超市" }
+        XCTAssertFalse(past.isEmpty)
+        XCTAssertTrue(past.allSatisfy { $0.emoji == "🧺" }, "过去月份的花销图也是新图标")
+        XCTAssertTrue(b.entries.filter { $0.name == "超市" }.allSatisfy { $0.emoji == "🧺" })
+    }
+
+    func testLegacyCustomerDebtCanBeRemovedAndUndone() throws {
+        var l = ledger
+        let old = Receivable(name: "阿云", amount: Money(cents: 45_00))
+        l.receivables = [old]
+        let before = snap(l)
+        let row = try XCTUnwrap(before.shopDebts.first { $0.id == old.id })
+        var after = before
+        try after.removeShopDebt(row.id)
+        let tx = l.transactions
+        let r = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(r.count, 1); XCTAssertEqual(r[0].author, "小晴")
+        XCTAssertTrue(l.receivables.isEmpty); XCTAssertEqual(l.transactions, tx, "只拿掉这条记录，流水不动")
+        XCTAssertFalse(snap(try roundTrip(l)).shopDebts.contains { $0.id == old.id })
+        _ = try l.undo(changeID: r[0].id, author: "小晴")
+        XCTAssertEqual(l.receivables, [old])
+    }
 }

@@ -268,6 +268,8 @@ public struct PlanSnapshot: Hashable, Codable, Sendable {
     /// 小票发票、报销状态改之前的样子；这次新建的（撤销时删掉）。
     public var paperwork: [Paperwork]?
     public var addedPaperworkIDs: [UUID]?
+    /// 这次改动删掉的「客人欠款」（旧界面记的）：撤销时放回来。老改动记录没有这个字段。
+    public var removedReceivables: [Receivable]?
 
     public init(accounts: [Account]? = nil, books: [Book]? = nil, debts: [Debt]? = nil,
                 installments: [Installment]? = nil, goals: [Goal]? = nil,

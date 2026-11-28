@@ -54,6 +54,9 @@ public enum LedgerBridge {
     /// - showPrivate: 旧版标成私房钱的账户（isPrivate）要不要显示、算进合计。v3 去掉了私房钱，默认当普通账户显示、算进去（ming 2026-11-28 定）；
     ///   开关留着，传 false 就和旧界面一样藏起来。旧数据里的这个标记不删不改。
     public static func snapshot(of ledger: Ledger, today: LocalDate = .today, showPrivate: Bool = true) -> TrialBook {
+        // 分类的图标：用户挑过的用他挑的，没挑过的按名字配。这一份快照里所有地方（流水、花销图、过去的月份、固定开销）都从这里拿
+        let custom = ledger.categoryEmojis
+        func emoji(_ category: String?) -> String { category.flatMap { custom[$0] } ?? Self.emoji(category) }
         let hidden = showPrivate ? Set<String>() : Set(ledger.accounts.filter(\.isPrivate).map(\.id))
         let bizBooks = Set(ledger.books.filter(\.isBusiness).map(\.id))
         let bizAccounts = WealthBreakdown.businessAccounts(ledger)
@@ -370,16 +373,12 @@ public enum LedgerBridge {
                 .init(emoji: "📅", name: $0.date == today ? "今天" : "\($0.date.month) 月 \($0.date.day) 日", note: $0.note ?? "", amount: $0.value)
             }
         }
-        // 用户给分类挑过的图标：流水和分类那一排都用它
-        let custom = ledger.categoryEmojis
-        if !custom.isEmpty {
-            for i in b.entries.indices { if let e = custom[b.entries[i].name] { b.entries[i].emoji = e } }
-            for i in b.categories.indices { if let e = custom[b.categories[i].name] { b.categories[i].emoji = e } }
-        }
+        // 分类那一排也用用户挑过的图标
+        for i in b.categories.indices { if let e = custom[b.categories[i].name] { b.categories[i].emoji = e } }
         // 「这家店以后都算这一类」：账本里记过的，放回界面这份账里（按流水里出现过的店名）
         if let rules = ledger.profile.placeCategories, !rules.isEmpty {
             for place in Set(b.entries.map(\.place)) where !place.isEmpty {
-                if let c = rules[Ledger.placeKey(place)] { b.placeRules[place] = [custom[c] ?? emoji(c), c] }
+                if let c = rules[Ledger.placeKey(place)] { b.placeRules[place] = [emoji(c), c] }
             }
         }
         return b

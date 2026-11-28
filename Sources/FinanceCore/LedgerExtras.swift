@@ -134,6 +134,20 @@ extension Ledger {
         return nil
     }
 
+    // MARK: 旧界面记的客人欠款
+
+    /// 删掉一笔旧界面记的「客人欠款」。只是拿掉这条记录，流水不动。能撤销。
+    @discardableResult
+    public mutating func removeReceivable(_ id: UUID, author: String) throws -> ChangeRecord {
+        guard let old = receivables.first(where: { $0.id == id }) else { throw ManageError.nothingToChange }
+        var snapshot = PlanSnapshot()
+        snapshot.removedReceivables = [old]
+        receivables.removeAll { $0.id == id }
+        let change = snapshotChange(.remove, "删了「\(old.name)」欠店里的 \(old.amount.formatted)", before: snapshot, author: author)
+        changes.append(change)
+        return change
+    }
+
     // MARK: 估的货值
 
     /// 删掉某一天估的货值。只删那个估的数，流水不动。能撤销。
