@@ -366,6 +366,82 @@ final class LedgerBridgeMoreTests: XCTestCase {
         }
     }
 
+    /// 新加的订阅：多久扣一次照选的记；下次扣款是从今天起过一个周期；「赚钱用的」记在生意账本上。
+    func testNewSubscriptionsKeepTheirCycleAndBook() throws {
+        var l = ledger
+        for (i, name) in ["周报", "月卡", "季票", "年费"].enumerated() {
+            let before = LedgerBridge.snapshot(of: l, today: today)
+            var after = before
+            try after.addSubscription(name: name, amount: Money(cents: 12_00), note: "", forWork: i == 3, cycle: i)
+            try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        }
+        func sub(_ n: String) -> Subscription { l.subscriptions.first { $0.name == n }! }
+        XCTAssertEqual(sub("周报").cycle, .weekly); XCTAssertEqual(sub("周报").nextDate, today.adding(days: 7))
+        XCTAssertEqual(sub("月卡").cycle, .monthly); XCTAssertEqual(sub("月卡").nextDate, today.adding(months: 1))
+        XCTAssertEqual(sub("季票").cycle, .quarterly); XCTAssertEqual(sub("季票").nextDate, today.adding(months: 3))
+        XCTAssertEqual(sub("年费").cycle, .yearly); XCTAssertEqual(sub("年费").nextDate, today.adding(months: 12))
+        XCTAssertEqual(sub("年费").bookID, l.businessBook?.id, "赚钱用的记在生意账本")
+        XCTAssertEqual(sub("月卡").bookID, l.books.first { !$0.isBusiness }?.id)
+        // 新界面里显示的周期和每月折合也对
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b.subscriptions.first { $0.name == "年费" }?.cycle, 3)
+        XCTAssertEqual(b.subscriptions.first { $0.name == "年费" }?.monthly, Money(cents: 1_00))
+    }
+
+    /// 「再几个月回本」按前三个整月平均赚的算（和旧界面一个口径），月初也不会算出一个特别远的日子；
+    /// 回本那条线是过去每个月底真实赚回来的累计，最后一个点是今天。
+    func testPaybackSpeedUsesLastThreeFullMonthsAndTheCurveIsReal() throws {
+        let l = ledger
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        // 速度 = 正式账本里前三个整月多赚回来的 ÷ 3
+        func recovered(_ monthsAgo: Int) -> Money {
+            let ym = today.yearMonth.adding(months: -monthsAgo)
+            let end = LocalDate(year: ym.year, month: ym.month, day: 1).adding(months: 1).adding(days: -1)
+            return l.capitalProgress(today: end)!.recovered
+        }
+        XCTAssertTrue(b.paybackSpeed.fromLastThree)
+        XCTAssertEqual(b.paybackSpeed.perMonth, Money(cents: (recovered(1) - recovered(4)).cents / 3))
+        XCTAssertEqual(b.paybackSpeedNote, "照前三个月平均赚的速度")
+        // 月初和月中算出来的回本月份差不了多少（以前月初会差出好几年）
+        let early = LedgerBridge.snapshot(of: DemoData.make(endingOn: LocalDate(year: 2026, month: 11, day: 2)), today: LocalDate(year: 2026, month: 11, day: 2))
+        if let a = early.paybackMonths(), let c = b.paybackMonths() { XCTAssertLessThanOrEqual(abs(a - c), 3) }
+        // 那条线：每个点就是正式账本那个月底的数，一个月比一个月多（示例里的店一直在赚），最后一个是今天
+        let curve = b.paybackCurve
+        XCTAssertGreaterThan(curve.count, 3)
+        XCTAssertEqual(curve.last?.back, b.shopBack); XCTAssertEqual(curve.last?.key, b.thisMonth)
+        XCTAssertEqual(curve[curve.count - 2].back, recovered(1))
+        XCTAssertEqual(curve.map(\.key), curve.map(\.key).sorted())
+        // 试用数字只有两个月的数：退回用这个月赚的
+        XCTAssertFalse(TrialBook.demo.paybackSpeed.fromLastThree)
+        XCTAssertEqual(TrialBook.demo.paybackSpeed.perMonth, TrialBook.demo.shopMonth().earned)
+        XCTAssertEqual(TrialBook.demo.paybackCurve.count, 3)
+    }
+
+    /// 过去月份的生意流水：正式账本上是一笔笔的，加起来就是那个月收的、花的；试用数字里只有合计的月份说清楚。
+    func testPastMonthShopFlowIsItemisedOnTheRealLedger() throws {
+        let b = LedgerBridge.snapshot(of: ledger, today: today)
+        let oct = TrialBook.MonthKey(2026, 10)
+        let rows = b.shopFlow(in: oct)
+        XCTAssertGreaterThan(rows.count, 10, "十月店里有很多笔")
+        XCTAssertFalse(b.shopFlowIsTotalsOnly(in: oct)); XCTAssertNil(b.shopFlowTotalsLine(in: oct))
+        let d = b.monthData(oct)
+        XCTAssertEqual(rows.filter { $0.amount > .zero }.map(\.amount).reduce(.zero, +), d.shopIn, "逐笔加起来 = 那个月收的")
+        XCTAssertEqual(rows.filter { $0.amount < .zero }.map(\.amount).reduce(.zero, +).magnitude, d.shopOut, "逐笔加起来 = 那个月花的")
+        XCTAssertEqual(Set(rows.map(\.id)).count, rows.count, "没有重复的行")
+        XCTAssertTrue(rows.allSatisfy { (1...31).contains($0.day) })
+        // 这个月不受影响：还是按每天收的算一次
+        XCTAssertEqual(b.shopFlow(in: b.thisMonth).count, b.shopFlow.count)
+        XCTAssertFalse(b.shopFlowIsTotalsOnly(in: b.thisMonth))
+        // 试用数字：十月只有合计
+        let demo = TrialBook.demo
+        XCTAssertTrue(demo.shopFlowIsTotalsOnly(in: oct))
+        XCTAssertEqual(demo.shopFlowTotalsLine(in: oct), "10 月只有合计：收了 4.210,00 €，花了 2.874,00 €。一笔笔的没有存")
+        // 试用数字里往十月补记一笔：就不再是「只有合计」了
+        var patched = demo
+        try patched.recordShopIncome(daysAgo: patched.todayDay + 3, channels: [.init(patched.shopHeld.first!.name, Money(cents: 80_00))])
+        XCTAssertFalse(patched.shopFlowIsTotalsOnly(in: oct)); XCTAssertEqual(patched.shopFlow(in: oct).count, 1)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

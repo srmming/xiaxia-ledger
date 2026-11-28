@@ -501,9 +501,15 @@ final class V3State {
     /// 记一笔开销（说一句、问夏夏用）。
     @discardableResult
     func record(_ q: QuickPhrase, account: String, place: String = "", daysAgo: Int = 0) -> Bool {
-        change("记好了 · \(q.name) \(q.amount.v3) · \(account)", kind: .add) {
-            try $0.record(name: q.name, emoji: q.emoji, amount: q.amount, account: account, place: place, daysAgo: daysAgo)
-        }
+        // 认方向、记到哪边都在核心里（QuickPhrase / TrialBook.record(_:account:)），这里不自己判断。
+        // 先在一份副本上试一遍，拿到「记了什么」那句话；做不成就把原因说出来
+        var trial = book
+        do {
+            let text = try trial.record(q, account: account, place: place, daysAgo: daysAgo)
+            let kind: ChangeRecord.Kind = q.kind == .spend || q.kind == .income ? .add : .transfer
+            return change(text, kind: kind) { try $0.record(q, account: account, place: place, daysAgo: daysAgo) }
+        } catch let e as TrialError { fail(e.message) } catch { fail("没记成，再试一次") }
+        return false
     }
 
     /// 存一笔进目标：钱从账户挪到目标罐，星星掉进瓶子。返回这一笔刚到的站。

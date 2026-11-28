@@ -37,6 +37,10 @@ extension TrialBook {
         public var owe: Money = .zero
         /// 那个月花到「和今天同一天」时花了多少（「比上月同期」用）。没存就是 nil。
         public var sameDaySpent: Money?
+        /// 那个月店里一笔笔的流水（从正式账本整理过来时带上）。只有合计、没有逐笔的月份是空的。
+        public var shopRows: [ShopFlowRow] = []
+        /// 到那个月底，开店本钱一共赚回来多少（回本页那条线用）。没存就是 nil。
+        public var shopBack: Money?
         /// 那个月每天花了多少（第 1 天…）。没存就是空的。
         public var daily: [Money] = []
 
@@ -175,9 +179,12 @@ extension TrialBook {
         return pastMonths.first { $0.key == k } ?? MonthData(key: k, income: .zero, fixed: .zero, forGoals: .zero, spent: .zero)
     }
 
-    /// 过去某个月的生意流水：只有补记进去的那些笔（按日子落在那个月里的）。这个月的用 `shopFlow`。
+    /// 过去某个月的生意流水：那个月存了逐笔的就是那些笔；没存的，只有补记进去的那几笔（按日子落在那个月里的）。这个月的用 `shopFlow`。
     public func shopFlow(in key: MonthKey) -> [ShopFlowRow] {
         guard key != thisMonth else { return shopFlow }
+        if let rows = pastMonths.first(where: { $0.key == key })?.shopRows, !rows.isEmpty {
+            return rows.sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
+        }
         let cal = Calendar(identifier: .gregorian)
         return entries.compactMap { e -> ShopFlowRow? in
             guard e.side == .biz, let date = cal.date(byAdding: .day, value: -e.daysAgo, to: todayDate) else { return nil }
@@ -187,6 +194,17 @@ extension TrialBook {
                                amount: e.amount, day: c.day ?? 1, entryID: e.id)
         }
         .sorted { ($0.day, $0.amount.cents) > ($1.day, $1.amount.cents) }
+    }
+
+    /// 那个月的生意流水是不是只有合计、没有一笔笔的：店里有收有花，但列不出逐笔。Mac 和手机都用这一个来判断。
+    public func shopFlowIsTotalsOnly(in key: MonthKey) -> Bool {
+        guard key != thisMonth, let d = pastMonths.first(where: { $0.key == key }) else { return false }
+        return (d.shopIn > .zero || d.shopOut > .zero) && shopFlow(in: key).isEmpty
+    }
+    /// 只有合计的月份，流水那里就写这一行（Mac 和手机一样）。不是这种月份返回 nil。
+    public func shopFlowTotalsLine(in key: MonthKey) -> String? {
+        guard shopFlowIsTotalsOnly(in: key), let d = pastMonths.first(where: { $0.key == key }) else { return nil }
+        return "\(key.label(thisYear: thisMonth.year))只有合计：收了 \(d.shopIn.formatted)，花了 \(d.shopOut.formatted)。一笔笔的没有存"
     }
 
     // MARK: 意外开销（用的是正式账本那条「一次性开销」规则，见 Outlook.isUnusual）

@@ -202,6 +202,13 @@ public enum LedgerBridge {
             let shop = plain.filter { side($0) == .biz && $0.date.yearMonth == ym && !$0.isTransfer }
             d.shopIn = shop.filter { $0.amount > .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }
             d.shopOut = shop.filter { $0.amount < .zero }.reduce(Money.zero) { $0 + ledger.baseAmount($1) }.magnitude
+            // 那个月店里一笔笔的流水（正式账本里本来就有）。最近 90 天里的那些笔带着编号，点开能改；更早的只看
+            d.shopRows = shop.map { t in
+                .init(id: t.id.uuidString, emoji: t.amount > .zero ? ((names[t.accountID] ?? "").contains("现金") ? "💶" : "💳") : emoji(t.category),
+                      title: t.amount > .zero && t.category == "营业收入" ? "营业额" : (t.category ?? "还没分"),
+                      detail: [t.description, names[t.accountID] ?? t.accountID].filter { !$0.isEmpty }.joined(separator: " · "),
+                      amount: ledger.baseAmount(t), day: t.date.day, entryID: days(from: t.date, to: today) <= 90 ? t.id : nil)
+            }
             return d
         }
         // 订阅，和 7 天内要扣的
@@ -254,6 +261,13 @@ public enum LedgerBridge {
                 // 界面上「赚回来的」= 以前赚回来的 + 这个月真正赚的；正式账本给的是到今天一共赚回来多少，所以把这个月的那部分先减掉
                 if let p = ledger.capitalProgress(today: today) {
                     b.shopBackBefore = max(p.recovered - max(b.shopMonth().earned, .zero), .zero)
+                }
+                // 过去每个月底一共赚回来多少（回本页那条线）：用正式账本自己的算法，按那个月最后一天算。开店之前的月份不带
+                for i in b.pastMonths.indices {
+                    let k = b.pastMonths[i].key
+                    let end = LocalDate(year: k.year, month: k.month, day: 1).adding(months: 1).adding(days: -1)
+                    if let open = cap.openedOn, end < open { continue }
+                    b.pastMonths[i].shopBack = ledger.capitalProgress(today: end)?.recovered
                 }
             }
             b.shopLoanMonthly = shopMonthlyRepayments(ledger, today: today)
@@ -384,6 +398,7 @@ extension LedgerBridge {
             return records + [try applyMove(moved, was: was, to: &work, today: today, author: who)]
         }
         guard moved.count <= 1 else { throw TrialError("一次动了好几个账户的钱，这一步在接正式账本的这一版里还没接上，账本没动") }
+        var paidOut: Set<UUID> = []
         // 订阅：加一个、标成要退 / 留着、拿掉
         records += try applySubscriptions(before: before, after: after, to: &work, today: today, author: who)
         // 新记一笔欠款（我欠别人 / 别人欠我）：不是账户，记成正式账本里的一笔借款
@@ -391,11 +406,15 @@ extension LedgerBridge {
             let lent = a.kind == .lent
             let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
             let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            // 借出去的同时有一个账户正好少了这么多（「借给小李 50」）：钱是从那个账户出去的，一起记上
+            let payer = lent && moved.count == 1 && (was[moved[0].id]?.balance ?? .zero) - moved[0].balance == a.balance ? real(was[moved[0].id]?.name ?? "") : nil
+            if payer != nil { paidOut.insert(moved[0].id) }
             records.append(try work.addDebt(counterparty: who2, direction: lent ? .theyOweMe : .iOweThem, amount: a.balance, bookID: book,
-                                            date: today, accountID: nil, note: a.note.isEmpty ? nil : a.note, author: who).1)
+                                            date: today, accountID: payer?.id, note: a.note.isEmpty ? nil : a.note, author: who).1)
         }
         // 改名、改余额、换底色
         for a in after.accounts {
+            guard !paidOut.contains(a.id) else { continue }
             guard let o = was[a.id], var r = real(o.name) else { continue }
             if o.name != a.name || o.cardStyle != a.cardStyle {
                 guard o.name == a.name || real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
@@ -564,6 +583,13 @@ extension LedgerBridge {
                 return try work.repay(debtID: d.id, amount: amount, date: today, accountID: f.id, author: who)
             }
         }
+        // 又借给同一个人一笔：借出去的变多，一个账户少了这么多
+        if let payer, let more = moved.first(where: { $0.kind == .lent && delta($0) > .zero }), let f = real(payer) {
+            let name = was[more.id]?.name ?? more.name
+            let person = name.hasPrefix("借给") ? String(name.dropFirst(2)) : name
+            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            return try work.addDebt(counterparty: person, direction: .theyOweMe, amount: amount, bookID: book, date: today, accountID: f.id, author: who).1
+        }
         if let receiver, let gotBack, let t = real(receiver) {
             let name = was[gotBack.id]?.name ?? gotBack.name
             let person = name.hasPrefix("借给") ? String(name.dropFirst(2)) : name
@@ -580,9 +606,13 @@ extension LedgerBridge {
         let cycles: [Subscription.Cycle] = [.weekly, .monthly, .quarterly, .yearly]
         for n in after.subscriptions {
             guard let o = before.subscriptions.first(where: { $0.name == n.name }) else {
-                let next = day(today, minus: -30)
-                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycles[min(max(n.cycle, 0), 3)], nextDate: next,
-                                                                      bookID: work.books.first { !$0.isBusiness }?.id, note: n.note.isEmpty ? nil : n.note), author: who))
+                // 下次扣款：新界面加订阅时不问哪天扣，先按「从今天起过一个周期」算（每周 7 天后、每月下个月今天…），以后对上流水会自己校准
+                let cycle = cycles[min(max(n.cycle, 0), 3)]
+                let next = cycle == .weekly ? today.adding(days: 7) : today.adding(months: cycle == .monthly ? 1 : cycle == .quarterly ? 3 : 12)
+                // 标了「赚钱用的」又开着生意：记在生意账本上；别的记在生活账本上
+                let book = (n.flag ? work.books.first { $0.isBusiness } : nil) ?? work.books.first { !$0.isBusiness }
+                records.append(try work.addSubscription(Subscription(name: n.name, amount: n.amount, cycle: cycle, nextDate: next,
+                                                                      bookID: book?.id, note: n.note.isEmpty ? nil : n.note), author: who))
                 continue
             }
             guard o.off != n.off || o.amount != n.amount, var s = work.subscriptions.first(where: { $0.name == n.name }) else { continue }
