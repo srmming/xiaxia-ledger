@@ -321,13 +321,12 @@ struct V3MonthBars: View {
 
 struct V3TrendsPage: View {
     @Environment(V3State.self) private var state
-    @State private var gym: Bool?
 
     var body: some View {
         let run = state.book.handRunway
         // 都从账本现算（TrialMonths.swift）：月底大概花、接下来要付的
         let b = state.book
-        let due = b.upcomingTotal + (gym == true ? Money(cents: 29_00) : .zero)
+        let due = b.upcomingTotal
         let end = b.projectedMonthSpend
         let last = b.previousMonthData?.spentTotal
         let pace = b.spendPace
@@ -384,16 +383,8 @@ struct V3TrendsPage: View {
                             }
                         }
                     }
-                } else if let gym {
-                    V3Ask(face: "happy", text: gym ? "算进去了，12 月要付 1.561 €。" : "好，不算，不再问了。", tone: .good)
-                } else {
-                    V3Ask(face: "think", text: "健身房 29 € 扣了 3 个月，算固定的吗？") {
-                        HStack(spacing: 8) {
-                            Button("算") { withAnimation(.snappy) { gym = true }; state.say("好，算进固定开销，12 月要付变成 1.561 €") }.buttonStyle(.v3(.primary, .small))
-                            Button("不算") { withAnimation(.snappy) { gym = false }; state.say("好，不算，以后不再问这一笔") }.buttonStyle(.v3(.ghost, .small))
-                        }
-                    }
                 }
+                // 试用数字里以前有一句「健身房 29 € 扣了 3 个月，算固定的吗？」：示例流水里并没有这三笔，没有依据，拿掉了
             }
         } trailing: {
             V3GrowCard(spacing: 6) {
@@ -402,7 +393,7 @@ struct V3TrendsPage: View {
                     V3RowList(rows: [
                         .init("🏠", "房租", "12 月 1 日 · 固定", "650,00 €"), .init("💳", "信用卡", "12 月 5 日 · 固定", "640,00 €", V3.red),
                         .init("📱", "手机分期", "12 月 8 日 · 第 7 / 12 期", "200,00 €", V3.red), .init("🔁", "订阅 5 个", "2 日到 21 日陆续扣", "42,00 €"),
-                    ] + (gym == true ? [.init("🏋️", "健身房", "刚算进来的", "29,00 €")] : []), compact: true)
+                    ], compact: true)
                     V3CardTitle("平时花的").padding(.top, 6)
                     V3RowList(rows: [.init("🛒", "吃饭和超市", "大概", "310,00 €"), .init("🚇", "交通和别的", "大概", "140,00 €")], compact: true)
                     V3CardTitle("提前知道的大开销").padding(.top, 6)

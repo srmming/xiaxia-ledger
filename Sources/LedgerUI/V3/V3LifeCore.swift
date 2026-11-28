@@ -57,8 +57,9 @@ struct V3OverviewPage: View {
                     V3Ask(face: "worried", text: n == 1 ? "这个月有一笔意外开销 \(odd.amount.magnitude.v3Short)，后面几天省着点。" : "这个月有 \(n) 笔意外开销，后面几天省着点。", tone: .warn) {
                         Button("看看") { state.go(.monthly) }.buttonStyle(.v3(.primary, .small))
                     }
-                } else {
-                    V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                } else if let remark = b.savingRemark {
+                    // 这句从这个月的数算出来（定了每月存多少、已经存了多少、还剩多少能花）；没定就不说
+                    V3Ask(face: "calm", text: remark) {
                         Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
                     }
                 }

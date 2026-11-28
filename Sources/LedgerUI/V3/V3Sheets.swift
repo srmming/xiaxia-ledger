@@ -961,11 +961,16 @@ private struct V3RepaySheet: View {
 
 // MARK: - 生意：记今天的账
 
-private struct V3ShopDaySheet: View {
+struct V3ShopDaySheet: View {
     let start: Int
     @Environment(V3State.self) private var state
     /// 0 收的钱，1 店里的开销
     @State private var kind = 0
+    /// 一打开停在哪一种（出图、从别处直接跳到「店里的开销」时用）。
+    init(start: Int, startKind: Int = 0) {
+        self.start = start
+        _kind = State(initialValue: startKind)
+    }
     /// 0 按渠道填，1 只填总数
     @State private var mode = 0
     @State private var texts: [String: String] = [:]
@@ -1120,7 +1125,7 @@ struct V3DayPick: View {
     }
 }
 
-private struct V3FixedSheet: View {
+struct V3FixedSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
