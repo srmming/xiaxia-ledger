@@ -874,4 +874,36 @@ struct V3Field: View {
             .onSubmit(onSubmit)
     }
 }
+
+/// 麦克风按钮：点一下开始说，再点一下停；字边说边出。停顿够了自动交出去（多久在设置里选）。⌥Space 也能开关。
+/// 权限被拒时变灰，鼠标移上去说去哪打开。
+struct V3MicButton: View {
+    /// 每出几个字叫一次（填进输入框）。
+    let live: (String) -> Void
+    /// 说完叫一次；`auto` 是因为停顿够了自动说完的（这时才自动发出去）。
+    let done: (String) -> Void
+    var shortcut = true
+    @Environment(V3State.self) private var state
+    @State private var voice = SpeechDictation()
+
+    var body: some View {
+        let b = Button {
+            voice.pause = VoiceRules.pause(state.prefs.voicePause).map { Duration.seconds($0) }
+            voice.toggle(live: live, done: done)
+        } label: {
+            Image(systemName: voice.listening ? "waveform" : voice.blocked ? "mic.slash" : "mic")
+                .font(.system(size: 15, weight: .semibold))
+                .symbolEffect(.variableColor.iterative, isActive: voice.listening)
+                .foregroundStyle(voice.listening ? .white : V3.navy)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(voice.listening ? V3.red : .white).overlay(Circle().strokeBorder(V3.ink, lineWidth: 2)))
+        }
+        .buttonStyle(V3SinkStyle(depth: 2))
+        .disabled(voice.blocked).opacity(voice.blocked ? 0.45 : 1)
+        .help(voice.blocked ? SpeechDictation.whereToAllow : voice.listening ? "再点一下说完（⌥Space）" : "点一下，说一句（⌥Space）")
+        .accessibilityLabel(voice.listening ? "说完了" : "说一句")
+        .onChange(of: voice.error) { _, e in if let e, !voice.listening { state.fail(e) } }
+        if shortcut { b.keyboardShortcut(.space, modifiers: .option) } else { b }
+    }
+}
 #endif

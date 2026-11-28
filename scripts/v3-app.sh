@@ -41,6 +41,8 @@ cat > "$STAGE/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>XiaxiaV3</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>点了麦克风以后，用它听你说的那一句，识别成字。不录音、不存文件。</string>
+  <key>NSSpeechRecognitionUsageDescription</key><string>把你说的那一句识别成字，填进输入框。</string>
 </dict></plist>
 PLIST
 mkdir -p "$DEST"

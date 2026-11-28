@@ -72,11 +72,15 @@ struct V3AddSheet: View {
     @ViewBuilder private var sayWay: some View {
         let q = parsed
         let said = saidAccount
-        TextField("咖啡 3,2 现金", text: $text).textFieldStyle(.plain).font(V3.font(22, .heavy)).foregroundStyle(V3.ink).focused($focused)
-            .onSubmit { save(q) }
-            .padding(.horizontal, 20).padding(.vertical, 14)
-            .background(RoundedRectangle(cornerRadius: 20).fill(.white).overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(V3.ink, lineWidth: 2.5)))
-            .accessibilityLabel("说一句")
+        HStack(spacing: 10) {
+            TextField("咖啡 3,2 现金", text: $text).textFieldStyle(.plain).font(V3.font(22, .heavy)).foregroundStyle(V3.ink).focused($focused)
+                .onSubmit { save(q) }
+                .padding(.horizontal, 20).padding(.vertical, 14)
+                .background(RoundedRectangle(cornerRadius: 20).fill(.white).overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(V3.ink, lineWidth: 2.5)))
+                .accessibilityLabel("说一句")
+            // 麦克风：说出来的字进输入框。这里不自动记，认出来的那一笔先给你看一眼再按「记好」
+            V3MicButton(live: { text = $0 }, done: { text = $0 })
+        }
         if let receipt { receiptChip(receipt) }
         if let q {
             HStack(spacing: 12) {
