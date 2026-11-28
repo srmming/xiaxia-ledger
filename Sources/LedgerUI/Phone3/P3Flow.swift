@@ -26,24 +26,32 @@ struct P3FlowPage: View {
     }
 
     private var days: [Day] {
-        guard state.isThisMonth else { return [] }
         let b = state.book
+        let now = state.isThisMonth
+        let monthEntries = now ? b.entries : state.monthData.entries
         let q = query.trimmingCharacters(in: .whitespaces)
         func hit(_ s: String...) -> Bool { q.isEmpty || s.contains { $0.localizedCaseInsensitiveContains(q) } }
+        let cal = Calendar(identifier: .gregorian)
+        let today = cal.startOfDay(for: b.todayDate)
+        // 按「离今天几天」分组：过去月份的、生意按几号记的，都先换成离今天几天
         var byDay: [Int: [Row]] = [:]
         if state.side == .biz {
-            for r in b.shopFlow where hit(r.title, r.detail) {
-                byDay[b.todayDay - r.day, default: []].append(Row(id: r.id, emoji: r.emoji, name: r.title, meta: r.detail, amount: r.amount, tag: "", entryID: r.entryID))
+            let k = state.monthKey
+            for r in b.shopFlow(in: k) where hit(r.title, r.detail) {
+                let d = cal.date(from: DateComponents(year: k.year, month: k.month, day: r.day)) ?? today
+                let ago = cal.dateComponents([.day], from: d, to: today).day ?? 0
+                byDay[ago, default: []].append(Row(id: r.id, emoji: r.emoji, name: r.title, meta: r.detail, amount: r.amount, tag: "", entryID: r.entryID))
             }
         } else {
-            for e in b.entries where e.side == .life && hit(e.name, e.meta, e.place) {
-                byDay[e.daysAgo, default: []].append(Row(id: e.id.uuidString, emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount, tag: e.tag == "等你看一眼" ? e.tag : "", entryID: e.id))
+            for e in monthEntries where e.side == .life && hit(e.name, e.meta, e.place) {
+                byDay[e.daysAgo, default: []].append(Row(id: e.id.uuidString, emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount, tag: e.tag == "等你看一眼" ? e.tag : "", entryID: now ? e.id : nil))
             }
         }
         return byDay.keys.sorted().map { ago in
-            let day = b.todayDay - ago
-            let label = ago == 0 ? "今天" : ago == 1 ? "昨天" : ago == 2 ? "前天" : "周\(["日", "一", "二", "三", "四", "五", "六"][((day + 6) % 7 + 7) % 7])"
-            return Day(id: ago, title: "\(label) · 11 月 \(day) 日", rows: byDay[ago] ?? [])
+            let d = cal.date(byAdding: .day, value: -ago, to: today) ?? today
+            let c = cal.dateComponents([.month, .day, .weekday], from: d)
+            let label = ago == 0 ? "今天" : ago == 1 ? "昨天" : ago == 2 ? "前天" : "周" + ["日", "一", "二", "三", "四", "五", "六"][((c.weekday ?? 1) - 1) % 7]
+            return Day(id: ago, title: "\(label) · \(c.month ?? 0) 月 \(c.day ?? 0) 日", rows: byDay[ago] ?? [])
         }
     }
 

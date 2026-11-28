@@ -17,7 +17,7 @@ struct P3AddSheet: View {
     @State private var daysAgo = 0
     @State private var pickDate = false
     @State private var date = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)) ?? Date()
-    @State private var voice = P3Voice()
+    @State private var voice = SpeechDictation()
 
     private var biz: Bool { state.side == .biz }
     private var tint: Color { biz ? P3.teal : P3.navy }
@@ -67,10 +67,9 @@ struct P3AddSheet: View {
                     .font(P3.font(15, .regular))
                     .padding(.horizontal, 12).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
-                P3MicButton(voice: voice) { said in heard(said) }
+                P3MicButton(voice: voice, live: { name = $0 }) { said in heard(said) }
                     .background(Circle().fill(.white))
             }
-            .onChange(of: voice.text) { _, t in if voice.listening { name = t } }
             .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
 
             keypad
@@ -93,27 +92,25 @@ struct P3AddSheet: View {
         .presentationDetents([.large])
     }
 
+    /// 分类排成两行，一眼看全，不用横着滑去猜。
     private var categoryRow: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 12) {
-                ForEach(categories, id: \.name) { c in
-                    let on = category == c.name
-                    Button { category = c.name } label: {
-                        VStack(spacing: 4) {
-                            P3Icon(emoji: c.emoji, size: 42)
-                                .overlay(Circle().strokeBorder(on ? tint : .clear, lineWidth: 3).padding(-4))
-                            Text(c.name).font(P3.font(11.5, on ? .bold : .medium)).foregroundStyle(on ? tint : P3.ink2).lineLimit(1)
-                        }
-                        .frame(width: 54)
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 6), spacing: 8) {
+            ForEach(categories, id: \.name) { c in
+                let on = category == c.name
+                Button { category = c.name } label: {
+                    VStack(spacing: 3) {
+                        P3Icon(emoji: c.emoji, size: 38)
+                            .overlay(Circle().strokeBorder(on ? tint : .clear, lineWidth: 3).padding(-4))
+                        Text(c.name).font(P3.font(11, on ? .bold : .medium)).foregroundStyle(on ? tint : P3.ink2).lineLimit(1).minimumScaleFactor(0.8)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(c.name)
-                    .accessibilityAddTraits(on ? .isSelected : [])
+                    .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(c.name)
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
-            .padding(.vertical, 6).padding(.horizontal, 4)
         }
-        .scrollIndicators(.hidden)
+        .padding(.vertical, 4)
     }
 
     private func pills(_ label: String, _ items: [String], selected: Binding<String>, prefix: String) -> some View {

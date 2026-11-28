@@ -38,7 +38,34 @@ public struct PhoneV3Root: View {
             guard let new else { return nil }
             return new.isError ? .error : .success
         }
-        .sheet(item: $state.sheet) { sheet in
+        .p3Sheets($state.sheet, state)
+        .sheet(isPresented: $state.meOpen) {
+            P3MePage().environment(state)
+                .overlay(alignment: .bottom) {
+                    // 「我的」盖在上面时，提示条也要看得见（能点撤销）
+                    if let t = state.toast {
+                        P3ToastView(text: t.text, canUndo: t.canUndo, isError: t.isError) { state.undo() }
+                            .padding(.horizontal, 16).padding(.bottom, 24)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .p3Sheets($state.meSheet, state)
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(26)
+        }
+    }
+}
+
+extension View {
+    /// 所有从底下弹出来的（根和「我的」各挂一份）。
+    func p3Sheets(_ item: Binding<P3State.Sheet?>, _ state: P3State) -> some View { modifier(P3SheetHost(state: state, item: item)) }
+}
+
+struct P3SheetHost: ViewModifier {
+    let state: P3State
+    @Binding var item: P3State.Sheet?
+    func body(content: Content) -> some View {
+        content.sheet(item: $item) { sheet in
             Group {
                 switch sheet {
                 case .add: P3AddSheet()
@@ -49,17 +76,15 @@ public struct PhoneV3Root: View {
                 case .newBigGoal: P3GoalEditor(smallID: nil, big: true)
                 case .editBigGoal: P3GoalEditor(smallID: nil, big: true, editBig: true)
                 case .smallGoal(let id): P3GoalEditor(smallID: id, big: false)
+                case .transfer: P3TransferSheet()
+                case .account(let n): P3AccountEditor(editing: n)
+                case .repay(let n): P3RepaySheet(debt: n)
                 }
             }
             .environment(state)
             .presentationCornerRadius(26)
             .presentationDragIndicator(.visible)
             .presentationBackground(P3.bg)
-        }
-        .sheet(isPresented: $state.meOpen) {
-            P3MePage().environment(state)
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(26)
         }
     }
 }
@@ -187,7 +212,8 @@ struct P3MonthSwitch: View {
             Button { state.flipMonth(-1) } label: {
                 Image(systemName: "chevron.left").font(.system(size: 12, weight: .bold)).frame(width: 28, height: 32).contentShape(Rectangle())
             }
-            .disabled(state.monthOffset <= -11)
+            .disabled(!state.canGoBack)
+            .opacity(state.canGoBack ? 1 : 0.3)
             .accessibilityLabel("上个月")
             Text(state.monthTitle).font(P3.font(14, .bold)).foregroundStyle(P3.ink2).contentTransition(.numericText()).fixedSize()
             Button { state.flipMonth(1) } label: {

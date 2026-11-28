@@ -6,7 +6,7 @@ import SwiftUI
 
 struct P3MePage: View {
     @Environment(P3State.self) private var state
-    @AppStorage("p3.voiceAutoSend") private var voiceAutoSend = true
+    @AppStorage("p3.voicePause") private var voicePause = VoiceRules.defaultIndex
 
     var body: some View {
         @Bindable var state = state
@@ -35,7 +35,16 @@ struct P3MePage: View {
                             P3Divider().padding(.leading, 52)
                             NavigationLink(value: P3State.Page.changes) { rowLabel("clock.arrow.circlepath", "改动记录", "\(state.ledger.changes.count) 条") }
                             P3Divider().padding(.leading, 52)
-                            toggle("mic", "问夏夏时说完自动发", $voiceAutoSend)
+                            HStack(spacing: 12) {
+                                Image(systemName: "mic").font(.system(size: 17, weight: .semibold)).foregroundStyle(state.side == .biz ? P3.teal : P3.navy).frame(width: 26)
+                                Text("说完停多久自动发").font(P3.font(15.5, .bold)).foregroundStyle(P3.ink)
+                                Spacer()
+                                Picker("", selection: $voicePause) {
+                                    ForEach(VoiceRules.pauses.indices, id: \.self) { Text(VoiceRules.title($0)).tag($0) }
+                                }
+                                .labelsHidden().tint(P3.ink2)
+                            }
+                            .padding(.horizontal, 14).frame(minHeight: 50)
                             P3Divider().padding(.leading, 52)
                             rowLabel("icloud", "和 Mac 同步", "示例账本，不同步", chevron: false)
                         }
@@ -140,12 +149,12 @@ struct P3SpendingPage: View {
     static let colors: [Color] = [P3.navy, P3.sky, P3.gold, P3.teal, P3.hex(0xE58C7A), P3.hex(0x9B8FE0), P3.hex(0x7CC4A0), P3.dash]
 
     var body: some View {
-        let slices = state.isThisMonth ? state.thisMonthSlices : state.pastSlices
+        let slices = state.shownSlices
         let total = slices.map(\.amount).reduce(.zero, +)
         P3SubPage(title: "花销") {
             HStack { P3MonthSwitch(); Spacer() }
             if slices.isEmpty {
-                Text("\(state.monthTitle)还没有记账").font(P3.font(16, .bold)).foregroundStyle(P3.ink2).frame(maxWidth: .infinity, minHeight: 200)
+                Text("\(state.monthTitle)没有记账").font(P3.font(16, .bold)).foregroundStyle(P3.ink2).frame(maxWidth: .infinity, minHeight: 200)
             } else {
                 ZStack {
                     P3Donut(values: slices.map { Double($0.amount.cents) }, colors: Self.colors)
@@ -229,6 +238,7 @@ struct P3WealthPage: View {
                 .padding(.top, 4)
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
+            P3AccountActions()
             P3AccountCards(accounts: b.pinned(on: .life))
             ForEach(b.listed(on: .life)) { g in
                 P3AccountGroup(title: g.title, accounts: g.accounts)
@@ -278,16 +288,22 @@ struct P3AccountCards: View {
 }
 
 struct P3AccountGroup: View {
+    @Environment(P3State.self) private var state
     let title: String
     let accounts: [TrialBook.Account]
+    /// 点一个账户：默认是改它；欠款页里是还一笔。
+    var repay = false
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             P3Label(title).padding(.horizontal, 4)
             VStack(spacing: 0) {
                 ForEach(Array(accounts.enumerated()), id: \.element.id) { i, a in
                     if i > 0 { P3Divider().padding(.leading, 48) }
-                    P3Row(emoji: a.emoji, name: a.name, meta: a.note, amount: a.isDebt ? (-a.balance).p3 : a.balance.p3,
-                          color: a.isDebt ? P3.red : a.side == .biz ? P3.teal : P3.navy)
+                    Button { state.open(repay && a.isDebt ? .repay(a.name) : .account(a.name)) } label: {
+                        P3Row(emoji: a.emoji, name: a.name, meta: a.note, amount: a.isDebt ? (-a.balance).p3 : a.balance.p3,
+                              color: a.isDebt ? (a.balance > .zero ? P3.red : P3.ink2) : a.side == .biz ? P3.teal : P3.navy, tag: repay && a.isDebt && a.balance > .zero ? "还一笔" : "", tagTone: .red)
+                    }
+                    .buttonStyle(P3Sink(depth: 1))
                 }
             }
             .padding(.horizontal, 14).p3Group()
@@ -308,7 +324,7 @@ struct P3DebtsPage: View {
                 Text("别人欠我 \(b.lent.map(\.balance).reduce(.zero, +).p3Short)").font(P3.font(13, .bold)).foregroundStyle(P3.green)
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
-            P3AccountGroup(title: "我欠的", accounts: b.debts)
+            P3AccountGroup(title: "我欠的 · 点一下还一笔", accounts: b.debts, repay: true)
             if !b.lent.isEmpty { P3AccountGroup(title: "别人欠我", accounts: b.lent) }
             VStack(alignment: .leading, spacing: 6) {
                 P3Label("接下来要付的").padding(.horizontal, 4)
@@ -489,8 +505,8 @@ struct P3ShopWealthPage: View {
     let isTab: Bool
     var body: some View {
         let b = state.book
-        let have = b.shopHeld.map(\.balance).reduce(.zero, +)
-        let owe = b.shopOwedAccounts.map(\.balance).reduce(.zero, +)
+        let w = b.shopWorth
+        let have = w.cash, owe = w.owes
         let content = Group {
             VStack(alignment: .leading, spacing: 4) {
                 P3Label("店里能用的钱")
@@ -498,6 +514,7 @@ struct P3ShopWealthPage: View {
                 Text("欠着 \(owe.p3Short) · 和生活的钱完全分开").font(P3.font(13, .bold)).foregroundStyle(P3.teal)
             }
             .padding(18).frame(maxWidth: .infinity, alignment: .leading).p3Sticker()
+            P3AccountActions()
             P3AccountCards(accounts: b.pinned(on: .biz))
             ForEach(b.listed(on: .biz)) { g in P3AccountGroup(title: g.title, accounts: g.accounts) }
         }
@@ -557,7 +574,7 @@ struct P3ShopDebtsPage: View {
     var body: some View {
         let b = state.book
         P3SubPage(title: "店的欠款") {
-            P3AccountGroup(title: "店欠的（卡、贷款）", accounts: b.shopOwedAccounts)
+            P3AccountGroup(title: "店欠的（卡、贷款）· 点一下还一笔", accounts: b.shopOwedAccounts, repay: true)
             VStack(alignment: .leading, spacing: 6) {
                 P3Label("赊账和挂账").padding(.horizontal, 4)
                 VStack(spacing: 0) {

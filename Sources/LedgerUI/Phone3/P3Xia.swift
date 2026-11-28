@@ -97,9 +97,8 @@ struct P3ChatView: View {
     @State private var text = ""
     @State private var photo: PhotosPickerItem?
     @FocusState private var typing: Bool
-    @State private var voice = P3Voice()
+    @State private var voice = SpeechDictation()
     @State private var camera = false
-    @AppStorage("p3.voiceAutoSend") private var autoSend = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -152,7 +151,6 @@ struct P3ChatView: View {
         }
         .onAppear { runIntent() }
         .onChange(of: state.chatIntent) { _, _ in runIntent() }
-        .onChange(of: voice.text) { _, t in if voice.listening { text = t } }
         .onChange(of: voice.error) { _, e in if let e { state.fail(e) } }
         .onChange(of: photo) { _, item in
             guard let item else { return }
@@ -166,7 +164,7 @@ struct P3ChatView: View {
     private var inputBar: some View {
         HStack(spacing: 8) {
             Button {
-                Task { _ = await P3Voice.askPermissions(); camera = true }
+                Task { _ = await P3Permissions.camera(); camera = true }
             } label: {
                 Image(systemName: "camera").font(.system(size: 20)).foregroundStyle(P3.ink).frame(width: 38, height: 40)
             }
@@ -175,8 +173,8 @@ struct P3ChatView: View {
                 Image(systemName: "photo").font(.system(size: 19)).foregroundStyle(P3.ink).frame(width: 38, height: 40)
             }
             .accessibilityLabel("从相册选一张")
-            P3MicButton(voice: voice) { said in
-                if autoSend { state.chatSend(said); text = "" } else { text = said }
+            P3MicButton(voice: voice, live: { text = $0 }) { said in
+                if P3Permissions.autoSend { state.chatSend(said); text = "" } else { text = said }
             }
             TextField(voice.listening ? "在听，说完停一下就发" : "问夏夏，比如「想买跑鞋 95」", text: $text, axis: .vertical)
                 .lineLimit(1...4)
@@ -200,10 +198,11 @@ struct P3ChatView: View {
         guard let i = state.chatIntent else { return }
         state.chatIntent = nil
         switch i {
-        case .camera: Task { _ = await P3Voice.askPermissions(); camera = true }
+        case .camera: Task { _ = await P3Permissions.camera(); camera = true }
         case .voice:
-            voice.toggle { said in
-                if autoSend { state.chatSend(said); text = "" } else { text = said }
+            voice.pause = VoiceRules.pause(P3Permissions.pauseIndex).map { Duration.seconds($0) }
+            voice.toggle(live: { text = $0 }) { said in
+                if P3Permissions.autoSend { state.chatSend(said); text = "" } else { text = said }
             }
         }
     }
