@@ -340,7 +340,11 @@ private struct V3Sidebar: View {
                 }
                 .buttonStyle(V3SinkStyle(depth: 2)).help("账本不动，只换 app 本身")
             }
-            statusCard(linked: linked, ai: ai, changes: changes)
+            // 夏夏站在这张卡上面（ming 2026-11-28）。点她就是「问夏夏」。设置里关了「显示夏夏」就不放。
+            VStack(spacing: -10) {
+                if state.prefs.showXia { V3SidebarXia().zIndex(1) }
+                statusCard(linked: linked, ai: ai, changes: changes)
+            }
         }
     }
 
@@ -373,6 +377,32 @@ private struct V3Sidebar: View {
     }
 
     private func strip(_ m: Money) -> String { m.v3Short.replacingOccurrences(of: "\u{00A0}€", with: "") }
+}
+
+/// 左边栏底部站在卡片上的夏夏。图只在这一处引用（`V3SidebarXia.asset`），以后角色定了新样子，换这一个名字就行。
+private struct V3SidebarXia: View {
+    static let asset = "xia-full"
+    @Environment(V3State.self) private var state
+    @State private var hover = false
+
+    var body: some View {
+        Button { state.openChat() } label: {
+            V3.image(Self.asset).resizable().scaledToFit().frame(width: 104)
+                .overlay(alignment: .topTrailing) {
+                    // 有一句话没看：和「问夏夏」按钮上的小红点同步
+                    if state.sayUnreadID != nil {
+                        Circle().fill(V3.red).overlay(Circle().strokeBorder(.white, lineWidth: 2)).frame(width: 13, height: 13).offset(x: -8, y: 14)
+                    }
+                }
+                .offset(y: hover ? -4 : 0)
+                .animation(.spring(duration: 0.25, bounce: 0.5), value: hover)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .help("问\(state.prefs.xiaName)")
+        .accessibilityLabel("问\(state.prefs.xiaName)")
+    }
 }
 
 /// 左边栏的一行：选中是白底，鼠标移上去是半透明白底。
