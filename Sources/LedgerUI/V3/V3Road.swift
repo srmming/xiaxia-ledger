@@ -179,7 +179,13 @@ private struct V3RoadCanvas: View, Animatable {
                         .foregroundColor(reached || isNext ? V3.ink : V3.ink2))
                     let half = text.measure(in: CGSize(width: 400, height: 60)).width / 2
                     // 最右边那站的字别画出去
-                    ctx.draw(text, at: CGPoint(x: min(p.x, 624 - half), y: p.y + (mini ? 34 : 29)))
+                    let at = CGPoint(x: min(p.x, 624 - half), y: p.y + (mini ? 34 : 29))
+                    if i == n - 1, !mini {
+                        // 终点那段路是斜着上来的，正好从字底下过：字后面垫一块白底，别被路压住
+                        let h: CGFloat = 20
+                        ctx.fill(Path(roundedRect: CGRect(x: at.x - half - 6, y: at.y - h / 2, width: half * 2 + 12, height: h), cornerRadius: h / 2), with: .color(.white.opacity(0.94)))
+                    }
+                    ctx.draw(text, at: at)
                     if !mini, let c = captions[i], !c.isEmpty {
                         ctx.draw(Text(c).font(.system(size: 12, weight: isNext ? .heavy : .medium))
                             .foregroundColor(isNext ? V3.gold : V3.ink2), at: CGPoint(x: p.x, y: p.y + 47))
