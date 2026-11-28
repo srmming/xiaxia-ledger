@@ -46,8 +46,16 @@ struct V3OverviewPage: View {
         let j = b.journey
         return VStack(spacing: 14) {
             if now {
-                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                // 这个月出了意外开销：先说这件；没有才说平常那句
+                if let odd = b.surprises(in: b.thisMonth).first {
+                    let n = b.surprises(in: b.thisMonth).count
+                    V3Ask(face: "worried", text: n == 1 ? "这个月有一笔意外开销 \(odd.amount.magnitude.v3Short)，后面几天省着点。" : "这个月有 \(n) 笔意外开销，后面几天省着点。", tone: .warn) {
+                        Button("看看") { state.go(.monthly) }.buttonStyle(.v3(.primary, .small))
+                    }
+                } else {
+                    V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                        Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                    }
                 }
             }
             // 这一页最重要的数

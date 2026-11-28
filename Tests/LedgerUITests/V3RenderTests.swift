@@ -129,6 +129,11 @@ final class V3RenderTests: XCTestCase {
             s.change("删") { try $0.removeSmallGoal(shoes.id, moneyTo: .account("日常卡")) }
             s.goalSheetStep = 1; s.sheet = .smallGoal(nil)
         }
+        try shell("monthly-surprises") { $0.page = .monthly }
+        try shell("overview-surprise") { s in
+            s.page = .overview
+            s.change("记") { try $0.record(name: "看病", emoji: "💊", amount: Money(cents: 120_00), account: "日常卡", place: "牙科诊所 Sonrisa") }
+        }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

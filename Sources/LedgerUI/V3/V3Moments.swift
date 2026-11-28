@@ -198,8 +198,11 @@ private struct V3LetterPage: View {
                     paper.frame(width: 560)
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .bottom, spacing: 10) {
-                            V3Xia(width: 130)
-                            V3Bubble("这封信只写给你。", tone: .good).fixedSize().padding(.bottom, 40)
+                            // 到站是定好的「大时刻」：夏夏全身出来一次。走到终点那一站，她站得更大一点
+                            V3Xia(width: j.isFinished ? 170 : 130)
+                                .scaleEffect(shown ? 1 : 0.6, anchor: .bottom).opacity(shown ? 1 : 0)
+                                .animation(.spring(duration: 0.55, bounce: 0.45).delay(0.15), value: shown)
+                            V3Bubble(j.isFinished ? "走完了！这封信只写给你。" : "这封信只写给你。", tone: .good).fixedSize().padding(.bottom, 40)
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             V3CardTitle("这一站的小卡片")

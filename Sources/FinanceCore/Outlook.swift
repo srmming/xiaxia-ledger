@@ -188,8 +188,14 @@ public enum Outlook {
         if t.source == "重复记账" { return false }
         let amount = ledger.baseAmount(t).magnitude.cents
         let same = history.filter { $0.id != t.id && $0.category != nil && $0.category == t.category && $0.date < t.date }
-        if same.count >= 3 {
-            let sorted = same.map { ledger.baseAmount($0).magnitude.cents }.sorted()
+        return isUnusual(amount: amount, sameCategory: same.map { ledger.baseAmount($0).magnitude.cents }, monthly: monthly)
+    }
+
+    /// 一次性开销那条规则里只看数字的部分（正式账本和试用账本共用，不另写一条）：
+    /// 同类以前记过 3 次以上，就看是不是比平常（中位数）的 3 倍还多；没那么多次，就看是不是超过一个月花销的一成。
+    public static func isUnusual(amount: Int64, sameCategory: [Int64], monthly: Int64) -> Bool {
+        if sameCategory.count >= 3 {
+            let sorted = sameCategory.sorted()
             let usual = sorted[sorted.count / 2]
             return usual > 0 && amount > usual * 3
         }

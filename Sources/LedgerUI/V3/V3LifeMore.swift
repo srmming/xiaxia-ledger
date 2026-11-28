@@ -503,6 +503,13 @@ struct V3TransactionsPage: View {
                     HStack(spacing: 8) {
                         Button("改分类") { state.open(.category(e.id)) }.buttonStyle(.v3(.ghost, .small))
                         Button("改金额") { state.open(.amount(e.id)) }.buttonStyle(.v3(.ghost, .small))
+                        if e.amount < .zero {
+                            let isOdd = state.book.surprises(in: state.book.thisMonth).contains { $0.id == e.id }
+                            Button(isOdd ? "这不算意外" : "算成意外开销") {
+                                state.change(isOdd ? "好，这笔不算意外开销" : "好，这笔算成意外开销") { try $0.markSurprise(e.id, !isOdd) }
+                            }
+                            .buttonStyle(.v3(.ghost, .small))
+                        }
                         Button("删掉") {
                             state.change("删掉了：\(e.name) \(e.amount.magnitude.v3)", kind: .remove) { try $0.delete(entry: e.id) }
                         }
@@ -665,9 +672,15 @@ struct V3MonthlyPage: View {
     }
 
     private var content: some View {
-        V3Cols(left: 1, right: 1.2) {
+        let b = state.book
+        // 小结写的是哪个月：切到过去的月份就是那个月；停在这个月时写上个月（这个月还没过完）
+        let key = state.isThisMonth ? b.thisMonth.previous : state.monthKey
+        let label = key.label(thisYear: b.thisMonth.year)
+        let odd = b.surprises(in: key)
+        let plan = b.journey.monthlyPlan
+        return V3Cols(left: 1, right: 1.2) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "10 月存下", amount: Money(cents: 200_00)) {
+                V3KeyCard(label: "\(label)存下", amount: Money(cents: 200_00)) {
                     V3Label("计划 200 €，做到了", size: 14, color: V3.green, weight: .bold)
                 }
                 V3Card {
@@ -678,13 +691,40 @@ struct V3MonthlyPage: View {
                         V3KV(value: "6.090\u{00A0}€", label: "净剩 · 比 9 月多 310 €", color: V3.gold)
                     }
                 }
-                Spacer(minLength: 0)
-                V3Question(face: "happy", text: "过了 200 € 那站。11 月还存 200 €？", tone: .good,
-                           answers: [("还是 200 €", "好，11 月还是 200 €"), ("想少一点", "好，11 月存 100 €"), ("想多一点", "好，11 月存 250 €")],
-                           onAnswer: { i in
-                               let plan = Money(cents: [200_00, 100_00, 250_00][i])
-                               state.change("定好了：11 月存 \(plan.v3Short)") { try $0.setMonthlyPlan(plan) }
-                           })
+                // 这个月的意外开销：大数是合计，下面每笔一行，最多 4 行
+                V3GrowCard(spacing: 4) {
+                    V3CardTitle("这个月的意外开销")
+                    if odd.isEmpty {
+                        V3Label("这个月没有意外开销", size: 14)
+                    } else {
+                        V3Amount(odd.map(\.amount).reduce(.zero, +).magnitude.v3, color: V3.navy, size: 26, weight: .heavy)
+                        ForEach(Array(odd.prefix(4).enumerated()), id: \.element.id) { i, e in
+                            if i > 0 { V3Divider() }
+                            HStack(spacing: 10) {
+                                V3Ico(emoji: e.emoji, size: 32)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(e.place.isEmpty ? e.name : e.place).font(V3.font(14, .bold)).foregroundStyle(V3.ink).lineLimit(1)
+                                    Text(QuickDate.label(daysAgo: e.daysAgo, today: b.todayDate)).font(V3.font(12, .regular)).foregroundStyle(V3.ink2)
+                                }
+                                Spacer(minLength: 4)
+                                V3Amount(e.amount.magnitude.v3, size: 14.5)
+                                Button("这不算意外") { state.change("好，\(e.place.isEmpty ? e.name : e.place)不算意外开销") { try $0.markSurprise(e.id, false) } }
+                                    .buttonStyle(.v3(.ghost, .small))
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        if odd.count > 4 { V3Label("还有 \(odd.count - 4) 笔", size: 12.5) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                // 每月存多少：普通的一行，点「改」就能改
+                HStack(spacing: 10) {
+                    Text("每月存多少").font(V3.font(14.5, .bold)).foregroundStyle(V3.ink)
+                    Spacer()
+                    V3Amount(plan.v3, size: 17, weight: .heavy)
+                    Button("改") { state.open(.monthlyPlan) }.buttonStyle(.v3(.ghost, .small))
+                }
+                .v3Card(h: 20, v: 12)
             }
         } trailing: {
             VStack(spacing: 16) {

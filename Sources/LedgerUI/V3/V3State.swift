@@ -516,6 +516,8 @@ final class V3State {
                   entries: [past("👕", "衣服", "Tienda Azul", "170", 60), past("🛒", "超市", "Super Sol", "38,90", 55)],
                   weekly: [eur("130"), eur("162"), eur("121"), eur("158,30")], shopIn: eur("3890"), shopOut: eur("2790"), net: eur("1980,20")),
         ]
+        // 10 月的两笔意外开销（看牙、手机换屏幕）：金额都没到规则那条线（一个月花销的一成），是之前标成意外开销的
+        for e in b.pastMonths.first?.entries ?? [] where e.name == "看病" || e.place == "手机换屏幕" { b.surpriseMarks[e.id] = true }
         // 置顶成卡片的几张
         for n in ["日常卡", "换新电脑 存钱罐", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b
