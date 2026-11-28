@@ -645,6 +645,47 @@ final class V3StateTests: XCTestCase {
         XCTAssertEqual(s.book.inHand, total, "一路折腾下来，手里的钱没变")
     }
 
+    /// 固定开销接正式账本：自己加的能改、能停、能拿掉；从流水里认出来的只能拿掉（记进「不算固定开销」）。
+    func testRealLedgerFixedCosts() throws {
+        let day = LocalDate(year: 2026, month: 11, day: 18)
+        let real = DemoData.make(endingOn: day)
+        guard real.businessBook != nil else { throw XCTSkip("示例正式账本没开生意模式") }
+        let s = V3State(snapshotOf: real, today: day, writable: true)
+        s.author = "小满"
+        let acc = s.book.shopHeld[0].name
+        let rules = s.real!.recurring.count
+        // 加一样：正式账本里多一条每月自动记的规则，新界面的列表里也看得到
+        XCTAssertTrue(s.change("加") { try $0.addFixedCost(name: "店面保险", amount: self.eur("35"), day: 12, account: acc) })
+        XCTAssertEqual(s.real?.recurring.count, rules + 1)
+        XCTAssertEqual(s.book.fixedCosts.first { $0.name == "店面保险" }?.amount, eur("35"))
+        func rule() -> Recurring? { s.real?.recurring.first { $0.template.description == "店面保险" } }
+        // 改多少、几号
+        XCTAssertTrue(s.change("改") { try $0.editFixedCost("店面保险", amount: self.eur("40"), day: 20, account: acc) })
+        XCTAssertEqual(rule()?.template.amount, -eur("40")); XCTAssertEqual(rule()?.nextDate, LocalDate(year: 2026, month: 11, day: 20))
+        XCTAssertEqual(s.book.fixedCosts.first { $0.name == "店面保险" }?.day, 20)
+        // 停一停、接着付
+        XCTAssertTrue(s.change("停") { try $0.setFixedCost("店面保险", paused: true) })
+        XCTAssertEqual(rule()?.paused, true); XCTAssertEqual(s.book.fixedCosts.first { $0.name == "店面保险" }?.off, true)
+        XCTAssertTrue(s.change("接着付") { try $0.setFixedCost("店面保险", paused: false) })
+        XCTAssertEqual(rule()?.paused, false)
+        // 拿掉，撤销一次就回来
+        XCTAssertTrue(s.change("拿掉") { try $0.removeFixedCost("店面保险") })
+        XCTAssertNil(rule()); XCTAssertNil(s.book.fixedCosts.first { $0.name == "店面保险" })
+        s.undo()
+        XCTAssertEqual(rule()?.template.amount, -eur("40"))
+        XCTAssertEqual(s.real?.changes.last?.author, "小满")
+        // 从流水里认出来的：改不了；拿掉 = 记进「不算固定开销」，以后不再认；能撤销
+        guard let guess = s.book.fixedCosts.first(where: { $0.tag == LedgerBridge.guessedTag }) else { return }
+        let keep = s.real
+        XCTAssertFalse(s.change("改") { try $0.editFixedCost(guess.name, amount: guess.amount + self.eur("1")) })
+        XCTAssertTrue(s.real == keep)
+        XCTAssertTrue(s.change("不算") { try $0.removeFixedCost(guess.name) })
+        XCTAssertEqual(s.real?.profile.notFixed?.count, (keep?.profile.notFixed?.count ?? 0) + 1)
+        XCTAssertNil(s.book.fixedCosts.first { $0.name == guess.name })
+        s.undo()
+        XCTAssertNotNil(s.book.fixedCosts.first { $0.name == guess.name })
+    }
+
     func testRealLedgerShopSide() throws {
         let day = LocalDate(year: 2026, month: 11, day: 18)
         var real = DemoData.make(endingOn: day)
@@ -699,10 +740,20 @@ final class V3StateTests: XCTestCase {
         XCTAssertTrue(s.change("转") { try $0.transferBetweenSides(self.eur("100"), toHome: true, shopAccount: acc, homeAccount: home) })
         XCTAssertEqual(s.book.account(home)?.balance, homeBal + eur("100"))
         XCTAssertEqual(s.book.account(acc)?.balance, bal + eur("54"))
-        // 还没接的：把一天标成休息 → 拒绝，账本不动
-        let snapshot = s.real
-        XCTAssertFalse(s.change("休息") { try $0.markShopRest(18) })
-        XCTAssertTrue(s.real == snapshot)
+        // 把今天标成休息：那天记的收入拿掉，正式账本记下这天休息；开门天数少一天；撤销一次回到原样
+        let snapshot = s.real, open = s.book.shopDays.filter { $0.state == .open }.count
+        XCTAssertTrue(s.change("休息") { try $0.markShopRest(18) })
+        XCTAssertEqual(s.real?.isShopRest(day), true)
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.state, .rest)
+        XCTAssertEqual(s.book.shopDays.filter { $0.state == .open }.count, open - 1)
+        XCTAssertEqual(s.real?.transactions.count, (snapshot?.transactions.count ?? 0) - 1)
+        // 休息的那天又记了收入：就不算休息了
+        XCTAssertTrue(s.change("记") { try $0.recordShopDay(18, channels: [.init(acc, self.eur("90"))]) })
+        XCTAssertEqual(s.real?.isShopRest(day), false)
+        XCTAssertEqual(s.book.shopDays.first { $0.day == 18 }?.total, eur("90"))
+        s.undo(); s.undo()
+        XCTAssertEqual(s.real?.isShopRest(day), false)
+        XCTAssertEqual(Set(s.real?.transactions ?? []), Set(snapshot?.transactions ?? []), "流水和标休息之前一样")
         // 撤销到底
         for _ in 0..<4 { s.undo() }
         XCTAssertEqual(s.real?.transactions.count, n)

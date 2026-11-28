@@ -203,6 +203,54 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(Goal.self, from: JSONEncoder().encode(g)).finishedOn, today)
     }
 
+    /// 那天已经有从流水导进来的收入：再按渠道记不抛错。界面上填的是「那天这个渠道一共收了多少」，
+    /// 多出来的补记一笔；那天只出一行，营业额 = 导进来的 + 补记的，不漏不重。
+    func testRecordingADayThatAlreadyHasImportedIncome() throws {
+        var l = ledger
+        let shopBook = l.businessBook!.id
+        let shop = WealthBreakdown.businessAccounts(l)
+        l.transactions.removeAll { $0.date == today && $0.amount > .zero && shop.contains($0.accountID) }
+        let accountID = l.transactions.first { $0.bookID == shopBook && $0.amount > .zero }!.accountID
+        try l.addTransaction(Transaction(date: today, amount: Money(cents: 45_00), description: "转账收款", accountID: accountID, bookID: shopBook,
+                                         category: "营业收入", source: "晴空银行.csv"), author: "流水导入")
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        let name = l.accounts.first { $0.id == accountID }!.name
+        let day = before.shopDays.first { $0.day == today.day }!
+        XCTAssertEqual(day.state, .open); XCTAssertEqual(day.total, Money(cents: 45_00), "导进来的那笔已经算在这天里")
+        let n = l.transactions.count
+        // 这天这个渠道一共收了 165：补记 120，导进来的 45 不动
+        var after = before
+        try after.recordShopDay(today.day, channels: [.init(name, Money(cents: 165_00))])
+        let records = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(l.transactions.count, n + 1)
+        XCTAssertEqual(l.transactions.last?.amount, Money(cents: 120_00)); XCTAssertEqual(l.transactions.last?.source, Ledger.dailySource)
+        let now = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(now.shopDays.first { $0.day == today.day }?.total, Money(cents: 165_00))
+        XCTAssertEqual(now.shopFlow.filter { $0.day == today.day && $0.amount > .zero }.map(\.amount), [Money(cents: 165_00)], "那天只出一行")
+        XCTAssertEqual(now.shopFlowIn, before.shopFlowIn + Money(cents: 120_00))
+        XCTAssertEqual(now.shopMonth().income, before.shopMonth().income + Money(cents: 120_00))
+        // 改少一点（还在「每天记账」记的那部分里）：可以
+        var a2 = now
+        try a2.recordShopDay(today.day, channels: [.init(name, Money(cents: 100_00))])
+        try LedgerBridge.apply(before: now, after: a2, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.transactions.count, n + 1, "补记的那笔是改成 55，不是又多一笔")
+        let b3 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b3.shopDays.first { $0.day == today.day }?.total, Money(cents: 100_00))
+        XCTAssertTrue(l.transactions.contains { $0.source == "晴空银行.csv" && $0.amount == Money(cents: 45_00) }, "导进来的那笔一直没动")
+        // 改到比导进来的还少、或者标成休息：分不清该改哪笔，拒绝并说清楚，账本不动
+        let keep = l
+        var a3 = b3
+        try a3.recordShopDay(today.day, channels: [.init(name, Money(cents: 20_00))])
+        XCTAssertThrowsError(try LedgerBridge.apply(before: b3, after: a3, to: &l, today: today, author: "小晴")) {
+            XCTAssertTrue(($0 as? TrialError)?.message.contains("从流水导进来的") ?? false)
+        }
+        var a4 = b3
+        try a4.markShopRest(today.day)
+        XCTAssertThrowsError(try LedgerBridge.apply(before: b3, after: a4, to: &l, today: today, author: "小晴"))
+        XCTAssertEqual(l, keep)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

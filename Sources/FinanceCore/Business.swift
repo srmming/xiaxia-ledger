@@ -49,6 +49,8 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var accountSides: [String: Side]?
     /// 每天记账的收款方式（现金、刷卡之外还能加 Bizum、外卖平台……）。没设过就用默认两种。
     public var paymentMethods: [PaymentMethod]?
+    /// 休息的日子（店那天没开门）。回本、不亏线、开门天数都按它算。老账本没有这个字段，就是一天都没标过。
+    public var restDays: [LocalDate]?
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -59,6 +61,7 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         debtExtras = try c.decodeIfPresent([String: DebtExtra].self, forKey: .debtExtras)
         accountSides = try c.decodeIfPresent([String: Side].self, forKey: .accountSides)
         paymentMethods = try c.decodeIfPresent([PaymentMethod].self, forKey: .paymentMethods)
+        restDays = try c.decodeIfPresent([LocalDate].self, forKey: .restDays)
     }
 }
 public struct Receivable: Codable, Hashable, Sendable, Identifiable {
