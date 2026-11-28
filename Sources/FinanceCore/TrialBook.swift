@@ -689,17 +689,6 @@ public struct TrialBook: Equatable, Sendable {
         return []
     }
 
-    /// 常用的几种转法：存进储蓄、还信用卡、取现金、放进目标罐。账本里有对应的账户才给。
-    public var transferShortcuts: [(title: String, from: String, to: String)] {
-        guard let main = owned.first(where: { $0.block == .daily && !$0.name.contains("现金") })?.name else { return [] }
-        var out: [(String, String, String)] = []
-        if let s = owned.first(where: { ($0.block == .emergency || $0.name.contains("储蓄")) && $0.name != main }) { out.append(("存进\(s.name)", main, s.name)) }
-        if let d = accounts.first(where: { $0.kind == .debt && $0.side == .life && $0.balance > .zero && $0.name.contains("信用卡") }) { out.append(("还\(d.name)", main, d.name)) }
-        if let c = owned.first(where: { $0.name.contains("现金") }) { out.append(("取现金", main, c.name)) }
-        if let g = accounts.first(where: { $0.id == bigGoalAccount }), journey.total > .zero { out.append(("放进\(g.name)", main, g.name)) }
-        return out
-    }
-
     // MARK: 目标
 
     /// 存一笔进目标：从 `from` 挪到目标罐（答应过对半分就一半进应急钱）。返回刚到的站。

@@ -51,7 +51,6 @@ final class AccountSidesTests: XCTestCase {
             XCTAssertFalse(b.accounts(for: use, side: .biz).isEmpty)
         }
         XCTAssertEqual(b.accounts(for: .moveIn, side: .biz).map(\.name), ["小店账户", "店里现金", "店的信用卡", "装修贷款"])
-        XCTAssertTrue(b.transferShortcuts.allSatisfy { s in b.account(s.from)?.side == .life && b.account(s.to)?.side == .life })
     }
 
     func testWritesCannotCrossSides() {

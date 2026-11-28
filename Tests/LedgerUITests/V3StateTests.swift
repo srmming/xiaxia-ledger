@@ -1294,7 +1294,6 @@ final class V3StateTests: XCTestCase {
     func testTransferReadsAsFromTo() {
         let s = V3State()
         let net = s.book.totals.net
-        XCTAssertEqual(s.book.transferShortcuts.map(\.title), ["存进储蓄", "还信用卡", "取现金", "放进换新电脑 存钱罐"])
         XCTAssertTrue(s.change("转好了") { try $0.transfer(self.eur("100"), from: "日常卡", to: "储蓄") })
         XCTAssertEqual(s.book.account("储蓄")?.balance, eur("2500"))
         XCTAssertEqual(s.book.totals.net, net, "自己账户之间转，净剩不变")
