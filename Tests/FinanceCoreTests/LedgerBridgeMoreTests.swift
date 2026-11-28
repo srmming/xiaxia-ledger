@@ -571,6 +571,60 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertEqual(TrialBook.demo.month.spentTotal, TrialBook.demo.month.fixed + TrialBook.demo.month.spent)
     }
 
+    /// 三样从账本算出来的日子和数：欠的哪个月还完、目标各站哪天到的、两次估货之间用掉多少。算不出来就不写。
+    func testPayoffStationDatesAndStockUsageAreComputedOrLeftOut() throws {
+        var l = ledger
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        // 分期：最后一期 = 下一期 + 还剩的期数 − 1 个月
+        for st in Plans.installments(l) where st.remaining > .zero {
+            guard let next = st.nextDate else { continue }
+            let end = next.adding(months: max(st.count - st.paidCount - 1, 0))
+            XCTAssertEqual(b.payoffMonths[st.name], "\(end.year) 年 \(end.month) 月", st.name)
+        }
+        // 没约日子、没排计划的欠款：不写；只要有这样一笔，就不写「哪个月不欠了」
+        let open = l.debts.filter { $0.direction == .iOweThem && !$0.closed && ($0.plan ?? []).isEmpty && $0.dueDate == nil }
+        let bizBooks = Set(l.books.filter(\.isBusiness).map(\.id))
+        for d in open { XCTAssertNil(b.payoffMonths[d.counterparty], d.counterparty) }
+        if open.contains(where: { !bizBooks.contains($0.bookID) }) { XCTAssertNil(b.debtFreeMonth, "有一笔没日子，就不编") }
+        // 给每一笔都约上日子：就写得出最晚的那个月
+        for i in l.debts.indices where l.debts[i].direction == .iOweThem { l.debts[i].dueDate = LocalDate(year: 2027, month: 3, day: 31) }
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        let latest = try XCTUnwrap(b2.debtFreeMonth)
+        XCTAssertTrue(b2.payoffMonths.values.contains(latest))
+        XCTAssertGreaterThanOrEqual(latest, "2027 年 3 月")
+
+        // 目标各站哪天到的：迁移以后每个目标有自己的账户，从它的余额历史算
+        var g = ledger
+        try g.removeGoal(g.goals.last!.id, author: "测试")
+        try g.giveEveryGoalItsOwnAccount(today: today, author: "迁移")
+        let bg = LedgerBridge.snapshot(of: g, today: today)
+        for (i, _) in bg.stationDates { XCTAssertLessThanOrEqual(bg.journey.stations[i].target, bg.journey.saved, "只写已经到了的站") }
+        // 存够下一站：那一站的日子就是今天
+        if let next = bg.journey.nextStation, !bg.journey.isFinished {
+            var after = bg
+            let pay = bg.accounts(for: .moveOut, side: .life).first { $0.kind == .own && $0.block == .daily && $0.balance > bg.journey.remainingToNext }!.name
+            _ = try after.deposit(bg.journey.remainingToNext, from: pay)
+            try LedgerBridge.apply(before: bg, after: after, to: &g, today: today, author: "小晴")
+            let now = LedgerBridge.snapshot(of: g, today: today)
+            let idx = now.journey.stations.firstIndex { $0.target == next.target }!
+            XCTAssertEqual(now.stationDates[idx], "\(today.month) 月 \(today.day) 日")
+        }
+
+        // 估货：估过一次算不出来；估过两次 = 上次估的 + 这段进的货 − 这次估的
+        var s1 = ledger
+        try s1.addStockEstimate(Money(cents: 2400_00), date: LocalDate(year: 2026, month: 9, day: 30), author: "小晴")
+        XCTAssertNil(LedgerBridge.snapshot(of: s1, today: today).stockUsage)
+        try s1.addStockEstimate(Money(cents: 2600_00), date: today, author: "小晴")
+        let u = try XCTUnwrap(LedgerBridge.snapshot(of: s1, today: today).stockUsage)
+        let shop = s1.businessBook!.id
+        let bought = s1.transactions.filter { $0.bookID == shop && $0.amount < .zero && $0.countsAsIncomeOrExpense && $0.date > LocalDate(year: 2026, month: 9, day: 30) && $0.date <= today
+            && ["进货", "花材", "原料"].contains($0.category ?? "") }.reduce(Money.zero) { $0 + $1.amount.magnitude }
+        XCTAssertEqual(u.bought, bought); XCTAssertGreaterThan(bought, .zero)
+        XCTAssertEqual(u.used, Money(cents: 2400_00) + bought - Money(cents: 2600_00))
+        // 试用数字里这三样都没有（它用的是自己的示例）
+        XCTAssertNil(TrialBook.demo.stockUsage); XCTAssertNil(TrialBook.demo.debtFreeMonth); XCTAssertTrue(TrialBook.demo.stationDates.isEmpty)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

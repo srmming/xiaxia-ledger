@@ -404,7 +404,17 @@ struct V3StockPage: View {
                     V3Label(when)
                 }
                 V3GrowCard {
-                    // 这一块的算式是试用里的示例；正式账本上估过两次以上才算得出来，这一版先不写
+                    // 正式账本：估过两次以上，就照最近两次算（上次估的 + 这段进的货 − 这次估的）；不到两次不写
+                    if let u = b.stockUsage {
+                        V3CardTitle("这两次估货之间用掉和损耗了多少")
+                        HStack(spacing: 8) {
+                            V3Tile(label: u.fromLabel, value: u.start.v3Short); Text("+").font(V3.font(16, .heavy))
+                            V3Tile(label: "这段时间进货", value: u.bought.v3Short); Text("−").font(V3.font(16, .heavy))
+                            V3Tile(label: u.toLabel, value: u.end.v3Short); Text("=").font(V3.font(16, .heavy))
+                            V3Tile(label: "用掉和损耗", value: u.used.v3Short, color: V3.gold)
+                        }
+                        .padding(.bottom, 8)
+                    }
                     if state.real == nil {
                     V3CardTitle("上个季度用掉和损耗了多少")
                     HStack(spacing: 8) {

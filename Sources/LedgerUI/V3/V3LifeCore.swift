@@ -15,7 +15,7 @@ extension V3State {
         return out
     }
     /// 哪天到的哪一站、打算哪天前到下一站：试用数字里是示例；正式账本上没有这两样的记录，不写。
-    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : [:] }
+    var reachedDates: [Int: String] { real == nil ? [0: "9 月 3 日", 2: "10 月 12 日"] : book.stationDates }
     var deadline: String { real == nil ? "12 月 20 日" : "" }
     /// 照现在的速度，月底大概能存到多少（示例：再存 30 €）。
     var projectedThisMonth: Money { book.journey.savedThisMonth + Money(cents: 30_00) }

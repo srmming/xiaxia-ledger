@@ -693,6 +693,10 @@ struct V3DebtsPage: View {
                     }
                 }
                 .help("信用卡现在欠的 \(cards.formatted) + 别的欠款和分期这个月该还的 \(b.lifeLoanMonthly.formatted)")
+                // 欠的（信用卡除外）每一笔都有还完的日子，才写哪个月不欠了；有一笔没日子就不写
+                if let free = b.debtFreeMonth {
+                    V3Ask(face: "calm", text: "照现在的计划，\(free)就不欠了。", tone: .good)
+                }
                 V3GrowCard(spacing: 8) {
                     V3CardTitle("别人欠我的")
                     if b.lent.isEmpty { V3Label("没有").padding(.vertical, 6) }
@@ -705,7 +709,7 @@ struct V3DebtsPage: View {
                 V3CardTitle("欠着的")
                 if owed.isEmpty { V3Label("一笔都不欠").padding(.vertical, 6) }
                 V3RowList(rows: owed.prefix(8).map { d in
-                    .init(d.emoji, d.name, d.note, d.balance.v3, V3.red, action: { state.open(.repay(d.name)) })
+                    .init(d.emoji, d.name, b.payoffMonths[d.name].map { "\(d.note) · 照计划 \($0)还完" } ?? d.note, d.balance.v3, V3.red, action: { state.open(.repay(d.name)) })
                 }, compact: owed.count > 3, fill: true)
                 Spacer(minLength: 0)
                 Button("记一笔欠款") { state.open(.debt) }.buttonStyle(.v3(.ghost, .small))
