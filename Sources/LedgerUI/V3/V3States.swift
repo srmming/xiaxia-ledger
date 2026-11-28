@@ -191,17 +191,28 @@ struct V3GoalNewSheet: View {
     @Environment(V3State.self) private var state
     @State private var name = ""
     @State private var amount = ""
+    @State private var step = 0
+    @State private var place = 0
     var body: some View {
         let m = V3Form.amount(amount)
-        V3SheetBox(width: 520, title: "定一个小目标", foot: "我会把它拆成几站，一站一站走。", primary: "定下来",
+        // 两步：先填想要什么、一共多少；再选钱单独放在哪
+        V3SheetBox(width: 560, title: step == 0 ? "定一个目标" : "「\(name)」的钱放哪", primary: step == 0 ? "下一步" : "定下来",
                    canSave: m != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty,
                    save: {
                        guard let m else { return }
-                       if state.change("定下来了：\(name) \(m.v3Short)", kind: .goal, { try $0.startGoal(name: name, total: m) }) { state.closeSheet() }
-                   }) {
-            V3FormField(label: "想要什么", prompt: "换新电脑", text: $name, focus: true)
-            V3FormField(label: "一共要多少", prompt: "1400", text: $amount, big: true)
+                       if step == 0 { withAnimation(.snappy(duration: 0.2)) { step = 1 }; return }
+                       let where_ = V3GoalPlacePick.place(place, in: state.book)
+                       if state.change("定下来了：\(name) \(m.v3Short)", kind: .goal, { try $0.startGoal(name: name, total: m, place: where_) }) { state.closeSheet() }
+                   },
+                   extra: { if step == 1 { Button("上一步") { withAnimation(.snappy(duration: 0.2)) { step = 0 } }.buttonStyle(.v3(.ghost)) } }) {
+            if step == 0 {
+                V3FormField(label: "想要什么", prompt: "换新电脑", text: $name, focus: true)
+                V3FormField(label: "一共要多少", prompt: "1400", text: $amount, big: true)
+            } else {
+                V3GoalPlacePick(goal: name, pick: $place)
+            }
         }
+        .onAppear { if state.goalSheetStep == 1 { name = "去海边住一周"; amount = "800"; step = 1; place = 1; state.goalSheetStep = 0 } }
     }
 }
 #endif

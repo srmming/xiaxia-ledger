@@ -42,16 +42,45 @@ public struct OpenRouterClient: Sendable {
     public var transport: OpenRouterTransport
     public init(transport: OpenRouterTransport) { self.transport = transport }
 
-    /// 问一次决策：先要「是 / 否」那个字的概率；模型给不出概率，就换成让它回一小段 JSON 再问一次。
-    public func askDecision(_ d: Decision, card: String, model: String, key: String) async -> Result<Double, OpenRouterWire.Failure> {
-        func once(_ mode: OpenRouterWire.Mode) async throws -> Double {
+    /// 一次决策问回来的东西。
+    public struct DecisionReply: Equatable, Sendable {
+        public var probability: Double
+        /// 这次花了多少额度（OpenRouter 回了才有）。
+        public var cost: Double?
+        /// 走的哪条路：专门的决策接口、聊天接口要概率、聊天接口回 JSON。
+        public var route: Route
+        public enum Route: String, Sendable { case decisions = "决策接口", logprobs = "聊天接口 · 概率", json = "聊天接口 · JSON" }
+    }
+
+    /// 问一次决策，三条路依次试：
+    /// 1. 专门的决策接口（决策模型走这条，直接回「是」的概率）；
+    /// 2. 这个模型不是决策模型（接口回 400 / 404）→ 普通聊天接口，要「是 / 否」那个字的概率；
+    /// 3. 模型给不出概率 → 让它回一小段 JSON。
+    /// 密钥不对、没额度、没网、超时：马上停，不往下试。
+    public func askDecision(_ d: Decision, card: String, model: String, key: String) async -> Result<DecisionReply, OpenRouterWire.Failure> {
+        do {
+            let (data, status) = try await transport.send(url: OpenRouterWire.decisionsEndpoint, key: key, body: OpenRouterWire.decisionsBody(d, card: card, model: model))
+            if (200..<300).contains(status), OpenRouterWire.failure(status: status, body: data) == nil {
+                let r = try OpenRouterWire.decisionsReply(from: data)
+                return .success(DecisionReply(probability: r.probability, cost: r.cost, route: .decisions))
+            }
+            switch OpenRouterWire.failure(status: status, body: data) {
+            case .badKey?: return .failure(.badKey)
+            case .noCredit?: return .failure(.noCredit)
+            case .timeout?: return .failure(.timeout)
+            default: break   // 不是决策模型：换聊天接口
+            }
+        } catch let f as OpenRouterWire.Failure {
+            if f == .noNetwork || f == .timeout { return .failure(f) }
+        } catch {}
+        func chat(_ mode: OpenRouterWire.Mode) async throws -> DecisionReply {
             let (data, status) = try await transport.send(url: OpenRouterWire.endpoint, key: key, body: OpenRouterWire.decisionBody(d, card: card, model: model, mode: mode))
             if let f = OpenRouterWire.failure(status: status, body: data) { throw f }
-            return try OpenRouterWire.yesProbability(from: data, mode: mode)
+            return DecisionReply(probability: try OpenRouterWire.yesProbability(from: data, mode: mode), cost: OpenRouterWire.cost(from: data), route: mode == .logprobs ? .logprobs : .json)
         }
-        do { return .success(try await once(.logprobs)) }
+        do { return .success(try await chat(.logprobs)) }
         catch OpenRouterWire.Failure.noLogprobs {
-            do { return .success(try await once(.json)) }
+            do { return .success(try await chat(.json)) }
             catch let f as OpenRouterWire.Failure { return .failure(f) } catch { return .failure(.unreadable) }
         }
         catch let f as OpenRouterWire.Failure { return .failure(f) } catch { return .failure(.unreadable) }

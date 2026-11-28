@@ -123,11 +123,40 @@ public enum DecisionMath {
 public enum OpenRouterWire {
     public static let endpoint = "https://openrouter.ai/api/v1/chat/completions"
     public static let modelsEndpoint = "https://openrouter.ai/api/v1/models"
-    public static let defaultDecisionModel = "openai/gpt-4o-mini"
-    public static let defaultChatModel = "openai/gpt-4o-mini"
+    /// 专门的决策接口（OpenRouter 的 Decisions，alpha）：给它状态和是非问题，它直接回「是」的概率，不生成文字。
+    /// 格式照 OpenRouter 公开文档：questions 里每个问题是 {type: "noul", instructions, criteria: {true, false}}，回来 answers 里是 {type: "noul", noul: 0–1}。
+    public static let decisionsEndpoint = "https://openrouter.ai/api/alpha/decisions"
+    public static let defaultDecisionModel = "microsoft/microsoft-decision-1.1"
+    public static let defaultChatModel = "deepseek/deepseek-v4.1-flash-1017"
     public static let timeout: TimeInterval = 10
 
     public enum Mode: Sendable { case logprobs, json }
+
+    /// 专门的决策接口的正文：状态卡原样当 `state`，一个是非问题。
+    public static func decisionsBody(_ d: Decision, card: String, model: String) -> Data {
+        let body: [String: Any] = [
+            "model": model,
+            "state": card,
+            "questions": [questionKey: ["type": "noul", "instructions": d.question, "criteria": ["true": d.yesWhen, "false": d.noWhen]]],
+        ]
+        return (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data()
+    }
+    static let questionKey = "answer"
+
+    /// 读专门的决策接口的回答：「是」的概率，和这次花了多少额度（有的话）。模型不肯答（refusal）算没看懂。
+    public static func decisionsReply(from data: Data) throws -> (probability: Double, cost: Double?) {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answers = o["answers"] as? [String: Any],
+              let a = (answers[questionKey] ?? answers.values.first) as? [String: Any] else { throw Failure.unreadable }
+        guard (a["type"] as? String) != "refusal", let p = (a["noul"] as? NSNumber)?.doubleValue, p.isFinite, (0...1).contains(p) else { throw Failure.unreadable }
+        return (p, cost(from: data))
+    }
+
+    /// 回来的 usage 里这次花了多少额度（OpenRouter 的 credits，没有就是 nil）。
+    public static func cost(from data: Data) -> Double? {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let u = o["usage"] as? [String: Any] else { return nil }
+        return (u["cost"] as? NSNumber)?.doubleValue
+    }
 
     /// 模型名：去掉空白；要像「厂商/名字」。
     public static func cleanModel(_ raw: String) throws -> String {

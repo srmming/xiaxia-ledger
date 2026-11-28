@@ -27,7 +27,7 @@ extension V3State {
         var reached: [Journey.Station] = []
         let ok = change("算你忍住一次 +\(w.amount.v3Short)", kind: .goalDeposit) { b in
             reached = try b.resist(wanted: w.id)
-            if let i = b.accounts.firstIndex(where: { $0.block == .goal }) { b.accounts[i].note = Self.goalNote(b.journey) }
+            if let i = b.accounts.firstIndex(where: { $0.id == b.bigGoalAccount }) { b.accounts[i].note = Self.goalNote(b.journey) }
         }
         if ok { starDrops += 1; celebrate(reached) }
     }

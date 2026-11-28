@@ -70,6 +70,14 @@ final class DecisionsTests: XCTestCase {
         XCTAssertEqual(try OpenRouterWire.yesProbability(from: Data(viaJSON.utf8), mode: .json), 0.41)
         XCTAssertThrowsError(try OpenRouterWire.yesProbability(from: Data("oops".utf8), mode: .json))
 
+        // 专门的决策接口
+        let db = try XCTUnwrap(JSONSerialization.jsonObject(with: OpenRouterWire.decisionsBody(d1, card: card, model: "microsoft/microsoft-decision-1.1")) as? [String: Any])
+        XCTAssertEqual(db["state"] as? String, card)
+        XCTAssertEqual(((db["questions"] as? [String: Any])?["answer"] as? [String: Any])?["type"] as? String, "noul")
+        let dr = try OpenRouterWire.decisionsReply(from: Data(#"{"answers":{"answer":{"type":"noul","noul":0.87}},"model":"m","usage":{"input_tokens":3,"output_tokens":0,"cost":0.0000088}}"#.utf8))
+        XCTAssertEqual(dr.probability, 0.87); XCTAssertEqual(dr.cost, 0.0000088)
+        XCTAssertThrowsError(try OpenRouterWire.decisionsReply(from: Data(#"{"answers":{"answer":{"type":"refusal"}}}"#.utf8)))
+        XCTAssertThrowsError(try OpenRouterWire.decisionsReply(from: Data(#"{"answers":{"answer":{"type":"noul","noul":1.7}}}"#.utf8)))
         XCTAssertEqual(OpenRouterWire.failure(status: 401, body: Data()), .badKey)
         XCTAssertEqual(OpenRouterWire.failure(status: 404, body: Data()), .badModel)
         XCTAssertEqual(OpenRouterWire.failure(status: 402, body: Data()), .noCredit)

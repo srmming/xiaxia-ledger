@@ -50,9 +50,9 @@ extension V3State {
     }
 
     /// 问一次决策模型：先要「是 / 否」那个字的概率；模型给不出概率，就换成让它回一小段 JSON 再问一次。
-    func askDecision(_ d: Decision, card: String) async -> Result<Double, OpenRouterWire.Failure> {
+    func askDecision(_ d: Decision, card: String, model: String? = nil) async -> Result<OpenRouterClient.DecisionReply, OpenRouterWire.Failure> {
         guard let key = keyStore.read(Self.openRouterAccount) else { return .failure(.badKey) }
-        return await OpenRouterClient(transport: transport).askDecision(d, card: card, model: decisionPrefs.decisionModel, key: key)
+        return await OpenRouterClient(transport: transport).askDecision(d, card: card, model: model ?? decisionPrefs.decisionModel, key: key)
     }
 
     /// 设置里的「试一下」：用「明显该提醒」那组示例问一次，把结果写成一句话。
@@ -63,11 +63,49 @@ extension V3State {
         let r = await askDecision(d, card: ReminderDecision.sample(.yes).card)
         decisionTrying = false
         switch r {
-        case .success(let p):
-            decisionTry = DecisionMath.decide(probability: p, threshold: threshold(d.id), fallbackYes: false, fallbackReason: "").line(yesDoes: "会提醒", noDoes: "不提醒")
+        case .success(let r):
+            decisionTry = DecisionMath.decide(probability: r.probability, threshold: threshold(d.id), fallbackYes: false, fallbackReason: "").line(yesDoes: "会提醒", noDoes: "不提醒")
         case .failure(let f):
             decisionTry = f.message
         }
+    }
+
+    /// 「三组都跑一遍」：用 D1 的三组示例（明显该说 / 明显不用说 / 擦边），决策模型和聊天模型各跑 2 次，
+    /// 把每次「是」的概率、走的哪条路、花了多少额度记成几行字（里面没有密钥）。只用编的示例数据。
+    func runDecisionSamples() async {
+        guard let d = Decisions.find(Decisions.remind) else { return }
+        guard hasOpenRouterKey else { decisionReport = ["先填密钥。"]; return }
+        decisionTrying = true; decisionReport = []
+        var total = 0.0, priced = false
+        let t = threshold(d.id)
+        for model in Array(Set([decisionPrefs.decisionModel, decisionPrefs.chatModel])).sorted() {
+            decisionReport.append("模型 \(model)")
+            for which in ReminderDecision.Sample.allCases {
+                let name = which == .yes ? "明显该说" : which == .no ? "明显不用说" : "擦边"
+                var parts: [String] = []
+                for _ in 0..<2 {
+                    switch await askDecision(d, card: ReminderDecision.sample(which).card, model: model) {
+                    case .success(let r):
+                        parts.append("\(Int((r.probability * 100).rounded()))%（\(r.route.rawValue)）")
+                        if let c = r.cost { total += c; priced = true }
+                    case .failure(let f):
+                        parts.append("没成：\(f.message)")
+                    }
+                }
+                decisionReport.append("  \(name)：\(parts.joined(separator: "、")) · 临界点 \(Int((t * 100).rounded()))%")
+            }
+        }
+        decisionReport.append(priced ? "一共花了 \(String(format: "%.6f", total)) 额度" : "OpenRouter 没回花了多少额度")
+        decisionTrying = false
+        saveDecisionReport()
+    }
+
+    /// 把结果另存一份到试用 app 旁边（文件包里），方便事后看。里面只有模型名、概率、额度，没有密钥。跑测试时不写。
+    func saveDecisionReport() {
+        guard !Self.underTest else { return }
+        let url = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("决策模型测试结果.txt")
+        let stamp = Date().formatted(date: .numeric, time: .shortened)
+        try? (["夏夏账本 v3 试用 · 决策模型三组示例 · \(stamp)"] + decisionReport).joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
     }
 
     /// 从 OpenRouter 拿模型清单（公开的，不用密钥）。
@@ -97,7 +135,7 @@ extension V3State {
         var why = "没连决策模型"
         if hasOpenRouterKey {
             switch await askDecision(d, card: s.card) {
-            case .success(let x): p = x
+            case .success(let x): p = x.probability
             case .failure(let f): why = f.message   // 失败不弹错，退回固定规则
             }
         }
@@ -207,11 +245,30 @@ struct V3SetDecisionPage: View {
                 V3SetRow(title: "试一下", detail: state.decisionTry) {
                     HStack(spacing: 8) {
                         if state.decisionTrying { ProgressView().controlSize(.small) }
+                        Button("三组都跑一遍") { state.setModel(decision: decisionModel, chat: chatModel); Task { await state.runDecisionSamples() } }
+                            .buttonStyle(.v3(.ghost, .small)).disabled(state.decisionTrying).help("三组示例、两个模型各跑 2 次")
                         Button("问一次") { state.setModel(decision: decisionModel, chat: chatModel); Task { await state.tryDecision() } }
                             .buttonStyle(.v3(.primary, .small)).disabled(state.decisionTrying)
                     }
                 }
             }
+            if !state.decisionReport.isEmpty {
+                // 三组都跑一遍的结果：能整段复制（里面没有密钥）
+                V3SetGroup(title: "跑出来的结果", grow: true) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(Array(state.decisionReport.enumerated()), id: \.offset) { _, line in
+                            Text(line).font(V3.font(13, line.hasPrefix(" ") ? .regular : .bold)).foregroundStyle(V3.ink).lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                    HStack {
+                        Spacer()
+                        Button("复制结果") { state.copy(state.decisionReport.joined(separator: "\n"), say: "结果复制好了") }.buttonStyle(.v3(.ghost, .small))
+                        Button("收起") { state.decisionReport = [] }.buttonStyle(.v3(.ghost, .small))
+                    }
+                    Spacer(minLength: 0)
+                }
+            } else {
             V3SetGroup(title: "每个决策的临界点", grow: true) {
                 ForEach(Array(Decisions.all.enumerated()), id: \.element.id) { i, d in
                     HStack(spacing: 10) {
@@ -227,6 +284,7 @@ struct V3SetDecisionPage: View {
                     if i < Decisions.all.count - 1 { V3Divider() }
                 }
                 Spacer(minLength: 0)
+            }
             }
         }
         .onAppear { decisionModel = state.decisionPrefs.decisionModel; chatModel = state.decisionPrefs.chatModel }

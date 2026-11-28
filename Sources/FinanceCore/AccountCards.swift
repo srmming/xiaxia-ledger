@@ -25,7 +25,9 @@ extension TrialBook {
         let picked = (side == .biz ? shopPins : lifePins).compactMap { id in pool.first { $0.id == id } }
         if !picked.isEmpty { return Array(picked.prefix(AccountCards.maxPinned)) }
         let first = side == .biz ? pool.first { $0.kind == .shop } : pool.first { $0.kind == .own && $0.block == .daily }
-        return first.map { [$0] } ?? []
+        // 生活这边默认还置顶大目标的那个账户
+        let goal = side == .life ? pool.first { $0.id == bigGoalAccount } : nil
+        return [first, goal].compactMap { $0 }
     }
 
     public func isPinned(_ name: String) -> Bool {
