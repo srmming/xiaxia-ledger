@@ -179,3 +179,59 @@ extension LedgerBridge {
         return records
     }
 }
+
+
+// MARK: - 店的本钱、估货值、欠款
+
+extension LedgerBridge {
+    /// 店里这三样的改动。都没动返回 nil。
+    /// - 本钱：改总数、加一样后来投的 → 正式账本的「生意本钱」（开店时间、以前赚回来多少照旧）。
+    /// - 估货值：加一次估的数。
+    /// - 欠款：记一笔（欠别人的 / 别人欠店的）→ 生意账本里的一笔借款；还清一笔 → 那笔借款的还款，钱从店里的账户出。
+    static func applyShopBooks(before: TrialBook, after: TrialBook, to work: inout Ledger, today: LocalDate, author who: String) throws -> [ChangeRecord]? {
+        func key(_ i: TrialBook.Item) -> String { "\(i.name)|\(i.amount.cents)|\(i.off)|\(i.flag)" }
+        let capitalChanged = before.capital.map(key) != after.capital.map(key)
+        let stockChanged = before.stockEstimates.count != after.stockEstimates.count
+        let debtsChanged = before.shopDebts.map(key) != after.shopDebts.map(key)
+        guard capitalChanged || stockChanged || debtsChanged else { return nil }
+        guard let shop = work.businessBook?.id else { throw TrialError("先打开生意那一边") }
+        var records: [ChangeRecord] = []
+        do {
+            if capitalChanged {
+                let old = work.business?.capital
+                // 名字对得上的那几样，原来挂着的流水照旧挂着
+                let items = after.capital.map { i in Capital.Item(name: i.name, amount: i.amount, txIDs: old?.items.first { $0.name == i.name }?.txIDs) }
+                let total = items.map(\.amount).reduce(.zero, +)
+                guard total > .zero else { throw TrialError("本钱要比 0 大") }
+                records.append(try work.setCapital(Capital(total: total, openedOn: old?.openedOn, recoveredBefore: old?.recoveredBefore ?? .zero, items: items), author: who))
+            }
+            if stockChanged {
+                guard after.stockEstimates.count == before.stockEstimates.count + 1, let new = after.stockEstimates.first else {
+                    throw TrialError("删掉估过的货值，在接正式账本的这一版里还没接上，账本没动")
+                }
+                records.append(try work.addStockEstimate(new.amount, note: new.note, date: today, author: who))
+            }
+            if debtsChanged {
+                // 新记的
+                for d in after.shopDebts where !before.shopDebts.contains(where: { $0.id == d.id }) {
+                    records.append(try work.addDebt(counterparty: d.name, direction: d.flag ? .theyOweMe : .iOweThem, amount: d.amount, bookID: shop,
+                                                    date: today, accountID: nil, note: d.note.isEmpty ? nil : d.note, author: who).1)
+                }
+                // 还清的：钱从余额少了这么多的那个店里账户出
+                for d in after.shopDebts {
+                    guard let o = before.shopDebts.first(where: { $0.id == d.id }), !o.off, d.off else { continue }
+                    guard o.tag != installmentTag else { throw TrialError("「\(o.name)」是分期，一期一期还，先回旧界面记这一期") }
+                    guard let real = work.debts.first(where: { $0.id == o.id }) else { throw TrialError("「\(o.name)」是旧界面记的客人欠款，先回旧界面改") }
+                    let payer = after.accounts.first { a in before.accounts.first { $0.id == a.id }.map { $0.balance - a.balance == o.amount } == true }
+                    guard let payer, let acc = work.accounts.first(where: { $0.name == payer.name }) else { throw TrialError("没看出这笔钱是从哪个账户出的，账本没动") }
+                    records.append(try work.repay(debtID: real.id, amount: o.amount, date: today, accountID: acc.id, author: who))
+                }
+                guard before.shopDebts.allSatisfy({ o in after.shopDebts.contains { $0.id == o.id } }) else {
+                    throw TrialError("删掉一笔欠款，在接正式账本的这一版里还没接上，账本没动")
+                }
+            }
+        } catch let e as TrialError { throw e } catch { throw TrialError((error as? LocalizedError)?.errorDescription ?? "没写成，账本没动") }
+        guard !records.isEmpty else { throw TrialError("这一步在接正式账本的这一版里还没接上，账本没动") }
+        return records
+    }
+}

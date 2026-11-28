@@ -53,6 +53,10 @@ final class V3RenderTests: XCTestCase {
         try write(V3ShopFlowPage().padding(20).environment(s), "real-shopflow-oct", to: dir)
         s.setMonth(s.book.thisMonth); s.side = .life
         try write(V3MonthlyPage().padding(20).environment(s), "real-monthly", to: dir)
+        s.side = .biz
+        try write(V3BizDebtsPage().padding(20).environment(s), "real-biz-debts", to: dir)
+        try write(V3CheckupPage().padding(20).environment(s), "real-checkup", to: dir)
+        s.side = .life
         let demoLife = V3State(); demoLife.onboardingStep = nil
         try write(V3MonthlyPage().padding(20).environment(demoLife), "demo-monthly", to: dir)
         demoBiz.setMonth(.init(2026, 10))

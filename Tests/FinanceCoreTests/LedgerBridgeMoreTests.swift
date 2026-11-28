@@ -442,6 +442,110 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertFalse(patched.shopFlowIsTotalsOnly(in: oct)); XCTAssertEqual(patched.shopFlow(in: oct).count, 1)
     }
 
+    /// 每月打算存多少：存在大目标上（可选字段），新界面读它、能改、能撤销；这个月留给目标的钱按它算。
+    func testMonthlyPlanLivesOnTheBigGoal() throws {
+        var l = ledger
+        let before = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(before.journey.monthlyPlan, .zero, "老账本没定过")
+        var after = before
+        try after.setMonthlyPlan(Money(cents: 150_00))
+        let records = try LedgerBridge.apply(before: before, after: after, to: &l, today: today, author: "小晴")
+        let big = try XCTUnwrap(l.goals.first { $0.name == before.journey.name })
+        XCTAssertEqual(big.monthlyPlan, Money(cents: 150_00)); XCTAssertEqual(records.first?.author, "小晴")
+        let now = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(now.journey.monthlyPlan, Money(cents: 150_00))
+        XCTAssertGreaterThanOrEqual(now.month.forGoals, Money(cents: 150_00), "这个月先给目标留出这么多")
+        try l.undo(changeID: records[0].id, author: "小晴")
+        XCTAssertNil(l.goals.first { $0.id == big.id }?.monthlyPlan)
+        // 老数据里没有这个字段照样读得出来；没定的时候不多写一个字段
+        let old = try JSONEncoder().encode(Goal(name: "旅行", bookID: "personal", target: Money(cents: 100_00)))
+        XCTAssertFalse(String(data: old, encoding: .utf8)!.contains("monthlyPlan"))
+        XCTAssertNil(try JSONDecoder().decode(Goal.self, from: old).monthlyPlan)
+    }
+
+    /// 小结里「过了一站」：那个月里大目标存的钱跨过了哪一站，从存钱的流水现算。
+    func testStationsPassedInAMonthAreComputed() throws {
+        // 试用数字：十月从 239 存到 439，路上 300 那一站在中间（示例的站：0、100、300…）
+        let demo = TrialBook.demo
+        let oct = TrialBook.MonthKey(2026, 10)
+        let start = demo.pastMonths[1].goalSavedEnd!, end = demo.pastMonths[0].goalSavedEnd!
+        let crossed = demo.journey.stations.filter { $0.target > start && $0.target <= end }
+        XCTAssertEqual(demo.monthGood(oct).contains { $0.title.hasPrefix("过了") }, !crossed.isEmpty)
+        if let last = crossed.last { XCTAssertTrue(demo.monthGood(oct).first { $0.title.hasPrefix("过了") }!.detail.contains(last.target.formatted)) }
+        // 正式账本：每个月底大目标存了多少 = 它那个账户到那个月底的余额，一个月不比上个月少（示例里只存不取）
+        var l = ledger
+        try l.removeGoal(l.goals.last!.id, author: "测试")
+        try l.giveEveryGoalItsOwnAccount(today: today, author: "迁移")
+        let b = LedgerBridge.snapshot(of: l, today: today)
+        let ends = b.pastMonths.sorted { $0.key < $1.key }.compactMap(\.goalSavedEnd)
+        XCTAssertFalse(ends.isEmpty)
+        XCTAssertLessThanOrEqual(ends.last!, b.journey.saved)
+        // 没有上个月的数：不写这一句，不编
+        var alone = demo
+        alone.pastMonths.removeAll { $0.key != oct }
+        XCTAssertFalse(alone.monthGood(oct).contains { $0.title.hasPrefix("过了") })
+    }
+
+    /// 店的本钱、估货值、欠款接正式账本；生意账本里的欠款和分期不再混进生活那边。
+    func testShopCapitalStockAndDebtsGoToTheLedger() throws {
+        var l = ledger
+        let shopBook = l.businessBook!.id
+        let b0 = LedgerBridge.snapshot(of: l, today: today)
+        // 生意账本里的分期（咖啡机）在店的欠款里，不在生活的账户里
+        let inst = try XCTUnwrap(l.installments.first { $0.bookID == shopBook })
+        XCTAssertTrue(b0.shopDebts.contains { $0.name == inst.name && $0.tag == LedgerBridge.installmentTag })
+        XCTAssertNil(b0.account(inst.name), "不混进生活那边")
+        XCTAssertLessThan(b0.shopDueNext, b0.shopOwesTotal, "下个月要还的只算这一期，不是整笔")
+        // 本钱：后来又投了一样
+        var a1 = b0
+        try a1.addCapital(name: "新冷柜", amount: Money(cents: 900_00), note: "")
+        let r1 = try LedgerBridge.apply(before: b0, after: a1, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.business?.capital?.total, b0.capitalTotal + Money(cents: 900_00))
+        XCTAssertEqual(l.business?.capital?.items.last?.name, "新冷柜")
+        XCTAssertEqual(l.business?.capital?.openedOn, ledger.business?.capital?.openedOn, "开店时间照旧")
+        XCTAssertEqual(r1.first?.author, "小晴")
+        // 估货值：记一个估的数，流水不动
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b2.capitalTotal, b0.capitalTotal + Money(cents: 900_00))
+        var a2 = b2
+        try a2.estimateStock(Money(cents: 1200_00), note: "盘了一遍")
+        let tx = l.transactions.count
+        try LedgerBridge.apply(before: b2, after: a2, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.business?.stockEstimates?.last?.value, Money(cents: 1200_00)); XCTAssertEqual(l.transactions.count, tx)
+        let b3 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b3.stockEstimates.first?.amount, Money(cents: 1200_00)); XCTAssertEqual(b3.stockEstimates.first?.name, "今天")
+        // 赊账：欠花材店 300；还清它，钱从店里的账户出，不算开销
+        var a3 = b3
+        try a3.addShopDebt(name: "晴空花材行", amount: Money(cents: 300_00), note: "月底结", owedToShop: false)
+        try LedgerBridge.apply(before: b3, after: a3, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.debts.last?.bookID, shopBook); XCTAssertEqual(l.debts.last?.direction, .iOweThem)
+        let b4 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertTrue(b4.shopDebts.contains { $0.name == "晴空花材行" && $0.amount == Money(cents: 300_00) && !$0.flag })
+        XCTAssertEqual(b4.shopOwesTotal, b3.shopOwesTotal + Money(cents: 300_00))
+        XCTAssertNil(b4.account("晴空花材行"))
+        var a4 = b4
+        let payFrom = b4.shopHeld.first { $0.balance >= Money(cents: 300_00) }!.name
+        try a4.payShopDebt("晴空花材行", from: payFrom)
+        let costs = b4.shopMonth().costs
+        try LedgerBridge.apply(before: b4, after: a4, to: &l, today: today, author: "小晴")
+        let b5 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertFalse(b5.shopDebts.contains { $0.name == "晴空花材行" }, "还清了就不在欠款里了")
+        XCTAssertEqual(b5.account(payFrom)?.balance, b4.account(payFrom)!.balance - Money(cents: 300_00))
+        XCTAssertEqual(b5.shopMonth().costs, costs, "还欠款不算开销")
+        // 别人欠店的
+        var a5 = b5
+        try a5.addShopDebt(name: "云朵咖啡馆", amount: Money(cents: 120_00), note: "", owedToShop: true)
+        try LedgerBridge.apply(before: b5, after: a5, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.debts.last?.direction, .theyOweMe)
+        // 分期不能在这里一次还清：拒绝，账本不动
+        let b6 = LedgerBridge.snapshot(of: l, today: today)
+        var a6 = b6
+        if let i = a6.shopDebts.firstIndex(where: { $0.name == inst.name }) { a6.shopDebts[i].off = true }
+        let keep = l
+        XCTAssertThrowsError(try LedgerBridge.apply(before: b6, after: a6, to: &l, today: today, author: "小晴"))
+        XCTAssertEqual(l, keep)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

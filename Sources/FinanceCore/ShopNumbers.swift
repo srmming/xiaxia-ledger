@@ -58,6 +58,9 @@ extension TrialBook {
     public var shopBack: Money { shopBackBefore + max(shopMonth().earned, .zero) }
     public var paybackLeft: Money { max(capitalTotal - shopBack, .zero) }
     public var paybackFraction: Double { capitalTotal > .zero ? min(Double(shopBack.cents) / Double(capitalTotal.cents), 1) : 0 }
+    /// 一期一期还的欠款带的记号（从正式账本整理过来时打上）。
+    public static let paidMonthlyTags: Set<String> = ["分期", "按月还"]
+
     /// 回本按多快算：前三个整月平均每月真正赚的（和旧界面一个口径，月初也稳）。没有满三个月的数，就用这个月到今天赚的。
     public var paybackSpeed: (perMonth: Money, fromLastThree: Bool) {
         let keys = [thisMonth.previous, thisMonth.previous.previous, thisMonth.previous.previous.previous]
@@ -107,7 +110,7 @@ extension TrialBook {
     public var shopPer100: [(name: String, euros: Int)] {
         let m = shopMonth()
         guard m.income > .zero else { return [] }
-        let rent = shopFlow.filter { $0.amount < .zero && $0.title == "房租" }.map(\.amount).reduce(.zero, +).magnitude
+        let rent = shopFlow.filter { $0.amount < .zero && ($0.title == "房租" || $0.title == "店租") }.map(\.amount).reduce(.zero, +).magnitude
         func part(_ x: Money) -> Int { Int((Double(x.cents) / Double(m.income.cents) * 100).rounded()) }
         let a = part(rent), b = part(m.purchases), c = part(m.costs - rent)
         return [("房租", a), ("进货", b), ("别的开销", c), ("剩下的", 100 - a - b - c)]
@@ -129,6 +132,8 @@ extension TrialBook {
     public var shopOwesTotal: Money { shopOwedAccounts.map(\.balance).reduce(.zero, +) + shopDebts.filter { !$0.flag && !$0.off }.map(\.amount).reduce(.zero, +) }
     /// 下个月店里要还的：贷款月供 + 店的信用卡 + 赊着没还的。
     public var shopDueNext: Money {
-        shopLoanMonthly + shopOwedAccounts.filter(\.isCreditCard).map(\.balance).reduce(.zero, +) + shopDebts.filter { !$0.flag && !$0.off }.map(\.amount).reduce(.zero, +)
+        shopLoanMonthly + shopOwedAccounts.filter(\.isCreditCard).map(\.balance).reduce(.zero, +)
+            // 一期一期还的（分期、排了计划的贷款）这个月该还的那一期已经在「每月要还的」里了，不再把整笔算进来
+            + shopDebts.filter { !$0.flag && !$0.off && !Self.paidMonthlyTags.contains($0.tag) }.map(\.amount).reduce(.zero, +)
     }
 }

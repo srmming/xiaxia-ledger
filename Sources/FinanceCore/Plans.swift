@@ -92,6 +92,8 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
     /// 目标列表、进度、最多几个的上限都跳过它。老账本没有这个字段，就是都还在走。
     public var finishedOn: LocalDate?
     public var isFinished: Bool { finishedOn != nil }
+    /// 每月打算存多少（自己定的步子）。nil = 没定。老账本没有这个字段。
+    public var monthlyPlan: Money?
 
     public init(id: UUID = UUID(), name: String, bookID: String, target: Money, deadline: LocalDate? = nil,
                 savingsAccountID: String? = nil, contributionIDs: [UUID] = [], locked: Bool = false,
@@ -105,7 +107,7 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, bookID, target, deadline, savingsAccountID, contributionIDs, locked, pinned, rank
-        case icon, stash, stashNote, quietUntil, startedOn, finishedOn
+        case icon, stash, stashNote, quietUntil, startedOn, finishedOn, monthlyPlan
     }
 
     public init(from decoder: Decoder) throws {
@@ -127,6 +129,7 @@ public struct Goal: Identifiable, Hashable, Codable, Sendable {
         quietUntil = try c.decodeIfPresent(LocalDate.self, forKey: .quietUntil)
         startedOn = try c.decodeIfPresent(LocalDate.self, forKey: .startedOn)
         finishedOn = try c.decodeIfPresent(LocalDate.self, forKey: .finishedOn)
+        monthlyPlan = try c.decodeIfPresent(Money.self, forKey: .monthlyPlan)
     }
 }
 
