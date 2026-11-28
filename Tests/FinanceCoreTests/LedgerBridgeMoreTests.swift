@@ -486,6 +486,66 @@ final class LedgerBridgeMoreTests: XCTestCase {
         XCTAssertFalse(alone.monthGood(oct).contains { $0.title.hasPrefix("过了") })
     }
 
+    /// 店的本钱、估货值、欠款接正式账本；生意账本里的欠款和分期不再混进生活那边。
+    func testShopCapitalStockAndDebtsGoToTheLedger() throws {
+        var l = ledger
+        let shopBook = l.businessBook!.id
+        let b0 = LedgerBridge.snapshot(of: l, today: today)
+        // 生意账本里的分期（咖啡机）在店的欠款里，不在生活的账户里
+        let inst = try XCTUnwrap(l.installments.first { $0.bookID == shopBook })
+        XCTAssertTrue(b0.shopDebts.contains { $0.name == inst.name && $0.tag == LedgerBridge.installmentTag })
+        XCTAssertNil(b0.account(inst.name), "不混进生活那边")
+        XCTAssertLessThan(b0.shopDueNext, b0.shopOwesTotal, "下个月要还的只算这一期，不是整笔")
+        // 本钱：后来又投了一样
+        var a1 = b0
+        try a1.addCapital(name: "新冷柜", amount: Money(cents: 900_00), note: "")
+        let r1 = try LedgerBridge.apply(before: b0, after: a1, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.business?.capital?.total, b0.capitalTotal + Money(cents: 900_00))
+        XCTAssertEqual(l.business?.capital?.items.last?.name, "新冷柜")
+        XCTAssertEqual(l.business?.capital?.openedOn, ledger.business?.capital?.openedOn, "开店时间照旧")
+        XCTAssertEqual(r1.first?.author, "小晴")
+        // 估货值：记一个估的数，流水不动
+        let b2 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b2.capitalTotal, b0.capitalTotal + Money(cents: 900_00))
+        var a2 = b2
+        try a2.estimateStock(Money(cents: 1200_00), note: "盘了一遍")
+        let tx = l.transactions.count
+        try LedgerBridge.apply(before: b2, after: a2, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.business?.stockEstimates?.last?.value, Money(cents: 1200_00)); XCTAssertEqual(l.transactions.count, tx)
+        let b3 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertEqual(b3.stockEstimates.first?.amount, Money(cents: 1200_00)); XCTAssertEqual(b3.stockEstimates.first?.name, "今天")
+        // 赊账：欠花材店 300；还清它，钱从店里的账户出，不算开销
+        var a3 = b3
+        try a3.addShopDebt(name: "晴空花材行", amount: Money(cents: 300_00), note: "月底结", owedToShop: false)
+        try LedgerBridge.apply(before: b3, after: a3, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.debts.last?.bookID, shopBook); XCTAssertEqual(l.debts.last?.direction, .iOweThem)
+        let b4 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertTrue(b4.shopDebts.contains { $0.name == "晴空花材行" && $0.amount == Money(cents: 300_00) && !$0.flag })
+        XCTAssertEqual(b4.shopOwesTotal, b3.shopOwesTotal + Money(cents: 300_00))
+        XCTAssertNil(b4.account("晴空花材行"))
+        var a4 = b4
+        let payFrom = b4.shopHeld.first { $0.balance >= Money(cents: 300_00) }!.name
+        try a4.payShopDebt("晴空花材行", from: payFrom)
+        let costs = b4.shopMonth().costs
+        try LedgerBridge.apply(before: b4, after: a4, to: &l, today: today, author: "小晴")
+        let b5 = LedgerBridge.snapshot(of: l, today: today)
+        XCTAssertFalse(b5.shopDebts.contains { $0.name == "晴空花材行" }, "还清了就不在欠款里了")
+        XCTAssertEqual(b5.account(payFrom)?.balance, b4.account(payFrom)!.balance - Money(cents: 300_00))
+        XCTAssertEqual(b5.shopMonth().costs, costs, "还欠款不算开销")
+        // 别人欠店的
+        var a5 = b5
+        try a5.addShopDebt(name: "云朵咖啡馆", amount: Money(cents: 120_00), note: "", owedToShop: true)
+        try LedgerBridge.apply(before: b5, after: a5, to: &l, today: today, author: "小晴")
+        XCTAssertEqual(l.debts.last?.direction, .theyOweMe)
+        // 分期不能在这里一次还清：拒绝，账本不动
+        let b6 = LedgerBridge.snapshot(of: l, today: today)
+        var a6 = b6
+        if let i = a6.shopDebts.firstIndex(where: { $0.name == inst.name }) { a6.shopDebts[i].off = true }
+        let keep = l
+        XCTAssertThrowsError(try LedgerBridge.apply(before: b6, after: a6, to: &l, today: today, author: "小晴"))
+        XCTAssertEqual(l, keep)
+    }
+
     func testRenamingABookGoesToTheLedger() throws {
         var l = ledger
         let before = LedgerBridge.snapshot(of: l, today: today)

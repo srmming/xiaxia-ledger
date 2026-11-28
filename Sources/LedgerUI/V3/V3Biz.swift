@@ -514,10 +514,14 @@ struct V3BizDebtsPage: View {
         let owe = b.shopDebts.filter { !$0.flag }
         let owed = b.shopDebts.filter(\.flag)
         let open = owe.filter { !$0.off }.map(\.amount).reduce(.zero, +)
-        let first = owe.first { !$0.off }
+        // 能一次还清的里面最该先还的那笔（一期一期还的分期、贷款不在这里催）
+        let first = owe.first { !$0.off && !TrialBook.paidMonthlyTags.contains($0.tag) }
+        // 试用数字里那几块贷款的示例（装修贷款 36 期、本金利息怎么分）在正式账本上不出现
+        let demo = state.real == nil
+        let monthly = owe.filter { !$0.off && TrialBook.paidMonthlyTags.contains($0.tag) }
         V3Cols(left: 1, right: 1.3) {
             VStack(spacing: 16) {
-                V3KeyCard(label: "12 月店里要还", amount: b.shopDueNext, wave: V3.tealSoft) {
+                V3KeyCard(label: "\(b.thisMonth.next.month) 月店里要还", amount: b.shopDueNext, wave: V3.tealSoft) {
                     HStack(spacing: 26) {
                         V3KV(value: b.shopOwesTotal.v3, label: "店一共欠", color: V3.red)
                         V3KV(value: owed.filter { !$0.off }.map(\.amount).reduce(.zero, +).v3, label: "别人欠店里")
@@ -537,6 +541,14 @@ struct V3BizDebtsPage: View {
                 } else {
                     V3Ask(face: "happy", text: "赊的账都清了。", tone: .good)
                 }
+                if !demo {
+                    V3GrowCard {
+                        V3CardTitle("每月要还的", note: b.shopLoanMonthly > .zero ? "每月 \(b.shopLoanMonthly.v3Short)" : "")
+                        if monthly.isEmpty { V3Label("没有一期一期还的").padding(.vertical, 6) }
+                        V3RowList(rows: monthly.prefix(4).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3, V3.red) }, fill: true)
+                        Spacer(minLength: 0)
+                    }
+                } else {
                 V3GrowCard {
                     V3CardTitle("还贷款怎么算", note: "每月 350 €")
                     GeometryReader { g in
@@ -550,28 +562,35 @@ struct V3BizDebtsPage: View {
                                      .init("📅", "还剩 24 期", "2028 年 11 月还完", "")], fill: true)
                     Spacer(minLength: 0)
                 }
+                }
             }
         } trailing: {
             V3GrowCard(spacing: 8) {
                 V3CardTitle("先还哪个")
-                V3RowList(rows: owe.prefix(3).map { d in
+                if !demo, first == nil, b.shopOwedAccounts.filter(\.isCreditCard).isEmpty { V3Label("没有要一次还清的").padding(.vertical, 6) }
+                V3RowList(rows: owe.filter { demo || !TrialBook.paidMonthlyTags.contains($0.tag) }.prefix(3).map { d in
                     d.off ? .init(d.emoji, d.name, d.note, "0,00 €", V3.green, tag: "还清了", tone: .green)
                           : .init(d.emoji, d.name, d.note, d.amount.v3, V3.red, tag: d.id == first?.id ? "先还这个" : "", tone: .red)
                 } + b.shopOwedAccounts.filter(\.isCreditCard).map { c in
                     .init(c.emoji, c.name, c.note, c.balance.v3, V3.red, action: { state.accountFocus = c.name; state.open(.accounts) })
-                } + [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "\(b.shopLoanMonthly.v3) / 月", V3.red, tag: "按月还就行")],
+                } + (demo ? [.init("🏦", "装修贷款", moved ? "这一期挪到 1 月 15 日 · 还剩 24 期" : "每月 15 日 · 还剩 24 期", "\(b.shopLoanMonthly.v3) / 月", V3.red, tag: "按月还就行")] : []),
                           compact: owe.count > 2, fill: true)
-                V3Periods(total: 36, done: 12, color: V3.teal, height: 14)
-                V3Label("装修贷款 · 36 期还了 12 期")
+                if demo {
+                    V3Periods(total: 36, done: 12, color: V3.teal, height: 14)
+                    V3Label("装修贷款 · 36 期还了 12 期")
+                }
                 V3CardTitle("别人欠店里的").padding(.top, 6)
+                if owed.isEmpty { V3Label("没有").padding(.vertical, 6) }
                 V3RowList(rows: owed.prefix(3).map { .init($0.emoji, $0.name, $0.note, $0.amount.v3) }, compact: owed.count > 1, fill: true)
                 Spacer(minLength: 0)
+                if demo {
                 HStack(spacing: 8) {
                     Button(moved ? "还是按原来的还" : "这个月还不上") {
                         withAnimation(.snappy) { moved.toggle() }
                         state.say(moved ? "没事，贷款这一期挪到下个月要多付 6 € 利息，供货商那笔不能拖" : "好，还是按原来的日子还")
                     }
                     .buttonStyle(.v3(.ghost, .small))
+                }
                 }
             }
         }

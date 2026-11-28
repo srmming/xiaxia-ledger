@@ -85,12 +85,15 @@ public enum LedgerBridge {
         let pinnedNames = ledger.accounts.filter { $0.cardPin != nil && !hidden.contains($0.id) }.sorted { ($0.cardPin ?? 0) < ($1.cardPin ?? 0) }.map(\.name)
         let pinIDs = pinnedNames.compactMap { n in accounts.first { $0.name == n } }
         // 借的钱和借出去的
-        for d in Plans.debts(ledger, today: today) where d.outstanding > .zero {
+        // 生意账本里的欠款、分期不放在生活这边：它们在店的「欠款」里（见下面 shopDebts）
+        let bizDebtIDs = Set(ledger.debts.filter { bizBooks.contains($0.bookID) }.map(\.id))
+        let bizInstallmentIDs = Set(ledger.installments.filter { bizBooks.contains($0.bookID) }.map(\.id))
+        for d in Plans.debts(ledger, today: today) where d.outstanding > .zero && !bizDebtIDs.contains(d.id) {
             let lent = d.direction == .theyOweMe
             accounts.append(.init(emoji: lent ? "🧑" : "🤝", name: lent ? "借给\(d.counterparty)" : d.counterparty, note: lent ? "他欠我" : "欠的钱",
                                   balance: d.outstanding, kind: lent ? .lent : .debt, block: .none))
         }
-        for i in Plans.installments(ledger) where i.remaining > .zero {
+        for i in Plans.installments(ledger) where i.remaining > .zero && !bizInstallmentIDs.contains(i.id) {
             accounts.append(.init(emoji: "🧾", name: i.name, note: "分期", balance: i.remaining, kind: .debt, block: .none))
         }
 
@@ -283,6 +286,26 @@ public enum LedgerBridge {
                 }
             }
             b.shopLoanMonthly = shopMonthlyRepayments(ledger, today: today)
+            // 店的欠款：生意账本里欠别人的、别人欠店的、没还完的分期、旧界面记的「客人欠的」
+            var owing: [TrialBook.Item] = []
+            for d in Plans.debts(ledger, today: today) where d.outstanding > .zero && bizDebtIDs.contains(d.id) {
+                let toShop = d.direction == .theyOweMe
+                // 排了还款计划、或者约的日子不在这个月的：按月还，这个月该还的那部分在「每月要还的」里
+                let plan = ledger.debts.first { $0.id == d.id }?.plan ?? []
+                let monthly = !toShop && (!plan.isEmpty || (d.dueDate.map { $0.yearMonth > today.yearMonth } ?? false))
+                owing.append(.init(id: d.id, emoji: toShop ? "🧑" : "📦", name: d.counterparty, note: d.dueDate.map { "\($0.month) 月 \($0.day) 日前" } ?? "",
+                                   amount: d.outstanding, tag: monthly ? "按月还" : "", flag: toShop))
+            }
+            for i in Plans.installments(ledger) where i.remaining > .zero && bizInstallmentIDs.contains(i.id) {
+                owing.append(.init(id: i.id, emoji: "🧾", name: i.name, note: "分期 · 还剩 \(i.count - i.paidCount) 期，每期 \(i.perPayment.formatted)", amount: i.remaining, tag: installmentTag))
+            }
+            for r in ledger.receivables where r.amount > .zero {
+                owing.append(.init(id: r.id, emoji: "🧑", name: r.name, note: "", amount: r.amount, flag: true))
+            }
+            b.shopDebts = owing
+            b.stockEstimates = (ledger.business?.stockEstimates ?? []).sorted { $0.date > $1.date }.map {
+                .init(emoji: "📅", name: $0.date == today ? "今天" : "\($0.date.month) 月 \($0.date.day) 日", note: $0.note ?? "", amount: $0.value)
+            }
         }
         return b
     }
@@ -325,6 +348,12 @@ extension LedgerBridge {
         var goalWork = ledger
         if let records = try applyGoals(before: before, after: after, to: &goalWork, today: today, author: who) {
             ledger = goalWork
+            return records
+        }
+        // 店的本钱、估货值、欠款
+        var bizWork = ledger
+        if let records = try applyShopBooks(before: before, after: after, to: &bizWork, today: today, author: who) {
+            ledger = bizWork
             return records
         }
         // 第 8 步：夏夏的记忆、账本改名
@@ -674,6 +703,8 @@ extension LedgerBridge {
         return total
     }
 
+    /// 界面上给「店里没还完的分期」打的记号（它一期一期还，不能一次还清）。
+    public static let installmentTag = "分期"
     /// 界面上给「从流水里认出来的固定开销」打的记号。
     public static let guessedTag = "认出来的"
 
