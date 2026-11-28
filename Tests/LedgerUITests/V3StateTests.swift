@@ -1,6 +1,7 @@
 #if os(macOS)
 import FinanceCore
 import AppKit
+import SwiftUI
 import XCTest
 @testable import LedgerUI
 
@@ -190,6 +191,36 @@ final class V3StateTests: XCTestCase {
         guard case .receipt(let place, let amount, let account)? = s.chat.last?.confirm else { return XCTFail("夏夏应该回一张小票确认卡") }
         XCTAssertEqual(place, "Super Sol"); XCTAssertEqual(amount, eur("23,40")); XCTAssertEqual(account, "日常卡")
         XCTAssertEqual(s.book.entries.count, before)
+    }
+
+    func testMonthSwitchIsSharedAndClamped() {
+        let s = V3State()
+        XCTAssertTrue(s.isThisMonth); XCTAssertEqual(s.monthLabel, "11 月")
+        XCTAssertEqual(s.book.months.map(\.month), [9, 10, 11])
+        s.setMonth(.init(2026, 10))
+        XCTAssertEqual(s.monthLabel, "10 月")
+        s.page = .spending; XCTAssertEqual(s.monthKey, .init(2026, 10), "换页还是同一个月")
+        XCTAssertEqual(s.monthData.spentTotal, eur("1504,40"))
+        XCTAssertEqual(s.monthData.sliceTotal, eur("1464,40"))
+        XCTAssertEqual(s.monthData.left, eur("635,60"))
+        XCTAssertNotEqual(s.monthData.topSlices().map(\.name), s.book.spendSlices().map(\.name), "圆环和单子是那个月的")
+        s.setMonth(.init(2027, 3)); XCTAssertTrue(s.isThisMonth, "还没到的月份选不了")
+        s.setMonth(.init(2020, 1)); XCTAssertEqual(s.monthKey, .init(2026, 9), "最早到有数据的那个月")
+        s.setMonth(s.book.thisMonth); XCTAssertNil(s.viewMonth, "回到这个月")
+        XCTAssertEqual(s.monthData.spentTotal, s.book.month.spentTotal)
+    }
+
+    func testDonutKnowsWhichSliceTheMouseIsOn() {
+        // 两段各一半：右半边是第一段，左半边是第二段；圆心和环外面都不算
+        let slices: [(id: String, value: Double)] = [("甲", 50), ("乙", 50)]
+        let side: CGFloat = 200
+        func hit(_ x: CGFloat, _ y: CGFloat) -> String? { V3Donut<EmptyView>.slice(at: CGPoint(x: x, y: y), side: side, slices: slices) }
+        XCTAssertEqual(hit(180, 100), "甲")
+        XCTAssertEqual(hit(20, 100), "乙")
+        XCTAssertEqual(hit(110, 15), "甲", "正上方偏右一点是第一段的开头")
+        XCTAssertEqual(hit(90, 15), "乙", "正上方偏左一点是最后一段的结尾")
+        XCTAssertNil(hit(100, 100), "圆心是空的")
+        XCTAssertNil(hit(2, 2), "环外面")
     }
 
     func testNoSecretStashAndTwoBlocks() {

@@ -100,6 +100,12 @@ final class V3RenderTests: XCTestCase {
             let shoes = s.book.smallGoals.first { $0.name == "新跑鞋" }!
             s.change("存") { try $0.depositSmall(shoes.id, amount: Money(cents: 35_00), from: "日常卡") }
         }
+        try shell("month-spending-oct") { $0.page = .spending; $0.setMonth(.init(2026, 10)) }
+        try shell("month-overview-oct") { $0.page = .overview; $0.setMonth(.init(2026, 10)) }
+        try shell("month-trends-oct") { $0.page = .trends; $0.setMonth(.init(2026, 10)) }
+        try shell("month-bizflow-oct") { $0.side = .biz; $0.page = .shopFlow; $0.setMonth(.init(2026, 10)) }
+        try shell("month-bizhome-oct") { $0.side = .biz; $0.page = .bizHome; $0.setMonth(.init(2026, 10)) }
+        try shell("tx-ranges") { $0.page = .transactions }
         try shell("goals-big-and-small") { $0.page = .goals }
         try shell("sheet-holdback") { $0.sheet = .holdBack }
         try shell("biz-shop-wealth") { $0.side = .biz; $0.page = .shopWealth }

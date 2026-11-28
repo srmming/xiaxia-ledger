@@ -121,6 +121,17 @@ final class V3State {
     /// 每存一笔加 1，星星瓶就掉一颗星。
     var starDrops = 0
     var showAddAccount = false
+    /// 正在看哪个月（nil 是这个月）。总览、花销、趋势、小结、生意那几页共用，换页不变。
+    var viewMonth: TrialBook.MonthKey?
+    var monthKey: TrialBook.MonthKey { book.clampMonth(viewMonth ?? book.thisMonth) }
+    var isThisMonth: Bool { monthKey == book.thisMonth }
+    var monthData: TrialBook.MonthData { book.monthData(monthKey) }
+    /// 「11 月」「2025 年 12 月」
+    var monthLabel: String { monthKey.label(thisYear: book.thisMonth.year) }
+    func setMonth(_ k: TrialBook.MonthKey) {
+        let c = book.clampMonth(k)
+        withAnimation(.snappy(duration: 0.2)) { viewMonth = c == book.thisMonth ? nil : c }
+    }
     /// 打开「自己填」时直接停在哪一种（0 支出、1 收入、2 转账）。用一次就清掉。
     var manualStartKind: Int?
     /// 打开「记今天的账」时直接停在「店里的开销」。
@@ -463,6 +474,24 @@ final class V3State {
         spend(4, "进货", "绿植和多肉", "120")
         spend(3, "房租", "店面房租", "600")
         spend(2, "员工工资", "周末帮工", "180")
+        // 过去两个月存下来的数（全是编的），给月份切换用
+        func slice(_ e: String, _ n: String, _ a: String, _ last: String) -> TrialBook.SpendSlice { .init(emoji: e, name: n, amount: eur(a), lastMonth: eur(last)) }
+        func past(_ e: String, _ n: String, _ place: String, _ a: String, _ ago: Int) -> TrialBook.Entry {
+            .init(emoji: e, name: n, meta: "\(place) · 日常卡", amount: -eur(a), tag: "流水导入", daysAgo: ago, place: place, account: "日常卡")
+        }
+        b.pastMonths = [
+            .init(key: .init(2026, 10), income: eur("2340"), fixed: eur("892"), forGoals: eur("200"), spent: eur("612,40"),
+                  slices: [slice("🏠", "房租", "650", "650"), slice("📱", "手机分期", "200", "200"), slice("🛒", "超市", "162", "171,30"), slice("💊", "看病", "120", "0"),
+                           slice("🥗", "餐饮", "96,50", "88"), slice("📱", "话费", "89", "0"), slice("☕", "咖啡", "45,50", "39"), slice("🔁", "订阅", "42", "42"),
+                           slice("🚇", "交通", "40", "36"), slice("🎬", "娱乐", "19,40", "25")],
+                  entries: [past("💊", "看病", "牙科诊所 Sonrisa", "120", 28), past("📱", "话费", "手机换屏幕", "89", 35), past("🛒", "超市", "Super Sol", "41,20", 22)],
+                  weekly: [eur("148"), eur("122"), eur("140"), eur("104"), eur("98,40")], shopIn: eur("4210"), shopOut: eur("2874"), net: eur("2365,61")),
+            .init(key: .init(2026, 9), income: eur("2340"), fixed: eur("892"), forGoals: eur("150"), spent: eur("571,30"),
+                  slices: [slice("🏠", "房租", "650", "650"), slice("📱", "手机分期", "200", "200"), slice("🛒", "超市", "171,30", "158"), slice("🥗", "餐饮", "88", "102"),
+                           slice("🔁", "订阅", "42", "42"), slice("☕", "咖啡", "39", "41"), slice("🚇", "交通", "36", "36"), slice("🎬", "娱乐", "25", "12"), slice("👕", "衣服", "170", "0")],
+                  entries: [past("👕", "衣服", "Tienda Azul", "170", 60), past("🛒", "超市", "Super Sol", "38,90", 55)],
+                  weekly: [eur("130"), eur("162"), eur("121"), eur("158,30")], shopIn: eur("3890"), shopOut: eur("2790"), net: eur("1980,20")),
+        ]
         // 置顶成卡片的几张
         for n in ["日常卡", "储蓄", "信用卡", "小店账户", "店里现金", "店的信用卡"] { try? b.setPinned(n, true) }
         return b

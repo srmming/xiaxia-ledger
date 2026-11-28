@@ -39,19 +39,26 @@ struct V3OverviewPage: View {
 
     private func left(width: CGFloat) -> some View {
         let b = state.book
-        let m = b.month
+        let live = b.month
+        // 切到过去的月份：大卡是那个月最后剩下的，四个数照算
+        let m = state.monthData
+        let now = state.isThisMonth
         let j = b.journey
         return VStack(spacing: 14) {
-            V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
-                Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+            if now {
+                V3Ask(face: "calm", text: "照这样花，这个月存钱差一点。") {
+                    Button("看看") { state.go(.goals) }.buttonStyle(.v3(.primary, .small))
+                }
             }
             // 这一页最重要的数
             VStack(alignment: .leading, spacing: 8) {
-                V3Label("11 月 · 现在还能随便花")
+                V3Label(now ? "\(state.monthLabel) · 现在还能随便花" : "\(state.monthLabel) · 最后剩下")
                 V3Gold(amount: m.left, size: 72)
-                Text(m.left > .zero ? "到月底还有 \(m.daysLeft) 天，平均每天能花 \(Money(cents: m.perDay.cents / 100 * 100).v3Short)"
-                     : "这个月能随便花的已经用完了，到月底还有 \(m.daysLeft) 天")
-                    .font(V3.font(14, .bold)).foregroundStyle(m.left > .zero ? V3.green : V3.red).contentTransition(.numericText())
+                if now {
+                    Text(live.left > .zero ? "到月底还有 \(live.daysLeft) 天，平均每天能花 \(Money(cents: live.perDay.cents / 100 * 100).v3Short)"
+                         : "这个月能随便花的已经用完了，到月底还有 \(live.daysLeft) 天")
+                        .font(V3.font(14, .bold)).foregroundStyle(live.left > .zero ? V3.green : V3.red).contentTransition(.numericText())
+                }
                 HStack(spacing: 26) {
                     V3KV(value: m.income.v3Signed, label: "进账", color: V3.green)
                     V3KV(value: (-m.fixed).v3Signed, label: "固定要付的")
@@ -67,12 +74,12 @@ struct V3OverviewPage: View {
 
             HStack(spacing: 14) {
                 let diff = state.lastMonthSpentSoFar - m.spentTotal
-                smallCard("这个月花掉", m.spentTotal.v3,
-                          diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
+                smallCard(now ? "这个月花掉" : "\(state.monthLabel)花掉", m.spentTotal.v3,
+                          !now ? "" : diff >= .zero ? "比上月同期少 \(diff.v3Short)" : "比上月同期多 \(diff.magnitude.v3Short)",
                           diff >= .zero ? V3.green : V3.navy) { state.go(.spending) }
                 let delta = b.totals.net - state.lastMonthNet
-                smallCard("家底 · 净剩", b.totals.net.v3,
-                          delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
+                smallCard(now ? "家底 · 净剩" : "\(state.monthLabel)底 · 净剩", (now ? b.totals.net : m.net).v3,
+                          !now ? "" : delta >= .zero ? "比上个月多 \(delta.v3Short)" : "比上个月少 \(delta.magnitude.v3Short)",
                           delta >= .zero ? V3.green : V3.navy) { state.go(.wealth) }
             }
 
@@ -145,13 +152,14 @@ struct V3OverviewPage: View {
             .v3Card(h: 16, v: 12)
 
             VStack(alignment: .leading, spacing: 6) {
-                V3CardTitle(title: "今天自己进来的") { EmptyView() } trail: {
+                let recent = state.isThisMonth ? b.today : state.monthData.entries
+                V3CardTitle(title: state.isThisMonth ? "今天自己进来的" : "这个月记的") { EmptyView() } trail: {
                     Button { state.go(.transactions) } label: {
-                        Text("\(b.today.count) 笔 · 全部 ›").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
+                        Text("\(recent.count) 笔 · 全部 ›").font(V3.font(13, .semibold)).foregroundStyle(V3.ink2)
                     }
                     .buttonStyle(V3SinkStyle(depth: 1))
                 }
-                V3Rows(data: Array(b.today.prefix(3))) { e in
+                V3Rows(data: Array(recent.prefix(3))) { e in
                     Button { state.txFocus = e.id; state.go(.transactions) } label: {
                         V3Row(emoji: e.emoji, name: e.name, meta: e.meta, amount: e.amount.v3, tag: e.tag, compact: true).contentShape(Rectangle())
                     }
@@ -160,6 +168,8 @@ struct V3OverviewPage: View {
             }
             .v3Card(h: 16, v: 14)
 
+            // 接下来要付的：只有看这个月时才有
+            if !state.isThisMonth { Spacer(minLength: 0) } else {
             VStack(alignment: .leading, spacing: 6) {
                 V3CardTitle(title: "接下来要付的") { EmptyView() } trail: { V3Tag(text: "钱够", tone: .green) }
                 V3Rows(data: Array(b.upcoming.prefix(3))) { e in
@@ -173,6 +183,7 @@ struct V3OverviewPage: View {
             .padding(.horizontal, 16).padding(.vertical, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .v3Soft()
+            }
         }
     }
 }
