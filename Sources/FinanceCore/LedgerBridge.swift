@@ -391,6 +391,7 @@ extension LedgerBridge {
             return records + [try applyMove(moved, was: was, to: &work, today: today, author: who)]
         }
         guard moved.count <= 1 else { throw TrialError("一次动了好几个账户的钱，这一步在接正式账本的这一版里还没接上，账本没动") }
+        var paidOut: Set<UUID> = []
         // 订阅：加一个、标成要退 / 留着、拿掉
         records += try applySubscriptions(before: before, after: after, to: &work, today: today, author: who)
         // 新记一笔欠款（我欠别人 / 别人欠我）：不是账户，记成正式账本里的一笔借款
@@ -398,11 +399,15 @@ extension LedgerBridge {
             let lent = a.kind == .lent
             let who2 = lent && a.name.hasPrefix("借给") ? String(a.name.dropFirst(2)) : a.name
             let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            // 借出去的同时有一个账户正好少了这么多（「借给小李 50」）：钱是从那个账户出去的，一起记上
+            let payer = lent && moved.count == 1 && (was[moved[0].id]?.balance ?? .zero) - moved[0].balance == a.balance ? real(was[moved[0].id]?.name ?? "") : nil
+            if payer != nil { paidOut.insert(moved[0].id) }
             records.append(try work.addDebt(counterparty: who2, direction: lent ? .theyOweMe : .iOweThem, amount: a.balance, bookID: book,
-                                            date: today, accountID: nil, note: a.note.isEmpty ? nil : a.note, author: who).1)
+                                            date: today, accountID: payer?.id, note: a.note.isEmpty ? nil : a.note, author: who).1)
         }
         // 改名、改余额、换底色
         for a in after.accounts {
+            guard !paidOut.contains(a.id) else { continue }
             guard let o = was[a.id], var r = real(o.name) else { continue }
             if o.name != a.name || o.cardStyle != a.cardStyle {
                 guard o.name == a.name || real(a.name) == nil else { throw TrialError("已经有一个叫「\(a.name)」的账户了") }
@@ -570,6 +575,13 @@ extension LedgerBridge {
             if let d = work.debts.first(where: { $0.counterparty == name && $0.direction == .iOweThem }) {
                 return try work.repay(debtID: d.id, amount: amount, date: today, accountID: f.id, author: who)
             }
+        }
+        // 又借给同一个人一笔：借出去的变多，一个账户少了这么多
+        if let payer, let more = moved.first(where: { $0.kind == .lent && delta($0) > .zero }), let f = real(payer) {
+            let name = was[more.id]?.name ?? more.name
+            let person = name.hasPrefix("借给") ? String(name.dropFirst(2)) : name
+            let book = work.books.first { !$0.isBusiness }?.id ?? work.books.first?.id ?? ""
+            return try work.addDebt(counterparty: person, direction: .theyOweMe, amount: amount, bookID: book, date: today, accountID: f.id, author: who).1
         }
         if let receiver, let gotBack, let t = real(receiver) {
             let name = was[gotBack.id]?.name ?? gotBack.name

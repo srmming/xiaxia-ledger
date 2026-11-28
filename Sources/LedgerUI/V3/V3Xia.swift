@@ -468,7 +468,7 @@ struct V3ChatPage: View {
 
     /// 这句话是不是要动账本（记一笔）：这种不交给聊天模型，自己办。
     private func looksLocal(_ q: String) -> Bool {
-        QuickPhrase.parse(q) != nil && (q.contains("记") || q.contains("花了") || q.contains("买了") || q.contains("块"))
+        QuickPhrase.isBookkeeping(q)
     }
 
     /// 试用版没接 AI：常问的几句按账本里的数字现算，别的就老实说。
@@ -476,13 +476,12 @@ struct V3ChatPage: View {
         let b = state.book
         let m = b.month
         let j = b.journey
-        if let p = QuickPhrase.parse(q), q.contains("记") || q.contains("花了") || q.contains("买了") || q.contains("块") {
+        if let p = QuickPhrase.parse(q), QuickPhrase.isBookkeeping(q) {
             let pay = b.accounts(for: .pay, side: .life).map(\.name)
             guard let account = pay.first(where: { $0 == "现金" }) ?? pay.first else { return "还没有能付钱的账户，先去加一个。" }
-            let before = b.entries.count
-            state.record(p, account: account)
-            guard state.book.entries.count > before else { return "这笔没记上，看一下底下的提示。" }
-            return "记好了：\(p.name) \(p.amount.v3)，\(account)。记错了点底下的「撤销」。"
+            // 是花了、收了、还钱还是转账，记到生活还是店里，都由核心认；这里只把结果说出来
+            guard state.record(p, account: account) else { return state.toast?.text ?? "这笔没记上。" }
+            return (state.toast?.text ?? "记好了") + "。记错了点底下的「撤销」。"
         }
         if q.contains("记一笔") || q.contains("帮我记") { return "说一句就行，比如「午饭 12,5」。我听出金额就直接记。" }
         if q.contains("还能花") || q.contains("随便花") {
